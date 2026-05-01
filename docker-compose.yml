@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: ./backend
+    environment:
+      BIND_ADDR: 0.0.0.0:8080
+      DATABASE_URL: sqlite:///data/sloc.db
+      ANALYSIS_CONCURRENCY: "2"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    volumes:
+      - sloc-data:/data
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: http://127.0.0.1:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  sloc-data:
