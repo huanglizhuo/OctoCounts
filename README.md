@@ -29,6 +29,31 @@ The app is built for developers who want quick SLOC visibility without cloning r
 
 For higher GitHub API limits, create a GitHub token and pass it as `GITHUB_TOKEN`.
 
+### Docker Dev
+
+Run both services in Docker with file watching:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set `GITHUB_TOKEN` if you have one. Then start the dev stack:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Then open `http://127.0.0.1:5173`.
+
+The dev stack runs:
+
+- Backend API on `http://127.0.0.1:8080` with `cargo-watch`.
+- Frontend on `http://127.0.0.1:5173` with Vite HMR.
+- SQLite data in a Docker volume at `/data/sloc-dev.db`.
+- Cargo and `node_modules` caches in Docker volumes.
+
+### Host Dev
+
 Run both services in one terminal:
 
 ```bash

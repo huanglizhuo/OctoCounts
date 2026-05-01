@@ -49,10 +49,13 @@ pub fn max_archive_bytes() -> u64 {
 }
 
 pub async fn analyze(input: AnalysisInput) -> anyhow::Result<Report> {
-    timeout(JOB_TIMEOUT, tokio::task::spawn_blocking(move || analyze_blocking(input)))
-        .await
-        .context("analysis timed out")?
-        .context("analysis task failed")?
+    timeout(
+        JOB_TIMEOUT,
+        tokio::task::spawn_blocking(move || analyze_blocking(input)),
+    )
+    .await
+    .context("analysis timed out")?
+    .context("analysis task failed")?
 }
 
 fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
@@ -65,7 +68,11 @@ fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
     let languages = run_tokei(&extract_root);
     let (language_reports, total) = normalize_languages(&languages);
     let duration_ms = started.elapsed().as_millis();
-    let id = report_id(&input.repo_ref.owner, &input.repo_ref.repo, &input.repo_ref.commit_sha);
+    let id = report_id(
+        &input.repo_ref.owner,
+        &input.repo_ref.repo,
+        &input.repo_ref.commit_sha,
+    );
 
     Ok(Report {
         id,
@@ -174,12 +181,19 @@ fn normalize_languages(languages: &Languages) -> (Vec<LanguageReport>, LanguageS
         .iter()
         .map(|(language_type, language)| language_to_report(language_type.name(), language))
         .collect();
-    rows.sort_by(|a, b| b.stats.code.cmp(&a.stats.code).then_with(|| a.name.cmp(&b.name)));
-
-    let total = rows.iter().fold(LanguageStats::default(), |mut total, row| {
-        add_stats(&mut total, &row.stats);
-        total
+    rows.sort_by(|a, b| {
+        b.stats
+            .code
+            .cmp(&a.stats.code)
+            .then_with(|| a.name.cmp(&b.name))
     });
+
+    let total = rows
+        .iter()
+        .fold(LanguageStats::default(), |mut total, row| {
+            add_stats(&mut total, &row.stats);
+            total
+        });
 
     (rows, total)
 }
@@ -194,7 +208,12 @@ fn language_to_report(name: &str, language: &Language) -> LanguageReport {
             children: Vec::new(),
         })
         .collect();
-    children.sort_by(|a, b| b.stats.code.cmp(&a.stats.code).then_with(|| a.name.cmp(&b.name)));
+    children.sort_by(|a, b| {
+        b.stats
+            .code
+            .cmp(&a.stats.code)
+            .then_with(|| a.name.cmp(&b.name))
+    });
 
     LanguageReport {
         name: name.to_string(),
@@ -210,14 +229,16 @@ fn language_to_report(name: &str, language: &Language) -> LanguageReport {
 }
 
 fn report_stats(reports: &[TokeiReport]) -> LanguageStats {
-    reports.iter().fold(LanguageStats::default(), |mut stats, report| {
-        stats.files += 1;
-        stats.lines += report.stats.lines();
-        stats.code += report.stats.code;
-        stats.comments += report.stats.comments;
-        stats.blanks += report.stats.blanks;
-        stats
-    })
+    reports
+        .iter()
+        .fold(LanguageStats::default(), |mut stats, report| {
+            stats.files += 1;
+            stats.lines += report.stats.lines();
+            stats.code += report.stats.code;
+            stats.comments += report.stats.comments;
+            stats.blanks += report.stats.blanks;
+            stats
+        })
 }
 
 fn add_stats(total: &mut LanguageStats, stats: &LanguageStats) {

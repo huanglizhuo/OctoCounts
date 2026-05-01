@@ -40,12 +40,21 @@ struct CommitResponse {
 impl GitHubClient {
     pub fn new() -> anyhow::Result<Self> {
         let mut headers = header::HeaderMap::new();
-        headers.insert(header::USER_AGENT, header::HeaderValue::from_static("sloc-service/0.1"));
-        headers.insert(header::ACCEPT, header::HeaderValue::from_static("application/vnd.github+json"));
+        headers.insert(
+            header::USER_AGENT,
+            header::HeaderValue::from_static("octocount-service/0.1"),
+        );
+        headers.insert(
+            header::ACCEPT,
+            header::HeaderValue::from_static("application/vnd.github+json"),
+        );
 
         if let Ok(token) = std::env::var("GITHUB_TOKEN") {
             let value = format!("Bearer {token}");
-            headers.insert(header::AUTHORIZATION, header::HeaderValue::from_str(&value)?);
+            headers.insert(
+                header::AUTHORIZATION,
+                header::HeaderValue::from_str(&value)?,
+            );
         }
 
         Ok(Self {
@@ -83,13 +92,19 @@ impl GitHubClient {
         Ok((owner, repo))
     }
 
-    pub async fn resolve_ref(&self, repo_url: &str, requested_ref: Option<String>) -> Result<RepoRef, GitHubError> {
+    pub async fn resolve_ref(
+        &self,
+        repo_url: &str,
+        requested_ref: Option<String>,
+    ) -> Result<RepoRef, GitHubError> {
         let (owner, repo) = Self::parse_repo_url(repo_url)?;
         let repo_api = format!("https://api.github.com/repos/{owner}/{repo}");
         let repo_response = self.client.get(repo_api).send().await?;
         match repo_response.status() {
             StatusCode::OK => {}
-            StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => return Err(GitHubError::RateLimited),
+            StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
+                return Err(GitHubError::RateLimited)
+            }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
             _ => return Err(GitHubError::NotFound),
         }
@@ -109,7 +124,12 @@ impl GitHubClient {
         })
     }
 
-    async fn resolve_commit(&self, owner: &str, repo: &str, ref_name: &str) -> Result<String, GitHubError> {
+    async fn resolve_commit(
+        &self,
+        owner: &str,
+        repo: &str,
+        ref_name: &str,
+    ) -> Result<String, GitHubError> {
         let url = format!("https://api.github.com/repos/{owner}/{repo}/commits/{ref_name}");
         let response = self.client.get(url).send().await?;
         match response.status() {
@@ -123,14 +143,26 @@ impl GitHubClient {
         }
     }
 
-    pub async fn download_archive(&self, owner: &str, repo: &str, sha: &str, max_bytes: u64) -> Result<bytes::Bytes, GitHubError> {
+    pub async fn download_archive(
+        &self,
+        owner: &str,
+        repo: &str,
+        sha: &str,
+        max_bytes: u64,
+    ) -> Result<bytes::Bytes, GitHubError> {
         let url = format!("https://codeload.github.com/{owner}/{repo}/tar.gz/{sha}");
         let response = self.client.get(url).send().await?;
         match response.status() {
             StatusCode::OK => {}
-            StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => return Err(GitHubError::RateLimited),
+            StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
+                return Err(GitHubError::RateLimited)
+            }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
-            _ => return Err(GitHubError::Request(response.error_for_status().unwrap_err())),
+            _ => {
+                return Err(GitHubError::Request(
+                    response.error_for_status().unwrap_err(),
+                ))
+            }
         }
 
         if let Some(length) = response.content_length() {
@@ -153,14 +185,16 @@ mod tests {
 
     #[test]
     fn parses_https_urls() {
-        let (owner, repo) = GitHubClient::parse_repo_url("https://github.com/rust-lang/rust").unwrap();
+        let (owner, repo) =
+            GitHubClient::parse_repo_url("https://github.com/rust-lang/rust").unwrap();
         assert_eq!(owner, "rust-lang");
         assert_eq!(repo, "rust");
     }
 
     #[test]
     fn parses_git_urls() {
-        let (owner, repo) = GitHubClient::parse_repo_url("git@github.com:tokio-rs/axum.git").unwrap();
+        let (owner, repo) =
+            GitHubClient::parse_repo_url("git@github.com:tokio-rs/axum.git").unwrap();
         assert_eq!(owner, "tokio-rs");
         assert_eq!(repo, "axum");
     }

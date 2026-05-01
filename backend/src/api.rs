@@ -3,9 +3,9 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
+    response::{IntoResponse, Response},
     Json,
 };
-use serde_json::json;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
@@ -26,18 +26,23 @@ pub struct AppState {
 pub async fn analyze(
     State(state): State<AppState>,
     Json(request): Json<AnalyzeRequest>,
-) -> Result<Json<AnalyzeResponse>, (StatusCode, Json<ApiErrorBody>)> {
+) -> Result<Json<AnalyzeResponse>, ApiError> {
     let repo_ref = state
         .github
         .resolve_ref(&request.repo_url, request.ref_name)
         .await
-        .map_err(github_error)?;
+        .map_err(ApiError::from)?;
 
     if let Some(report) = state
         .store
-        .cached_report(&repo_ref.owner, &repo_ref.repo, &repo_ref.commit_sha, analyzer::tokei_version())
+        .cached_report(
+            &repo_ref.owner,
+            &repo_ref.repo,
+            &repo_ref.commit_sha,
+            analyzer::tokei_version(),
+        )
         .await
-        .map_err(internal_error)?
+        .map_err(ApiError::internal)?
     {
         return Ok(Json(AnalyzeResponse::Cached {
             report_id: report.id.clone(),
@@ -47,54 +52,20 @@ pub async fn analyze(
 
     let archive = state
         .github
-        .download_archive(&repo_ref.owner, &repo_ref.repo, &repo_ref.commit_sha, analyzer::max_archive_bytes())
+        .download_archive(
+            &repo_ref.owner,
+            &repo_ref.repo,
+            &repo_ref.commit_sha,
+            analyzer::max_archive_bytes(),
+        )
         .await
-        .map_err(github_error)?;
+        .map_err(ApiError::from)?;
 
-    let job_id = Uuid::new_v4();
-    let job = state.store.create_job(job_id).await.map_err(internal_error)?;
-    let worker_state = state.clone();
-
-    tokio::spawn(async move {
-        let permit = worker_state.semaphore.acquire().await;
-        if permit.is_err() {
-            let _ = worker_state.store.set_job_failed(job_id, ApiErrorBody {
-                code: "internal".to_string(),
-                message: "analysis worker is unavailable".to_string(),
-            }).await;
-            return;
-        }
-        let _permit = permit.unwrap();
-
-        if let Err(error) = worker_state.store.set_job_running(job_id).await {
-            tracing::error!(%error, "failed to mark job running");
-        }
-
-        match analyzer::analyze(AnalysisInput { repo_ref, archive }).await {
-            Ok(report) => {
-                let report_id = report.id.clone();
-                if let Err(error) = worker_state.store.save_report(&report).await {
-                    tracing::error!(%error, "failed to save report");
-                    let _ = worker_state.store.set_job_failed(job_id, ApiErrorBody {
-                        code: "internal".to_string(),
-                        message: "failed to save report".to_string(),
-                    }).await;
-                    return;
-                }
-                let _ = worker_state.store.set_job_completed(job_id, report_id).await;
-            }
-            Err(error) => {
-                tracing::warn!(%error, "analysis failed");
-                let _ = worker_state.store.set_job_failed(job_id, ApiErrorBody {
-                    code: "analysis_failed".to_string(),
-                    message: error.to_string(),
-                }).await;
-            }
-        }
-    });
+    let job = state.store.create_job().await.map_err(ApiError::internal)?;
+    spawn_analysis_job(state, job.id, AnalysisInput { repo_ref, archive });
 
     Ok(Json(AnalyzeResponse::Job {
-        job_id,
+        job_id: job.id,
         status: job.status,
     }))
 }
@@ -102,9 +73,9 @@ pub async fn analyze(
 pub async fn job_status(
     State(state): State<AppState>,
     Path(job_id): Path<Uuid>,
-) -> Result<Json<JobRecord>, (StatusCode, Json<ApiErrorBody>)> {
-    let Some(job) = state.store.job(job_id).await.map_err(internal_error)? else {
-        return Err(not_found("job_not_found", "job was not found"));
+) -> Result<Json<JobRecord>, ApiError> {
+    let Some(job) = state.store.job(job_id).await.map_err(ApiError::internal)? else {
+        return Err(ApiError::not_found("job_not_found", "job was not found"));
     };
     Ok(Json(job))
 }
@@ -112,42 +83,138 @@ pub async fn job_status(
 pub async fn report(
     State(state): State<AppState>,
     Path(report_id): Path<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ApiErrorBody>)> {
-    let Some(report) = state.store.report(&report_id).await.map_err(internal_error)? else {
-        return Err(not_found("report_not_found", "report was not found"));
+) -> Result<Json<crate::models::Report>, ApiError> {
+    let Some(report) = state
+        .store
+        .report(&report_id)
+        .await
+        .map_err(ApiError::internal)?
+    else {
+        return Err(ApiError::not_found(
+            "report_not_found",
+            "report was not found",
+        ));
     };
-    Ok(Json(json!(report)))
+    Ok(Json(report))
 }
 
-fn github_error(error: GitHubError) -> (StatusCode, Json<ApiErrorBody>) {
-    let (status, code, message) = match error {
-        GitHubError::InvalidUrl => (StatusCode::BAD_REQUEST, "invalid_url", error.to_string()),
-        GitHubError::NotFound => (StatusCode::NOT_FOUND, "not_found", error.to_string()),
-        GitHubError::RefNotFound => (StatusCode::NOT_FOUND, "ref_not_found", error.to_string()),
-        GitHubError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, "rate_limited", error.to_string()),
-        GitHubError::TooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "too_large", error.to_string()),
-        GitHubError::Request(_) => (StatusCode::BAD_GATEWAY, "github_request_failed", error.to_string()),
-    };
-    (status, Json(ApiErrorBody { code: code.to_string(), message }))
+fn spawn_analysis_job(state: AppState, job_id: Uuid, input: AnalysisInput) {
+    tokio::spawn(async move {
+        let Ok(_permit) = state.semaphore.acquire().await else {
+            mark_job_failed(
+                &state.store,
+                job_id,
+                "internal",
+                "analysis worker is unavailable",
+            )
+            .await;
+            return;
+        };
+
+        if let Err(error) = state.store.set_job_running(job_id).await {
+            tracing::error!(%error, "failed to mark job running");
+        }
+
+        match analyzer::analyze(input).await {
+            Ok(report) => complete_job(&state.store, job_id, report).await,
+            Err(error) => {
+                tracing::warn!(%error, "analysis failed");
+                mark_job_failed(&state.store, job_id, "analysis_failed", &error.to_string()).await;
+            }
+        }
+    });
 }
 
-fn internal_error(error: anyhow::Error) -> (StatusCode, Json<ApiErrorBody>) {
-    tracing::error!(%error, "internal error");
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ApiErrorBody {
-            code: "internal".to_string(),
-            message: "internal server error".to_string(),
-        }),
-    )
+async fn complete_job(store: &Store, job_id: Uuid, report: crate::models::Report) {
+    let report_id = report.id.clone();
+    if let Err(error) = store.save_report(&report).await {
+        tracing::error!(%error, "failed to save report");
+        mark_job_failed(store, job_id, "internal", "failed to save report").await;
+        return;
+    }
+    if let Err(error) = store.set_job_completed(job_id, report_id).await {
+        tracing::error!(%error, "failed to mark job completed");
+    }
 }
 
-fn not_found(code: &str, message: &str) -> (StatusCode, Json<ApiErrorBody>) {
-    (
-        StatusCode::NOT_FOUND,
-        Json(ApiErrorBody {
-            code: code.to_string(),
-            message: message.to_string(),
-        }),
-    )
+async fn mark_job_failed(store: &Store, job_id: Uuid, code: &str, message: &str) {
+    if let Err(error) = store
+        .set_job_failed(
+            job_id,
+            ApiErrorBody {
+                code: code.to_string(),
+                message: message.to_string(),
+            },
+        )
+        .await
+    {
+        tracing::error!(%error, "failed to mark job failed");
+    }
+}
+
+pub struct ApiError {
+    status: StatusCode,
+    body: ApiErrorBody,
+}
+
+impl ApiError {
+    fn new(status: StatusCode, code: &str, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            body: ApiErrorBody {
+                code: code.to_string(),
+                message: message.into(),
+            },
+        }
+    }
+
+    fn internal(error: anyhow::Error) -> Self {
+        tracing::error!(%error, "internal error");
+        Self::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal",
+            "internal server error",
+        )
+    }
+
+    fn not_found(code: &str, message: &str) -> Self {
+        Self::new(StatusCode::NOT_FOUND, code, message)
+    }
+}
+
+impl From<GitHubError> for ApiError {
+    fn from(error: GitHubError) -> Self {
+        match error {
+            GitHubError::InvalidUrl => {
+                Self::new(StatusCode::BAD_REQUEST, "invalid_url", error.to_string())
+            }
+            GitHubError::NotFound => {
+                Self::new(StatusCode::NOT_FOUND, "not_found", error.to_string())
+            }
+            GitHubError::RefNotFound => {
+                Self::new(StatusCode::NOT_FOUND, "ref_not_found", error.to_string())
+            }
+            GitHubError::RateLimited => Self::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limited",
+                error.to_string(),
+            ),
+            GitHubError::TooLarge => Self::new(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "too_large",
+                error.to_string(),
+            ),
+            GitHubError::Request(_) => Self::new(
+                StatusCode::BAD_GATEWAY,
+                "github_request_failed",
+                error.to_string(),
+            ),
+        }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.status, Json(self.body)).into_response()
+    }
 }

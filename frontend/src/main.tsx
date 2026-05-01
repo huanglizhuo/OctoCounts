@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Clipboard, Code2, Database, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronRight, Clipboard, Code2, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -47,6 +47,7 @@ type JobRecord = {
 };
 
 type SortKey = "name" | keyof Stats;
+type AppStatus = JobStatus | "idle" | "cached";
 
 const queryClient = new QueryClient();
 
@@ -65,21 +66,13 @@ function App() {
       const data = query.state.data as JobRecord | undefined;
       return data?.status === "completed" || data?.status === "failed" ? false : 1200;
     },
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/api/jobs/${jobId}`);
-      if (!response.ok) throw new Error("Unable to read job status");
-      return (await response.json()) as JobRecord;
-    },
+    queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}`),
   });
 
   const reportQuery = useQuery({
     queryKey: ["report", jobQuery.data?.reportId],
     enabled: jobQuery.data?.status === "completed" && Boolean(jobQuery.data.reportId) && !report,
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/api/reports/${jobQuery.data?.reportId}`);
-      if (!response.ok) throw new Error("Unable to load report");
-      return (await response.json()) as Report;
-    },
+    queryFn: () => fetchJson<Report>(`/api/reports/${jobQuery.data?.reportId}`),
   });
 
   useEffect(() => {
@@ -97,17 +90,7 @@ function App() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/analyze`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ repoUrl, refName: refName || undefined }),
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        setError(body.message ?? "Analysis request failed");
-        return;
-      }
-      const result = body as AnalyzeResponse;
+      const result = await analyzeRepository({ repoUrl, refName });
       if (result.kind === "cached") {
         setReport(result.report);
       } else {
@@ -120,7 +103,7 @@ function App() {
     }
   };
 
-  const status = error
+  const status: AppStatus = error
     ? "failed"
     : report
       ? report.cached
@@ -166,7 +149,7 @@ function App() {
   );
 }
 
-function StatusLine({ status, error }: { status: string; error: string | null }) {
+function StatusLine({ status, error }: { status: AppStatus; error: string | null }) {
   return (
     <div className={`statusLine ${status}`}>
       <span>{status}</span>
@@ -175,20 +158,21 @@ function StatusLine({ status, error }: { status: string; error: string | null })
   );
 }
 
-const statusCopy: Record<string, string> = {
+const statusCopy: Record<AppStatus, string> = {
   idle: "Paste a repository URL and run the analyzer.",
   queued: "Job accepted. Waiting for an analysis slot.",
   running: "Downloading archive, extracting files, and counting language statistics.",
   completed: "Analysis completed.",
   cached: "Served from commit-level cache.",
+  failed: "Analysis failed.",
 };
 
-function EmptyState({ status }: { status: string }) {
+function EmptyState({ status }: { status: AppStatus }) {
   return (
     <section className="emptyReport">
       <div className="scanline" />
       <div>
-        <p className="terminalPrompt">$ sloc analyze --github</p>
+        <p className="terminalPrompt">$ octocount analyze --github</p>
         <pre>{status === "running" || status === "queued" ? "resolving commit...\ndownloading tarball...\ncounting source lines..." : "awaiting repository input..."}</pre>
       </div>
     </section>
@@ -332,6 +316,35 @@ function copyText(value: string) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat().format(value);
+}
+
+async function analyzeRepository(request: { repoUrl: string; refName: string }): Promise<AnalyzeResponse> {
+  return fetchJson<AnalyzeResponse>("/api/analyze", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      repoUrl: request.repoUrl,
+      refName: request.refName || undefined,
+    }),
+  });
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, init);
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(apiErrorMessage(body, response.statusText));
+  }
+
+  return body as T;
+}
+
+function apiErrorMessage(body: unknown, fallback: string) {
+  if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
+    return body.message;
+  }
+  return fallback || "Request failed";
 }
 
 createRoot(document.getElementById("root")!).render(

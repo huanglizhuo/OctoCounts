@@ -51,7 +51,13 @@ impl Store {
         Ok(())
     }
 
-    pub async fn cached_report(&self, owner: &str, repo: &str, commit_sha: &str, tokei_version: &str) -> anyhow::Result<Option<Report>> {
+    pub async fn cached_report(
+        &self,
+        owner: &str,
+        repo: &str,
+        commit_sha: &str,
+        tokei_version: &str,
+    ) -> anyhow::Result<Option<Report>> {
         let row = sqlx::query(
             "SELECT body FROM reports WHERE owner = ? AND repo = ? AND commit_sha = ? AND tokei_version = ?",
         )
@@ -104,7 +110,8 @@ impl Store {
         .transpose()
     }
 
-    pub async fn create_job(&self, id: Uuid) -> anyhow::Result<JobRecord> {
+    pub async fn create_job(&self) -> anyhow::Result<JobRecord> {
+        let id = Uuid::new_v4();
         let now = Utc::now();
         sqlx::query("INSERT INTO jobs (id, status, created_at, updated_at) VALUES (?, ?, ?, ?)")
             .bind(id.to_string())
@@ -129,31 +136,45 @@ impl Store {
     }
 
     pub async fn set_job_completed(&self, id: Uuid, report_id: String) -> anyhow::Result<()> {
-        self.update_job(id, JobStatus::Completed, Some(report_id), None).await
+        self.update_job(id, JobStatus::Completed, Some(report_id), None)
+            .await
     }
 
     pub async fn set_job_failed(&self, id: Uuid, error: ApiErrorBody) -> anyhow::Result<()> {
-        self.update_job(id, JobStatus::Failed, None, Some(error)).await
+        self.update_job(id, JobStatus::Failed, None, Some(error))
+            .await
     }
 
-    async fn update_job(&self, id: Uuid, status: JobStatus, report_id: Option<String>, error: Option<ApiErrorBody>) -> anyhow::Result<()> {
-        let error = error.map(|value| serde_json::to_string(&value)).transpose()?;
-        sqlx::query("UPDATE jobs SET status = ?, report_id = ?, error = ?, updated_at = ? WHERE id = ?")
-            .bind(status_to_str(&status))
-            .bind(report_id)
-            .bind(error)
-            .bind(Utc::now().to_rfc3339())
-            .bind(id.to_string())
-            .execute(&self.pool)
-            .await?;
+    async fn update_job(
+        &self,
+        id: Uuid,
+        status: JobStatus,
+        report_id: Option<String>,
+        error: Option<ApiErrorBody>,
+    ) -> anyhow::Result<()> {
+        let error = error
+            .map(|value| serde_json::to_string(&value))
+            .transpose()?;
+        sqlx::query(
+            "UPDATE jobs SET status = ?, report_id = ?, error = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(status_to_str(&status))
+        .bind(report_id)
+        .bind(error)
+        .bind(Utc::now().to_rfc3339())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
     pub async fn job(&self, id: Uuid) -> anyhow::Result<Option<JobRecord>> {
-        let row = sqlx::query("SELECT id, status, report_id, error, created_at, updated_at FROM jobs WHERE id = ?")
-            .bind(id.to_string())
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            "SELECT id, status, report_id, error, created_at, updated_at FROM jobs WHERE id = ?",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
 
         row.map(row_to_job).transpose()
     }
@@ -168,9 +189,11 @@ fn row_to_job(row: sqlx::sqlite::SqliteRow) -> anyhow::Result<JobRecord> {
 
     Ok(JobRecord {
         id: Uuid::parse_str(&id).context("invalid job id in database")?,
-        status: status_from_str(&status),
+        status: status_from_str(&status)?,
         report_id: row.try_get("report_id")?,
-        error: error.map(|value| serde_json::from_str::<ApiErrorBody>(&value)).transpose()?,
+        error: error
+            .map(|value| serde_json::from_str::<ApiErrorBody>(&value))
+            .transpose()?,
         created_at: DateTime::parse_from_rfc3339(&created_at)?.with_timezone(&Utc),
         updated_at: DateTime::parse_from_rfc3339(&updated_at)?.with_timezone(&Utc),
     })
@@ -185,11 +208,12 @@ fn status_to_str(status: &JobStatus) -> &'static str {
     }
 }
 
-fn status_from_str(status: &str) -> JobStatus {
+fn status_from_str(status: &str) -> anyhow::Result<JobStatus> {
     match status {
-        "running" => JobStatus::Running,
-        "completed" => JobStatus::Completed,
-        "failed" => JobStatus::Failed,
-        _ => JobStatus::Queued,
+        "queued" => Ok(JobStatus::Queued),
+        "running" => Ok(JobStatus::Running),
+        "completed" => Ok(JobStatus::Completed),
+        "failed" => Ok(JobStatus::Failed),
+        _ => anyhow::bail!("invalid job status in database: {status}"),
     }
 }
