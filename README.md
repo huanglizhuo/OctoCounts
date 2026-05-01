@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/octo-count.png" alt="OctoCount logo" width="520">
+</p>
+
 # OctoCount
 
 OctoCount is a fast, self-hosted source line counter for public GitHub repositories. Paste a GitHub repo URL, optionally choose a ref, and get a polished report with language totals for files, lines, code, comments, and blanks.
