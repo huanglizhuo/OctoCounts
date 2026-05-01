@@ -12,8 +12,16 @@ pub struct AnalyzeRequest {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum AnalyzeResponse {
-    Cached { report_id: String, report: Report },
-    Job { job_id: Uuid, status: JobStatus },
+    Cached {
+        #[serde(rename = "reportId")]
+        report_id: String,
+        report: Report,
+    },
+    Job {
+        #[serde(rename = "jobId")]
+        job_id: Uuid,
+        status: JobStatus,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,4 +99,24 @@ pub struct RepoRef {
     pub ref_name: String,
     pub commit_sha: String,
     pub html_url: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AnalyzeResponse, JobStatus};
+    use uuid::Uuid;
+
+    #[test]
+    fn analyze_job_response_uses_camel_case_fields() {
+        let job_id = Uuid::parse_str("786c8bae-8397-4233-98fb-2c63003a92bd").unwrap();
+        let json = serde_json::to_value(AnalyzeResponse::Job {
+            job_id,
+            status: JobStatus::Queued,
+        })
+        .unwrap();
+
+        assert_eq!(json["kind"], "job");
+        assert_eq!(json["jobId"], "786c8bae-8397-4233-98fb-2c63003a92bd");
+        assert!(json.get("job_id").is_none());
+    }
 }

@@ -25,19 +25,15 @@ The app is built for developers who want quick SLOC visibility without cloning r
 - Backend: Rust, Axum, Tokio, Reqwest, SQLite via SQLx, Tokei for language statistics.
 - Frontend: React, Vite, TypeScript, TanStack Query.
 
-## Run Locally
+## Local Development
 
-For higher GitHub API limits, create a GitHub token and pass it as `GITHUB_TOKEN`.
-
-### Docker Dev
-
-Run both services in Docker with file watching:
+Docker Compose is the recommended local workflow because it runs both services with watch mode and keeps build/dependency artifacts in Docker volumes.
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set `GITHUB_TOKEN` if you have one. Then start the dev stack:
+Edit `.env` and set `GITHUB_TOKEN` if you have one. The token is optional, but strongly recommended because unauthenticated GitHub API requests are rate-limited quickly.
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
@@ -45,16 +41,22 @@ docker compose -f docker-compose.dev.yml up --build
 
 Then open `http://127.0.0.1:5173`.
 
-The dev stack runs:
+The dev stack provides:
 
-- Backend API on `http://127.0.0.1:8080` with `cargo-watch`.
-- Frontend on `http://127.0.0.1:5173` with Vite HMR.
+- Backend API on `http://127.0.0.1:8080`, restarted by `cargo-watch`.
+- Frontend on `http://127.0.0.1:5173`, updated by Vite HMR.
 - SQLite data in a Docker volume at `/data/sloc-dev.db`.
 - Cargo and `node_modules` caches in Docker volumes.
 
-### Host Dev
+Stop the dev stack:
 
-Run both services in one terminal:
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+### Host Development
+
+You can also run both services directly on the host:
 
 ```bash
 GITHUB_TOKEN=github_pat_your_token_here ./run-local.sh
@@ -68,7 +70,7 @@ You can also run without a token, but GitHub will rate-limit requests more quick
 ./run-local.sh
 ```
 
-Or run them separately:
+For separate terminals:
 
 ```bash
 cd backend
@@ -84,6 +86,13 @@ npm run dev
 ```
 
 The frontend expects the API at `http://127.0.0.1:8080`. Override with `VITE_API_BASE`.
+
+For backend auto-restart outside Docker, install `cargo-watch` and run:
+
+```bash
+cd backend
+GITHUB_TOKEN=github_pat_your_token_here cargo watch -x run
+```
 
 ## GitHub Token
 
@@ -101,20 +110,50 @@ export GITHUB_TOKEN=github_pat_your_token_here
 ./run-local.sh
 ```
 
+For Docker Compose, put the token in `.env`:
+
+```bash
+GITHUB_TOKEN=github_pat_your_token_here
+```
+
 ## API
 
 - `POST /api/analyze` with `{ "repoUrl": "https://github.com/owner/repo", "refName": "main" }`
 - `GET /api/jobs/:jobId`
 - `GET /api/reports/:reportId`
 
-## VPS Notes
+## Deployment
 
-Set `GITHUB_TOKEN` to raise GitHub API limits, `DATABASE_URL` for the SQLite path, `BIND_ADDR` for the listen address, and `ANALYSIS_CONCURRENCY` for bounded analysis workers.
-
-Docker Compose is included:
+Use the production Docker Compose file for a VPS or server:
 
 ```bash
-GITHUB_TOKEN=ghp_xxx docker compose up --build
+cp .env.example .env
 ```
 
-This exposes the API on `:8080` and the web UI on `:5173`.
+Edit `.env` for production. At minimum set `GITHUB_TOKEN`; optionally tune `ANALYSIS_CONCURRENCY`.
+
+Start the production stack:
+
+```bash
+docker compose up --build -d
+```
+
+Production compose exposes:
+
+- API: `http://SERVER_IP:8080`
+- Web UI: `http://SERVER_IP:5173`
+
+Common production environment variables:
+
+- `GITHUB_TOKEN`: raises GitHub API limits.
+- `ANALYSIS_CONCURRENCY`: number of bounded analysis jobs, default `2`.
+- `DATABASE_URL`: SQLite path, default `sqlite:///data/sloc.db`.
+- `BIND_ADDR`: backend listen address, default `0.0.0.0:8080`.
+
+Stop production:
+
+```bash
+docker compose down
+```
+
+For a public domain, put Caddy or Nginx in front of the services. Route frontend traffic to `web:80` and API traffic to `api:8080`, or expose them under separate hostnames.
