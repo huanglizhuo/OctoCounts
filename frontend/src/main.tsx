@@ -280,8 +280,7 @@ function Topbar() {
       <div className="brand">
         <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt="" /></div>
         <div>
-          <h1>OctoCounts</h1>
-          <div className="tag">Making your code count (literally)</div>
+          <span className="brand-name">OctoCounts</span>
         </div>
       </div>
       <a className="github-link" href={defaultRepoUrl} target="_blank" rel="noreferrer">
@@ -557,9 +556,9 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
 function LanguageRow({ row, expanded, child, onToggle }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void }) {
   const hasChildren = row.children.length > 0;
   return (
-    <tr className={`${child ? "file-row" : "lang-row"} ${expanded ? "expanded" : ""}`} onClick={hasChildren ? onToggle : undefined}>
+    <tr className={`${child ? "file-row" : "lang-row"} ${expanded ? "expanded" : ""}`}>
       <td className="lang">
-        {hasChildren ? <button className="expand" type="button">{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button> : <span className="expand-spacer" />}
+        {hasChildren ? <button className="expand" type="button" onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button> : <span className="expand-spacer" />}
         <span className="swatch" style={{ color: languageColor(row.name) }} />
         {row.name}
       </td>
