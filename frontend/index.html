@@ -52,6 +52,62 @@
       ]
     }
     </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is SLOC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting lines in its source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language, plus aggregate totals across the repository."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why use OctoCounts instead of cloning and running tokei locally?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts is faster for large repositories because it downloads a compressed archive tarball rather than a full git clone with history. It also caches results by commit SHA, so any repeated analysis of the same commit returns instantly with zero re-processing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is OctoCounts free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What programming languages does OctoCounts support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, Kotlin, and many more."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I export the source line count results?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts supports three export formats: plain text (copy to clipboard), JSON (full report with per-language stats), and a shareable PNG card showing the language breakdown at 1200x630 resolution."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts support private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts currently supports public GitHub repositories only. Private repositories require authentication which is not yet supported."
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -59,37 +115,37 @@
     <noscript>
       <main>
         <h1>OctoCounts — GitHub SLOC Counter</h1>
-        <p>OctoCounts is a free web tool that counts source lines of code (SLOC) in any public GitHub repository. Paste a GitHub URL, and OctoCounts downloads the repository archive, runs tokei to count lines by language, and returns a sortable breakdown — no git clone required.</p>
+        <p><time datetime="2026-05-04">Updated May 2026.</time> OctoCounts is a free web tool that counts source lines of code in any public GitHub repository without cloning. It downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> to count lines across 200+ programming languages, caches the result by commit SHA, and returns a sortable breakdown — faster than a local clone for most large repos.</p>
+
+        <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
+        <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA and tokei version, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install — paste a GitHub URL and get results in seconds.</p>
 
         <h2>What is OctoCounts?</h2>
-        <p>OctoCounts is a source lines of code counter for GitHub repositories. It accepts any public GitHub repository URL, resolves the requested branch, tag, or commit SHA, downloads the archive tarball instead of cloning, runs the tokei code analysis tool, and returns a detailed language-by-language breakdown showing files, total lines, code lines, comments, and blanks. Results are cached by commit SHA and tokei version, so repeat queries return instantly without re-downloading the archive.</p>
+        <p>OctoCounts is a source lines of code (SLOC) counter for GitHub repositories. It accepts any public GitHub URL, resolves the requested branch, tag, or commit SHA via the GitHub API, downloads the archive tarball, runs tokei in a background worker, and returns a language-by-language breakdown showing files, total lines, code lines, comment lines, and blank lines. Results are cached by commit SHA and tokei version so repeat queries are instant.</p>
 
         <h2>How does OctoCounts work?</h2>
         <ol>
           <li><strong>Resolve:</strong> OctoCounts validates the GitHub URL and pins the run to a specific commit SHA using the GitHub API.</li>
-          <li><strong>Count:</strong> The Rust backend downloads the repository archive (not a full clone), extracts it safely, and runs tokei for language statistics in a background worker job.</li>
-          <li><strong>Cache:</strong> Reports are cached by owner, repo, commit SHA, and tokei version. Re-analysis is instant for previously-counted commits.</li>
+          <li><strong>Count:</strong> The Rust backend (Axum + Tokio) downloads the repository archive, extracts it, and runs tokei for language statistics in a queued worker job.</li>
+          <li><strong>Cache:</strong> Reports are stored by owner, repo, commit SHA, and tokei version. Re-analysis of the same commit is instant — no re-download, no re-count.</li>
         </ol>
 
         <h2>Frequently Asked Questions</h2>
 
-        <h3>Is OctoCounts free to use?</h3>
-        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required.</p>
-
-        <h3>Does OctoCounts support private repositories?</h3>
-        <p>OctoCounts currently supports public GitHub repositories only. Private repositories require authentication which is not yet supported.</p>
+        <h3>What is SLOC?</h3>
+        <p>SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting lines in its source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language, plus aggregate totals across the repository.</p>
 
         <h3>What programming languages does OctoCounts support?</h3>
         <p>OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, Kotlin, and many more.</p>
 
+        <h3>Is OctoCounts free to use?</h3>
+        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required.</p>
+
         <h3>Can I export the source line count results?</h3>
         <p>Yes. OctoCounts supports three export formats: plain text (copy to clipboard), JSON (full report with per-language stats), and a shareable PNG card showing the language breakdown at 1200×630 resolution.</p>
 
-        <h3>What is SLOC?</h3>
-        <p>SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting lines in its source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language, plus aggregate totals across the repository.</p>
-
-        <h3>Why use OctoCounts instead of cloning and running tokei locally?</h3>
-        <p>OctoCounts is faster for large repositories because it downloads a compressed archive tarball rather than a full git clone with history. It also caches results by commit SHA, so any repeated analysis of the same commit returns instantly with zero re-processing.</p>
+        <h3>Does OctoCounts support private repositories?</h3>
+        <p>OctoCounts currently supports public GitHub repositories only. Private repositories require authentication which is not yet supported.</p>
       </main>
     </noscript>
   </body>
