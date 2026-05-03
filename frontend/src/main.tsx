@@ -52,10 +52,11 @@ type JobRecord = {
 };
 
 const queryClient = new QueryClient();
+const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCount";
 const samples = [
+  { label: "octocount", repoUrl: defaultRepoUrl, refName: "" },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
-  { label: "rust", repoUrl: "https://github.com/rust-lang/rust", refName: "" },
 ];
 const terminalVariants: { id: TerminalVariant; label: string }[] = [
   { id: "ticker", label: "live ticker" },
@@ -65,13 +66,13 @@ const terminalVariants: { id: TerminalVariant; label: string }[] = [
 
 function App() {
   const [scheme, setScheme] = useState<Scheme>("matrix");
-  const [repoUrl, setRepoUrl] = useState("https://github.com/tokio-rs/axum");
+  const [repoUrl, setRepoUrl] = useState(defaultRepoUrl);
   const [refName, setRefName] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastCommand, setLastCommand] = useState("octocount analyze https://github.com/tokio-rs/axum");
+  const [lastCommand, setLastCommand] = useState(`octocount analyze ${defaultRepoUrl}`);
   const [terminalVariant, setTerminalVariant] = useState<TerminalVariant>("ticker");
 
   useEffect(() => {
@@ -88,18 +89,29 @@ function App() {
     queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}`),
   });
 
-  const reportQuery = useQuery({
-    queryKey: ["report", jobQuery.data?.reportId],
-    enabled: jobQuery.data?.status === "completed" && Boolean(jobQuery.data.reportId) && !report,
-    queryFn: () => fetchJson<Report>(`/api/reports/${jobQuery.data?.reportId}`),
-  });
-
   useEffect(() => {
-    if (reportQuery.data && !report) {
-      setReport(reportQuery.data);
-      setJobId(null);
+    const reportId = jobQuery.data?.reportId;
+    if (jobQuery.data?.status !== "completed" || !reportId || report) {
+      return;
     }
-  }, [reportQuery.data, report]);
+
+    let cancelled = false;
+    fetchJson<Report>(`/api/reports/${reportId}`)
+      .then((nextReport) => {
+        if (cancelled) return;
+        setReport(nextReport);
+        setJobId(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to fetch completed report");
+        setJobId(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobQuery.data?.status, jobQuery.data?.reportId, report]);
 
   useEffect(() => {
     if (jobQuery.data?.status === "failed") {
@@ -141,7 +153,7 @@ function App() {
       ? report.cached
         ? "cached"
         : "completed"
-      : jobQuery.data?.status ?? (isSubmitting ? "queued" : "idle");
+      : jobQuery.data?.status ?? (jobId || isSubmitting ? "queued" : "idle");
 
   return (
     <>
@@ -222,6 +234,34 @@ function App() {
             }}
             onRerun={() => void runAnalysis(true)}
           />
+        </section>
+
+        <section>
+          <div className="section-h">
+            <span className="num">02</span>
+            <h2>How It Works</h2>
+            <span className="sub">archive in, tokei report out</span>
+          </div>
+          <div className="how">
+            <div className="step">
+              <span className="n">01</span>
+              <h3>Resolve</h3>
+              <p>OctoCount validates the public GitHub URL, resolves the requested branch, tag, or SHA, and pins the run to a commit.</p>
+              <div className="codeline">GET <span className="c">/repos/:owner/:repo</span></div>
+            </div>
+            <div className="step">
+              <span className="n">02</span>
+              <h3>Count</h3>
+              <p>The backend downloads the repository archive, skips heavy generated folders, extracts safely, and runs tokei in a worker job.</p>
+              <div className="codeline">tokei <span className="c">--output json</span></div>
+            </div>
+            <div className="step">
+              <span className="n">03</span>
+              <h3>Cache</h3>
+              <p>Reports are cached by owner, repo, commit, and tokei version. Analyze reuses the cache; re-run forces a fresh count.</p>
+              <div className="codeline">cache <span className="c">commit + version</span></div>
+            </div>
+          </div>
         </section>
 
         <footer>
