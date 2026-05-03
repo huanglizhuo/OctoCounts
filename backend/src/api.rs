@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     analyzer::{self, AnalysisInput},
     github::{GitHubClient, GitHubError},
-    models::{AnalyzeRequest, AnalyzeResponse, ApiErrorBody, JobRecord},
+    models::{AnalyzeRequest, AnalyzeResponse, ApiErrorBody, JobRecord, RepoRef},
     store::Store,
 };
 
@@ -33,36 +33,27 @@ pub async fn analyze(
         .await
         .map_err(ApiError::from)?;
 
-    if let Some(report) = state
-        .store
-        .cached_report(
-            &repo_ref.owner,
-            &repo_ref.repo,
-            &repo_ref.commit_sha,
-            analyzer::tokei_version(),
-        )
-        .await
-        .map_err(ApiError::internal)?
-    {
-        return Ok(Json(AnalyzeResponse::Cached {
-            report_id: report.id.clone(),
-            report,
-        }));
+    if !request.force_refresh {
+        if let Some(report) = state
+            .store
+            .cached_report(
+                &repo_ref.owner,
+                &repo_ref.repo,
+                &repo_ref.commit_sha,
+                analyzer::tokei_version(),
+            )
+            .await
+            .map_err(ApiError::internal)?
+        {
+            return Ok(Json(AnalyzeResponse::Cached {
+                report_id: report.id.clone(),
+                report,
+            }));
+        }
     }
 
-    let archive = state
-        .github
-        .download_archive(
-            &repo_ref.owner,
-            &repo_ref.repo,
-            &repo_ref.commit_sha,
-            analyzer::max_archive_bytes(),
-        )
-        .await
-        .map_err(ApiError::from)?;
-
     let job = state.store.create_job().await.map_err(ApiError::internal)?;
-    spawn_analysis_job(state, job.id, AnalysisInput { repo_ref, archive });
+    spawn_analysis_job(state, job.id, repo_ref);
 
     Ok(Json(AnalyzeResponse::Job {
         job_id: job.id,
@@ -98,7 +89,7 @@ pub async fn report(
     Ok(Json(report))
 }
 
-fn spawn_analysis_job(state: AppState, job_id: Uuid, input: AnalysisInput) {
+fn spawn_analysis_job(state: AppState, job_id: Uuid, repo_ref: RepoRef) {
     tokio::spawn(async move {
         let Ok(_permit) = state.semaphore.acquire().await else {
             mark_job_failed(
@@ -115,7 +106,32 @@ fn spawn_analysis_job(state: AppState, job_id: Uuid, input: AnalysisInput) {
             tracing::error!(%error, "failed to mark job running");
         }
 
-        match analyzer::analyze(input).await {
+        let archive = match state
+            .github
+            .download_archive(
+                &repo_ref.owner,
+                &repo_ref.repo,
+                &repo_ref.commit_sha,
+                analyzer::max_archive_bytes(),
+            )
+            .await
+        {
+            Ok(archive) => archive,
+            Err(error) => {
+                tracing::warn!(%error, "archive download failed");
+                let api_error = ApiError::from(error);
+                mark_job_failed(
+                    &state.store,
+                    job_id,
+                    &api_error.body.code,
+                    &api_error.body.message,
+                )
+                .await;
+                return;
+            }
+        };
+
+        match analyzer::analyze(AnalysisInput { repo_ref, archive }).await {
             Ok(report) => complete_job(&state.store, job_id, report).await,
             Err(error) => {
                 tracing::warn!(%error, "analysis failed");

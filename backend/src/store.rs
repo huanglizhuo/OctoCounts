@@ -217,3 +217,89 @@ fn status_from_str(status: &str) -> anyhow::Result<JobStatus> {
         _ => anyhow::bail!("invalid job status in database: {status}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Store;
+    use crate::models::{LanguageReport, LanguageStats, Report, Repository};
+    use chrono::Utc;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    #[tokio::test]
+    async fn cached_report_marks_report_as_cached() {
+        let store = test_store().await;
+        let mut report = test_report(100);
+        report.cached = false;
+        store.save_report(&report).await.unwrap();
+
+        let cached = store
+            .cached_report("octo", "count", "abc123", "tokei-test")
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert!(cached.cached);
+        assert_eq!(cached.total.code, 100);
+    }
+
+    #[tokio::test]
+    async fn save_report_replaces_existing_cache_record() {
+        let store = test_store().await;
+        store.save_report(&test_report(100)).await.unwrap();
+        store.save_report(&test_report(250)).await.unwrap();
+
+        let cached = store
+            .cached_report("octo", "count", "abc123", "tokei-test")
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(cached.total.code, 250);
+    }
+
+    async fn test_store() -> Store {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        let store = Store::new(pool);
+        store.migrate().await.unwrap();
+        store
+    }
+
+    fn test_report(code: usize) -> Report {
+        Report {
+            id: "report-id".to_string(),
+            repository: Repository {
+                owner: "octo".to_string(),
+                name: "count".to_string(),
+                html_url: "https://github.com/octo/count".to_string(),
+            },
+            ref_name: "main".to_string(),
+            commit_sha: "abc123".to_string(),
+            generated_at: Utc::now(),
+            duration_ms: 42,
+            cached: false,
+            tokei_version: "tokei-test".to_string(),
+            languages: vec![LanguageReport {
+                name: "Rust".to_string(),
+                stats: LanguageStats {
+                    files: 1,
+                    lines: code + 10,
+                    code,
+                    comments: 7,
+                    blanks: 3,
+                },
+                children: Vec::new(),
+            }],
+            total: LanguageStats {
+                files: 1,
+                lines: code + 10,
+                code,
+                comments: 7,
+                blanks: 3,
+            },
+        }
+    }
+}

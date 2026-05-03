@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub struct AnalyzeRequest {
     pub repo_url: String,
     pub ref_name: Option<String>,
+    #[serde(default)]
+    pub force_refresh: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -103,7 +105,7 @@ pub struct RepoRef {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnalyzeResponse, JobStatus};
+    use super::{AnalyzeRequest, AnalyzeResponse, JobStatus};
     use uuid::Uuid;
 
     #[test]
@@ -118,5 +120,23 @@ mod tests {
         assert_eq!(json["kind"], "job");
         assert_eq!(json["jobId"], "786c8bae-8397-4233-98fb-2c63003a92bd");
         assert!(json.get("job_id").is_none());
+    }
+
+    #[test]
+    fn analyze_request_deserializes_optional_force_refresh() {
+        let json = r#"{"repoUrl":"https://github.com/tokio-rs/axum","refName":"main","forceRefresh":true}"#;
+        let request: AnalyzeRequest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(request.repo_url, "https://github.com/tokio-rs/axum");
+        assert_eq!(request.ref_name.as_deref(), Some("main"));
+        assert!(request.force_refresh);
+    }
+
+    #[test]
+    fn analyze_request_defaults_force_refresh_to_false() {
+        let json = r#"{"repoUrl":"https://github.com/tokio-rs/axum"}"#;
+        let request: AnalyzeRequest = serde_json::from_str(json).unwrap();
+
+        assert!(!request.force_refresh);
     }
 }
