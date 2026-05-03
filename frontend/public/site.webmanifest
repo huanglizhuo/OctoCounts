@@ -1,6 +1,6 @@
 {
-  "name": "OctoCount",
-  "short_name": "OctoCount",
+  "name": "OctoCounts",
+  "short_name": "OctoCounts",
   "description": "Count source lines for public GitHub repositories.",
   "start_url": "/",
   "scope": "/",

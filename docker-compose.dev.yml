@@ -24,6 +24,7 @@ services:
     working_dir: /app
     environment:
       VITE_API_BASE: ${VITE_API_BASE:-http://127.0.0.1:8080}
+      VITE_DEBUG_SHARE_PREVIEW: ${VITE_DEBUG_SHARE_PREVIEW:-false}
     command: sh -c "npm ci && npm exec vite -- --host 0.0.0.0 --port 5173"
     volumes:
       - ./frontend:/app

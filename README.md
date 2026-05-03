@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="images/octo-count.png" alt="OctoCount logo" width="520">
+  <img src="images/octo-count.png" alt="OctoCounts logo" width="520">
 </p>
 
-# OctoCount
+# OctoCounts
 
-OctoCount is a fast, self-hosted source line counter for public GitHub repositories. Paste a GitHub repo URL, optionally choose a ref, and get a polished report with language totals for files, lines, code, comments, and blanks.
+OctoCounts is a fast, self-hosted source line counter for public GitHub repositories. Paste a GitHub repo URL, optionally choose a ref, and get a polished report with language totals for files, lines, code, comments, and blanks.
 
 The app is built for developers who want quick SLOC visibility without cloning repositories locally.
 

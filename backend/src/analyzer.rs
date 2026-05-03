@@ -17,11 +17,11 @@ use tokio::time::timeout;
 use crate::models::{LanguageReport, LanguageStats, RepoRef, Report, Repository};
 
 const TOKEI_VERSION: &str = "tokei-12.1";
-const MAX_ARCHIVE_BYTES: u64 = 80 * 1024 * 1024;
-const MAX_EXTRACTED_BYTES: u64 = 350 * 1024 * 1024;
-const MAX_FILES: usize = 60_000;
-const MAX_SINGLE_FILE_BYTES: u64 = 8 * 1024 * 1024;
-const JOB_TIMEOUT: Duration = Duration::from_secs(120);
+const MAX_ARCHIVE_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_EXTRACTED_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_FILES: usize = 120_000;
+const MAX_SINGLE_FILE_BYTES: u64 = 16 * 1024 * 1024;
+const JOB_TIMEOUT: Duration = Duration::from_secs(300);
 
 const IGNORED_DIRS: &[&str] = &[
     ".cache",

@@ -1,17 +1,19 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Clipboard, ExternalLink, FileJson, Github, Loader2, Play, RotateCcw } from "lucide-react";
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import { toPng } from "html-to-image";
+import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, Github, Loader2, Play, RotateCcw } from "lucide-react";
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
+const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
 
 type JobStatus = "queued" | "running" | "completed" | "failed";
 type AppStatus = JobStatus | "idle" | "cached";
 type Scheme = "matrix" | "paper" | "amber";
-type TerminalVariant = "ticker" | "ascii" | "typing";
 type SortKey = "name" | keyof Stats;
 type PieItem = { label: string; value: number; color: string };
+type TickerRow = { label: string; value: number; color: string; percent: number };
 
 type Stats = {
   files: number;
@@ -59,26 +61,26 @@ const samples = [
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
 ];
-const terminalVariants: { id: TerminalVariant; label: string }[] = [
-  { id: "ticker", label: "live ticker" },
-  { id: "ascii", label: "ascii octopus" },
-  { id: "typing", label: "typing terminal" },
-];
 
 function App() {
   const [scheme, setScheme] = useState<Scheme>("matrix");
-  const [repoUrl, setRepoUrl] = useState(defaultRepoUrl);
-  const [refName, setRefName] = useState(defaultRefName);
+  const [repoUrl, setRepoUrl] = useState("");
+  const [refName, setRefName] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
-  const [terminalVariant, setTerminalVariant] = useState<TerminalVariant>("ticker");
+  const repoInputRef = useRef<HTMLInputElement>(null);
+  const didAutoAnalyze = useRef(false);
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
   }, [scheme]);
+
+  useEffect(() => {
+    repoInputRef.current?.focus();
+  }, []);
 
   const jobQuery = useQuery({
     queryKey: ["job", jobId],
@@ -122,15 +124,17 @@ function App() {
   }, [jobQuery.data]);
 
   const runAnalysis = async (forceRefresh: boolean) => {
+    const effectiveRepoUrl = repoUrl.trim() || defaultRepoUrl;
+    const effectiveRefName = refName.trim() || (repoUrl.trim() ? "" : defaultRefName);
     setError(null);
     setReport(null);
     setJobId(null);
     setIsSubmitting(true);
-    const command = commandText(repoUrl, refName, forceRefresh);
+    const command = commandText(effectiveRepoUrl, effectiveRefName, forceRefresh);
     setLastCommand(command);
 
     try {
-      const result = await analyzeRepository({ repoUrl, refName, forceRefresh });
+      const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh });
       if (result.kind === "cached") {
         setReport(result.report);
       } else {
@@ -148,6 +152,12 @@ function App() {
     void runAnalysis(false);
   };
 
+  useEffect(() => {
+    if (didAutoAnalyze.current) return;
+    didAutoAnalyze.current = true;
+    void runAnalysis(false);
+  }, []);
+
   const status: AppStatus = error
     ? "failed"
     : report
@@ -164,19 +174,26 @@ function App() {
         <section className="hero" aria-label="Repository analyzer">
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
-            <h2 className="kicker">sloc for github</h2>
             <h1 className="title">Count code lines at <span className="glow">commit speed</span>.</h1>
-            <p className="lede">
-              Run OctoCount against a public repository archive, resolve a real ref, and render language, comment, blank, and file totals from the backend cache or a fresh job.
-            </p>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
-              <input value={repoUrl} onChange={(event) => setRepoUrl(event.target.value)} placeholder="https://github.com/owner/repo" aria-label="Repository URL" />
+              <input
+                id="repo-url"
+                name="repoUrl"
+                ref={repoInputRef}
+                value={repoUrl}
+                onChange={(event) => {
+                  setRepoUrl(event.target.value);
+                  setRefName("main");
+                }}
+                placeholder="https://github.com/owner/repo"
+                aria-label="Repository URL"
+              />
               <label className="ref">
                 ref
-                <input value={refName} onChange={(event) => setRefName(event.target.value)} placeholder="main" aria-label="Optional ref" />
+                <input id="repo-ref" name="refName" value={refName} onChange={(event) => setRefName(event.target.value)} placeholder="main" aria-label="Optional ref" />
               </label>
-              <button className="btn" disabled={isSubmitting || !repoUrl.trim()}>
+              <button className="btn" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
                 Analyze
               </button>
@@ -197,20 +214,7 @@ function App() {
                 </button>
               ))}
             </div>
-            <div className="meta-row">
-              <span><b>cache</b> commit + tokei version</span>
-              <span><b>limit</b> public GitHub archives</span>
-              <span><b>mode</b> {scheme}</span>
-            </div>
           </div>
-          <TerminalPreview
-            status={status}
-            report={report}
-            command={lastCommand}
-            error={error ?? jobQuery.data?.error?.message ?? null}
-            variant={terminalVariant}
-            setVariant={setTerminalVariant}
-          />
         </section>
 
         <section>
@@ -243,7 +247,7 @@ function App() {
             <div className="step">
               <span className="n">01</span>
               <h3>Resolve</h3>
-              <p>OctoCount validates the public GitHub URL, resolves the requested branch, tag, or SHA, and pins the run to a commit.</p>
+              <p>OctoCounts validates the public GitHub URL, resolves the requested branch, tag, or SHA, and pins the run to a commit.</p>
               <div className="codeline">GET <span className="c">/repos/:owner/:repo</span></div>
             </div>
             <div className="step">
@@ -262,7 +266,7 @@ function App() {
         </section>
 
         <footer>
-          <span>OctoCount // public repository source line counts</span>
+          <span>OctoCounts // public repository source line counts</span>
           <span>(c) 2026</span>
         </footer>
       </main>
@@ -276,8 +280,8 @@ function Topbar() {
       <div className="brand">
         <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt="" /></div>
         <div>
-          <h1>OctoCount</h1>
-          <div className="tag">repo telemetry terminal</div>
+          <h1>OctoCounts</h1>
+          <div className="tag">Making your code count (literally)</div>
         </div>
       </div>
       <a className="github-link" href={defaultRepoUrl} target="_blank" rel="noreferrer">
@@ -304,94 +308,27 @@ function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: 
   );
 }
 
-function TerminalPreview({
-  status,
-  report,
-  command,
-  error,
-  variant,
-  setVariant,
-}: {
-  status: AppStatus;
-  report: Report | null;
-  command: string;
-  error: string | null;
-  variant: TerminalVariant;
-  setVariant: (variant: TerminalVariant) => void;
-}) {
-  return (
-    <aside className="term-wrap" aria-label="Terminal preview">
-      <div className="variant-tabs" role="group" aria-label="Terminal design">
-        {terminalVariants.map((item) => (
-          <button className={variant === item.id ? "active" : ""} key={item.id} onClick={() => setVariant(item.id)} type="button">
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <div className="term">
-        <div className="term-head">
-          <div className="lights"><span className="r" /><span className="y" /><span className="g" /></div>
-          <span>octocount://{variant}</span>
-        </div>
-        <div className={`term-body ${variant}`}>
-          {variant === "ticker" ? <LiveTicker report={report} status={status} /> : null}
-          {variant === "ascii" ? <AsciiOctopus status={status} report={report} command={command} error={error} /> : null}
-          {variant === "typing" ? <TypingTerminal status={status} report={report} command={command} error={error} /> : null}
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function LiveTicker({ report, status }: { report: Report | null; status: AppStatus }) {
-  const rows = tickerRows(report);
-  return (
-    <div className="ticker" aria-label="Live language ticker">
-      <div className="ticker-head">
-        <span>live ticker</span>
-        <span>{status}</span>
-      </div>
-      {rows.map((row) => (
-        <div className="ticker-row" key={row.label}>
-          <span className="lang"><span className="key-sw" style={{ background: row.color }} />{row.label}</span>
-          <span className="ticker-track"><i style={{ width: `${row.percent}%`, background: row.color }} /></span>
-          <span className="num">{formatNumber(row.value)}</span>
-        </div>
-      ))}
-      <div className="ticker-foot">
-        <span>{report ? `${report.repository.owner}/${report.repository.name}` : "sample stream"}</span>
-        <span>{report ? report.commitSha.slice(0, 12) : "awaiting run"}</span>
-      </div>
-    </div>
-  );
-}
-
-function AsciiOctopus({ status, report, command, error }: { status: AppStatus; report: Report | null; command: string; error: string | null }) {
-  return (
-    <>
-      <pre className="ascii-hero large">{asciiOctoLarge}</pre>
-      {terminalLines(status, report, command, error).map((line, index) => (
-        <div className="l" key={`${line}:${index}`} dangerouslySetInnerHTML={{ __html: line }} />
-      ))}
-      {(status === "idle" || status === "queued" || status === "running") && <span className="caret" />}
-    </>
-  );
-}
-
-function TypingTerminal({ status, report, command, error }: { status: AppStatus; report: Report | null; command: string; error: string | null }) {
-  return (
-    <div className="typing-lines">
-      {terminalLines(status, report, command, error).map((line, index) => (
-        <div className="type-line" key={`${line}:${index}`} style={{ "--delay": `${index * 420}ms` } as React.CSSProperties}>
-          <span dangerouslySetInnerHTML={{ __html: line }} />
-        </div>
-      ))}
-      {(status === "idle" || status === "queued" || status === "running") && <span className="caret" />}
-    </div>
-  );
-}
-
 function Runner({ command, status, report, error, onReset, onRerun }: { command: string; status: AppStatus; report: Report | null; error: string | null; onReset: () => void; onRerun: () => void }) {
+  const shareCardRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const exportPng = async () => {
+    if (!report || !shareCardRef.current) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(shareCardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        width: 1200,
+        height: 630,
+        backgroundColor: "#050a06",
+      });
+      downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="runner">
       <div className="runner-head">
@@ -413,19 +350,88 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
         <>
           <Summary stats={report.total} />
           <Charts report={report} />
-          <ReportTable report={report} />
           <div className="runner-foot">
             <span>generated {new Date(report.generatedAt).toLocaleString()} / {report.durationMs}ms / {report.tokeiVersion}</span>
             <div className="actions">
               <button className="copybtn" onClick={() => copyText(textReport(report))}><Clipboard size={14} /> text</button>
               <button className="copybtn" onClick={() => copyText(JSON.stringify(report, null, 2))}><FileJson size={14} /> json</button>
+              <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> png</button>
               <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> github</a>
               <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> re-run</button>
               <button className="copybtn" onClick={onReset}>clear</button>
             </div>
           </div>
+          <div className="share-export-host" aria-hidden="true">
+            <ShareTickerCard ref={shareCardRef} report={report} />
+          </div>
+          {showSharePreview ? (
+            <section className="share-preview" aria-label="PNG export debug preview">
+              <div className="section-h">
+                <span>debug</span>
+                <span className="sub">PNG export preview</span>
+              </div>
+              <div className="share-preview-frame">
+                <ShareTickerCard report={report} />
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
+    </div>
+  );
+}
+
+const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(function ShareTickerCard({ report }, ref) {
+  const rows = tickerRows(report).slice(0, 6);
+  const hasMoreLanguages = report.languages.length > rows.length;
+  const total = report.total.code + report.total.comments + report.total.blanks;
+  return (
+    <div className="share-card" ref={ref}>
+      <div className="share-window">
+        <div className="share-head">
+          <div className="lights"><span className="r" /><span className="y" /><span className="g" /></div>
+          <span>OctoCounts // SLOC</span>
+        </div>
+        <div className="share-body">
+          <div className="share-kicker">{report.repository.owner}/{report.repository.name}</div>
+          <div className="share-ref">{report.refName} / {report.commitSha.slice(0, 12)}</div>
+          <div className="share-total">
+            <span>// Total LOC</span>
+            <strong>{formatNumber(report.total.lines)}</strong>
+          </div>
+          <div className="share-breakdown">
+            <ShareStat color="var(--accent)" label="Code" value={report.total.code} />
+            <ShareStat color="var(--accent-2)" label="Comments" value={report.total.comments} />
+            <ShareStat color="var(--violet)" label="Blanks" value={report.total.blanks} />
+          </div>
+          <div className="share-ticker">
+            <div className="share-ticker-list">
+              {rows.map((row) => (
+                <div className="share-ticker-row" key={row.label}>
+                  <span>{row.label}</span>
+                  <i><b style={{ width: `${row.percent}%`, background: row.color }} /></i>
+                  <em>{formatNumber(row.value)}</em>
+                </div>
+              ))}
+            </div>
+            {hasMoreLanguages ? <div className="share-ticker-note">top languages loc</div> : null}
+          </div>
+          <div className="share-foot">
+            <span>{formatPercent(report.total.code, total)} code</span>
+            <span>generated by OctoCounts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function ShareStat({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <div className="share-stat">
+      <span style={{ background: color }} />
+      <p>{label}</p>
+      <strong>{formatNumber(value)}</strong>
     </div>
   );
 }
@@ -448,10 +454,6 @@ function Metric({ label, value, accent }: { label: string; value: number; accent
 
 function Charts({ report }: { report: Report }) {
   const languageItems = languagePieItems(report.languages);
-  const total = report.total.code + report.total.comments + report.total.blanks;
-  const codePct = percentNumber(report.total.code, total);
-  const commentsPct = percentNumber(report.total.comments, total);
-  const blanksPct = Math.max(0, 100 - codePct - commentsPct);
 
   return (
     <div className="charts-grid">
@@ -459,26 +461,9 @@ function Charts({ report }: { report: Report }) {
         <div className="chart-h"><span className="chart-tag">chart</span>Language share</div>
         <Donut items={languageItems} total={languageItems.reduce((sum, item) => sum + item.value, 0)} />
       </div>
-      <div className="chart-card">
-        <div className="chart-h"><span className="chart-tag">bars</span>Top languages</div>
-        <div className="stacked-list">
-          {report.languages.slice(0, 8).map((language) => (
-            <StackedRow key={language.name} language={language} total={Math.max(language.stats.lines, 1)} />
-          ))}
-        </div>
-      </div>
-      <div className="chart-card full">
-        <div className="chart-h"><span className="chart-tag">mix</span>Line composition</div>
-        <div className="comp-bar">
-          <div className="comp-seg comp-code" style={{ width: `${codePct}%` }}><span>code</span><b>{codePct}%</b></div>
-          <div className="comp-seg comp-cmt" style={{ width: `${commentsPct}%` }}><span>comments</span><b>{commentsPct}%</b></div>
-          <div className="comp-seg comp-blk" style={{ width: `${blanksPct}%` }}><span>blanks</span><b>{blanksPct}%</b></div>
-        </div>
-        <div className="comp-foot">
-          <span><b>{formatNumber(report.total.code)}</b> code</span>
-          <span><b>{formatNumber(report.total.comments)}</b> comments</span>
-          <span><b>{formatNumber(report.total.blanks)}</b> blanks</span>
-        </div>
+      <div className="chart-card table-card">
+        <div className="chart-h"><span className="chart-tag">table</span>Report</div>
+        <ReportTable report={report} compact />
       </div>
     </div>
   );
@@ -486,6 +471,7 @@ function Charts({ report }: { report: Report }) {
 
 function Donut({ items, total }: { items: PieItem[]; total: number }) {
   const slices = pieSlices(items);
+  const exactTotal = formatNumber(total);
   return (
     <>
       <div className="donut-wrap" role="img" aria-label="Language share by code lines">
@@ -493,7 +479,10 @@ function Donut({ items, total }: { items: PieItem[]; total: number }) {
           {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} />)}
           <circle r="0.58" fill="var(--bg-2)" />
         </svg>
-        <div className="donut-center"><span className="mute">code</span><strong>{formatNumber(total)}</strong></div>
+        <div className="donut-center" title={`${exactTotal} code lines`}>
+          <span className="mute">code</span>
+          <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
+        </div>
       </div>
       <div className="legend">
         {items.map((item) => (
@@ -508,23 +497,7 @@ function Donut({ items, total }: { items: PieItem[]; total: number }) {
   );
 }
 
-function StackedRow({ language, total }: { language: LanguageReport; total: number }) {
-  return (
-    <div className="stk-row">
-      <span className="stk-label">{language.name}</span>
-      <span className="stk-track">
-        <span className="stk-bar">
-          <i className="seg-code" style={{ width: `${percentNumber(language.stats.code, total)}%` }} />
-          <i className="seg-cmt" style={{ width: `${percentNumber(language.stats.comments, total)}%` }} />
-          <i className="seg-blk" style={{ width: `${percentNumber(language.stats.blanks, total)}%` }} />
-        </span>
-      </span>
-      <span className="stk-num">{formatNumber(language.stats.code)}</span>
-    </div>
-  );
-}
-
-function ReportTable({ report }: { report: Report }) {
+function ReportTable({ report, compact }: { report: Report; compact?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey>("code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -546,7 +519,7 @@ function ReportTable({ report }: { report: Report }) {
   };
 
   return (
-    <div className="table-wrap">
+    <div className={`table-wrap ${compact ? "compact" : ""}`}>
       <table className="report">
         <thead>
           <tr>
@@ -612,51 +585,7 @@ const statusCopy: Record<AppStatus, string> = {
   failed: "Analysis failed.",
 };
 
-const asciiOctoLarge = [
-  "             .-.",
-  "          .-(   )-.",
-  "       .-(  OCTO  )-.",
-  "      (___COUNT___)",
-  "       /  /  |  \\  \\",
-  "      /__/___|___\\__\\",
-  "        /   / \\   \\",
-  "       /___/   \\___\\",
-].join("\n");
-
-const sampleTickerRows = [
-  { label: "Rust", value: 12480, color: "var(--accent)", percent: 92 },
-  { label: "TypeScript", value: 8420, color: "var(--accent-2)", percent: 62 },
-  { label: "CSS", value: 2984, color: "var(--warn)", percent: 22 },
-  { label: "Shell", value: 860, color: "var(--violet)", percent: 8 },
-];
-
-function terminalLines(status: AppStatus, report: Report | null, command: string, error: string | null) {
-  const safeCommand = escapeHtml(command);
-  if (status === "idle") {
-    return [`<span class="hl">$</span> ${safeCommand}`, `<span class="mute">ready: awaiting repository input</span>`];
-  }
-  if (status === "failed") {
-    return [`<span class="hl">$</span> ${safeCommand}`, `<span class="err">error:</span> ${escapeHtml(error ?? "analysis failed")}`];
-  }
-  if (status === "queued") {
-    return [`<span class="hl">$</span> ${safeCommand}`, `<span class="warn">queued</span> resolving repository ref...`];
-  }
-  if (status === "running") {
-    return [`<span class="hl">$</span> ${safeCommand}`, `download archive...`, `extract tree...`, `<span class="hl">count source lines...</span>`];
-  }
-  if (report) {
-    return [
-      `<span class="hl">$</span> ${safeCommand}`,
-      `<span class="ok">ok</span> ${escapeHtml(report.repository.owner)}/${escapeHtml(report.repository.name)} @ ${report.commitSha.slice(0, 12)}`,
-      `files=${formatNumber(report.total.files)} lines=${formatNumber(report.total.lines)} code=${formatNumber(report.total.code)}`,
-      `${report.cached ? "cache hit" : "fresh run"} / ${report.durationMs}ms`,
-    ];
-  }
-  return [`<span class="hl">$</span> ${safeCommand}`];
-}
-
-function tickerRows(report: Report | null) {
-  if (!report) return sampleTickerRows;
+function tickerRows(report: Report): TickerRow[] {
   const rows = report.languages
     .filter((language) => language.stats.code > 0)
     .slice(0, 6);
@@ -757,8 +686,23 @@ function copyText(value: string) {
   void navigator.clipboard?.writeText(value);
 }
 
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = dataUrl;
+  link.click();
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat().format(value);
+}
+
+function formatCompactNumber(value: number) {
+  if (value <= 99_999) return formatNumber(value);
+  return new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
 }
 
 function formatPercent(value: number, total: number) {
@@ -769,10 +713,6 @@ function formatPercent(value: number, total: number) {
 function percentNumber(value: number, total: number) {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 async function analyzeRepository(request: { repoUrl: string; refName: string; forceRefresh: boolean }): Promise<AnalyzeResponse> {
