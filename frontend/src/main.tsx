@@ -501,15 +501,6 @@ function Donut({ items, total, report }: { items: PieItem[]; total: number; repo
           </div>
         ))}
       </div>
-      <div className="line-type-strip">
-        {breakdown.map((b) => (
-          <div key={b.label} className="line-type-row">
-            <span className="key-sw" style={{ background: b.color }} />
-            <span className="lname">{b.label}</span>
-            <span>{formatPercent(b.value, total)}</span>
-          </div>
-        ))}
-      </div>
     </>
   );
 }
