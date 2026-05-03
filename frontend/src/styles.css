@@ -242,7 +242,7 @@ body {
 .github-link {
   border: 1px solid var(--rule);
   color: var(--fg-dim);
-  padding: 8px 12px;
+  padding: 8px 8px;
   font-size: var(--text-sm);
   letter-spacing: .5px;
   text-transform: uppercase;
@@ -665,7 +665,7 @@ html[data-scheme="paper"] .btn {
 
 .charts-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 2fr;
   gap: 18px;
 }
 
@@ -826,12 +826,12 @@ table.report {
 
 .table-wrap.compact table.report th,
 .table-wrap.compact table.report td {
-  padding: 8px 12px;
+  padding: 8px 10px;
 }
 
 table.report th,
 table.report td {
-  padding: 9px 14px;
+  padding: 8px 14px;
   text-align: right;
   border-bottom: 1px dashed var(--rule-2);
 }
@@ -1441,8 +1441,8 @@ footer {
 
   .expand,
   .expand-spacer {
-    width: 32px;
-    height: 32px;
+    width: 18px;
+    height: 18px;
   }
 
   .github-link {
