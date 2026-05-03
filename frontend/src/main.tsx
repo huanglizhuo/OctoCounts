@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Clipboard, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronRight, Clipboard, ExternalLink, FileJson, Github, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -53,8 +53,9 @@ type JobRecord = {
 
 const queryClient = new QueryClient();
 const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCount";
+const defaultRefName = "e92153946164";
 const samples = [
-  { label: "octocount", repoUrl: defaultRepoUrl, refName: "" },
+  { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
 ];
@@ -67,12 +68,12 @@ const terminalVariants: { id: TerminalVariant; label: string }[] = [
 function App() {
   const [scheme, setScheme] = useState<Scheme>("matrix");
   const [repoUrl, setRepoUrl] = useState(defaultRepoUrl);
-  const [refName, setRefName] = useState("");
+  const [refName, setRefName] = useState(defaultRefName);
   const [jobId, setJobId] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastCommand, setLastCommand] = useState(`octocount analyze ${defaultRepoUrl}`);
+  const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
   const [terminalVariant, setTerminalVariant] = useState<TerminalVariant>("ticker");
 
   useEffect(() => {
@@ -159,14 +160,10 @@ function App() {
     <>
       <div className="crt flicker" />
       <main className="page">
-        <Topbar scheme={scheme} setScheme={setScheme} status={status} />
+        <Topbar />
         <section className="hero" aria-label="Repository analyzer">
           <div className="hero-left">
-            <div className="badges">
-              <span className="badge"><span className="ok">ok</span> public repos</span>
-              <span className="badge">no clone</span>
-              <span className="badge">tokei backend</span>
-            </div>
+            <TopActions scheme={scheme} setScheme={setScheme} status={status} />
             <h2 className="kicker">sloc for github</h2>
             <h1 className="title">Count code lines at <span className="glow">commit speed</span>.</h1>
             <p className="lede">
@@ -273,7 +270,7 @@ function App() {
   );
 }
 
-function Topbar({ scheme, setScheme, status }: { scheme: Scheme; setScheme: (scheme: Scheme) => void; status: AppStatus }) {
+function Topbar() {
   return (
     <header className="topbar">
       <div className="brand">
@@ -283,18 +280,27 @@ function Topbar({ scheme, setScheme, status }: { scheme: Scheme; setScheme: (sch
           <div className="tag">repo telemetry terminal</div>
         </div>
       </div>
-      <div className="top-actions">
-        <div className="theme-switch" role="group" aria-label="Theme">
-          {(["matrix", "paper", "amber"] as const).map((item) => (
-            <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button">
-              <span className={`theme-sw ${item}`} />
-              {item}
-            </button>
-          ))}
-        </div>
-        <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{status}</span>
-      </div>
+      <a className="github-link" href={defaultRepoUrl} target="_blank" rel="noreferrer">
+        <Github size={16} />
+        GitHub
+      </a>
     </header>
+  );
+}
+
+function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: (scheme: Scheme) => void; status: AppStatus }) {
+  return (
+    <div className="top-actions">
+      <div className="theme-switch" role="group" aria-label="Theme">
+        {(["matrix", "paper", "amber"] as const).map((item) => (
+          <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button">
+            <span className={`theme-sw ${item}`} />
+            {item}
+          </button>
+        ))}
+      </div>
+      <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{status}</span>
+    </div>
   );
 }
 
