@@ -758,6 +758,29 @@ html[data-scheme="paper"] .btn {
   white-space: nowrap;
 }
 
+.line-type-strip {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--fg-mute);
+}
+
+.line-type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.line-type-row .lname {
+  flex: 1;
+  letter-spacing: .5px;
+}
+
 .key-sw,
 .swatch {
   display: inline-block;

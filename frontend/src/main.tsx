@@ -456,12 +456,13 @@ function Metric({ label, value, accent }: { label: string; value: number; accent
 
 function Charts({ report }: { report: Report }) {
   const languageItems = languagePieItems(report.languages);
+  const totalLines = report.total.lines;
 
   return (
     <div className="charts-grid">
       <div className="chart-card donut-card">
         <div className="chart-h"><span className="chart-tag">chart</span>Language share</div>
-        <Donut items={languageItems} total={languageItems.reduce((sum, item) => sum + item.value, 0)} />
+        <Donut items={languageItems} total={totalLines} report={report} />
       </div>
       <div className="chart-card table-card">
         <div className="chart-h"><span className="chart-tag">table</span>Report</div>
@@ -471,18 +472,23 @@ function Charts({ report }: { report: Report }) {
   );
 }
 
-function Donut({ items, total }: { items: PieItem[]; total: number }) {
-  const slices = pieSlices(items);
+function Donut({ items, total, report }: { items: PieItem[]; total: number; report: Report }) {
   const exactTotal = formatNumber(total);
+  const slices = pieSlices(items);
+  const breakdown = [
+    { label: "code", value: report.total.code, color: "var(--accent)" },
+    { label: "comments", value: report.total.comments, color: "var(--accent-2)" },
+    { label: "blanks", value: report.total.blanks, color: "var(--fg-mute)" },
+  ];
   return (
     <>
-      <div className="donut-wrap" role="img" aria-label="Language share by code lines">
+      <div className="donut-wrap" role="img" aria-label="Language share by total lines">
         <svg viewBox="-1 -1 2 2">
           {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} />)}
           <circle r="0.58" fill="var(--bg-2)" />
         </svg>
-        <div className="donut-center" title={`${exactTotal} code lines`}>
-          <span className="mute">code</span>
+        <div className="donut-center" title={`${exactTotal} total lines`}>
+          <span className="mute">lines</span>
           <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
         </div>
       </div>
@@ -492,6 +498,15 @@ function Donut({ items, total }: { items: PieItem[]; total: number }) {
             <span className="key-sw" style={{ background: item.color }} />
             <span className="lname">{item.label}</span>
             <span>{formatPercent(item.value, total)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="line-type-strip">
+        {breakdown.map((b) => (
+          <div key={b.label} className="line-type-row">
+            <span className="key-sw" style={{ background: b.color }} />
+            <span className="lname">{b.label}</span>
+            <span>{formatPercent(b.value, total)}</span>
           </div>
         ))}
       </div>
@@ -627,15 +642,15 @@ function sortRows(rows: LanguageReport[], key: SortKey, dir: "asc" | "desc") {
 }
 
 function languagePieItems(languages: LanguageReport[]): PieItem[] {
-  const sorted = [...languages].filter((language) => language.stats.code > 0).sort((a, b) => b.stats.code - a.stats.code);
+  const sorted = [...languages].filter((language) => language.stats.lines > 0).sort((a, b) => b.stats.lines - a.stats.lines);
   const visible = sorted.slice(0, 5).map((language) => ({
     label: language.name,
-    value: language.stats.code,
+    value: language.stats.lines,
     color: languageColor(language.name),
   }));
-  const other = sorted.slice(5).reduce((sum, language) => sum + language.stats.code, 0);
+  const other = sorted.slice(5).reduce((sum, language) => sum + language.stats.lines, 0);
   if (other > 0) visible.push({ label: "Other", value: other, color: "var(--fg-mute)" });
-  return visible.length > 0 ? visible : [{ label: "No code", value: 0, color: "var(--fg-mute)" }];
+  return visible.length > 0 ? visible : [{ label: "No data", value: 0, color: "var(--fg-mute)" }];
 }
 
 function pieSlices(items: PieItem[]) {
