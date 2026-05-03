@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+
+# AI search crawlers — explicitly allowed for AI Overview / chat search visibility
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Block Common Crawl training scraper (not needed for search visibility)
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://octocounts.com/sitemap.xml

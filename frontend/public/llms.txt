@@ -1,0 +1,52 @@
+# OctoCounts
+
+> Free web tool that counts source lines of code (SLOC) in any public GitHub repository — no cloning required.
+
+OctoCounts accepts any public GitHub repository URL, resolves the requested branch, tag, or commit SHA, downloads the archive tarball (faster than cloning), runs tokei to count lines of code by programming language, and returns a sortable report showing files, total lines, code lines, comment lines, and blank lines. Results are cached by commit SHA and tokei version, so repeat queries return instantly. Supports export as plain text, JSON, or a shareable PNG card.
+
+## What it does
+
+- Counts source lines of code (SLOC) in public GitHub repositories
+- Supports any branch, tag, or commit SHA as the analysis target
+- Downloads compressed archive instead of full git clone (significantly faster for large repos)
+- Caches results by commit SHA + tokei version — instant repeat queries
+- Detects 200+ programming languages via tokei
+- Exports results as plain text, JSON, or 1200×630 PNG share card
+- No account or authentication required
+
+## How it works
+
+1. User pastes a GitHub repository URL (optionally specifying a branch, tag, or SHA)
+2. Backend resolves the ref to a specific commit SHA via GitHub API
+3. Backend downloads the repository archive tarball
+4. tokei analyzes the extracted files and counts lines per language
+5. Results are cached and returned as a language breakdown table
+
+## Frequently Asked Questions
+
+**What is SLOC?**
+SLOC stands for Source Lines of Code. It measures software size by counting lines in source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language across a repository.
+
+**Is OctoCounts free?**
+Yes. OctoCounts is completely free for public GitHub repositories with no account required.
+
+**What languages are supported?**
+OctoCounts uses tokei, which supports over 200 programming languages including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, and Kotlin.
+
+**Why use this instead of cloning locally?**
+OctoCounts downloads a compressed archive rather than a full git clone with history, making it significantly faster for large repositories. Cached results mean any repeat analysis of the same commit is instant.
+
+## Technical details
+
+- Backend: Rust (Axum framework, Tokio async runtime, SQLx, SQLite)
+- Frontend: React, TypeScript, Vite, TanStack Query
+- Line counter: tokei (open source, multi-language SLOC tool)
+- Infrastructure: Docker Compose
+
+## Source code
+
+https://github.com/huanglizhuo/OctoCount
+
+## Use it at
+
+https://octocounts.com/

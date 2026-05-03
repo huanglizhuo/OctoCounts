@@ -283,7 +283,7 @@ function Topbar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt="" /></div>
+        <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt="OctoCounts logo" /></div>
         <div>
           <span className="brand-name">OctoCounts</span>
         </div>
