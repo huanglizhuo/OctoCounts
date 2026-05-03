@@ -96,139 +96,22 @@ GITHUB_TOKEN=github_pat_your_token_here
 
 ## Production Deployment
 
-The recommended free setup: **Oracle Cloud (backend) + Cloudflare Pages (frontend)**. Both are genuinely free, not "free until you forget to set a spending limit" free.
-
-| Part | Service | Cost |
-|---|---|---|
-| Backend + DB | Oracle Cloud Always Free (ARM VM) | $0 forever |
-| Frontend | Cloudflare Pages | $0 forever |
-| Egress | Oracle Cloud includes 10TB/month | $0 for any sane traffic level |
-
----
-
-### Backend — Oracle Cloud Always Free VM
-
-Oracle's Always Free tier gives you up to 4 ARM (Ampere A1) OCPUs and 24GB RAM to split however you like. One instance with 1 OCPU and 6GB RAM is more than enough for OctoCounts. You also get 200GB of block storage total.
-
-**One fair warning:** Oracle will reclaim ARM instances that sit idle (CPU, network, and memory all under 20%) for 7 consecutive days. A public-facing app with any traffic won't hit this. If you're running it as a private demo with zero visitors, schedule a cron job to ping it occasionally.
-
-#### 1. Create the instance
-
-1. Sign up at [cloud.oracle.com](https://cloud.oracle.com) — a credit card is required for identity verification, but you won't be charged for Always Free resources.
-2. Go to **Compute → Instances → Create Instance**.
-3. Under **Shape**, click **Change shape** → **Ampere** → select `VM.Standard.A1.Flex`.
-4. Set **1 OCPU** and **6GB RAM** (or more if you want headroom).
-5. Under **Image**, choose **Ubuntu 22.04**.
-6. Under **Networking**, make sure **Assign a public IPv4 address** is checked.
-7. Add your SSH public key.
-8. Click **Create**. Note the public IP once it's running.
-
-#### 2. Open ports in the firewall
-
-Oracle's default security list blocks everything. Open ports 80 and 443 (or 8080 if you're skipping a reverse proxy):
-
-1. Go to **Networking → Virtual Cloud Networks → your VCN → Security Lists**.
-2. Add ingress rules for TCP port **80**, **443**, and **8080** from source `0.0.0.0/0`.
-
-Also open them in the OS firewall on the instance itself:
+Tested on a plain VPS. No Kubernetes required, no Helm charts, no regrets.
 
 ```bash
-sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
-sudo iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
-sudo netfilter-persistent save
-```
-
-#### 3. Install Docker
-
-```bash
-ssh ubuntu@YOUR_INSTANCE_IP
-
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Verify
-docker run hello-world
-```
-
-#### 4. Deploy OctoCounts
-
-```bash
-git clone https://github.com/huanglizhuo/OctoCount.git
-cd OctoCount
-
 cp .env.example .env
-# Edit .env and set GITHUB_TOKEN
-nano .env
-
+# Edit .env — at minimum set GITHUB_TOKEN
 docker compose up --build -d
 ```
 
-The backend API is now running on `http://YOUR_INSTANCE_IP:8080`.
+Services expose:
 
-#### 5. (Optional) Set up Caddy for HTTPS
-
-If you have a domain pointed at the instance, Caddy handles TLS automatically:
-
-```bash
-sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt update && sudo apt install caddy
-```
-
-Edit `/etc/caddy/Caddyfile`:
-
-```
-api.yourdomain.com {
-    reverse_proxy localhost:8080
-}
-```
-
-```bash
-sudo systemctl reload caddy
-```
-
----
-
-### Frontend — Cloudflare Pages
-
-Cloudflare Pages builds and deploys the frontend on every push to your repo. Global CDN, custom domains, HTTPS — all free.
-
-#### 1. Connect the repo
-
-1. Go to [pages.cloudflare.com](https://pages.cloudflare.com) and log in (or create a free account).
-2. Click **Create a project → Connect to Git**.
-3. Authorize Cloudflare to access your GitHub account and select this repository.
-
-#### 2. Configure the build
-
-| Setting | Value |
+| Service | Address |
 |---|---|
-| Framework preset | None |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
-| Root directory | `frontend` |
+| API | `http://SERVER_IP:8080` |
+| Frontend | `http://SERVER_IP:5173` |
 
-#### 3. Set the API environment variable
-
-Under **Settings → Environment variables**, add:
-
-| Variable | Value |
-|---|---|
-| `VITE_API_BASE` | `https://api.yourdomain.com` (or `http://YOUR_INSTANCE_IP:8080`) |
-
-#### 4. Deploy
-
-Click **Save and Deploy**. Cloudflare builds the frontend and hands you a `*.pages.dev` subdomain immediately. Point your own domain at it under **Custom domains** if you have one.
-
-From this point on, every push to `main` triggers a new build and deploy automatically.
-
----
-
-### Environment variables reference
+### Environment variables
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -236,3 +119,17 @@ From this point on, every push to `main` triggers a new build and deploy automat
 | `ANALYSIS_CONCURRENCY` | `2` | Max parallel analysis jobs |
 | `DATABASE_URL` | `sqlite:///data/sloc.db` | SQLite path inside the container |
 | `BIND_ADDR` | `0.0.0.0:8080` | Backend listen address |
+
+To stop:
+```bash
+docker compose down
+```
+
+### Putting it behind a reverse proxy
+
+For a public domain, put Caddy or Nginx in front:
+
+- Route `/api/*` → `api:8080`
+- Route everything else → `web:80`
+
+Or expose them under separate subdomains — whatever your ops setup prefers. OctoCounts doesn't care.
