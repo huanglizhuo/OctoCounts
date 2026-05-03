@@ -66,7 +66,9 @@ const samples = [
 const seedReport = initialReportData as Report;
 
 function App() {
-  const [scheme, setScheme] = useState<Scheme>("matrix");
+  const [scheme, setScheme] = useState<Scheme>(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
+  );
   const [repoUrl, setRepoUrl] = useState("");
   const [refName, setRefName] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
