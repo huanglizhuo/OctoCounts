@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson,
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import initialReportData from "./initialReport.json";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
 const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
@@ -62,17 +63,19 @@ const samples = [
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
 ];
 
+const seedReport = initialReportData as Report;
+
 function App() {
   const [scheme, setScheme] = useState<Scheme>("matrix");
   const [repoUrl, setRepoUrl] = useState("");
   const [refName, setRefName] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
-  const [report, setReport] = useState<Report | null>(null);
+  const [report, setReport] = useState<Report | null>(seedReport);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
   const repoInputRef = useRef<HTMLInputElement>(null);
-  const didAutoAnalyze = useRef(false);
+  const didAutoAnalyze = useRef(true);
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;

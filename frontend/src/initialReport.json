@@ -1,0 +1,179 @@
+{
+  "id": "bb05b86aaabb82d08585569bce1284a0b01ec9e5a1c6d1b38e55aea67bf4761e",
+  "repository": {
+    "owner": "huanglizhuo",
+    "name": "OctoCount",
+    "htmlUrl": "https://github.com/huanglizhuo/OctoCount"
+  },
+  "refName": "main",
+  "commitSha": "e921539461646579db979b7eaf40aa7c8f634f93",
+  "generatedAt": "2026-05-03T14:54:51.484242888Z",
+  "durationMs": 194,
+  "cached": true,
+  "tokeiVersion": "tokei-12.1",
+  "languages": [
+    {
+      "name": "JSON",
+      "stats": {
+        "files": 3,
+        "lines": 1829,
+        "code": 1829,
+        "comments": 0,
+        "blanks": 0
+      },
+      "children": []
+    },
+    {
+      "name": "Rust",
+      "stats": {
+        "files": 6,
+        "lines": 1247,
+        "code": 1107,
+        "comments": 0,
+        "blanks": 140
+      },
+      "children": []
+    },
+    {
+      "name": "CSS",
+      "stats": {
+        "files": 1,
+        "lines": 1272,
+        "code": 1086,
+        "comments": 0,
+        "blanks": 186
+      },
+      "children": []
+    },
+    {
+      "name": "TSX",
+      "stats": {
+        "files": 1,
+        "lines": 762,
+        "code": 702,
+        "comments": 0,
+        "blanks": 60
+      },
+      "children": []
+    },
+    {
+      "name": "HTML",
+      "stats": {
+        "files": 2,
+        "lines": 66,
+        "code": 62,
+        "comments": 0,
+        "blanks": 4
+      },
+      "children": [
+        {
+          "name": "JavaScript",
+          "stats": {
+            "files": 1,
+            "lines": 137,
+            "code": 104,
+            "comments": 19,
+            "blanks": 14
+          },
+          "children": []
+        },
+        {
+          "name": "CSS",
+          "stats": {
+            "files": 1,
+            "lines": 7,
+            "code": 7,
+            "comments": 0,
+            "blanks": 0
+          },
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "YAML",
+      "stats": {
+        "files": 2,
+        "lines": 67,
+        "code": 62,
+        "comments": 0,
+        "blanks": 5
+      },
+      "children": []
+    },
+    {
+      "name": "Shell",
+      "stats": {
+        "files": 1,
+        "lines": 59,
+        "code": 46,
+        "comments": 1,
+        "blanks": 12
+      },
+      "children": []
+    },
+    {
+      "name": "TOML",
+      "stats": {
+        "files": 1,
+        "lines": 31,
+        "code": 29,
+        "comments": 0,
+        "blanks": 2
+      },
+      "children": []
+    },
+    {
+      "name": "Dockerfile",
+      "stats": {
+        "files": 2,
+        "lines": 30,
+        "code": 28,
+        "comments": 0,
+        "blanks": 2
+      },
+      "children": []
+    },
+    {
+      "name": "Markdown",
+      "stats": {
+        "files": 1,
+        "lines": 141,
+        "code": 0,
+        "comments": 89,
+        "blanks": 52
+      },
+      "children": [
+        {
+          "name": "BASH",
+          "stats": {
+            "files": 1,
+            "lines": 18,
+            "code": 18,
+            "comments": 0,
+            "blanks": 0
+          },
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "stats": {
+        "files": 1,
+        "lines": 1,
+        "code": 0,
+        "comments": 1,
+        "blanks": 0
+      },
+      "children": []
+    }
+  ],
+  "total": {
+    "files": 21,
+    "lines": 5505,
+    "code": 4951,
+    "comments": 91,
+    "blanks": 463
+  }
+}
