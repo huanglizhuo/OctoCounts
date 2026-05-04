@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
+  <img src="images/octo-count.png" alt="OctoCounts logo" width="620">
 </p>
 
-# OctoCounts
+# OctoCounts – fast SLOC reports for public GitHub repos
 
 > Paste a GitHub URL. Get a line count. Feel productive.
 
@@ -18,6 +18,12 @@ Built for developers who want quick SLOC visibility and refuse to wait for `git 
 - Caches reports by `owner + repo + commit + tokei version` — repeat runs are instant
 - Queues analysis jobs so concurrent requests don't bring the server to its knees
 - Exports reports as plain text, JSON, or a shareable PNG card
+
+## generated preview png
+
+<p align="center">
+  <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
+</p>
 
 ## Stack
 
