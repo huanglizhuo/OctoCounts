@@ -180,6 +180,7 @@ function App() {
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
             <h1 className="title">Count code lines at <span className="glow">commit speed</span>.</h1>
+            <p className="subtitle">Free GitHub SLOC counter powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>. Paste a repo URL — get a full language breakdown in seconds.</p>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -272,7 +273,7 @@ function App() {
 
         <footer>
           <span>OctoCounts // public repository source line counts</span>
-          <span>(c) 2026</span>
+          <span>Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span>
         </footer>
       </main>
     </>

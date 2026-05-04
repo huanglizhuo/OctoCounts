@@ -418,6 +418,21 @@ section {
   font-size: 14px;
 }
 
+.subtitle {
+  margin: 0 0 1.2rem;
+  font-size: 0.875rem;
+  color: var(--fg-mute);
+  line-height: 1.5;
+  max-width: 58ch;
+}
+.subtitle a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.subtitle a:hover {
+  text-decoration: underline;
+}
+
 .input-row {
   display: flex;
   align-items: stretch;
