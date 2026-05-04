@@ -1,3 +1,7 @@
+# NOTE: Cloudflare may prepend managed rules in production.
+# If Cloudflare's managed block conflicts with these allows,
+# adjust in Cloudflare dashboard > Rules > Configuration > Robots.txt.
+
 User-agent: *
 Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /

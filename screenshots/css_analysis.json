@@ -1,0 +1,132 @@
+{
+  "mediaQueries": [
+    {
+      "condition": "(max-width: 980px)",
+      "ruleCount": 1
+    },
+    {
+      "condition": "(max-width: 920px)",
+      "ruleCount": 1
+    },
+    {
+      "condition": "(max-width: 880px)",
+      "ruleCount": 1
+    },
+    {
+      "condition": "(max-width: 820px)",
+      "ruleCount": 4
+    },
+    {
+      "condition": "(max-width: 720px)",
+      "ruleCount": 12
+    },
+    {
+      "condition": "(max-width: 560px)",
+      "ruleCount": 6
+    },
+    {
+      "condition": "(pointer: coarse)",
+      "ruleCount": 6
+    },
+    {
+      "condition": "(hover: none)",
+      "ruleCount": 3
+    }
+  ],
+  "cssFiles": [
+    "https://octocounts.com/assets/index-DoB7fz83.css"
+  ],
+  "preconnects": [],
+  "dnsPrefetch": [],
+  "scripts": [
+    {
+      "src": "https://octocounts.com/assets/index-DpuvO3-7.js",
+      "async": false,
+      "defer": false,
+      "type": "module"
+    },
+    {
+      "src": "https://static.cloudflareinsights.com/beacon.min.js",
+      "async": false,
+      "defer": true,
+      "type": ""
+    }
+  ],
+  "renderBlockingCSS": 1,
+  "headingHierarchy": [
+    {
+      "level": "H1",
+      "text": "Count code lines at commit speed."
+    },
+    {
+      "level": "H2",
+      "text": "Runner"
+    },
+    {
+      "level": "H2",
+      "text": "How It Works"
+    },
+    {
+      "level": "H3",
+      "text": "Resolve"
+    },
+    {
+      "level": "H3",
+      "text": "Count"
+    },
+    {
+      "level": "H3",
+      "text": "Cache"
+    }
+  ],
+  "ariaLabels": [
+    {
+      "tag": "SECTION",
+      "label": "Repository analyzer"
+    },
+    {
+      "tag": "DIV",
+      "label": "Theme"
+    },
+    {
+      "tag": "INPUT",
+      "label": "Repository URL"
+    },
+    {
+      "tag": "INPUT",
+      "label": "Optional ref"
+    },
+    {
+      "tag": "DIV",
+      "label": "Example repositories"
+    },
+    {
+      "tag": "DIV",
+      "label": "Language share by total lines"
+    },
+    {
+      "tag": "STRONG",
+      "label": "5,505"
+    }
+  ],
+  "imagesWithoutAlt": 0,
+  "imagesWithEmptyAlt": 0,
+  "formLabels": [
+    {
+      "id": "repo-url",
+      "name": "repoUrl",
+      "hasLabel": false,
+      "hasAriaLabel": true,
+      "hasPlaceholder": true,
+      "hasTitle": false
+    },
+    {
+      "id": "repo-ref",
+      "name": "refName",
+      "hasLabel": false,
+      "hasAriaLabel": true,
+      "hasPlaceholder": true,
+      "hasTitle": false
+    }
+  ]
+}

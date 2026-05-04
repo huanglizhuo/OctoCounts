@@ -1,0 +1,407 @@
+{
+  "foldHeight": 1080,
+  "aboveFoldElements": [
+    {
+      "tag": "MAIN",
+      "text": "OctoCountsmatrixpaperambercachedCount code lines at commit s",
+      "top": 0,
+      "role": null,
+      "className": "page"
+    },
+    {
+      "tag": "HEADER",
+      "text": "OctoCounts",
+      "top": 28,
+      "role": null,
+      "className": "topbar"
+    },
+    {
+      "tag": "IMG",
+      "text": "",
+      "top": 36,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "A",
+      "text": "",
+      "top": 71,
+      "role": null,
+      "className": "github-link"
+    },
+    {
+      "tag": "SECTION",
+      "text": "matrixpaperambercachedCount code lines at commit speed.Free ",
+      "top": 199,
+      "role": null,
+      "className": "hero"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "matrix",
+      "top": 202,
+      "role": null,
+      "className": "theme-btn "
+    },
+    {
+      "tag": "BUTTON",
+      "text": "paper",
+      "top": 202,
+      "role": null,
+      "className": "theme-btn active"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "amber",
+      "top": 202,
+      "role": null,
+      "className": "theme-btn "
+    },
+    {
+      "tag": "H1",
+      "text": "Count code lines at commit speed.",
+      "top": 242,
+      "role": null,
+      "className": "title"
+    },
+    {
+      "tag": "P",
+      "text": "Free GitHub SLOC counter powered by tokei. Paste a repo URL ",
+      "top": 382,
+      "role": null,
+      "className": "subtitle"
+    },
+    {
+      "tag": "A",
+      "text": "tokei",
+      "top": 383,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "FORM",
+      "text": "$refAnalyze",
+      "top": 444,
+      "role": null,
+      "className": "input-row"
+    },
+    {
+      "tag": "INPUT",
+      "text": "",
+      "top": 445,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "INPUT",
+      "text": "",
+      "top": 445,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "BUTTON",
+      "text": "Analyze",
+      "top": 445,
+      "role": null,
+      "className": "btn"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "sampleoctocount",
+      "top": 503,
+      "role": null,
+      "className": "chip"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "sampleaxum",
+      "top": 503,
+      "role": null,
+      "className": "chip"
+    },
+    {
+      "tag": "BUTTON",
+      "text": "samplevite",
+      "top": 503,
+      "role": null,
+      "className": "chip"
+    },
+    {
+      "tag": "SECTION",
+      "text": "01RunnerServed from commit-level cache.cached$ octocount ana",
+      "top": 569,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "H2",
+      "text": "Runner",
+      "top": 569,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "P",
+      "text": "Code",
+      "top": 355,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "P",
+      "text": "Comments",
+      "top": 400,
+      "role": null,
+      "className": ""
+    },
+    {
+      "tag": "P",
+      "text": "Blanks",
+      "top": 445,
+      "role": null,
+      "className": ""
+    }
+  ],
+  "navigation": {
+    "exists": true,
+    "tag": "HEADER",
+    "text": "OctoCounts",
+    "links": [
+      {
+        "text": "",
+        "href": "https://github.com/huanglizhuo/OctoCount"
+      }
+    ]
+  },
+  "hasTailwind": false,
+  "hasBootstrap": true,
+  "totalClasses": 96,
+  "sampleClasses": [
+    "crt",
+    "flicker",
+    "page",
+    "topbar",
+    "brand",
+    "logo",
+    "brand-name",
+    "github-link",
+    "hero",
+    "hero-left",
+    "top-actions",
+    "theme-switch",
+    "theme-btn",
+    "theme-sw",
+    "matrix",
+    "active",
+    "paper",
+    "amber",
+    "pill",
+    "dot",
+    "title",
+    "glow",
+    "subtitle",
+    "input-row",
+    "prompt",
+    "ref",
+    "btn",
+    "quick-rows",
+    "chip",
+    "k",
+    "section-h",
+    "num",
+    "sub",
+    "runner",
+    "runner-head",
+    "left",
+    "row-flex",
+    "progress",
+    "log",
+    "ts",
+    "ok",
+    "summary",
+    "cell",
+    "lbl",
+    "val",
+    "accent",
+    "charts-grid",
+    "chart-card",
+    "donut-card",
+    "chart-h"
+  ],
+  "colorSamples": [
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.14 0.01 90)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "62px",
+      "text": "OctoCounts"
+    },
+    {
+      "tag": "A",
+      "color": "oklch(0.38 0.013 90)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "13px",
+      "text": ""
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.57 0.012 90)",
+      "backgroundColor": "oklch(0.42 0.1 148)",
+      "fontSize": "11px",
+      "text": ""
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.42 0.1 148)",
+      "backgroundColor": "rgb(31, 107, 58)",
+      "fontSize": "11px",
+      "text": ""
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.57 0.012 90)",
+      "backgroundColor": "rgb(255, 176, 0)",
+      "fontSize": "11px",
+      "text": ""
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.38 0.013 90)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "11px",
+      "text": "cached"
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.38 0.013 90)",
+      "backgroundColor": "oklch(0.42 0.1 148)",
+      "fontSize": "11px",
+      "text": ""
+    },
+    {
+      "tag": "H1",
+      "color": "oklch(0.14 0.01 90)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "60px",
+      "text": "Count code lines at commit spe"
+    },
+    {
+      "tag": "SPAN",
+      "color": "oklch(0.42 0.1 148)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "60px",
+      "text": "commit speed"
+    },
+    {
+      "tag": "P",
+      "color": "oklch(0.57 0.012 90)",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "fontSize": "14px",
+      "text": "Free GitHub SLOC counter power"
+    }
+  ],
+  "totalImages": 1,
+  "totalScripts": 6,
+  "totalLinks": 7,
+  "resourceCount": 6,
+  "totalTransferSize": 148741,
+  "fontFaces": [
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "loaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "loaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "loaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "unloaded"
+    },
+    {
+      "family": "JetBrains Mono",
+      "status": "loaded"
+    }
+  ]
+}

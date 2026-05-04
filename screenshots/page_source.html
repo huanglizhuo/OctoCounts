@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="en" data-scheme="paper"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Instantly count source lines of code in any public GitHub repository. No cloning — OctoCounts downloads the archive, runs tokei, and returns a sortable language breakdown in seconds.">
+    <meta name="theme-color" content="#151d1a">
+    <link rel="canonical" href="https://octocounts.com/">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://octocounts.com/">
+    <meta property="og:site_name" content="OctoCounts">
+    <meta property="og:title" content="OctoCounts — Count GitHub Source Lines of Code">
+    <meta property="og:description" content="Paste a GitHub URL. Get a full SLOC breakdown by language in seconds. Powered by tokei, cached by commit SHA.">
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="OctoCounts — GitHub Source Line Counter">
+    <meta name="twitter:description" content="Count code lines in any public GitHub repo. No clone, instant results, cached by commit.">
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg">
+    <title>OctoCounts — GitHub SLOC Counter | Count Source Lines of Code Free</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "OctoCounts",
+      "url": "https://octocounts.com/",
+      "description": "Count source lines of code in any public GitHub repository. No cloning required — results returned by language in seconds.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "SLOC counting by language",
+        "No git clone required",
+        "Results cached by commit SHA",
+        "Export as PNG, JSON, or plain text",
+        "Supports branches, tags, and commit SHAs"
+      ],
+      "sameAs": [
+        "https://github.com/huanglizhuo/OctoCount"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is SLOC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting lines in its source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language, plus aggregate totals across the repository."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why use OctoCounts instead of cloning and running tokei locally?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts is faster for large repositories because it downloads a compressed archive tarball rather than a full git clone with history. It also caches results by commit SHA, so any repeated analysis of the same commit returns instantly with zero re-processing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is OctoCounts free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What programming languages does OctoCounts support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, Kotlin, and many more."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I export the source line count results?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts supports three export formats: plain text (copy to clipboard), JSON (full report with per-language stats), and a shareable PNG card showing the language breakdown at 1200x630 resolution."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts support private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts currently supports public GitHub repositories only. Private repositories require authentication which is not yet supported."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo"]
+    }
+    </script>
+    <script type="module" crossorigin="" src="/assets/index-DpuvO3-7.js"></script>
+    <link rel="stylesheet" crossorigin="" href="/assets/index-DoB7fz83.css">
+  </head>
+  <body>
+    <div id="root"><div class="crt flicker"></div><main class="page"><header class="topbar"><div class="brand"><div class="logo"><img alt="OctoCounts logo" src="/favicons/web-app-manifest-192x192.png"></div><div><span class="brand-name">OctoCounts</span></div></div><a class="github-link" href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer"><svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></a></header><section class="hero" aria-label="Repository analyzer"><div class="hero-left"><div class="top-actions"><div class="theme-switch" role="group" aria-label="Theme"><button class="theme-btn " type="button"><span class="theme-sw matrix"></span>matrix</button><button class="theme-btn active" type="button"><span class="theme-sw paper"></span>paper</button><button class="theme-btn " type="button"><span class="theme-sw amber"></span>amber</button></div><span class="pill"><span class="dot "></span>cached</span></div><h1 class="title">Count code lines at <span class="glow">commit speed</span>.</h1><p class="subtitle">Free GitHub SLOC counter powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>. Paste a repo URL — get a full language breakdown in seconds.</p><form class="input-row"><span class="prompt">$</span><input id="repo-url" placeholder="https://github.com/owner/repo" aria-label="Repository URL" value="" name="repoUrl"><label class="ref">ref<input id="repo-ref" placeholder="main" aria-label="Optional ref" value="" name="refName"></label><button class="btn"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>Analyze</button></form><div class="quick-rows" aria-label="Example repositories"><button class="chip" type="button"><span class="k">sample</span>octocount</button><button class="chip" type="button"><span class="k">sample</span>axum</button><button class="chip" type="button"><span class="k">sample</span>vite</button></div></div></section><section><div class="section-h"><span class="num">01</span><h2>Runner</h2><span class="sub">Served from commit-level cache.</span></div><div class="runner"><div class="runner-head"><div class="left"><span class="pill"><span class="dot "></span>cached</span><code>$ octocount analyze https://github.com/huanglizhuo/OctoCount --ref e92153946164</code></div><div class="row-flex"><span>main / e92153946164 / cache hit</span></div></div><div class="progress "><i style="width: 100%;"></i></div><div class="log"><div><span class="ts">00:01</span><span class="ok">resolved main -&gt; e92153946164</span></div><div><span class="ts">00:02</span><span class="ok">cache hit returned</span></div><div><span class="ts">00:03</span><span class="ok">11 language rows rendered</span></div></div><div class="summary"><div class="cell "><div class="lbl">Files</div><div class="val">21</div></div><div class="cell "><div class="lbl">Lines</div><div class="val">5,505</div></div><div class="cell accent"><div class="lbl">Code</div><div class="val">4,951</div></div><div class="cell "><div class="lbl">Comments</div><div class="val">91</div></div><div class="cell "><div class="lbl">Blanks</div><div class="val">463</div></div></div><div class="charts-grid"><div class="chart-card donut-card"><div class="chart-h"><span class="chart-tag">chart</span>Language share</div><div class="donut-wrap" role="img" aria-label="Language share by total lines"><svg viewBox="-1 -1 2 2"><path d="M 0 0 L 6.123233995736766e-17 -1 A 1 1 0 0 1 0.8694291491720711 0.49405764296277055 Z" fill="var(--warn)"></path><path d="M 0 0 L 0.8694291491720711 0.49405764296277055 A 1 1 0 0 1 -0.38735775415217205 0.9219294822806056 Z" fill="var(--err)"></path><path d="M 0 0 L -0.38735775415217205 0.9219294822806056 A 1 1 0 0 1 -0.9688522440908343 -0.2476395144563051 Z" fill="var(--violet)"></path><path d="M 0 0 L -0.9688522440908343 -0.2476395144563051 A 1 1 0 0 1 -0.4357191394910617 -0.9000826803584039 Z" fill="var(--blue)"></path><path d="M 0 0 L -0.4357191394910617 -0.9000826803584039 A 1 1 0 0 1 -0.2858615462813625 -0.9582709305606784 Z" fill="var(--accent-2)"></path><path d="M 0 0 L -0.2858615462813625 -0.9582709305606784 A 1 1 0 0 1 -1.8369701987210297e-16 -1 Z" fill="var(--fg-mute)"></path><circle r="0.58" fill="var(--bg-2)"></circle></svg><div class="donut-center" title="5,505 total lines"><span class="mute">lines</span><strong aria-label="5,505">5,505</strong></div></div><div class="legend"><div class="legend-row"><span class="key-sw" style="background: var(--warn);"></span><span class="lname">JSON</span><span>33%</span></div><div class="legend-row"><span class="key-sw" style="background: var(--err);"></span><span class="lname">CSS</span><span>23%</span></div><div class="legend-row"><span class="key-sw" style="background: var(--violet);"></span><span class="lname">Rust</span><span>23%</span></div><div class="legend-row"><span class="key-sw" style="background: var(--blue);"></span><span class="lname">TSX</span><span>14%</span></div><div class="legend-row"><span class="key-sw" style="background: var(--accent-2);"></span><span class="lname">Markdown</span><span>3%</span></div><div class="legend-row"><span class="key-sw" style="background: var(--fg-mute);"></span><span class="lname">Other</span><span>5%</span></div></div></div><div class="chart-card table-card"><div class="chart-h"><span class="chart-tag">table</span>Report</div><div class="table-wrap compact"><table class="report"><thead><tr><th class="lang">Language <span class="arr"></span></th><th>files <span class="arr"></span></th><th>lines <span class="arr"></span></th><th>code <span class="arr">v</span></th><th>comments <span class="arr"></span></th><th>blanks <span class="arr"></span></th></tr></thead><tbody><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--warn);"></span>JSON</td><td>3</td><td>1,829</td><td>1,829</td><td>0</td><td>0</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--violet);"></span>Rust</td><td>6</td><td>1,247</td><td>1,107</td><td>0</td><td>140</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--err);"></span>CSS</td><td>1</td><td>1,272</td><td>1,086</td><td>0</td><td>186</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--blue);"></span>TSX</td><td>1</td><td>762</td><td>702</td><td>0</td><td>60</td></tr><tr class="lang-row "><td class="lang"><button class="expand" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button><span class="swatch" style="color: var(--blue);"></span>HTML</td><td>2</td><td>66</td><td>62</td><td>0</td><td>4</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--accent-2);"></span>YAML</td><td>2</td><td>67</td><td>62</td><td>0</td><td>5</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--accent);"></span>Shell</td><td>1</td><td>59</td><td>46</td><td>1</td><td>12</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--violet);"></span>TOML</td><td>1</td><td>31</td><td>29</td><td>0</td><td>2</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--warn);"></span>Dockerfile</td><td>2</td><td>30</td><td>28</td><td>0</td><td>2</td></tr><tr class="lang-row "><td class="lang"><button class="expand" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button><span class="swatch" style="color: var(--accent-2);"></span>Markdown</td><td>1</td><td>141</td><td>0</td><td>89</td><td>52</td></tr><tr class="lang-row "><td class="lang"><span class="expand-spacer"></span><span class="swatch" style="color: var(--blue);"></span>TypeScript</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td></tr><tr class="totals"><td class="lang">Total</td><td>21</td><td>5,505</td><td>4,951</td><td>91</td><td>463</td></tr></tbody></table></div></div></div><div class="runner-foot"><span>generated 5/3/2026, 11:54:51 PM / 194ms / tokei-12.1</span><div class="actions"><button class="copybtn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg> text</button><button class="copybtn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-json" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"></path><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"></path></svg> json</button><button class="copybtn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg> png</button><a class="copybtn" href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-external-link" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg> github</a><button class="copybtn"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rotate-ccw" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> re-run</button><button class="copybtn">clear</button></div></div><div class="share-export-host" aria-hidden="true"><div class="share-card"><div class="share-window"><div class="share-head"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span>OctoCounts // SLOC</span></div><div class="share-body"><div class="share-kicker">huanglizhuo/OctoCount</div><div class="share-ref">main / e92153946164</div><div class="share-total"><span>// Total LOC</span><strong>5,505</strong></div><div class="share-breakdown"><div class="share-stat"><span style="background: var(--accent);"></span><p>Code</p><strong>4,951</strong></div><div class="share-stat"><span style="background: var(--accent-2);"></span><p>Comments</p><strong>91</strong></div><div class="share-stat"><span style="background: var(--violet);"></span><p>Blanks</p><strong>463</strong></div></div><div class="share-ticker"><div class="share-ticker-list"><div class="share-ticker-row"><span>JSON</span><i><b style="width: 100%; background: var(--warn);"></b></i><em>1,829</em></div><div class="share-ticker-row"><span>Rust</span><i><b style="width: 61%; background: var(--violet);"></b></i><em>1,107</em></div><div class="share-ticker-row"><span>CSS</span><i><b style="width: 59%; background: var(--err);"></b></i><em>1,086</em></div><div class="share-ticker-row"><span>TSX</span><i><b style="width: 38%; background: var(--blue);"></b></i><em>702</em></div><div class="share-ticker-row"><span>HTML</span><i><b style="width: 4%; background: var(--blue);"></b></i><em>62</em></div><div class="share-ticker-row"><span>YAML</span><i><b style="width: 4%; background: var(--accent-2);"></b></i><em>62</em></div></div><div class="share-ticker-note">top languages loc</div></div><div class="share-foot"><span>90% code</span><span>generated by OctoCounts</span></div></div></div></div></div></div></section><section><div class="section-h"><span class="num">02</span><h2>How It Works</h2><span class="sub">archive in, tokei report out</span></div><div class="how"><div class="step"><span class="n">01</span><h3>Resolve</h3><p>OctoCounts validates the public GitHub URL, resolves the requested branch, tag, or SHA, and pins the run to a commit.</p><div class="codeline">GET <span class="c">/repos/:owner/:repo</span></div></div><div class="step"><span class="n">02</span><h3>Count</h3><p>The backend downloads the repository archive, skips heavy generated folders, extracts safely, and runs tokei in a worker job.</p><div class="codeline">tokei <span class="c">--output json</span></div></div><div class="step"><span class="n">03</span><h3>Cache</h3><p>Reports are cached by owner, repo, commit, and tokei version. Analyze reuses the cache; re-run forces a fresh count.</p><div class="codeline">cache <span class="c">commit + version</span></div></div></div></section><footer><span>OctoCounts // public repository source line counts</span><span>Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span></footer></main></div>
+    <noscript>
+      <main>
+        <h1>OctoCounts — GitHub SLOC Counter</h1>
+        <p><time datetime="2026-05-04">Updated May 2026.</time> OctoCounts is a free web tool that counts source lines of code in any public GitHub repository without cloning. It downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> to count lines across 200+ programming languages, caches the result by commit SHA, and returns a sortable breakdown — faster than a local clone for most large repos.</p>
+
+        <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
+        <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA and tokei version, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install — paste a GitHub URL and get results in seconds.</p>
+
+        <h2>What is OctoCounts?</h2>
+        <p>OctoCounts is a source lines of code (SLOC) counter for GitHub repositories. It accepts any public GitHub URL, resolves the requested branch, tag, or commit SHA via the GitHub API, downloads the archive tarball, runs tokei in a background worker, and returns a language-by-language breakdown showing files, total lines, code lines, comment lines, and blank lines. Results are cached by commit SHA and tokei version so repeat queries are instant.</p>
+
+        <h2>How does OctoCounts work?</h2>
+        <ol>
+          <li><strong>Resolve:</strong> OctoCounts validates the GitHub URL and pins the run to a specific commit SHA using the GitHub API.</li>
+          <li><strong>Count:</strong> The Rust backend (Axum + Tokio) downloads the repository archive, extracts it, and runs tokei for language statistics in a queued worker job.</li>
+          <li><strong>Cache:</strong> Reports are stored by owner, repo, commit SHA, and tokei version. Re-analysis of the same commit is instant — no re-download, no re-count.</li>
+        </ol>
+
+        <h2>Frequently Asked Questions</h2>
+
+        <h3>What is SLOC?</h3>
+        <p>SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting lines in its source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language, plus aggregate totals across the repository.</p>
+
+        <h3>What programming languages does OctoCounts support?</h3>
+        <p>OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, Kotlin, and many more.</p>
+
+        <h3>Is OctoCounts free to use?</h3>
+        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required.</p>
+
+        <h3>Can I export the source line count results?</h3>
+        <p>Yes. OctoCounts supports three export formats: plain text (copy to clipboard), JSON (full report with per-language stats), and a shareable PNG card showing the language breakdown at 1200×630 resolution.</p>
+
+        <h3>Does OctoCounts support private repositories?</h3>
+        <p>OctoCounts currently supports public GitHub repositories only. Private repositories require authentication which is not yet supported.</p>
+      </main>
+    </noscript>
+  <!-- Cloudflare Pages Analytics --><script defer="" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;71af94b0ca2c4711a817b0cb99d9eb5b&quot;}"></script><!-- Cloudflare Pages Analytics --><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f66becfccacf512',t:'MTc3Nzg4OTczOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; visibility: hidden;"></iframe>
+
+</body></html>

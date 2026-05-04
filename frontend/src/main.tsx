@@ -273,7 +273,7 @@ function App() {
 
         <footer>
           <span>OctoCounts // public repository source line counts</span>
-          <span>Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span>
+          <span><a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span>
         </footer>
       </main>
     </>

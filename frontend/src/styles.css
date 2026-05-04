@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap");
 
 :root,
 html[data-scheme="matrix"] {
@@ -17,7 +16,7 @@ html[data-scheme="matrix"] {
   --rule-2: oklch(17% 0.032 148);
   --selection: oklch(23% 0.045 148);
 
-  --text-xs: 0.6875rem;
+  --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.875rem;
   --text-lg: 1rem;
@@ -181,6 +180,7 @@ html[data-scheme="paper"] .crt {
   padding: 28px max(28px, env(safe-area-inset-right)) 80px max(28px, env(safe-area-inset-left));
   position: relative;
   z-index: 1;
+  overflow-x: hidden;
 }
 
 body {
@@ -1450,14 +1450,14 @@ footer {
   }
 
   .theme-btn {
-    padding: 8px 12px;
-    min-height: 40px;
+    padding: 10px 12px;
+    min-height: 44px;
   }
 
   .expand,
   .expand-spacer {
-    width: 18px;
-    height: 18px;
+    width: 44px;
+    height: 44px;
   }
 
   .github-link {
@@ -1466,8 +1466,8 @@ footer {
   }
 
   .pill {
-    padding: 8px 12px;
-    min-height: 36px;
+    padding: 10px 12px;
+    min-height: 44px;
   }
 }
 
