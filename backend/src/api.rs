@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -29,7 +29,7 @@ pub async fn analyze(
 ) -> Result<Json<AnalyzeResponse>, ApiError> {
     let repo_ref = state
         .github
-        .resolve_ref(&request.repo_url, request.ref_name)
+        .resolve_ref(&request.repo_url, request.ref_name, request.force_refresh)
         .await
         .map_err(ApiError::from)?;
 
@@ -64,17 +64,22 @@ pub async fn analyze(
 pub async fn job_status(
     State(state): State<AppState>,
     Path(job_id): Path<Uuid>,
-) -> Result<Json<JobRecord>, ApiError> {
+) -> Result<(HeaderMap, Json<JobRecord>), ApiError> {
     let Some(job) = state.store.job(job_id).await.map_err(ApiError::internal)? else {
         return Err(ApiError::not_found("job_not_found", "job was not found"));
     };
-    Ok(Json(job))
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store"),
+    );
+    Ok((headers, Json(job)))
 }
 
 pub async fn report(
     State(state): State<AppState>,
     Path(report_id): Path<String>,
-) -> Result<Json<crate::models::Report>, ApiError> {
+) -> Result<(HeaderMap, Json<crate::models::Report>), ApiError> {
     let Some(report) = state
         .store
         .report(&report_id)
@@ -86,7 +91,12 @@ pub async fn report(
             "report was not found",
         ));
     };
-    Ok(Json(report))
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=31536000, immutable"),
+    );
+    Ok((headers, Json(report)))
 }
 
 fn spawn_analysis_job(state: AppState, job_id: Uuid, repo_ref: RepoRef) {

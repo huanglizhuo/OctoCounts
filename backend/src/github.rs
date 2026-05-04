@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use moka::future::Cache;
 use reqwest::{header, Client, StatusCode};
 use serde::Deserialize;
 use thiserror::Error;
@@ -24,6 +27,7 @@ pub enum GitHubError {
 #[derive(Clone)]
 pub struct GitHubClient {
     client: Client,
+    ref_cache: Cache<(String, Option<String>), RepoRef>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,8 +61,14 @@ impl GitHubClient {
             );
         }
 
+        let ref_cache = Cache::builder()
+            .time_to_live(Duration::from_secs(300))
+            .max_capacity(1_000)
+            .build();
+
         Ok(Self {
             client: Client::builder().default_headers(headers).build()?,
+            ref_cache,
         })
     }
 
@@ -96,7 +106,15 @@ impl GitHubClient {
         &self,
         repo_url: &str,
         requested_ref: Option<String>,
+        bypass_cache: bool,
     ) -> Result<RepoRef, GitHubError> {
+        let cache_key = (repo_url.to_owned(), requested_ref.clone());
+        if !bypass_cache {
+            if let Some(cached) = self.ref_cache.get(&cache_key).await {
+                return Ok(cached);
+            }
+        }
+
         let (owner, repo) = Self::parse_repo_url(repo_url)?;
         let repo_api = format!("https://api.github.com/repos/{owner}/{repo}");
         let repo_response = self.client.get(repo_api).send().await?;
@@ -115,13 +133,15 @@ impl GitHubClient {
 
         let commit_sha = self.resolve_commit(&owner, &repo, &ref_name).await?;
 
-        Ok(RepoRef {
+        let repo_ref = RepoRef {
             owner,
             repo,
             ref_name,
             commit_sha,
             html_url: repo_body.html_url,
-        })
+        };
+        self.ref_cache.insert(cache_key, repo_ref.clone()).await;
+        Ok(repo_ref)
     }
 
     async fn resolve_commit(
