@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/octo-count.png" alt="OctoCounts logo" width="620">
+  <img src="images/octo-count.png" alt="OctoCounts logo" width="320">
 </p>
 
 # OctoCounts – fast SLOC reports for public GitHub repos
@@ -10,7 +10,7 @@ OctoCounts counts source lines of code in public GitHub repositories — without
 
 Built for developers who want quick SLOC visibility and refuse to wait for `git clone` to finish just to run `tokei` on someone else's repo.
 
-### Generated preview png
+### export with preview image
 
 <p align="center">
   <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
