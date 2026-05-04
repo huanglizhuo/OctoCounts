@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/octo-count.png" alt="OctoCounts logo" width="520">
+  <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
 </p>
 
 # OctoCounts
