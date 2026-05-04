@@ -10,6 +10,12 @@ OctoCounts counts source lines of code in public GitHub repositories — without
 
 Built for developers who want quick SLOC visibility and refuse to wait for `git clone` to finish just to run `tokei` on someone else's repo.
 
+### Generated preview png
+
+<p align="center">
+  <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
+</p>
+
 ## What it does
 
 - Resolves any branch, tag, or commit SHA — pins results to an exact commit so the cache is actually meaningful
@@ -18,12 +24,6 @@ Built for developers who want quick SLOC visibility and refuse to wait for `git 
 - Caches reports by `owner + repo + commit + tokei version` — repeat runs are instant
 - Queues analysis jobs so concurrent requests don't bring the server to its knees
 - Exports reports as plain text, JSON, or a shareable PNG card
-
-## generated preview png
-
-<p align="center">
-  <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
-</p>
 
 ## Stack
 
