@@ -76,6 +76,9 @@ async function handleMessage(msg) {
 }
 
 function classifyError(err) {
+  const apiError = err.body && typeof err.body === 'object' ? err.body : null;
+  if (apiError?.code && apiError?.message) return { code: apiError.code, message: apiError.message };
+
   if (err.status === 429 || err.status === 403) return { code: 'rate_limited', message: 'GitHub API rate limit reached. Try again later.' };
   if (err.status === 413) return { code: 'too_large',   message: 'Repository exceeds the 2 GB archive size limit' };
   if (err.status === 404) return { code: 'not_found',   message: 'Repository not found or is empty' };

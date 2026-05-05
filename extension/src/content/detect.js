@@ -24,17 +24,17 @@ export function parseRepoInfo() {
     ? parts.slice(3).map(part => decodeURIComponent(part)).join('/')
     : '';
 
+  const embeddedRef = embeddedRepoRef();
   const refEl =
     document.querySelector('[data-hotkey="w"] .css-truncate-target') ??
-    document.querySelector('summary[data-hotkey="w"] span') ??
-    document.querySelector('span[data-menu-button]');
+    document.querySelector('summary[data-hotkey="w"] span');
   const buttonRef = refEl?.textContent?.trim() || '';
 
   const metaRef = document.querySelector(
     'meta[name="octolytics-dimension-repository_default_branch"]'
   )?.content;
 
-  const ref = resolveRefFromPage(treePath, buttonRef, metaRef);
+  const ref = resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef);
 
   const isFork =
     !!document.querySelector('.fork-flag') ||
@@ -44,12 +44,25 @@ export function parseRepoInfo() {
   return { owner, repo, ref, isFork };
 }
 
-function resolveRefFromPage(treePath, buttonRef, metaRef) {
-  if (!treePath) return buttonRef || metaRef || 'HEAD';
+function resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef) {
+  if (!treePath) return embeddedRef || buttonRef || metaRef || 'HEAD';
 
   // GitHub encodes refs with slashes as /tree/feature/name, which is ambiguous
   // with /tree/<ref>/<folder>. The branch/tag button has the full resolved ref.
+  if (embeddedRef && treePath.startsWith(embeddedRef)) return embeddedRef;
   if (buttonRef && treePath.startsWith(buttonRef)) return buttonRef;
 
-  return treePath || buttonRef || metaRef || 'HEAD';
+  return treePath || embeddedRef || buttonRef || metaRef || 'HEAD';
+}
+
+function embeddedRepoRef() {
+  const data = document.querySelector('script[data-target="react-app.embeddedData"]')?.textContent;
+  if (!data) return '';
+
+  try {
+    const parsed = JSON.parse(data);
+    return parsed?.payload?.codeViewRepoRoute?.refInfo?.name?.trim() || '';
+  } catch (_) {
+    return '';
+  }
 }
