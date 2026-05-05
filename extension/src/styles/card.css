@@ -1,0 +1,248 @@
+/*
+  Host is the .BorderGrid-cell div. GitHub's CSS gives it padding: 16px 0.
+  We set padding: 0 here so we don't override GitHub's top/bottom spacing.
+  Horizontal padding is added inside via .oc-wrap.
+*/
+:host {
+  display: block;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Exact GitHub dark/light token values extracted via CDP */
+:host([data-theme="dark"]) {
+  --fg: #f0f6fc;
+  --fg-dim: #9198a1;
+  --fg-mute: #6e7681;
+  --accent: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --border: #3d444d;
+  --bg-2: #151b23;
+}
+
+:host([data-theme="light"]) {
+  --fg: #1f2328;
+  --fg-dim: #636c76;
+  --fg-mute: #9198a1;
+  --accent: #1a7f37;
+  --warn: #9a6700;
+  --err: #d1242f;
+  --border: #d0d7de;
+  --bg-2: #f6f8fa;
+}
+
+/* Inner wrapper handles horizontal padding to match GitHub's sidebar layout */
+.oc-wrap {
+  padding: 0 0;
+}
+
+/* ── Header — matches GitHub's h2.h4 sidebar section headings ── */
+.oc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.oc-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+.oc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.oc-badge {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.oc-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-dim);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+}
+
+.oc-icon-btn:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+
+/* ── Count button (idle state) ── */
+.oc-count-btn {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.oc-count-btn:hover {
+  background: var(--bg-2);
+}
+
+/* ── Stats ── */
+.oc-stats {
+  margin-bottom: 12px;
+}
+
+.oc-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--fg-dim);
+  padding: 1px 0;
+}
+
+.oc-stat-val {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.oc-stat-val.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Language bar — matches GitHub's language bar style ── */
+.oc-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  gap: 2px;
+}
+
+.oc-bar-seg {
+  flex-shrink: 0;
+  min-width: 3px;
+}
+
+.oc-bar-seg:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.oc-bar-seg:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.oc-bar-seg:only-child {
+  border-radius: 6px;
+}
+
+.oc-lang-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.oc-lang-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 20px;
+}
+
+.oc-lang-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.oc-more-hint {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+/* ── Progress bar (loading state) ── */
+.oc-progress {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.oc-progress-bar {
+  height: 100%;
+  width: 50%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: oc-slide 1.6s ease-in-out infinite;
+}
+
+@keyframes oc-slide {
+  0% {
+    transform: translateX(-200%);
+  }
+
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.oc-status-text {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+/* ── Error / warn states ── */
+.oc-warn-text {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.oc-err-text {
+  color: var(--err);
+  font-size: 13px;
+}
+
+.oc-link-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 0;
+  font-size: 12px;
+  font-family: inherit;
+  display: inline;
+}

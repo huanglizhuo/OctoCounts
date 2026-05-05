@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OctoCounts Settings</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <header>
+    <img id="logoMark" class="logo-mark" alt="" aria-hidden="true">
+    <span class="logo">OctoCounts</span>
+  </header>
+
+  <div class="field">
+    <label for="apiEndpoint">API Endpoint</label>
+    <input id="apiEndpoint" type="url" placeholder="https://api.octocounts.com">
+  </div>
+
+  <div class="field row">
+    <label for="autoAnalyze">Auto-analyze on page load</label>
+    <input id="autoAnalyze" type="checkbox">
+  </div>
+
+  <div class="field">
+    <label for="cardPlacement">OctoCounts position</label>
+    <select id="cardPlacement">
+      <option value="top">Top of right panel</option>
+      <option value="bottom">Bottom of right panel</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="ignoreList">
+      Ignore list
+      <span class="hint">— one per line (e.g. torvalds/* or owner/repo)</span>
+    </label>
+    <textarea id="ignoreList" rows="3" placeholder="torvalds/*&#10;microsoft/TypeScript"></textarea>
+  </div>
+
+  <div class="field">
+    <label for="cacheTtl">Cache TTL</label>
+    <select id="cacheTtl">
+      <option value="3600000">1 hour</option>
+      <option value="21600000">6 hours</option>
+      <option value="86400000">24 hours</option>
+      <option value="604800000">7 days</option>
+      <option value="0">Never expire</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <button id="clearCache" type="button" class="btn-secondary">
+      Clear cache (<span id="cacheCount">…</span> entries)
+    </button>
+  </div>
+
+  <footer>
+    v0.1.0 ·
+    <a href="https://github.com/huanglizhuo/OctoCount/issues" target="_blank" rel="noopener noreferrer">
+      Report issue
+    </a>
+  </footer>
+
+  <script src="index.js" type="module"></script>
+</body>
+</html>

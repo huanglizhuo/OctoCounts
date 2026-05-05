@@ -1,0 +1,105 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 310px;
+  padding: 12px 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: #1f2328;
+  background: #fff;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d0d7de;
+}
+.logo-mark {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.logo {
+  font-weight: 600;
+  color: #1f2328;
+}
+
+.field { margin-bottom: 11px; }
+.field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #24292f;
+}
+.field.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.field.row label { margin: 0; }
+
+input[type="text"],
+input[type="url"],
+input[type="password"],
+select,
+textarea {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1f2328;
+  background: #fff;
+  outline: none;
+  font-family: inherit;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+}
+textarea { resize: vertical; font-family: ui-monospace, monospace; font-size: 11px; }
+
+.hint { color: #8c959f; font-size: 11px; font-weight: 400; }
+.hint-link {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #0969da;
+  text-decoration: none;
+}
+.hint-link:hover { text-decoration: underline; }
+
+.btn-secondary {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 100%;
+  font-family: inherit;
+  color: #1f2328;
+}
+.btn-secondary:hover { background: #eaeef2; }
+
+footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #d0d7de;
+  font-size: 11px;
+  color: #8c959f;
+}
+footer a { color: #0969da; text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #0969da;
+}

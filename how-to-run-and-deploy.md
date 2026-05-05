@@ -94,6 +94,44 @@ GITHUB_TOKEN=github_pat_your_token_here
 
 ---
 
+## Chrome Extension
+
+The Chrome extension lives in `extension/`. Its production build creates an unpacked Manifest V3 extension in `extension/dist/chrome`.
+
+Build it:
+
+```bash
+cd extension
+npm install
+npm run build:chrome
+```
+
+For local extension development with rebuilds on file changes:
+
+```bash
+cd extension
+npm install
+npm run dev
+```
+
+Load it in Chrome:
+
+1. Open `chrome://extensions`
+2. Turn on **Developer mode**
+3. Click **Load unpacked**
+4. Select the repo's `extension/dist/chrome` folder
+5. Open a GitHub repository page, for example `https://github.com/OWNER/REPO`
+
+After changing extension code, rebuild or keep `npm run dev` running, then click **Reload** on the OctoCounts extension card in `chrome://extensions`. Refresh the GitHub tab after reloading the extension.
+
+Notes:
+
+- Chrome must load `extension/dist/chrome`, not the source `extension/` directory.
+- The current extension build talks to `https://api.octocounts.com` from `extension/src/shared/api.js`, so it uses the deployed API by default.
+- The Chrome manifest is copied from `extension/manifests/manifest.chrome.json` during the build.
+
+---
+
 ## Production Deployment
 
 Tested on a plain VPS. No Kubernetes required, no Helm charts, no regrets.
