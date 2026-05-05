@@ -11,9 +11,8 @@ async function fetchJson(url, opts = {}) {
   return res.json();
 }
 
-export function analyze(owner, repo, ref, token, forceRefresh = false) {
+export function analyze(owner, repo, ref, forceRefresh = false) {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   return fetchJson(`${BASE}/api/analyze`, {
     method: 'POST',
     headers,
@@ -25,14 +24,10 @@ export function analyze(owner, repo, ref, token, forceRefresh = false) {
   });
 }
 
-export function pollJob(jobId, token) {
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetchJson(`${BASE}/api/jobs/${jobId}`, { headers });
+export function pollJob(jobId) {
+  return fetchJson(`${BASE}/api/jobs/${jobId}`);
 }
 
-export function fetchReport(reportId, token) {
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetchJson(`${BASE}/api/reports/${reportId}`, { headers });
+export function fetchReport(reportId) {
+  return fetchJson(`${BASE}/api/reports/${reportId}`);
 }

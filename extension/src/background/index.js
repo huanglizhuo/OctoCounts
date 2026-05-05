@@ -16,7 +16,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 async function handleMessage(msg) {
   const settings = await getSettings();
-  const { token } = settings;
 
   switch (msg.type) {
     case 'ANALYZE': {
@@ -30,7 +29,7 @@ async function handleMessage(msg) {
         if (inflight) return { type: 'JOB', jobId: inflight.jobId };
       }
 
-      const result = await analyze(owner, repo, ref, token, forceRefresh);
+      const result = await analyze(owner, repo, ref, forceRefresh);
 
       if (result.kind === 'cached') {
         await setCached(owner, repo, ref, result.report);
@@ -43,10 +42,10 @@ async function handleMessage(msg) {
 
     case 'POLL': {
       const { jobId, owner, repo, ref } = msg;
-      const job = await pollJob(jobId, token);
+      const job = await pollJob(jobId);
 
       if (job.status === 'completed' && job.reportId) {
-        const report = await fetchReport(job.reportId, token);
+        const report = await fetchReport(job.reportId);
         await setCached(owner, repo, ref, report);
         await clearInflight(owner, repo, ref);
         return { type: 'COMPLETED', report };
@@ -77,10 +76,10 @@ async function handleMessage(msg) {
 }
 
 function classifyError(err) {
-  if (err.status === 429 || err.status === 403) return { code: 'rate_limited', message: 'GitHub API rate limit reached. Add a token in settings.' };
+  if (err.status === 429 || err.status === 403) return { code: 'rate_limited', message: 'GitHub API rate limit reached. Try again later.' };
   if (err.status === 413) return { code: 'too_large',   message: 'Repository exceeds the 512 MB size limit' };
   if (err.status === 404) return { code: 'not_found',   message: 'Repository not found or is empty' };
-  if (err.status === 401) return { code: 'auth_error',  message: 'Invalid GitHub token' };
+  if (err.status === 401) return { code: 'auth_error',  message: 'OctoCounts API authorization failed' };
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { code: 'offline', message: 'No network connection' };
   return { code: 'unknown', message: err.message || 'Analysis failed' };
 }

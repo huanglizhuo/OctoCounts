@@ -10,8 +10,7 @@ export async function getSettings() {
     ignoreList:  '',
     cacheTtlMs:  DEFAULT_TTL_MS,
   });
-  const local = await chrome.storage.local.get({ token: '' });
-  return { ...result, token: local.token };
+  return result;
 }
 
 export async function getCached(owner, repo, ref = 'HEAD') {

@@ -179,16 +179,10 @@ function renderError(root, code, message, onRetry) {
   root.innerHTML = `<div class="oc-wrap">
     ${header()}
     <div class="${cls}">${icon} ${message}</div>
-    ${isRateLimit
-      ? `<div style="margin-top:6px"><button class="oc-link-btn oc-settings-link">Add a GitHub token in settings →</button></div>`
-      : `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">Try again</button></div>`
-    }
+    ${isRateLimit ? '' : `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">Try again</button></div>`}
   </div>`;
 
   root.querySelector('.oc-retry-btn')?.addEventListener('click', onRetry);
-  root.querySelector('.oc-settings-link')?.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage?.();
-  });
 }
 
 function stopPolling() {
