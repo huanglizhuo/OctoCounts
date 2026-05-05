@@ -40,25 +40,47 @@ jobs:
       - name: Build extensions
         run: npm run build
 
+      - name: Compute package names
+        id: package
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#extension-v}"
+          if [[ "$version" == "$GITHUB_REF_NAME" ]]; then
+            version="$(node -p "require('./package.json').version")"
+          fi
+          short_sha="$(git rev-parse --short=8 HEAD)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "chrome_zip=octocounts-chrome-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
+          echo "firefox_zip=octocounts-firefox-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
+
       - name: Package extensions
         run: |
           mkdir -p packages
-          (cd dist/chrome && zip -r ../../packages/octocounts-chrome.zip .)
-          (cd dist/firefox && zip -r ../../packages/octocounts-firefox.zip .)
+          (cd dist/chrome && zip -r "../../packages/${{ steps.package.outputs.chrome_zip }}" .)
+          (cd dist/firefox && zip -r "../../packages/${{ steps.package.outputs.firefox_zip }}" .)
 
-      - name: Upload build artifacts
+      - name: Upload Chrome extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: octocounts-browser-extensions
-          path: |
-            extension/packages/octocounts-chrome.zip
-            extension/packages/octocounts-firefox.zip
+          name: ${{ steps.package.outputs.chrome_zip }}
+          path: extension/packages/${{ steps.package.outputs.chrome_zip }}
           if-no-files-found: error
 
-      - name: Attach packages to GitHub release
+      - name: Upload Firefox extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.firefox_zip }}
+          path: extension/packages/${{ steps.package.outputs.firefox_zip }}
+          if-no-files-found: error
+
+      - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/extension-v')
         uses: softprops/action-gh-release@v2
         with:
+          name: OctoCounts Extension v${{ steps.package.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
-            extension/packages/octocounts-chrome.zip
-            extension/packages/octocounts-firefox.zip
+            extension/packages/${{ steps.package.outputs.chrome_zip }}
+            extension/packages/${{ steps.package.outputs.firefox_zip }}

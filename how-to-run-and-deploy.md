@@ -142,12 +142,12 @@ npm ci
 npm run build
 ```
 
-It uploads a single Actions artifact named `octocounts-browser-extensions` containing:
+It uploads two separate Actions artifacts. The filenames include the extension version and the short commit hash:
 
 | File | Contents | How users load it |
 |---|---|---|
-| `octocounts-chrome.zip` | `extension/dist/chrome` | Unzip, then Chrome → `chrome://extensions` → **Load unpacked** |
-| `octocounts-firefox.zip` | `extension/dist/firefox` | Unzip, then Firefox → `about:debugging` → **This Firefox** → **Load Temporary Add-on** |
+| `octocounts-chrome-v0.1.0-abc12345.zip` | `extension/dist/chrome` | Unzip, then Chrome → `chrome://extensions` → **Load unpacked** |
+| `octocounts-firefox-v0.1.0-abc12345.zip` | `extension/dist/firefox` | Unzip, then Firefox → `about:debugging` → **This Firefox** → **Load Temporary Add-on** |
 
 To publish a GitHub Release with both zip files attached, push a tag that starts with `extension-v`:
 
