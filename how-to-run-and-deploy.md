@@ -130,6 +130,34 @@ Notes:
 - The current extension build talks to `https://api.octocounts.com` from `extension/src/shared/api.js`, so it uses the deployed API by default.
 - The Chrome manifest is copied from `extension/manifests/manifest.chrome.json` during the build.
 
+### Extension release flow
+
+GitHub Actions builds and packages both browser extensions from `.github/workflows/extension-release.yml`.
+
+On pull requests that touch `extension/**`, and on pushes to `main`, the workflow runs:
+
+```bash
+cd extension
+npm ci
+npm run build
+```
+
+It uploads a single Actions artifact named `octocounts-browser-extensions` containing:
+
+| File | Contents | How users load it |
+|---|---|---|
+| `octocounts-chrome.zip` | `extension/dist/chrome` | Unzip, then Chrome → `chrome://extensions` → **Load unpacked** |
+| `octocounts-firefox.zip` | `extension/dist/firefox` | Unzip, then Firefox → `about:debugging` → **This Firefox** → **Load Temporary Add-on** |
+
+To publish a GitHub Release with both zip files attached, push a tag that starts with `extension-v`:
+
+```bash
+git tag extension-v0.1.0
+git push origin extension-v0.1.0
+```
+
+The release workflow attaches both packages to the tag's GitHub Release. Chrome Web Store and Firefox Add-ons still require their own store submission/signing flows; the GitHub Release zips are for users who want to install or test directly from GitHub.
+
 ---
 
 ## Production Deployment
