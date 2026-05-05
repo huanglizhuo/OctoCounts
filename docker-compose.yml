@@ -10,8 +10,42 @@ services:
     volumes:
       - sloc-data:/data
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: sloc-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:?set CLOUDFLARED_TOKEN}
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  tunnel-watchdog:
+    image: docker:27-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TARGET_CONTAINER: sloc-cloudflared
+      HEALTH_URL: http://api:8080/healthz
+      CHECK_INTERVAL_SECONDS: "10"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          if wget -q -T 3 -O - "$$HEALTH_URL" >/dev/null 2>&1; then
+            docker start "$$TARGET_CONTAINER" >/dev/null 2>&1 || true
+          else
+            docker stop -t 5 "$$TARGET_CONTAINER" >/dev/null 2>&1 || true
+          fi
+          sleep "$$CHECK_INTERVAL_SECONDS"
+        done
+    depends_on:
+      - api
+      - cloudflared
+    restart: unless-stopped
+
   web:
     build:
       context: ./frontend
