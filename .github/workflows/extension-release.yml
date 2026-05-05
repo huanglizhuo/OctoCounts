@@ -1,0 +1,64 @@
+name: Build browser extensions
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "extension-v*"
+  pull_request:
+    paths:
+      - "extension/**"
+      - ".github/workflows/extension-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Chrome and Firefox extensions
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: extension
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extensions
+        run: npm run build
+
+      - name: Package extensions
+        run: |
+          mkdir -p packages
+          (cd dist/chrome && zip -r ../../packages/octocounts-chrome.zip .)
+          (cd dist/firefox && zip -r ../../packages/octocounts-firefox.zip .)
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: octocounts-browser-extensions
+          path: |
+            extension/packages/octocounts-chrome.zip
+            extension/packages/octocounts-firefox.zip
+          if-no-files-found: error
+
+      - name: Attach packages to GitHub release
+        if: startsWith(github.ref, 'refs/tags/extension-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            extension/packages/octocounts-chrome.zip
+            extension/packages/octocounts-firefox.zip
