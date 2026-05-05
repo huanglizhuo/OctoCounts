@@ -77,7 +77,7 @@ async function handleMessage(msg) {
 
 function classifyError(err) {
   if (err.status === 429 || err.status === 403) return { code: 'rate_limited', message: 'GitHub API rate limit reached. Try again later.' };
-  if (err.status === 413) return { code: 'too_large',   message: 'Repository exceeds the 512 MB size limit' };
+  if (err.status === 413) return { code: 'too_large',   message: 'Repository exceeds the 2 GB archive size limit' };
   if (err.status === 404) return { code: 'not_found',   message: 'Repository not found or is empty' };
   if (err.status === 401) return { code: 'auth_error',  message: 'OctoCounts API authorization failed' };
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { code: 'offline', message: 'No network connection' };

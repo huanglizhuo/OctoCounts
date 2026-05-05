@@ -17,9 +17,9 @@ use tokio::time::timeout;
 use crate::models::{LanguageReport, LanguageStats, RepoRef, Report, Repository};
 
 const TOKEI_VERSION: &str = "tokei-12.1";
-const MAX_ARCHIVE_BYTES: u64 = 512 * 1024 * 1024;
-const MAX_EXTRACTED_BYTES: u64 = 2 * 1024 * 1024 * 1024;
-const MAX_FILES: usize = 120_000;
+const MAX_ARCHIVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_EXTRACTED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAX_FILES: usize = 240_000;
 const MAX_SINGLE_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const JOB_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -59,37 +59,42 @@ pub async fn analyze(input: AnalysisInput) -> anyhow::Result<Report> {
 }
 
 fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
+    let AnalysisInput { repo_ref, archive } = input;
     let started = Instant::now();
     let temp_dir = TempDir::new().context("failed to create temp directory")?;
     let extract_root = temp_dir.path().join("repo");
     fs::create_dir(&extract_root)?;
 
-    extract_archive(&input.archive, &extract_root)?;
+    extract_archive(&archive, &extract_root)?;
+    drop(archive);
+
     let languages = run_tokei(&extract_root);
     let (language_reports, total) = normalize_languages(&languages);
     let duration_ms = started.elapsed().as_millis();
-    let id = report_id(
-        &input.repo_ref.owner,
-        &input.repo_ref.repo,
-        &input.repo_ref.commit_sha,
-    );
+    let id = report_id(&repo_ref.owner, &repo_ref.repo, &repo_ref.commit_sha);
 
-    Ok(Report {
+    let report = Report {
         id,
         repository: Repository {
-            owner: input.repo_ref.owner,
-            name: input.repo_ref.repo,
-            html_url: input.repo_ref.html_url,
+            owner: repo_ref.owner,
+            name: repo_ref.repo,
+            html_url: repo_ref.html_url,
         },
-        ref_name: input.repo_ref.ref_name,
-        commit_sha: input.repo_ref.commit_sha,
+        ref_name: repo_ref.ref_name,
+        commit_sha: repo_ref.commit_sha,
         generated_at: Utc::now(),
         duration_ms,
         cached: false,
         tokei_version: TOKEI_VERSION.to_string(),
         languages: language_reports,
         total,
-    })
+    };
+
+    temp_dir
+        .close()
+        .context("failed to remove temporary extraction directory")?;
+
+    Ok(report)
 }
 
 fn extract_archive(archive_bytes: &[u8], destination: &Path) -> anyhow::Result<()> {
