@@ -157,48 +157,21 @@ impl Store {
         commit_sha: &str,
         tokei_version: &str,
     ) -> anyhow::Result<Option<Report>> {
-        let row = sqlx::query(
-            r#"
-            UPDATE reports
-            SET last_accessed_at = NOW(), access_count = access_count + 1
-            WHERE id = (
-                SELECT id
-                FROM reports
-                WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4
-            )
-            AND last_accessed_at < NOW() - INTERVAL '1 hour'
-            RETURNING body
-            "#,
-        )
-        .bind(owner)
-        .bind(repo)
-        .bind(commit_sha)
-        .bind(tokei_version)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        let row = match row {
-            Some(row) => Some(row),
-            None => {
-                sqlx::query(
-                    "SELECT body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
-                )
-                .bind(owner)
-                .bind(repo)
-                .bind(commit_sha)
-                .bind(tokei_version)
-                .fetch_optional(&self.pool)
-                .await?
-            }
+        let key = ReportCacheKey {
+            owner,
+            repo,
+            commit_sha,
+            tokei_version,
         };
 
-        row.map(|row| {
-            let body: String = row.try_get("body")?;
-            let mut report: Report = serde_json::from_str(&body)?;
-            report.cached = true;
-            Ok(report)
-        })
-        .transpose()
+        self.fetch_cached_report_by_key(key)
+            .await?
+            .map(|body| {
+                let mut report: Report = serde_json::from_str(&body)?;
+                report.cached = true;
+                Ok(report)
+            })
+            .transpose()
     }
 
     pub async fn save_report(&self, report: &Report) -> anyhow::Result<()> {
@@ -235,34 +208,87 @@ impl Store {
     }
 
     pub async fn report(&self, id: &str) -> anyhow::Result<Option<Report>> {
-        let row = sqlx::query(
+        self.fetch_report_body_by_id(id)
+            .await?
+            .map(|body| Ok(serde_json::from_str(&body)?))
+            .transpose()
+    }
+
+    async fn fetch_cached_report_by_key(
+        &self,
+        key: ReportCacheKey<'_>,
+    ) -> anyhow::Result<Option<String>> {
+        let touched = sqlx::query(
             r#"
             UPDATE reports
             SET last_accessed_at = NOW(), access_count = access_count + 1
-            WHERE id = $1
+            WHERE id = (
+                SELECT id
+                FROM reports
+                WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4
+            )
             AND last_accessed_at < NOW() - INTERVAL '1 hour'
             RETURNING body
             "#,
         )
-        .bind(id)
+        .bind(key.owner)
+        .bind(key.repo)
+        .bind(key.commit_sha)
+        .bind(key.tokei_version)
         .fetch_optional(&self.pool)
         .await?;
 
-        let row = match row {
-            Some(row) => Some(row),
-            None => {
-                sqlx::query("SELECT body FROM reports WHERE id = $1")
-                    .bind(id)
-                    .fetch_optional(&self.pool)
-                    .await?
-            }
-        };
+        if let Some(row) = touched {
+            return Ok(Some(row.try_get("body")?));
+        }
 
-        row.map(|row| {
-            let body: String = row.try_get("body")?;
-            Ok(serde_json::from_str(&body)?)
-        })
-        .transpose()
+        let row = sqlx::query(
+            "SELECT body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
+        )
+        .bind(key.owner)
+        .bind(key.repo)
+        .bind(key.commit_sha)
+        .bind(key.tokei_version)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|row| row.try_get("body"))
+            .transpose()
+            .map_err(Into::into)
+    }
+
+    async fn fetch_report_body_by_id(&self, id: &str) -> anyhow::Result<Option<String>> {
+        self.fetch_throttled_report_body(
+            "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' RETURNING body",
+            "SELECT body FROM reports WHERE id = $1",
+            id,
+        )
+        .await
+    }
+
+    async fn fetch_throttled_report_body(
+        &self,
+        update_sql: &str,
+        select_sql: &str,
+        id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let touched = sqlx::query(update_sql)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        if let Some(row) = touched {
+            return Ok(Some(row.try_get("body")?));
+        }
+
+        let row = sqlx::query(select_sql)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        row.map(|row| row.try_get("body"))
+            .transpose()
+            .map_err(Into::into)
     }
 
     pub async fn cleanup(&self, config: CleanupConfig) -> anyhow::Result<CleanupStats> {
@@ -492,6 +518,14 @@ impl Store {
 }
 
 const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
+
+#[derive(Clone, Copy, Debug)]
+struct ReportCacheKey<'a> {
+    owner: &'a str,
+    repo: &'a str,
+    commit_sha: &'a str,
+    tokei_version: &'a str,
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct CleanupConfig {

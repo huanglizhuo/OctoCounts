@@ -1,60 +1,31 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toPng } from "html-to-image";
 import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import initialReportData from "./initialReport.json";
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
-const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
-
-type JobStatus = "queued" | "running" | "completed" | "failed";
-type AppStatus = JobStatus | "idle" | "cached";
-type Scheme = "matrix" | "paper" | "amber";
-type SortKey = "name" | keyof Stats;
-type PieItem = { label: string; value: number; color: string };
-type TickerRow = { label: string; value: number; color: string; percent: number };
-
-type Stats = {
-  files: number;
-  lines: number;
-  code: number;
-  comments: number;
-  blanks: number;
-};
-
-type LanguageReport = {
-  name: string;
-  stats: Stats;
-  children: LanguageReport[];
-};
-
-type Report = {
-  id: string;
-  repository: { owner: string; name: string; htmlUrl: string };
-  refName: string;
-  commitSha: string;
-  generatedAt: string;
-  durationMs: number;
-  cached: boolean;
-  tokeiVersion: string;
-  languages: LanguageReport[];
-  total: Stats;
-};
-
-type AnalyzeResponse =
-  | { kind: "cached"; reportId: string; report: Report }
-  | { kind: "job"; jobId: string; status: JobStatus };
-
-type JobRecord = {
-  id: string;
-  status: JobStatus;
-  reportId?: string;
-  error?: { code: string; message: string };
-};
+import { languagePieItems, pieSlices } from "./chartUtils";
+import {
+  commandText,
+  copyText,
+  downloadDataUrl,
+  formatCompactNumber,
+  formatNumber,
+  formatPercent,
+  languageColor,
+  logLines,
+  progressValue,
+  sortRows,
+  statusCopy,
+  textReport,
+  tickerRows,
+} from "./reportUtils";
+import type { AppStatus, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
+import { useAnalysisRunner } from "./useAnalysisRunner";
 
 const queryClient = new QueryClient();
+const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
 const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCount";
 const defaultRefName = "e92153946164";
 const samples = [
@@ -71,13 +42,23 @@ function App() {
   );
   const [repoUrl, setRepoUrl] = useState("");
   const [refName, setRefName] = useState("");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [report, setReport] = useState<Report | null>(seedReport);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
   const repoInputRef = useRef<HTMLInputElement>(null);
-  const didAutoAnalyze = useRef(true);
+  const {
+    report,
+    error,
+    isSubmitting,
+    lastCommand,
+    status,
+    setLastCommand,
+    runAnalysis,
+    reset,
+  } = useAnalysisRunner({
+    repoUrl,
+    refName,
+    defaultRepoUrl,
+    defaultRefName,
+    seedReport,
+  });
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
@@ -87,89 +68,10 @@ function App() {
     repoInputRef.current?.focus();
   }, []);
 
-  const jobQuery = useQuery({
-    queryKey: ["job", jobId],
-    enabled: Boolean(jobId && !report),
-    refetchInterval: (query) => {
-      const data = query.state.data as JobRecord | undefined;
-      return data?.status === "completed" || data?.status === "failed" ? false : 1200;
-    },
-    queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}`),
-  });
-
-  useEffect(() => {
-    const reportId = jobQuery.data?.reportId;
-    if (jobQuery.data?.status !== "completed" || !reportId || report) {
-      return;
-    }
-
-    let cancelled = false;
-    fetchJson<Report>(`/api/reports/${reportId}`)
-      .then((nextReport) => {
-        if (cancelled) return;
-        setReport(nextReport);
-        setJobId(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to fetch completed report");
-        setJobId(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [jobQuery.data?.status, jobQuery.data?.reportId, report]);
-
-  useEffect(() => {
-    if (jobQuery.data?.status === "failed") {
-      setError(jobQuery.data.error?.message ?? "Analysis failed.");
-      setJobId(null);
-    }
-  }, [jobQuery.data]);
-
-  const runAnalysis = async (forceRefresh: boolean) => {
-    const effectiveRepoUrl = repoUrl.trim() || defaultRepoUrl;
-    const effectiveRefName = refName.trim() || (repoUrl.trim() ? "" : defaultRefName);
-    setError(null);
-    setReport(null);
-    setJobId(null);
-    setIsSubmitting(true);
-    const command = commandText(effectiveRepoUrl, effectiveRefName, forceRefresh);
-    setLastCommand(command);
-
-    try {
-      const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh });
-      if (result.kind === "cached") {
-        setReport(result.report);
-      } else {
-        setJobId(result.jobId);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network request failed");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void runAnalysis(false);
   };
-
-  useEffect(() => {
-    if (didAutoAnalyze.current) return;
-    didAutoAnalyze.current = true;
-    void runAnalysis(false);
-  }, []);
-
-  const status: AppStatus = error
-    ? "failed"
-    : report
-      ? report.cached
-        ? "cached"
-        : "completed"
-      : jobQuery.data?.status ?? (jobId || isSubmitting ? "queued" : "idle");
 
   return (
     <>
@@ -233,12 +135,8 @@ function App() {
             command={lastCommand}
             status={status}
             report={report}
-            error={error ?? jobQuery.data?.error?.message ?? null}
-            onReset={() => {
-              setReport(null);
-              setError(null);
-              setJobId(null);
-            }}
+            error={error}
+            onReset={reset}
             onRerun={() => void runAnalysis(true)}
           />
         </section>
@@ -584,171 +482,6 @@ function LanguageRow({ row, expanded, child, onToggle }: { row: LanguageReport; 
 
 function NumberCell({ value }: { value: number }) {
   return <td>{formatNumber(value)}</td>;
-}
-
-const statusCopy: Record<AppStatus, string> = {
-  idle: "Paste a repository URL and run the analyzer.",
-  queued: "Job accepted. Waiting for an analysis slot.",
-  running: "Downloading archive, extracting files, and counting language statistics.",
-  completed: "Analysis completed.",
-  cached: "Served from commit-level cache.",
-  failed: "Analysis failed.",
-};
-
-function tickerRows(report: Report): TickerRow[] {
-  const rows = report.languages
-    .filter((language) => language.stats.code > 0)
-    .slice(0, 6);
-  const max = Math.max(...rows.map((row) => row.stats.code), 1);
-  return rows.map((row) => ({
-    label: row.name,
-    value: row.stats.code,
-    color: languageColor(row.name),
-    percent: Math.max(4, Math.round((row.stats.code / max) * 100)),
-  }));
-}
-
-function logLines(status: AppStatus, report: Report | null, error: string | null) {
-  if (status === "failed") return [{ ts: "00:00", kind: "err", text: error ?? "analysis failed" }];
-  if (status === "idle") return [{ ts: "00:00", kind: "", text: "idle: command runner ready" }];
-  if (status === "queued") return [{ ts: "00:01", kind: "warn", text: "queued: waiting for worker permit" }, { ts: "00:02", kind: "", text: "repository ref accepted" }];
-  if (status === "running") return [{ ts: "00:01", kind: "ok", text: "ref resolved" }, { ts: "00:02", kind: "", text: "archive download in progress" }, { ts: "00:03", kind: "", text: "tokei counter running" }];
-  if (report) return [{ ts: "00:01", kind: "ok", text: `resolved ${report.refName} -> ${report.commitSha.slice(0, 12)}` }, { ts: "00:02", kind: "ok", text: report.cached ? "cache hit returned" : "fresh report saved to cache" }, { ts: "00:03", kind: "ok", text: `${formatNumber(report.languages.length)} language rows rendered` }];
-  return [];
-}
-
-function progressValue(status: AppStatus) {
-  if (status === "idle") return 0;
-  if (status === "queued") return 30;
-  if (status === "running") return 64;
-  if (status === "failed") return 100;
-  return 100;
-}
-
-function sortRows(rows: LanguageReport[], key: SortKey, dir: "asc" | "desc") {
-  return [...rows].sort((a, b) => {
-    const left = key === "name" ? a.name : a.stats[key];
-    const right = key === "name" ? b.name : b.stats[key];
-    const result = typeof left === "string" && typeof right === "string" ? left.localeCompare(right) : Number(left) - Number(right);
-    return dir === "asc" ? result : -result;
-  });
-}
-
-function languagePieItems(languages: LanguageReport[]): PieItem[] {
-  const sorted = [...languages].filter((language) => language.stats.lines > 0).sort((a, b) => b.stats.lines - a.stats.lines);
-  const visible = sorted.slice(0, 5).map((language) => ({
-    label: language.name,
-    value: language.stats.lines,
-    color: languageColor(language.name),
-  }));
-  const other = sorted.slice(5).reduce((sum, language) => sum + language.stats.lines, 0);
-  if (other > 0) visible.push({ label: "Other", value: other, color: "var(--fg-mute)" });
-  return visible.length > 0 ? visible : [{ label: "No data", value: 0, color: "var(--fg-mute)" }];
-}
-
-function pieSlices(items: PieItem[]) {
-  const total = items.reduce((sum, item) => sum + item.value, 0);
-  let start = 0;
-  return items.map((item) => {
-    const fraction = total > 0 ? item.value / total : 0;
-    const end = start + fraction;
-    const path = donutSlicePath(start, end);
-    start = end;
-    return { ...item, path };
-  });
-}
-
-function donutSlicePath(startFraction: number, endFraction: number) {
-  if (endFraction - startFraction >= 0.9999) {
-    return "M 1 0 A 1 1 0 1 1 -1 0 A 1 1 0 1 1 1 0";
-  }
-  const start = polarPoint(startFraction);
-  const end = polarPoint(endFraction);
-  const largeArc = endFraction - startFraction > 0.5 ? 1 : 0;
-  return `M 0 0 L ${start.x} ${start.y} A 1 1 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
-}
-
-function polarPoint(fraction: number) {
-  const angle = fraction * Math.PI * 2 - Math.PI / 2;
-  return { x: Math.cos(angle), y: Math.sin(angle) };
-}
-
-function languageColor(name: string) {
-  const colors = ["var(--accent)", "var(--accent-2)", "var(--warn)", "var(--blue)", "var(--violet)", "var(--err)"];
-  const hash = [...name].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return colors[hash % colors.length];
-}
-
-function textReport(report: Report) {
-  const lines = [`${report.repository.owner}/${report.repository.name} ${report.commitSha.slice(0, 12)}`, "Language        Files      Lines       Code   Comments     Blanks"];
-  for (const row of report.languages) {
-    lines.push(`${row.name.padEnd(14)} ${String(row.stats.files).padStart(6)} ${String(row.stats.lines).padStart(10)} ${String(row.stats.code).padStart(10)} ${String(row.stats.comments).padStart(10)} ${String(row.stats.blanks).padStart(10)}`);
-  }
-  lines.push(`${"Total".padEnd(14)} ${String(report.total.files).padStart(6)} ${String(report.total.lines).padStart(10)} ${String(report.total.code).padStart(10)} ${String(report.total.comments).padStart(10)} ${String(report.total.blanks).padStart(10)}`);
-  return lines.join("\n");
-}
-
-function commandText(repoUrl: string, refName: string, forceRefresh: boolean) {
-  return `octocount analyze ${repoUrl.trim() || "<repo>"}${refName.trim() ? ` --ref ${refName.trim()}` : ""}${forceRefresh ? " --force" : ""}`;
-}
-
-function copyText(value: string) {
-  void navigator.clipboard?.writeText(value);
-}
-
-function downloadDataUrl(dataUrl: string, filename: string) {
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = dataUrl;
-  link.click();
-}
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat().format(value);
-}
-
-function formatCompactNumber(value: number) {
-  if (value <= 99_999) return formatNumber(value);
-  return new Intl.NumberFormat(undefined, {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-function formatPercent(value: number, total: number) {
-  if (total === 0) return "0%";
-  return `${percentNumber(value, total)}%`;
-}
-
-function percentNumber(value: number, total: number) {
-  if (total === 0) return 0;
-  return Math.round((value / total) * 100);
-}
-
-async function analyzeRepository(request: { repoUrl: string; refName: string; forceRefresh: boolean }): Promise<AnalyzeResponse> {
-  return fetchJson<AnalyzeResponse>("/api/analyze", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      repoUrl: request.repoUrl,
-      refName: request.refName || undefined,
-      forceRefresh: request.forceRefresh,
-    }),
-  });
-}
-
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(apiErrorMessage(body, response.statusText));
-  return body as T;
-}
-
-function apiErrorMessage(body: unknown, fallback: string) {
-  if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
-    return body.message;
-  }
-  return fallback || "Request failed";
 }
 
 createRoot(document.getElementById("root")!).render(

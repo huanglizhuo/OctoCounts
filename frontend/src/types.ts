@@ -1,0 +1,44 @@
+export type JobStatus = "queued" | "running" | "completed" | "failed";
+export type AppStatus = JobStatus | "idle" | "cached";
+export type Scheme = "matrix" | "paper" | "amber";
+export type SortKey = "name" | keyof Stats;
+export type PieItem = { label: string; value: number; color: string };
+export type TickerRow = { label: string; value: number; color: string; percent: number };
+
+export type Stats = {
+  files: number;
+  lines: number;
+  code: number;
+  comments: number;
+  blanks: number;
+};
+
+export type LanguageReport = {
+  name: string;
+  stats: Stats;
+  children: LanguageReport[];
+};
+
+export type Report = {
+  id: string;
+  repository: { owner: string; name: string; htmlUrl: string };
+  refName: string;
+  commitSha: string;
+  generatedAt: string;
+  durationMs: number;
+  cached: boolean;
+  tokeiVersion: string;
+  languages: LanguageReport[];
+  total: Stats;
+};
+
+export type AnalyzeResponse =
+  | { kind: "cached"; reportId: string; report: Report }
+  | { kind: "job"; jobId: string; status: JobStatus };
+
+export type JobRecord = {
+  id: string;
+  status: JobStatus;
+  reportId?: string;
+  error?: { code: string; message: string };
+};

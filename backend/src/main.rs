@@ -1,10 +1,13 @@
 mod analyzer;
 mod api;
+mod config;
+mod coordinator;
+mod error;
 mod github;
 mod models;
 mod store;
 
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -12,12 +15,13 @@ use axum::{
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
-use tokio::sync::Semaphore;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     api::AppState,
+    config::Config,
+    coordinator::AnalysisCoordinator,
     github::GitHubClient,
     store::{CleanupConfig, Store},
 };
@@ -32,29 +36,27 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be set")?;
-    if !database_url.starts_with("postgres://") && !database_url.starts_with("postgresql://") {
-        anyhow::bail!("DATABASE_URL must be a postgres:// or postgresql:// URL");
-    }
+    let config = Config::from_env()?;
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&database_url)
+        .connect(&config.database_url)
         .await
-        .with_context(|| format!("failed to connect to {database_url}"))?;
+        .with_context(|| format!("failed to connect to {}", config.database_url))?;
 
     let store = Store::new(pool);
     store.migrate().await?;
-    spawn_cleanup_task(store.clone());
-
-    let concurrency = std::env::var("ANALYSIS_CONCURRENCY")
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(2);
+    spawn_cleanup_task(
+        store.clone(),
+        config.cleanup_interval_seconds,
+        config.cleanup,
+    );
 
     let state = AppState {
-        store,
-        github: GitHubClient::new()?,
-        semaphore: Arc::new(Semaphore::new(concurrency)),
+        coordinator: AnalysisCoordinator::new(
+            store,
+            GitHubClient::new()?,
+            config.analysis_concurrency,
+        ),
     };
 
     let app = Router::new()
@@ -66,10 +68,7 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    let addr: SocketAddr = std::env::var("BIND_ADDR")
-        .unwrap_or_else(|_| "127.0.0.1:8080".to_string())
-        .parse()
-        .context("invalid BIND_ADDR")?;
+    let addr: SocketAddr = config.bind_addr.parse().context("invalid BIND_ADDR")?;
 
     tracing::info!(%addr, "listening");
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -82,16 +81,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn spawn_cleanup_task(store: Store) {
-    let interval_seconds = env_i64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1) as u64;
-    let config = CleanupConfig {
-        job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 7).max(1),
-        job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 24).max(1),
-        report_min_retention_days: env_i64("REPORT_MIN_RETENTION_DAYS", 30).max(0),
-        report_max_rows: env_i64("REPORT_MAX_ROWS", 20_000).max(1),
-        report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
-    };
-
+fn spawn_cleanup_task(store: Store, interval_seconds: u64, config: CleanupConfig) {
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(30)).await;
         loop {
@@ -115,11 +105,4 @@ fn spawn_cleanup_task(store: Store) {
             tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
-}
-
-fn env_i64(name: &str, default: i64) -> i64 {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(default)
 }
