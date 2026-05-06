@@ -38,7 +38,7 @@ OctoCounts downloads a compressed archive rather than a full git clone with hist
 
 ## Technical details
 
-- Backend: Rust (Axum framework, Tokio async runtime, SQLx, SQLite)
+- Backend: Rust (Axum framework, Tokio async runtime, SQLx, Postgres)
 - Frontend: React, TypeScript, Vite, TanStack Query
 - Line counter: tokei (open source, multi-language SLOC tool)
 - Infrastructure: Docker Compose

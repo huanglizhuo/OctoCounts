@@ -4,20 +4,23 @@ mod github;
 mod models;
 mod store;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use std::str::FromStr;
+use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Semaphore;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::{api::AppState, github::GitHubClient, store::Store};
+use crate::{
+    api::AppState,
+    github::GitHubClient,
+    store::{CleanupConfig, Store},
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,17 +32,19 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://sloc.db".to_string());
-    let connect_options = SqliteConnectOptions::from_str(&database_url)?.create_if_missing(true);
-    let pool = SqlitePoolOptions::new()
+    let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL must be set")?;
+    if !database_url.starts_with("postgres://") && !database_url.starts_with("postgresql://") {
+        anyhow::bail!("DATABASE_URL must be a postgres:// or postgresql:// URL");
+    }
+    let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect_with(connect_options)
+        .connect(&database_url)
         .await
         .with_context(|| format!("failed to connect to {database_url}"))?;
 
     let store = Store::new(pool);
     store.migrate().await?;
+    spawn_cleanup_task(store.clone());
 
     let concurrency = std::env::var("ANALYSIS_CONCURRENCY")
         .ok()
@@ -75,4 +80,46 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
+}
+
+fn spawn_cleanup_task(store: Store) {
+    let interval_seconds = env_i64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1) as u64;
+    let config = CleanupConfig {
+        job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 7).max(1),
+        job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 24).max(1),
+        report_min_retention_days: env_i64("REPORT_MIN_RETENTION_DAYS", 30).max(0),
+        report_max_rows: env_i64("REPORT_MAX_ROWS", 20_000).max(1),
+        report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
+    };
+
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(30)).await;
+        loop {
+            match store.cleanup(config).await {
+                Ok(stats) if stats.skipped_locked => {
+                    tracing::debug!("skipped cleanup because another process holds the lock");
+                }
+                Ok(stats) => {
+                    tracing::info!(
+                        completed_jobs_deleted = stats.completed_jobs_deleted,
+                        stale_jobs_deleted = stats.stale_jobs_deleted,
+                        expired_reports_deleted = stats.expired_reports_deleted,
+                        cold_reports_deleted = stats.cold_reports_deleted,
+                        "storage cleanup completed"
+                    );
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "storage cleanup failed");
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
+        }
+    });
+}
+
+fn env_i64(name: &str, default: i64) -> i64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(default)
 }

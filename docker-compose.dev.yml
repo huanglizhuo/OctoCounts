@@ -1,23 +1,45 @@
 name: octocount-dev
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: octocounts
+      POSTGRES_USER: octocount
+      POSTGRES_PASSWORD: octocount
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U octocount -d octocounts"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api-dev:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     environment:
       BIND_ADDR: ${BIND_ADDR:-0.0.0.0:8080}
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/sloc-dev.db}
+      DATABASE_URL: postgres://octocount:octocount@postgres:5432/octocounts
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-2}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-3600}
+      JOB_RETENTION_COMPLETED_DAYS: ${JOB_RETENTION_COMPLETED_DAYS:-7}
+      JOB_RETENTION_STALE_HOURS: ${JOB_RETENTION_STALE_HOURS:-24}
+      REPORT_MIN_RETENTION_DAYS: ${REPORT_MIN_RETENTION_DAYS:-30}
+      REPORT_MAX_ROWS: ${REPORT_MAX_ROWS:-20000}
+      REPORT_CLEANUP_BATCH_SIZE: ${REPORT_CLEANUP_BATCH_SIZE:-1000}
     volumes:
       - ./backend:/app
       - backend-target:/app/target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
-      - dev-data:/data
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   web-dev:
     image: node:23-bookworm-slim
@@ -38,5 +60,5 @@ volumes:
   backend-target:
   cargo-registry:
   cargo-git:
-  dev-data:
+  postgres-data:
   frontend-node-modules:

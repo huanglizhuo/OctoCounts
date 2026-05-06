@@ -29,7 +29,7 @@ Built for developers who want quick SLOC visibility and refuse to wait for `git 
 
 | Layer | Tech |
 |---|---|
-| Backend | Rust · Axum · Tokio · SQLx · SQLite · tokei |
+| Backend | Rust · Axum · Tokio · SQLx · Postgres · tokei |
 | Frontend | React · TypeScript · Vite · TanStack Query |
 | Infra | Docker Compose (dev + prod configs) |
 

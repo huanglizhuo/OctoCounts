@@ -69,10 +69,7 @@ pub async fn job_status(
         return Err(ApiError::not_found("job_not_found", "job was not found"));
     };
     let mut headers = HeaderMap::new();
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("no-store"),
-    );
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok((headers, Json(job)))
 }
 

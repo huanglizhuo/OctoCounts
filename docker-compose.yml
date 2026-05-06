@@ -4,11 +4,15 @@ services:
       context: ./backend
     environment:
       BIND_ADDR: 0.0.0.0:8080
-      DATABASE_URL: sqlite:///data/sloc.db
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
       ANALYSIS_CONCURRENCY: "2"
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-    volumes:
-      - sloc-data:/data
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-3600}
+      JOB_RETENTION_COMPLETED_DAYS: ${JOB_RETENTION_COMPLETED_DAYS:-7}
+      JOB_RETENTION_STALE_HOURS: ${JOB_RETENTION_STALE_HOURS:-24}
+      REPORT_MIN_RETENTION_DAYS: ${REPORT_MIN_RETENTION_DAYS:-30}
+      REPORT_MAX_ROWS: ${REPORT_MAX_ROWS:-20000}
+      REPORT_CLEANUP_BATCH_SIZE: ${REPORT_CLEANUP_BATCH_SIZE:-1000}
     ports:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
@@ -55,6 +59,3 @@ services:
       - "5173:80"
     depends_on:
       - api
-
-volumes:
-  sloc-data:

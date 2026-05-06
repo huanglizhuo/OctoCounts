@@ -11,7 +11,5 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=builder /app/target/release/octocount-service /usr/local/bin/octocount-service
 ENV BIND_ADDR=0.0.0.0:8080
-ENV DATABASE_URL=sqlite:///data/sloc.db
-VOLUME ["/data"]
 EXPOSE 8080
 CMD ["octocount-service"]

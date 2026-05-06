@@ -5,7 +5,6 @@ WORKDIR /app
 RUN cargo install cargo-watch --locked
 
 ENV BIND_ADDR=0.0.0.0:8080
-ENV DATABASE_URL=sqlite:///data/sloc-dev.db
 
 EXPOSE 8080
 

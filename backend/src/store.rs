@@ -1,17 +1,16 @@
-use anyhow::Context;
-use chrono::{DateTime, Utc};
-use sqlx::{Row, SqlitePool};
+use chrono::{DateTime, Duration, Utc};
+use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::models::{ApiErrorBody, JobRecord, JobStatus, Report};
 
 #[derive(Clone)]
 pub struct Store {
-    pool: SqlitePool,
+    pool: PgPool,
 }
 
 impl Store {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
@@ -25,7 +24,12 @@ impl Store {
                 commit_sha TEXT NOT NULL,
                 tokei_version TEXT NOT NULL,
                 body TEXT NOT NULL,
-                created_at TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                access_count BIGINT NOT NULL DEFAULT 0,
+                body_bytes BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0),
+                CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0),
                 UNIQUE(owner, repo, commit_sha, tokei_version)
             );
             "#,
@@ -36,17 +40,112 @@ impl Store {
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS jobs (
-                id TEXT PRIMARY KEY,
+                id UUID PRIMARY KEY,
                 status TEXT NOT NULL,
                 report_id TEXT,
                 error TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
             );
             "#,
         )
         .execute(&self.pool)
         .await?;
+
+        sqlx::query(
+            r#"
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                    AND table_name = 'jobs'
+                    AND column_name = 'id'
+                    AND data_type <> 'uuid'
+                ) THEN
+                    ALTER TABLE jobs ALTER COLUMN id TYPE UUID USING id::uuid;
+                END IF;
+            END $$;
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query("ALTER TABLE reports ALTER COLUMN created_at SET DEFAULT NOW()")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN last_accessed_at SET DEFAULT NOW()")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN access_count SET DEFAULT 0")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN body_bytes SET DEFAULT 0")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ALTER COLUMN created_at SET DEFAULT NOW()")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ALTER COLUMN updated_at SET DEFAULT NOW()")
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query(
+            r#"
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'reports_access_count_nonnegative'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE reports
+                    ADD CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0);
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'reports_body_bytes_nonnegative'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE reports
+                    ADD CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0);
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'jobs_status_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE jobs
+                    ADD CONSTRAINT jobs_status_valid
+                    CHECK (status IN ('queued', 'running', 'completed', 'failed'));
+                END IF;
+            END $$;
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DROP INDEX IF EXISTS idx_reports_cleanup")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_lru_cleanup ON reports (last_accessed_at, created_at)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_jobs_cleanup ON jobs (status, updated_at)")
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -59,7 +158,17 @@ impl Store {
         tokei_version: &str,
     ) -> anyhow::Result<Option<Report>> {
         let row = sqlx::query(
-            "SELECT body FROM reports WHERE owner = ? AND repo = ? AND commit_sha = ? AND tokei_version = ?",
+            r#"
+            UPDATE reports
+            SET last_accessed_at = NOW(), access_count = access_count + 1
+            WHERE id = (
+                SELECT id
+                FROM reports
+                WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4
+            )
+            AND last_accessed_at < NOW() - INTERVAL '1 hour'
+            RETURNING body
+            "#,
         )
         .bind(owner)
         .bind(repo)
@@ -67,6 +176,21 @@ impl Store {
         .bind(tokei_version)
         .fetch_optional(&self.pool)
         .await?;
+
+        let row = match row {
+            Some(row) => Some(row),
+            None => {
+                sqlx::query(
+                    "SELECT body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
+                )
+                .bind(owner)
+                .bind(repo)
+                .bind(commit_sha)
+                .bind(tokei_version)
+                .fetch_optional(&self.pool)
+                .await?
+            }
+        };
 
         row.map(|row| {
             let body: String = row.try_get("body")?;
@@ -79,10 +203,22 @@ impl Store {
 
     pub async fn save_report(&self, report: &Report) -> anyhow::Result<()> {
         let body = serde_json::to_string(report)?;
+        let body_bytes = body.len() as i64;
         sqlx::query(
             r#"
-            INSERT OR REPLACE INTO reports (id, owner, repo, commit_sha, tokei_version, body, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO reports (
+                id, owner, repo, commit_sha, tokei_version, body, created_at,
+                last_accessed_at, access_count, body_bytes
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 0, $8)
+            ON CONFLICT (owner, repo, commit_sha, tokei_version)
+            DO UPDATE SET
+                id = EXCLUDED.id,
+                body = EXCLUDED.body,
+                created_at = EXCLUDED.created_at,
+                last_accessed_at = EXCLUDED.last_accessed_at,
+                access_count = 0,
+                body_bytes = EXCLUDED.body_bytes
             "#,
         )
         .bind(&report.id)
@@ -91,17 +227,36 @@ impl Store {
         .bind(&report.commit_sha)
         .bind(&report.tokei_version)
         .bind(body)
-        .bind(report.generated_at.to_rfc3339())
+        .bind(report.generated_at)
+        .bind(body_bytes)
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
     pub async fn report(&self, id: &str) -> anyhow::Result<Option<Report>> {
-        let row = sqlx::query("SELECT body FROM reports WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            r#"
+            UPDATE reports
+            SET last_accessed_at = NOW(), access_count = access_count + 1
+            WHERE id = $1
+            AND last_accessed_at < NOW() - INTERVAL '1 hour'
+            RETURNING body
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row = match row {
+            Some(row) => Some(row),
+            None => {
+                sqlx::query("SELECT body FROM reports WHERE id = $1")
+                    .bind(id)
+                    .fetch_optional(&self.pool)
+                    .await?
+            }
+        };
 
         row.map(|row| {
             let body: String = row.try_get("body")?;
@@ -110,16 +265,172 @@ impl Store {
         .transpose()
     }
 
+    pub async fn cleanup(&self, config: CleanupConfig) -> anyhow::Result<CleanupStats> {
+        let mut tx = self.pool.begin().await?;
+        let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock($1)")
+            .bind(CLEANUP_ADVISORY_LOCK_ID)
+            .fetch_one(&mut *tx)
+            .await?;
+        if !locked {
+            return Ok(CleanupStats {
+                skipped_locked: true,
+                ..CleanupStats::default()
+            });
+        }
+
+        let stats = self.cleanup_locked(config, &mut tx).await?;
+        tx.commit().await?;
+        Ok(stats)
+    }
+
+    async fn cleanup_locked(
+        &self,
+        config: CleanupConfig,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> anyhow::Result<CleanupStats> {
+        let completed_cutoff = Utc::now() - Duration::days(config.job_retention_completed_days);
+        let stale_cutoff = Utc::now() - Duration::hours(config.job_retention_stale_hours);
+        let report_cutoff = Utc::now() - Duration::days(config.report_min_retention_days);
+
+        let completed_jobs_deleted = sqlx::query(
+            "DELETE FROM jobs WHERE status IN ('completed', 'failed') AND updated_at < $1",
+        )
+        .bind(completed_cutoff)
+        .execute(&mut **tx)
+        .await?
+        .rows_affected();
+
+        let stale_jobs_deleted = sqlx::query(
+            "DELETE FROM jobs WHERE status IN ('queued', 'running') AND updated_at < $1",
+        )
+        .bind(stale_cutoff)
+        .execute(&mut **tx)
+        .await?
+        .rows_affected();
+
+        let mut cold_reports_deleted = 0;
+        let report_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM reports")
+            .fetch_one(&mut **tx)
+            .await?;
+        let mut over_limit = report_count.saturating_sub(config.report_max_rows);
+        while over_limit > 0 {
+            let batch_size = over_limit.min(config.report_cleanup_batch_size) as i64;
+            let deleted = sqlx::query(
+                r#"
+                DELETE FROM reports
+                WHERE id IN (
+                    SELECT id
+                    FROM reports
+                    WHERE created_at < $1
+                    ORDER BY last_accessed_at ASC, created_at ASC
+                    LIMIT $2
+                )
+                "#,
+            )
+            .bind(report_cutoff)
+            .bind(batch_size)
+            .execute(&mut **tx)
+            .await?
+            .rows_affected();
+            if deleted == 0 {
+                break;
+            }
+            cold_reports_deleted += deleted;
+            over_limit = over_limit.saturating_sub(deleted as i64);
+        }
+
+        Ok(CleanupStats {
+            skipped_locked: false,
+            completed_jobs_deleted,
+            stale_jobs_deleted,
+            expired_reports_deleted: 0,
+            cold_reports_deleted,
+        })
+    }
+
+    #[cfg(test)]
+    async fn force_report_access_metadata(
+        &self,
+        id: &str,
+        last_accessed_at: DateTime<Utc>,
+        access_count: i64,
+    ) -> anyhow::Result<()> {
+        sqlx::query("UPDATE reports SET last_accessed_at = $1, access_count = $2 WHERE id = $3")
+            .bind(last_accessed_at)
+            .bind(access_count)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn force_report_timestamps(
+        &self,
+        id: &str,
+        created_at: DateTime<Utc>,
+        last_accessed_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        sqlx::query("UPDATE reports SET created_at = $1, last_accessed_at = $2 WHERE id = $3")
+            .bind(created_at)
+            .bind(last_accessed_at)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn report_access_metadata(&self, id: &str) -> anyhow::Result<(DateTime<Utc>, i64)> {
+        let row = sqlx::query("SELECT last_accessed_at, access_count FROM reports WHERE id = $1")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok((
+            row.try_get("last_accessed_at")?,
+            row.try_get("access_count")?,
+        ))
+    }
+
+    #[cfg(test)]
+    async fn force_job(
+        &self,
+        id: Uuid,
+        status: JobStatus,
+        updated_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO jobs (id, status, created_at, updated_at) VALUES ($1, $2, $3, $3)",
+        )
+        .bind(id)
+        .bind(status_to_str(&status))
+        .bind(updated_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    async fn report_exists(&self, id: &str) -> anyhow::Result<bool> {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM reports WHERE id = $1)")
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn create_job(&self) -> anyhow::Result<JobRecord> {
         let id = Uuid::new_v4();
         let now = Utc::now();
-        sqlx::query("INSERT INTO jobs (id, status, created_at, updated_at) VALUES (?, ?, ?, ?)")
-            .bind(id.to_string())
-            .bind(status_to_str(&JobStatus::Queued))
-            .bind(now.to_rfc3339())
-            .bind(now.to_rfc3339())
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "INSERT INTO jobs (id, status, created_at, updated_at) VALUES ($1, $2, $3, $4)",
+        )
+        .bind(id)
+        .bind(status_to_str(&JobStatus::Queued))
+        .bind(now)
+        .bind(now)
+        .execute(&self.pool)
+        .await?;
 
         Ok(JobRecord {
             id,
@@ -156,13 +467,13 @@ impl Store {
             .map(|value| serde_json::to_string(&value))
             .transpose()?;
         sqlx::query(
-            "UPDATE jobs SET status = ?, report_id = ?, error = ?, updated_at = ? WHERE id = ?",
+            "UPDATE jobs SET status = $1, report_id = $2, error = $3, updated_at = $4 WHERE id = $5",
         )
         .bind(status_to_str(&status))
         .bind(report_id)
         .bind(error)
-        .bind(Utc::now().to_rfc3339())
-        .bind(id.to_string())
+        .bind(Utc::now())
+        .bind(id)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -170,9 +481,9 @@ impl Store {
 
     pub async fn job(&self, id: Uuid) -> anyhow::Result<Option<JobRecord>> {
         let row = sqlx::query(
-            "SELECT id, status, report_id, error, created_at, updated_at FROM jobs WHERE id = ?",
+            "SELECT id, status, report_id, error, created_at, updated_at FROM jobs WHERE id = $1",
         )
-        .bind(id.to_string())
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -180,22 +491,54 @@ impl Store {
     }
 }
 
-fn row_to_job(row: sqlx::sqlite::SqliteRow) -> anyhow::Result<JobRecord> {
-    let id: String = row.try_get("id")?;
+const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
+
+#[derive(Clone, Copy, Debug)]
+pub struct CleanupConfig {
+    pub job_retention_completed_days: i64,
+    pub job_retention_stale_hours: i64,
+    pub report_min_retention_days: i64,
+    pub report_max_rows: i64,
+    pub report_cleanup_batch_size: i64,
+}
+
+impl Default for CleanupConfig {
+    fn default() -> Self {
+        Self {
+            job_retention_completed_days: 7,
+            job_retention_stale_hours: 24,
+            report_min_retention_days: 30,
+            report_max_rows: 20_000,
+            report_cleanup_batch_size: 1_000,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct CleanupStats {
+    pub skipped_locked: bool,
+    pub completed_jobs_deleted: u64,
+    pub stale_jobs_deleted: u64,
+    pub expired_reports_deleted: u64,
+    pub cold_reports_deleted: u64,
+}
+
+fn row_to_job(row: sqlx::postgres::PgRow) -> anyhow::Result<JobRecord> {
+    let id: Uuid = row.try_get("id")?;
     let status: String = row.try_get("status")?;
     let error: Option<String> = row.try_get("error")?;
-    let created_at: String = row.try_get("created_at")?;
-    let updated_at: String = row.try_get("updated_at")?;
+    let created_at: DateTime<Utc> = row.try_get("created_at")?;
+    let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
 
     Ok(JobRecord {
-        id: Uuid::parse_str(&id).context("invalid job id in database")?,
+        id,
         status: status_from_str(&status)?,
         report_id: row.try_get("report_id")?,
         error: error
             .map(|value| serde_json::from_str::<ApiErrorBody>(&value))
             .transpose()?,
-        created_at: DateTime::parse_from_rfc3339(&created_at)?.with_timezone(&Utc),
-        updated_at: DateTime::parse_from_rfc3339(&updated_at)?.with_timezone(&Utc),
+        created_at,
+        updated_at,
     })
 }
 
@@ -220,59 +563,244 @@ fn status_from_str(status: &str) -> anyhow::Result<JobStatus> {
 
 #[cfg(test)]
 mod tests {
-    use super::Store;
-    use crate::models::{LanguageReport, LanguageStats, Report, Repository};
-    use chrono::Utc;
-    use sqlx::sqlite::SqlitePoolOptions;
+    use super::{CleanupConfig, Store};
+    use crate::models::{JobStatus, LanguageReport, LanguageStats, Report, Repository};
+    use chrono::{Duration, Utc};
+    use sqlx::postgres::PgPoolOptions;
+    use std::ops::Deref;
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn cached_report_marks_report_as_cached() {
-        let store = test_store().await;
-        let mut report = test_report(100);
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let mut report = test_report("report-cached", &owner, 100);
         report.cached = false;
         store.save_report(&report).await.unwrap();
 
         let cached = store
-            .cached_report("octo", "count", "abc123", "tokei-test")
+            .cached_report(&owner, "count", "abc123", "tokei-test")
             .await
             .unwrap()
             .unwrap();
 
         assert!(cached.cached);
         assert_eq!(cached.total.code, 100);
+        store.drop_schema().await;
     }
 
     #[tokio::test]
     async fn save_report_replaces_existing_cache_record() {
-        let store = test_store().await;
-        store.save_report(&test_report(100)).await.unwrap();
-        store.save_report(&test_report(250)).await.unwrap();
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        store
+            .save_report(&test_report("report-upsert-1", &owner, 100))
+            .await
+            .unwrap();
+        store
+            .save_report(&test_report("report-upsert-2", &owner, 250))
+            .await
+            .unwrap();
 
         let cached = store
-            .cached_report("octo", "count", "abc123", "tokei-test")
+            .cached_report(&owner, "count", "abc123", "tokei-test")
             .await
             .unwrap()
             .unwrap();
 
         assert_eq!(cached.total.code, 250);
+        assert_eq!(cached.id, "report-upsert-2");
+        store.drop_schema().await;
     }
 
-    async fn test_store() -> Store {
-        let pool = SqlitePoolOptions::new()
+    #[tokio::test]
+    async fn report_returns_by_id_and_tracks_access() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-by-id", &owner, 100);
+        store.save_report(&report).await.unwrap();
+        store
+            .force_report_access_metadata(&report.id, Utc::now() - Duration::hours(2), 3)
+            .await
+            .unwrap();
+
+        let loaded = store.report(&report.id).await.unwrap().unwrap();
+        let (_, access_count) = store.report_access_metadata(&report.id).await.unwrap();
+
+        assert_eq!(loaded.id, report.id);
+        assert_eq!(access_count, 4);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn cleanup_removes_old_jobs() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let old_completed = Uuid::new_v4();
+        let old_running = Uuid::new_v4();
+        let recent_completed = Uuid::new_v4();
+        store
+            .force_job(
+                old_completed,
+                JobStatus::Completed,
+                Utc::now() - Duration::days(8),
+            )
+            .await
+            .unwrap();
+        store
+            .force_job(
+                old_running,
+                JobStatus::Running,
+                Utc::now() - Duration::hours(25),
+            )
+            .await
+            .unwrap();
+        store
+            .force_job(recent_completed, JobStatus::Completed, Utc::now())
+            .await
+            .unwrap();
+
+        let stats = cleanup(&store, CleanupConfig::default()).await;
+
+        assert_eq!(stats.completed_jobs_deleted, 1);
+        assert_eq!(stats.stale_jobs_deleted, 1);
+        assert!(store.job(old_completed).await.unwrap().is_none());
+        assert!(store.job(old_running).await.unwrap().is_none());
+        assert!(store.job(recent_completed).await.unwrap().is_some());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn cleanup_preserves_reports_younger_than_retention() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-young", &owner, 100);
+        store.save_report(&report).await.unwrap();
+
+        let stats = cleanup(&store, CleanupConfig::default()).await;
+
+        assert_eq!(stats.expired_reports_deleted, 0);
+        assert!(store.report_exists(&report.id).await.unwrap());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn cleanup_evicts_cold_reports_beyond_cap() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..3 {
+            let id = format!("report-cold-{index}");
+            let mut report = test_report(&id, &owner, 100 + index);
+            report.commit_sha = format!("abc123-{index}");
+            store.save_report(&report).await.unwrap();
+            store
+                .force_report_timestamps(
+                    &id,
+                    Utc::now() - Duration::days(31),
+                    Utc::now() - Duration::days(31 + i64::from(2 - index as i32)),
+                )
+                .await
+                .unwrap();
+        }
+
+        let stats = cleanup(
+            &store,
+            CleanupConfig {
+                report_min_retention_days: 30,
+                report_max_rows: 2,
+                report_cleanup_batch_size: 1,
+                ..CleanupConfig::default()
+            },
+        )
+        .await;
+
+        assert_eq!(stats.cold_reports_deleted, 1);
+        assert!(!store.report_exists("report-cold-0").await.unwrap());
+        assert!(store.report_exists("report-cold-1").await.unwrap());
+        assert!(store.report_exists("report-cold-2").await.unwrap());
+        store.drop_schema().await;
+    }
+
+    async fn test_store() -> Option<TestStore> {
+        let database_url = std::env::var("TEST_DATABASE_URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .ok()?;
+        if !database_url.starts_with("postgres://") && !database_url.starts_with("postgresql://") {
+            eprintln!("skipping postgres store test because DATABASE_URL is not postgres");
+            return None;
+        }
+        let pool = PgPoolOptions::new()
             .max_connections(1)
-            .connect("sqlite::memory:")
+            .connect(&database_url)
+            .await
+            .unwrap();
+        let schema = unique_name("test_schema");
+        sqlx::query(&format!("CREATE SCHEMA {schema}"))
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(&format!("SET search_path TO {schema}"))
+            .execute(&pool)
             .await
             .unwrap();
         let store = Store::new(pool);
         store.migrate().await.unwrap();
-        store
+        Some(TestStore { store, schema })
     }
 
-    fn test_report(code: usize) -> Report {
+    async fn cleanup(store: &Store, config: CleanupConfig) -> super::CleanupStats {
+        for _ in 0..10 {
+            let stats = store.cleanup(config).await.unwrap();
+            if !stats.skipped_locked {
+                return stats;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+        panic!("cleanup advisory lock stayed busy");
+    }
+
+    fn unique_name(prefix: &str) -> String {
+        format!("{prefix}_{}", Uuid::new_v4().simple())
+    }
+
+    struct TestStore {
+        store: Store,
+        schema: String,
+    }
+
+    impl TestStore {
+        async fn drop_schema(self) {
+            sqlx::query(&format!("DROP SCHEMA IF EXISTS {} CASCADE", self.schema))
+                .execute(&self.store.pool)
+                .await
+                .unwrap();
+        }
+    }
+
+    impl Deref for TestStore {
+        type Target = Store;
+
+        fn deref(&self) -> &Self::Target {
+            &self.store
+        }
+    }
+
+    fn test_report(id: &str, owner: &str, code: usize) -> Report {
         Report {
-            id: "report-id".to_string(),
+            id: id.to_string(),
             repository: Repository {
-                owner: "octo".to_string(),
+                owner: owner.to_string(),
                 name: "count".to_string(),
                 html_url: "https://github.com/octo/count".to_string(),
             },

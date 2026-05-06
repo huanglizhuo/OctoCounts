@@ -22,7 +22,7 @@ What's running:
 |---|---|---|
 | Backend API | `http://127.0.0.1:8080` | Restarted by `cargo-watch` on changes |
 | Frontend | `http://127.0.0.1:5173` | Vite HMR |
-| Database | Docker volume | `sloc-dev.db` — survives restarts |
+| Database | Docker volume | Postgres 17 — survives restarts |
 
 To stop:
 
@@ -34,31 +34,22 @@ docker compose -f docker-compose.dev.yml down
 
 ## Local Development (Host-native)
 
-If you'd rather not run Docker and enjoy living dangerously:
-
-```bash
-GITHUB_TOKEN=github_pat_your_token_here ./run-local.sh
-```
-
-Or without a token (rate-limiting incoming):
-
-```bash
-./run-local.sh
-```
+If you'd rather not run Docker and enjoy living dangerously, start a local Postgres database first and set `DATABASE_URL` to it.
 
 For separate terminals:
 
 **Backend:**
 ```bash
 cd backend
+export DATABASE_URL=postgres://octocount:octocount@127.0.0.1:5432/octocounts
 cargo run
-# API listens on 127.0.0.1:8080, creates sloc.db automatically
+# API listens on 127.0.0.1:8080 and creates Postgres tables automatically
 ```
 
 With auto-restart on file changes:
 ```bash
 cd backend
-GITHUB_TOKEN=github_pat_your_token_here cargo watch -x run
+DATABASE_URL=postgres://octocount:octocount@127.0.0.1:5432/octocounts GITHUB_TOKEN=github_pat_your_token_here cargo watch -x run
 ```
 
 **Frontend:**
@@ -166,7 +157,7 @@ Tested on a plain VPS. No Kubernetes required, no Helm charts, no regrets.
 
 ```bash
 cp .env.example .env
-# Edit .env — at minimum set GITHUB_TOKEN
+# Edit .env — at minimum set DATABASE_URL to Neon/Postgres and set GITHUB_TOKEN
 docker compose up --build -d
 ```
 
@@ -183,8 +174,14 @@ Services expose:
 |---|---|---|
 | `GITHUB_TOKEN` | — | Strongly recommended |
 | `ANALYSIS_CONCURRENCY` | `2` | Max parallel analysis jobs |
-| `DATABASE_URL` | `sqlite:///data/sloc.db` | SQLite path inside the container |
+| `DATABASE_URL` | required | Postgres connection string, for example a Neon pooled URL |
 | `BIND_ADDR` | `0.0.0.0:8080` | Backend listen address |
+| `CLEANUP_INTERVAL_SECONDS` | `3600` | Storage cleanup cadence |
+| `JOB_RETENTION_COMPLETED_DAYS` | `7` | Retain completed/failed jobs this many days |
+| `JOB_RETENTION_STALE_HOURS` | `24` | Retain stale queued/running jobs this many hours |
+| `REPORT_MIN_RETENTION_DAYS` | `30` | Never evict reports younger than this |
+| `REPORT_MAX_ROWS` | `20000` | LRU-style report cap |
+| `REPORT_CLEANUP_BATCH_SIZE` | `1000` | Max report rows deleted per cleanup batch |
 
 To stop:
 ```bash
