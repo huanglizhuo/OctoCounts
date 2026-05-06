@@ -23,7 +23,7 @@ impl Store {
                 repo TEXT NOT NULL,
                 commit_sha TEXT NOT NULL,
                 tokei_version TEXT NOT NULL,
-                body TEXT NOT NULL,
+                body JSONB NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 access_count BIGINT NOT NULL DEFAULT 0,
@@ -43,7 +43,7 @@ impl Store {
                 id UUID PRIMARY KEY,
                 status TEXT NOT NULL,
                 report_id TEXT,
-                error TEXT,
+                error JSONB,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
@@ -66,6 +66,37 @@ impl Store {
                     AND data_type <> 'uuid'
                 ) THEN
                     ALTER TABLE jobs ALTER COLUMN id TYPE UUID USING id::uuid;
+                END IF;
+            END $$;
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                    AND table_name = 'reports'
+                    AND column_name = 'body'
+                    AND data_type <> 'jsonb'
+                ) THEN
+                    ALTER TABLE reports ALTER COLUMN body TYPE JSONB USING body::jsonb;
+                END IF;
+
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                    AND table_name = 'jobs'
+                    AND column_name = 'error'
+                    AND data_type <> 'jsonb'
+                ) THEN
+                    ALTER TABLE jobs ALTER COLUMN error TYPE JSONB USING error::jsonb;
                 END IF;
             END $$;
             "#,
@@ -143,7 +174,17 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_jobs_cleanup ON jobs (status, updated_at)")
+        sqlx::query("DROP INDEX IF EXISTS idx_jobs_cleanup")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_jobs_finished_cleanup ON jobs (updated_at) WHERE status IN ('completed', 'failed')",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_jobs_stale_cleanup ON jobs (updated_at) WHERE status IN ('queued', 'running')",
+        )
             .execute(&self.pool)
             .await?;
 
@@ -183,7 +224,7 @@ impl Store {
                 id, owner, repo, commit_sha, tokei_version, body, created_at,
                 last_accessed_at, access_count, body_bytes
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $7, 0, $8)
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $7, 0, $8)
             ON CONFLICT (owner, repo, commit_sha, tokei_version)
             DO UPDATE SET
                 id = EXCLUDED.id,
@@ -228,7 +269,7 @@ impl Store {
                 WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4
             )
             AND last_accessed_at < NOW() - INTERVAL '1 hour'
-            RETURNING body
+            RETURNING body::text AS body
             "#,
         )
         .bind(key.owner)
@@ -243,7 +284,7 @@ impl Store {
         }
 
         let row = sqlx::query(
-            "SELECT body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
+            "SELECT body::text AS body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
         )
         .bind(key.owner)
         .bind(key.repo)
@@ -259,8 +300,8 @@ impl Store {
 
     async fn fetch_report_body_by_id(&self, id: &str) -> anyhow::Result<Option<String>> {
         self.fetch_throttled_report_body(
-            "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' RETURNING body",
-            "SELECT body FROM reports WHERE id = $1",
+            "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' RETURNING body::text AS body",
+            "SELECT body::text AS body FROM reports WHERE id = $1",
             id,
         )
         .await
@@ -493,7 +534,7 @@ impl Store {
             .map(|value| serde_json::to_string(&value))
             .transpose()?;
         sqlx::query(
-            "UPDATE jobs SET status = $1, report_id = $2, error = $3, updated_at = $4 WHERE id = $5",
+            "UPDATE jobs SET status = $1, report_id = $2, error = $3::jsonb, updated_at = $4 WHERE id = $5",
         )
         .bind(status_to_str(&status))
         .bind(report_id)
@@ -507,7 +548,7 @@ impl Store {
 
     pub async fn job(&self, id: Uuid) -> anyhow::Result<Option<JobRecord>> {
         let row = sqlx::query(
-            "SELECT id, status, report_id, error, created_at, updated_at FROM jobs WHERE id = $1",
+            "SELECT id, status, report_id, error::text AS error, created_at, updated_at FROM jobs WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -766,6 +807,43 @@ mod tests {
         store.drop_schema().await;
     }
 
+    #[tokio::test]
+    async fn migration_uses_jsonb_for_structured_payloads() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+
+        assert_eq!(store.column_type("reports", "body").await.unwrap(), "jsonb");
+        assert_eq!(store.column_type("jobs", "error").await.unwrap(), "jsonb");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn failed_job_roundtrips_jsonb_error() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let job = store.create_job().await.unwrap();
+
+        store
+            .set_job_failed(
+                job.id,
+                crate::models::ApiErrorBody {
+                    code: "bad_repo".to_string(),
+                    message: "repository is invalid".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+
+        let loaded = store.job(job.id).await.unwrap().unwrap();
+        let error = loaded.error.unwrap();
+        assert_eq!(loaded.status, JobStatus::Failed);
+        assert_eq!(error.code, "bad_repo");
+        assert_eq!(error.message, "repository is invalid");
+        store.drop_schema().await;
+    }
+
     async fn test_store() -> Option<TestStore> {
         let database_url = std::env::var("TEST_DATABASE_URL")
             .or_else(|_| std::env::var("DATABASE_URL"))
@@ -819,6 +897,23 @@ mod tests {
                 .execute(&self.store.pool)
                 .await
                 .unwrap();
+        }
+
+        async fn column_type(&self, table: &str, column: &str) -> anyhow::Result<String> {
+            sqlx::query_scalar(
+                r#"
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = current_schema()
+                AND table_name = $1
+                AND column_name = $2
+                "#,
+            )
+            .bind(table)
+            .bind(column)
+            .fetch_one(&self.store.pool)
+            .await
+            .map_err(Into::into)
         }
     }
 
