@@ -2,7 +2,6 @@ import cardCss from '../styles/card.css?inline';
 import { formatNumber } from '../shared/format.js';
 import { mountPanel } from './panel.js';
 
-const POLL_INTERVAL_MS = 1200;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 let _pollTimer = null;
@@ -194,8 +193,14 @@ function renderError(root, error, onRetry) {
 }
 
 function stopPolling() {
-  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
   _pollStart = null;
+}
+
+function pollingInterval(elapsedMs) {
+  if (elapsedMs < 5_000) return 1_200;
+  if (elapsedMs < 30_000) return 2_500;
+  return 5_000;
 }
 
 async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
@@ -217,8 +222,9 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
     const { jobId } = res;
     _pollStart = Date.now();
 
-    _pollTimer = setInterval(async () => {
-      if (Date.now() - _pollStart > POLL_TIMEOUT_MS) {
+    const pollUntilDone = async () => {
+      const elapsed = Date.now() - _pollStart;
+      if (elapsed > POLL_TIMEOUT_MS) {
         stopPolling();
         renderError(root, { code: 'timeout', message: 'Analysis timed out' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
         return;
@@ -228,6 +234,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
       try {
         poll = await chrome.runtime.sendMessage({ type: 'POLL', jobId, owner, repo, ref });
       } catch (_) {
+        _pollTimer = setTimeout(pollUntilDone, pollingInterval(elapsed));
         return; // SW restarting, try next tick
       }
 
@@ -237,7 +244,11 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
         return;
       }
 
-      if (poll.type === 'PENDING') { renderLoading(root, poll.status); return; }
+      if (poll.type === 'PENDING') {
+        renderLoading(root, poll.status);
+        _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
+        return;
+      }
 
       if (poll.type === 'FAILED') {
         stopPolling();
@@ -249,7 +260,9 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
         stopPolling();
         renderCompleted(root, poll.report, null, { owner, repo, ref, shadow, forceRefresh: false });
       }
-    }, POLL_INTERVAL_MS);
+    };
+
+    _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
 
   } catch (err) {
     renderError(root, { code: 'unknown', message: err.message || 'Failed to start analysis' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));

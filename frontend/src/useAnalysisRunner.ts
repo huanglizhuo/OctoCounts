@@ -18,6 +18,7 @@ export function useAnalysisRunner({
   seedReport: Report | null;
 }) {
   const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
   const [report, setReport] = useState<Report | null>(seedReport);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,7 +29,10 @@ export function useAnalysisRunner({
     enabled: Boolean(jobId && !report),
     refetchInterval: (query) => {
       const data = query.state.data as JobRecord | undefined;
-      return data?.status === "completed" || data?.status === "failed" ? false : 1200;
+      if (data?.status === "completed" || data?.status === "failed") {
+        return false;
+      }
+      return pollingInterval(Date.now() - (jobStartedAt ?? Date.now()));
     },
     queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}`),
   });
@@ -45,11 +49,13 @@ export function useAnalysisRunner({
         if (cancelled) return;
         setReport(nextReport);
         setJobId(null);
+        setJobStartedAt(null);
       })
       .catch((err) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to fetch completed report");
         setJobId(null);
+        setJobStartedAt(null);
       });
 
     return () => {
@@ -61,6 +67,7 @@ export function useAnalysisRunner({
     if (jobQuery.data?.status === "failed") {
       setError(errorMessage(jobQuery.data.error));
       setJobId(null);
+      setJobStartedAt(null);
     }
   }, [jobQuery.data]);
 
@@ -70,6 +77,7 @@ export function useAnalysisRunner({
     setError(null);
     setReport(null);
     setJobId(null);
+    setJobStartedAt(null);
     setIsSubmitting(true);
     const command = commandText(effectiveRepoUrl, effectiveRefName, forceRefresh);
     setLastCommand(command);
@@ -79,6 +87,7 @@ export function useAnalysisRunner({
       if (result.kind === "cached") {
         setReport(result.report);
       } else {
+        setJobStartedAt(Date.now());
         setJobId(result.jobId);
       }
     } catch (err) {
@@ -92,6 +101,7 @@ export function useAnalysisRunner({
     setReport(null);
     setError(null);
     setJobId(null);
+    setJobStartedAt(null);
   };
 
   const status: AppStatus = error
@@ -112,6 +122,12 @@ export function useAnalysisRunner({
     runAnalysis,
     reset,
   };
+}
+
+function pollingInterval(elapsedMs: number) {
+  if (elapsedMs < 5_000) return 1_200;
+  if (elapsedMs < 30_000) return 2_500;
+  return 5_000;
 }
 
 function errorMessage(error: JobRecord["error"]) {

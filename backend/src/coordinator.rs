@@ -8,7 +8,7 @@ use crate::{
     error::ApiError,
     github::GitHubClient,
     models::{AnalyzeRequest, AnalyzeResponse, ApiErrorBody, RepoRef},
-    store::Store,
+    store::{JobKey, Store},
 };
 
 #[derive(Clone)]
@@ -57,8 +57,19 @@ impl AnalysisCoordinator {
             }
         }
 
-        let job = self.store.create_job().await.map_err(ApiError::internal)?;
-        self.spawn_analysis_job(job.id, repo_ref);
+        let (job, created) = self
+            .store
+            .create_or_get_active_job(JobKey {
+                owner: &repo_ref.owner,
+                repo: &repo_ref.repo,
+                commit_sha: &repo_ref.commit_sha,
+                tokei_version: analyzer::tokei_version(),
+            })
+            .await
+            .map_err(ApiError::internal)?;
+        if created {
+            self.spawn_analysis_job(job.id, repo_ref);
+        }
 
         Ok(AnalyzeResponse::Job {
             job_id: job.id,

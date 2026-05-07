@@ -122,6 +122,18 @@ impl Store {
         sqlx::query("ALTER TABLE jobs ALTER COLUMN updated_at SET DEFAULT NOW()")
             .execute(&self.pool)
             .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS owner TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS repo TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS commit_sha TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tokei_version TEXT")
+            .execute(&self.pool)
+            .await?;
 
         sqlx::query(
             r#"
@@ -187,6 +199,15 @@ impl Store {
         )
             .execute(&self.pool)
             .await?;
+        sqlx::query(
+            r#"
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_active_key_unique
+            ON jobs (owner, repo, commit_sha, tokei_version)
+            WHERE status IN ('queued', 'running')
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
@@ -509,6 +530,75 @@ impl Store {
         })
     }
 
+    pub async fn create_or_get_active_job(
+        &self,
+        key: JobKey<'_>,
+    ) -> anyhow::Result<(JobRecord, bool)> {
+        if let Some(job) = self.active_job(key).await? {
+            return Ok((job, false));
+        }
+
+        match self.create_keyed_job(key).await {
+            Ok(job) => Ok((job, true)),
+            Err(error) if is_active_job_key_conflict(&error) => {
+                let Some(job) = self.active_job(key).await? else {
+                    return Err(error);
+                };
+                Ok((job, false))
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    async fn create_keyed_job(&self, key: JobKey<'_>) -> anyhow::Result<JobRecord> {
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+        let row = sqlx::query(
+            r#"
+            INSERT INTO jobs (
+                id, status, owner, repo, commit_sha, tokei_version, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+            RETURNING id, status, report_id, error::text AS error, created_at, updated_at
+            "#,
+        )
+        .bind(id)
+        .bind(status_to_str(&JobStatus::Queued))
+        .bind(key.owner)
+        .bind(key.repo)
+        .bind(key.commit_sha)
+        .bind(key.tokei_version)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+
+        row_to_job(row)
+    }
+
+    async fn active_job(&self, key: JobKey<'_>) -> anyhow::Result<Option<JobRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, status, report_id, error::text AS error, created_at, updated_at
+            FROM jobs
+            WHERE owner = $1
+            AND repo = $2
+            AND commit_sha = $3
+            AND tokei_version = $4
+            AND status IN ('queued', 'running')
+            ORDER BY created_at ASC
+            LIMIT 1
+            "#,
+        )
+        .bind(key.owner)
+        .bind(key.repo)
+        .bind(key.commit_sha)
+        .bind(key.tokei_version)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(row_to_job).transpose()
+    }
+
     pub async fn set_job_running(&self, id: Uuid) -> anyhow::Result<()> {
         self.update_job(id, JobStatus::Running, None, None).await
     }
@@ -569,6 +659,14 @@ struct ReportCacheKey<'a> {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct JobKey<'a> {
+    pub owner: &'a str,
+    pub repo: &'a str,
+    pub commit_sha: &'a str,
+    pub tokei_version: &'a str,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct CleanupConfig {
     pub job_retention_completed_days: i64,
     pub job_retention_stale_hours: i64,
@@ -580,8 +678,8 @@ pub struct CleanupConfig {
 impl Default for CleanupConfig {
     fn default() -> Self {
         Self {
-            job_retention_completed_days: 7,
-            job_retention_stale_hours: 24,
+            job_retention_completed_days: 1,
+            job_retention_stale_hours: 6,
             report_min_retention_days: 30,
             report_max_rows: 20_000,
             report_cleanup_batch_size: 1_000,
@@ -636,9 +734,18 @@ fn status_from_str(status: &str) -> anyhow::Result<JobStatus> {
     }
 }
 
+fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
+    let Some(sqlx::Error::Database(database_error)) = error.downcast_ref::<sqlx::Error>() else {
+        return false;
+    };
+
+    database_error.code().as_deref() == Some("23505")
+        && database_error.constraint() == Some("idx_jobs_active_key_unique")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CleanupConfig, Store};
+    use super::{CleanupConfig, JobKey, Store};
     use crate::models::{JobStatus, LanguageReport, LanguageStats, Report, Repository};
     use chrono::{Duration, Utc};
     use sqlx::postgres::PgPoolOptions;
@@ -753,6 +860,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn keyed_job_create_returns_queued_job() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+
+        let (job, created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+
+        assert!(created);
+        assert_eq!(job.status, JobStatus::Queued);
+        assert!(store.job(job.id).await.unwrap().is_some());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn duplicate_active_key_returns_existing_job() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+
+        let (first, first_created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        let (second, second_created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+
+        assert!(first_created);
+        assert!(!second_created);
+        assert_eq!(second.id, first.id);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn active_duplicate_race_resolves_to_one_job() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+
+        let first = store.create_or_get_active_job(test_job_key(&owner));
+        let second = store.create_or_get_active_job(test_job_key(&owner));
+        let (first_result, second_result) = tokio::join!(first, second);
+        let (first_job, first_created) = first_result.unwrap();
+        let (second_job, second_created) = second_result.unwrap();
+
+        assert_eq!(first_job.id, second_job.id);
+        assert_ne!(first_created, second_created);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn completed_keyed_job_does_not_block_new_job() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+
+        let (completed, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        store
+            .set_job_completed(completed.id, "report-completed".to_string())
+            .await
+            .unwrap();
+        let (next, created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+
+        assert!(created);
+        assert_ne!(next.id, completed.id);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
     async fn cleanup_preserves_reports_younger_than_retention() {
         let Some(store) = test_store().await else {
             return;
@@ -815,6 +1005,25 @@ mod tests {
 
         assert_eq!(store.column_type("reports", "body").await.unwrap(), "jsonb");
         assert_eq!(store.column_type("jobs", "error").await.unwrap(), "jsonb");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn migration_adds_nullable_job_key_columns() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+
+        assert_eq!(store.column_type("jobs", "owner").await.unwrap(), "text");
+        assert_eq!(store.column_type("jobs", "repo").await.unwrap(), "text");
+        assert_eq!(
+            store.column_type("jobs", "commit_sha").await.unwrap(),
+            "text"
+        );
+        assert_eq!(
+            store.column_type("jobs", "tokei_version").await.unwrap(),
+            "text"
+        );
         store.drop_schema().await;
     }
 
@@ -884,6 +1093,15 @@ mod tests {
 
     fn unique_name(prefix: &str) -> String {
         format!("{prefix}_{}", Uuid::new_v4().simple())
+    }
+
+    fn test_job_key(owner: &str) -> JobKey<'_> {
+        JobKey {
+            owner,
+            repo: "count",
+            commit_sha: "abc123",
+            tokei_version: "tokei-test",
+        }
     }
 
     struct TestStore {

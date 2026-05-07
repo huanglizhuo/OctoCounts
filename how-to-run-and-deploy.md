@@ -177,8 +177,8 @@ Services expose:
 | `DATABASE_URL` | required | Postgres connection string, for example a Neon pooled URL |
 | `BIND_ADDR` | `0.0.0.0:8080` | Backend listen address |
 | `CLEANUP_INTERVAL_SECONDS` | `3600` | Storage cleanup cadence |
-| `JOB_RETENTION_COMPLETED_DAYS` | `7` | Retain completed/failed jobs this many days |
-| `JOB_RETENTION_STALE_HOURS` | `24` | Retain stale queued/running jobs this many hours |
+| `JOB_RETENTION_COMPLETED_DAYS` | `1` | Retain completed/failed jobs this many days |
+| `JOB_RETENTION_STALE_HOURS` | `6` | Retain stale queued/running jobs this many hours |
 | `REPORT_MIN_RETENTION_DAYS` | `30` | Never evict reports younger than this |
 | `REPORT_MAX_ROWS` | `20000` | LRU-style report cap |
 | `REPORT_CLEANUP_BATCH_SIZE` | `1000` | Max report rows deleted per cleanup batch |

@@ -24,8 +24,8 @@ impl Config {
             analysis_concurrency: env_usize("ANALYSIS_CONCURRENCY", 2).max(1),
             cleanup_interval_seconds: env_u64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1),
             cleanup: CleanupConfig {
-                job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 7).max(1),
-                job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 24).max(1),
+                job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 1).max(1),
+                job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 6).max(1),
                 report_min_retention_days: env_i64("REPORT_MIN_RETENTION_DAYS", 30).max(0),
                 report_max_rows: env_i64("REPORT_MAX_ROWS", 20_000).max(1),
                 report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
