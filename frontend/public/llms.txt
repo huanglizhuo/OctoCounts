@@ -1,8 +1,8 @@
 # OctoCounts
 
-> Free web tool that counts source lines of code (SLOC) in any public GitHub repository — no cloning required.
+> GitHub shows language bars. OctoCounts shows actual source line counts for public GitHub repositories — no cloning required.
 
-OctoCounts accepts any public GitHub repository URL, resolves the requested branch, tag, or commit SHA, downloads the archive tarball (faster than cloning), runs tokei to count lines of code by programming language, and returns a sortable report showing files, total lines, code lines, comment lines, and blank lines. Results are cached by commit SHA and tokei version, so repeat queries return instantly. Supports export as plain text, JSON, or a shareable PNG card.
+OctoCounts accepts any public GitHub repository URL, resolves the requested branch, tag, or commit SHA, downloads the archive tarball (faster than cloning), runs tokei to count lines of code by programming language, and returns a sortable report showing files, total lines, code lines, comment lines, and blank lines. It fills in the SLOC numbers GitHub's language sidebar does not show. Results are cached by commit SHA and tokei version, so repeat queries return instantly. Supports export as plain text, JSON, or a shareable PNG card.
 
 ## What it does
 

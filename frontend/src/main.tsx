@@ -81,8 +81,8 @@ function App() {
         <section className="hero" aria-label="Repository analyzer">
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
-            <h1 className="title">Count code lines at <span className="glow">commit speed</span>.</h1>
-            <p className="subtitle">Free GitHub SLOC counter powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>. Paste a repo URL — get a full language breakdown in seconds.</p>
+            <h1 className="title">The SLOC panel <span className="glow">GitHub forgot</span>.</h1>
+            <p className="subtitle">GitHub shows language bars. OctoCounts shows files, code lines, comments, blanks, and per-language totals for any public repo. Powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>, no clone required.</p>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -170,7 +170,7 @@ function App() {
         </section>
 
         <footer>
-          <span>OctoCounts // public repository source line counts</span>
+          <span>OctoCounts // actual SLOC for public GitHub repos</span>
           <span><a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span>
         </footer>
       </main>

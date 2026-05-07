@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Instantly count source lines of code in any public GitHub repository. No cloning — OctoCounts downloads the archive, runs tokei, and returns a sortable language breakdown in seconds." />
+    <meta name="description" content="GitHub shows language bars. OctoCounts shows actual source line counts: files, code lines, comments, blanks, and per-language totals for public GitHub repositories. No clone required." />
     <meta name="theme-color" content="#151d1a" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,24 +18,24 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://octocounts.com/" />
     <meta property="og:site_name" content="OctoCounts" />
-    <meta property="og:title" content="OctoCounts — Count GitHub Source Lines of Code" />
-    <meta property="og:description" content="Paste a GitHub URL. Get a full SLOC breakdown by language in seconds. Powered by tokei, cached by commit SHA." />
+    <meta property="og:title" content="OctoCounts — The SLOC Panel GitHub Forgot" />
+    <meta property="og:description" content="GitHub shows language bars. OctoCounts shows actual files, code lines, comments, blanks, and per-language totals for public repos." />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="OctoCounts — GitHub Source Line Counter" />
-    <meta name="twitter:description" content="Count code lines in any public GitHub repo. No clone, instant results, cached by commit." />
+    <meta name="twitter:title" content="OctoCounts — The SLOC Panel GitHub Forgot" />
+    <meta name="twitter:description" content="See actual source line counts for public GitHub repos: files, code, comments, blanks, and language totals. No clone required." />
     <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
-    <title>OctoCounts — GitHub SLOC Counter | Count Source Lines of Code Free</title>
+    <title>OctoCounts — The SLOC Panel GitHub Forgot | GitHub SLOC Counter</title>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "OctoCounts",
       "url": "https://octocounts.com/",
-      "description": "Count source lines of code in any public GitHub repository. No cloning required — results returned by language in seconds.",
+      "description": "GitHub shows language bars. OctoCounts shows actual source line counts for public GitHub repositories: files, code lines, comments, blanks, and per-language totals. No cloning required.",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Any",
       "offers": {
@@ -138,8 +138,8 @@
     <script type="module" src="/src/main.tsx"></script>
     <noscript>
       <main>
-        <h1>OctoCounts — GitHub SLOC Counter</h1>
-        <p><time datetime="2026-05-04">Updated May 2026.</time> OctoCounts is a free web tool that counts source lines of code in any public GitHub repository without cloning. It downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> to count lines across 200+ programming languages, caches the result by commit SHA, and returns a sortable breakdown — faster than a local clone for most large repos.</p>
+        <h1>OctoCounts — The SLOC Panel GitHub Forgot</h1>
+        <p><time datetime="2026-05-04">Updated May 2026.</time> GitHub shows language bars, but it does not show actual files, code lines, comments, blanks, or per-language totals. OctoCounts is a free GitHub SLOC counter for public repositories that downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning.</p>
 
         <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
         <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA and tokei version, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install — paste a GitHub URL and get results in seconds.</p>
