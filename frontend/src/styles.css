@@ -228,6 +228,7 @@ body {
 
 
 .top-actions,
+.topbar-links,
 .row-flex {
   display: flex;
   gap: 10px;
@@ -255,6 +256,16 @@ body {
 .github-link:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.github-link.install-link {
+  min-height: 50px;
+  padding-inline: 14px;
+}
+
+.github-link.icon-link {
+  min-width: 50px;
+  justify-content: center;
 }
 
 .pill {
@@ -498,6 +509,15 @@ section {
   transition: filter .12s var(--ease-out), transform .12s var(--ease-out);
 }
 
+a.btn {
+  text-decoration: none;
+}
+
+.install-btn {
+  min-height: 44px;
+  width: fit-content;
+}
+
 html[data-scheme="paper"] .btn {
   color: #fff;
 }
@@ -532,6 +552,20 @@ html[data-scheme="paper"] .btn {
   margin-top: 12px;
   font-size: var(--text-sm);
   color: var(--fg-dim);
+}
+
+.hero-paths {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.hero-paths span {
+  max-width: 36ch;
 }
 
 .quick-rows .chip {
@@ -1237,6 +1271,99 @@ table.report tr.totals td.lang {
   letter-spacing: 1px;
 }
 
+.extension-panel {
+  border: 1px solid var(--rule);
+  background: var(--bg-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, .85fr);
+  gap: 1px;
+  background-color: var(--rule);
+  overflow: hidden;
+}
+
+.extension-preview,
+.extension-copy {
+  min-width: 0;
+  background: var(--bg-2);
+}
+
+.extension-preview {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.extension-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  max-height: 560px;
+  object-fit: contain;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+.extension-copy {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.terminal-label {
+  color: var(--accent);
+  font-size: var(--text-xs);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.extension-copy h3 {
+  margin: 0;
+  color: var(--fg);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.extension-copy p {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.extension-features {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin: 2px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px dashed var(--rule);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.extension-features li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.extension-features li::before {
+  content: ">";
+  color: var(--accent);
+  margin-right: 7px;
+}
+
+.extension-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
 .how {
   display: grid;
   grid-template-columns: 2fr 1.5fr 1fr;
@@ -1316,6 +1443,14 @@ footer {
   .hero {
     grid-template-columns: 1fr;
   }
+
+  .extension-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .extension-copy {
+    order: -1;
+  }
 }
 
 @media (max-width: 920px) {
@@ -1359,6 +1494,10 @@ footer {
     align-items: center;
   }
 
+  .topbar-links {
+    gap: 8px;
+  }
+
   .brand .logo {
     width: 72px;
     height: 72px;
@@ -1393,6 +1532,14 @@ footer {
     min-height: 44px;
   }
 
+  .hero-paths {
+    align-items: stretch;
+  }
+
+  .hero-paths .install-btn {
+    width: 100%;
+  }
+
   .hero-left h1.title {
     font-size: clamp(32px, 13vw, 48px);
   }
@@ -1424,6 +1571,29 @@ footer {
   .section-h {
     display: grid;
     gap: 4px;
+  }
+
+  .topbar {
+    gap: 10px;
+  }
+
+  .github-link.install-link span {
+    display: none;
+  }
+
+  .extension-copy,
+  .extension-preview {
+    padding: 14px;
+  }
+
+  .extension-features {
+    grid-template-columns: 1fr;
+  }
+
+  .extension-actions .install-btn,
+  .extension-actions .copybtn {
+    width: 100%;
+    justify-content: center;
   }
 
   .donut-wrap {
