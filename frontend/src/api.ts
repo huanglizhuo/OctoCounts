@@ -26,8 +26,13 @@ export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T>
 }
 
 function apiErrorMessage(body: unknown, fallback: string) {
-  if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
-    return body.message;
+  if (!body || typeof body !== "object") return fallback || "Request failed";
+
+  const code = "code" in body && typeof body.code === "string" ? body.code : "";
+  if (code === "private_repo") {
+    return "Private repositories are not supported.";
   }
+
+  if ("message" in body && typeof body.message === "string") return body.message;
   return fallback || "Request failed";
 }

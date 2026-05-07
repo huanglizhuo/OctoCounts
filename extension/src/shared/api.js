@@ -2,13 +2,22 @@ const BASE = 'https://api.octocounts.com';
 
 async function fetchJson(url, opts = {}) {
   const res = await fetch(url, opts);
+  const text = await res.text();
+  let body = null;
+  if (text) {
+    try { body = JSON.parse(text); } catch (_) {}
+  }
+
   if (!res.ok) {
     const err = new Error(`HTTP ${res.status}`);
     err.status = res.status;
-    try { err.body = await res.json(); } catch (_) {}
+    err.url = url;
+    err.body = body;
+    err.responseText = text;
     throw err;
   }
-  return res.json();
+
+  return body ?? {};
 }
 
 export function analyze(owner, repo, ref, forceRefresh = false) {

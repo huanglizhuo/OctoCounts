@@ -4,14 +4,12 @@ $('logoMark').src = chrome.runtime.getURL('icons/icon48.png');
 
 async function load() {
   const sync = await chrome.storage.sync.get({
-    apiEndpoint: 'https://api.octocounts.com',
     autoAnalyze: true,
     cardPlacement: 'top',
     ignoreList:  '',
     cacheTtlMs:  86400000,
   });
 
-  $('apiEndpoint').value    = sync.apiEndpoint;
   $('autoAnalyze').checked  = sync.autoAnalyze;
   $('cardPlacement').value  = sync.cardPlacement || 'top';
   $('ignoreList').value     = sync.ignoreList;
@@ -27,7 +25,6 @@ async function load() {
 
 async function save() {
   await chrome.storage.sync.set({
-    apiEndpoint: $('apiEndpoint').value.trim() || 'https://api.octocounts.com',
     autoAnalyze: $('autoAnalyze').checked,
     cardPlacement: $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
     ignoreList:  $('ignoreList').value.trim(),

@@ -59,7 +59,7 @@ export function useAnalysisRunner({
 
   useEffect(() => {
     if (jobQuery.data?.status === "failed") {
-      setError(jobQuery.data.error?.message ?? "Analysis failed.");
+      setError(errorMessage(jobQuery.data.error));
       setJobId(null);
     }
   }, [jobQuery.data]);
@@ -112,4 +112,9 @@ export function useAnalysisRunner({
     runAnalysis,
     reset,
   };
+}
+
+function errorMessage(error: JobRecord["error"]) {
+  if (error?.code === "private_repo") return "Private repositories are not supported.";
+  return error?.message ?? "Analysis failed.";
 }

@@ -3,7 +3,6 @@ const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
 export async function getSettings() {
   const result = await chrome.storage.sync.get({
-    apiEndpoint: 'https://api.octocounts.com',
     autoAnalyze: true,
     skipForks:   true,
     cardPlacement: 'top',

@@ -1,6 +1,5 @@
 import cardCss from '../styles/card.css?inline';
-import { formatNumber, formatPercent } from '../shared/format.js';
-import { languageColor } from '../shared/chart.js';
+import { formatNumber } from '../shared/format.js';
 import { mountPanel } from './panel.js';
 
 const POLL_INTERVAL_MS = 1200;
@@ -8,7 +7,6 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 let _pollTimer = null;
 let _pollStart = null;
-let _shadowRoot = null;
 
 function findBorderGrid() {
   const selectors = [
@@ -26,7 +24,6 @@ function findBorderGrid() {
 
 export function unmountCard() {
   stopPolling();
-  _shadowRoot = null;
   document.querySelector('[data-octocount-card]')?.remove();
 }
 
@@ -56,7 +53,6 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement }) {
 
   const shadow = cell.attachShadow({ mode: 'open' });
   shadow.innerHTML = `<style>${cardCss}</style><div class="oc-inner"></div>`;
-  _shadowRoot = shadow;
 
   const theme = getTheme();
   shadow.host.setAttribute('data-theme', theme);
@@ -125,16 +121,6 @@ function renderCompleted(root, report, cachedAt, ctx) {
   const { owner, repo, shadow } = ctx;
   const theme = getTheme();
   const total = report.total;
-  const sorted = [...report.languages].sort((a, b) => b.stats.lines - a.stats.lines);
-  const totalLines = total.lines;
-
-
-  // Language bar — all languages proportional, top 4 named, rest grey
-  const allSegments = sorted.map((l, i) => {
-    const pct = totalLines > 0 ? (l.stats.lines / totalLines * 100).toFixed(2) : 0;
-    const color = i < 6 ? languageColor(l.name, theme) : '#57606a';
-    return `<div class="oc-bar-seg" style="flex:${pct};background:${color}" title="${l.name} ${pct}%"></div>`;
-  }).join('');
 
   root.innerHTML = `<div class="oc-wrap">
     ${header()}
@@ -171,18 +157,40 @@ function renderCompleted(root, report, cachedAt, ctx) {
   cardHost.addEventListener('click', openPanel);
 }
 
-function renderError(root, code, message, onRetry) {
+function renderError(root, error, onRetry) {
+  const code = error?.code || 'unknown';
+  const message = error?.message || 'Analysis failed';
+  const detail = formatErrorDetail(error);
   const isRateLimit = code === 'rate_limited';
+  const canRetry = code !== 'rate_limited' && code !== 'private_repo';
   const cls = isRateLimit ? 'oc-warn-text' : 'oc-err-text';
-  const icon = isRateLimit ? '⚠' : '✕';
+  const icon = isRateLimit ? '!' : 'x';
 
   root.innerHTML = `<div class="oc-wrap">
     ${header()}
     <div class="${cls}">${icon} ${message}</div>
-    ${isRateLimit ? '' : `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">Try again</button></div>`}
+    <div class="oc-more-hint">click for error details</div>
+    <pre class="oc-error-detail" hidden>${escapeHtml(detail)}</pre>
+    ${canRetry ? `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">Try again</button></div>` : ''}
   </div>`;
 
-  root.querySelector('.oc-retry-btn')?.addEventListener('click', onRetry);
+  root.querySelector('.oc-retry-btn')?.addEventListener('click', event => {
+    event.stopPropagation();
+    onRetry();
+  });
+  const cardHost = root.getRootNode().host.closest('[data-octocount-card]');
+  if (!cardHost) return;
+  cardHost.setAttribute('data-state', 'error');
+  cardHost.style.cursor = 'pointer';
+  if (cardHost._ocListener) {
+    cardHost.removeEventListener('click', cardHost._ocListener);
+  }
+  cardHost._ocListener = event => {
+    if (event.target.closest('button')) return;
+    const detailEl = root.querySelector('.oc-error-detail');
+    detailEl.hidden = !detailEl.hidden;
+  };
+  cardHost.addEventListener('click', cardHost._ocListener);
 }
 
 function stopPolling() {
@@ -196,8 +204,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
     const res = await chrome.runtime.sendMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh });
 
     if (res?.error) {
-      renderError(root, res.error.code, res.error.message,
-        () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+      renderError(root, res.error, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
       return;
     }
 
@@ -213,8 +220,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
     _pollTimer = setInterval(async () => {
       if (Date.now() - _pollStart > POLL_TIMEOUT_MS) {
         stopPolling();
-        renderError(root, 'timeout', 'Analysis timed out',
-          () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, { code: 'timeout', message: 'Analysis timed out' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
         return;
       }
 
@@ -227,8 +233,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
 
       if (!poll || poll.error) {
         stopPolling();
-        renderError(root, poll?.error?.code || 'unknown', poll?.error?.message || 'Analysis failed',
-          () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, poll?.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
         return;
       }
 
@@ -236,8 +241,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
 
       if (poll.type === 'FAILED') {
         stopPolling();
-        renderError(root, poll.error?.code || 'unknown', poll.error?.message || 'Analysis failed',
-          () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, poll.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
         return;
       }
 
@@ -248,15 +252,24 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
     }, POLL_INTERVAL_MS);
 
   } catch (err) {
-    renderError(root, 'unknown', err.message || 'Failed to start analysis',
-      () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+    renderError(root, { code: 'unknown', message: err.message || 'Failed to start analysis' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
   }
 }
 
-function relativeTime(ms) {
-  const diff = Date.now() - ms;
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
+function formatErrorDetail(error) {
+  const lines = [];
+  if (error?.status) lines.push(`HTTP status: ${error.status}`);
+  if (error?.code) lines.push(`Code: ${error.code}`);
+  if (error?.message) lines.push(`Message: ${error.message}`);
+  if (error?.detail) lines.push('', String(error.detail).trim());
+  return lines.join('\n') || 'No additional details were returned.';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

@@ -77,12 +77,25 @@ async function handleMessage(msg) {
 
 function classifyError(err) {
   const apiError = err.body && typeof err.body === 'object' ? err.body : null;
-  if (apiError?.code && apiError?.message) return { code: apiError.code, message: apiError.message };
+  if (apiError?.code && apiError?.message) {
+    return {
+      code: apiError.code,
+      message: apiError.code === 'private_repo' ? 'Private repositories are not supported.' : apiError.message,
+      status: err.status,
+      detail: apiError.detail || apiError.details || err.responseText || '',
+    };
+  }
 
-  if (err.status === 429 || err.status === 403) return { code: 'rate_limited', message: 'GitHub API rate limit reached. Try again later.' };
-  if (err.status === 413) return { code: 'too_large',   message: 'Repository exceeds the 2 GB archive size limit' };
-  if (err.status === 404) return { code: 'not_found',   message: 'Repository not found or is empty' };
-  if (err.status === 401) return { code: 'auth_error',  message: 'OctoCounts API authorization failed' };
+  if (err.status === 429) return { code: 'rate_limited', message: 'API rate limit reached. Try again later.', status: err.status, detail: err.responseText || '' };
+  if (err.status === 403) return { code: 'forbidden', message: 'OctoCounts API request was blocked or forbidden.', status: err.status, detail: err.responseText || '' };
+  if (err.status === 413) return { code: 'too_large', message: 'Repository exceeds the 2 GB archive size limit', status: err.status, detail: err.responseText || '' };
+  if (err.status === 404) return { code: 'not_found', message: 'Repository not found or is empty', status: err.status, detail: err.responseText || '' };
+  if (err.status === 401) return { code: 'auth_error', message: 'OctoCounts API authorization failed', status: err.status, detail: err.responseText || '' };
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { code: 'offline', message: 'No network connection' };
-  return { code: 'unknown', message: err.message || 'Analysis failed' };
+  return {
+    code: 'unknown',
+    message: err.message || 'Analysis failed',
+    status: err.status,
+    detail: err.responseText || '',
+  };
 }

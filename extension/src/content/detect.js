@@ -9,12 +9,37 @@ export function isPublicRepoRoot() {
 
   if (!document.querySelector('.BorderGrid')) return false;
 
-  if (document.querySelector('[aria-label="Private repository"]')) return false;
-  for (const label of document.querySelectorAll('.Label')) {
-    if (label.textContent.trim() === 'Private') return false;
-  }
+  if (isPrivateRepoPage()) return false;
 
   return true;
+}
+
+function isPrivateRepoPage() {
+  const selectors = [
+    '[aria-label="Private repository"]',
+    '[aria-label*="private repository" i]',
+    '[title="Private"]',
+    '[data-testid="private-repo-label"]',
+    '.Label.Label--secondary',
+    'svg.octicon-lock',
+  ];
+  if (selectors.some(selector => {
+    const element = document.querySelector(selector);
+    if (!element) return false;
+    if (selector === '.Label.Label--secondary') return element.textContent.trim() === 'Private';
+    return true;
+  })) return true;
+
+  const privateMeta = document.querySelector(
+    'meta[name="octolytics-dimension-repository_is_private"]'
+  )?.content;
+  if (privateMeta === 'true') return true;
+
+  for (const label of document.querySelectorAll('.Label, [data-view-component="true"]')) {
+    if (label.textContent.trim() === 'Private') return true;
+  }
+
+  return embeddedRepoIsPrivate();
 }
 
 export function parseRepoInfo() {
@@ -64,5 +89,23 @@ function embeddedRepoRef() {
     return parsed?.payload?.codeViewRepoRoute?.refInfo?.name?.trim() || '';
   } catch (_) {
     return '';
+  }
+}
+
+function embeddedRepoIsPrivate() {
+  const data = document.querySelector('script[data-target="react-app.embeddedData"]')?.textContent;
+  if (!data) return false;
+
+  try {
+    const parsed = JSON.parse(data);
+    const payload = parsed?.payload || {};
+    const repo =
+      payload.repository ||
+      payload.repo ||
+      payload.codeViewRepoRoute?.repository ||
+      payload.codeViewRepoRoute?.repo;
+    return repo?.isPrivate === true || repo?.private === true || repo?.visibility === 'PRIVATE';
+  } catch (_) {
+    return false;
   }
 }

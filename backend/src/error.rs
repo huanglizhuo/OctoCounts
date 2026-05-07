@@ -49,6 +49,9 @@ impl From<GitHubError> for ApiError {
             GitHubError::NotFound => {
                 Self::new(StatusCode::NOT_FOUND, "not_found", error.to_string())
             }
+            GitHubError::PrivateRepo => {
+                Self::new(StatusCode::FORBIDDEN, "private_repo", error.to_string())
+            }
             GitHubError::RefNotFound => {
                 Self::new(StatusCode::NOT_FOUND, "ref_not_found", error.to_string())
             }

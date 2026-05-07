@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use moka::future::Cache;
+use moka::{future::Cache, policy::EvictionPolicy};
 use reqwest::{header, Client, StatusCode};
 use serde::Deserialize;
 use thiserror::Error;
@@ -14,6 +12,8 @@ pub enum GitHubError {
     InvalidUrl,
     #[error("repository was not found or is not public")]
     NotFound,
+    #[error("private repositories are not supported")]
+    PrivateRepo,
     #[error("GitHub API rate limit was reached")]
     RateLimited,
     #[error("repository archive is too large")]
@@ -34,6 +34,7 @@ pub struct GitHubClient {
 struct RepoResponse {
     default_branch: String,
     html_url: String,
+    private: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,8 +63,8 @@ impl GitHubClient {
         }
 
         let ref_cache = Cache::builder()
-            .time_to_live(Duration::from_secs(300))
-            .max_capacity(1_000)
+            .max_capacity(10_000)
+            .eviction_policy(EvictionPolicy::lru())
             .build();
 
         Ok(Self {
@@ -127,6 +128,10 @@ impl GitHubClient {
             _ => return Err(GitHubError::NotFound),
         }
         let repo_body: RepoResponse = repo_response.json().await?;
+        if repo_body.private {
+            return Err(GitHubError::PrivateRepo);
+        }
+
         let ref_name = requested_ref
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| repo_body.default_branch.clone());
