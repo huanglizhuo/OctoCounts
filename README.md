@@ -2,22 +2,30 @@
   <img src="images/octo-count.png" alt="OctoCounts logo" width="320">
 </p>
 
-# OctoCounts – fast SLOC reports for public GitHub repos
+# OctoCounts – the SLOC panel GitHub forgot
 
-> Paste a GitHub URL. Get a line count. Feel productive.
+> GitHub shows language bars. OctoCounts shows the actual line counts.
 
-OctoCounts counts source lines of code in public GitHub repositories — without cloning anything to your laptop. It downloads the archive, runs [tokei](https://github.com/XAMPPRocky/tokei), caches the result by commit SHA, and hands you a sortable report before you can finish typing the URL.
+[![Available in the Chrome Web Store](https://img.shields.io/chrome-web-store/v/gkgjpjdnaklagijmekoolhcpebmoldbj?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj)
 
-Built for developers who want quick SLOC visibility and refuse to wait for `git clone` to finish just to run `tokei` on someone else's repo.
+GitHub's sidebar tells you a repo is 62% TypeScript and 18% Rust, but it does not show files, code lines, comments, or blanks. OctoCounts adds that missing SLOC view to public GitHub repositories without cloning anything to your laptop.
 
-### export with preview image
+Install the Chrome extension to see SLOC directly in GitHub's repo sidebar, or use the web app to paste any public repo URL and get a full report. OctoCounts downloads the archive, runs [tokei](https://github.com/XAMPPRocky/tokei), caches the result by commit SHA, and hands you a sortable breakdown before `git clone` would finish warming up.
+
+## Preview
 
 <p align="center">
   <img src="images/octocount-e92153946164-preview.png" alt="OctoCounts preview">
 </p>
 
+## Why?
+
+Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a weekend-devouring monolith. GitHub already has the repo, the language stats, and the sidebar. OctoCounts fills in the missing numbers.
+
 ## What it does
 
+- Adds a Chrome extension card to GitHub repo pages with files, total lines, code, comments, blanks, and language count
+- Provides a web app where you can paste any public GitHub repo URL
 - Resolves any branch, tag, or commit SHA — pins results to an exact commit so the cache is actually meaningful
 - Downloads the GitHub archive tarball instead of cloning (much faster, no git history overhead)
 - Counts files, lines, code, comments, and blanks per language via tokei
