@@ -7,10 +7,11 @@
 > GitHub shows language bars. OctoCounts shows the actual line counts.
 
 [![Available in the Chrome Web Store](https://img.shields.io/chrome-web-store/v/gkgjpjdnaklagijmekoolhcpebmoldbj?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj)
+[![Available in Firefox Add-ons](https://img.shields.io/amo/v/octocounts-github-sloc?label=Firefox%20Add-ons&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/)
 
-GitHub's sidebar tells you a repo is 62% TypeScript and 18% Rust, but it does not show files, code lines, comments, or blanks. OctoCounts adds that missing SLOC view to public GitHub repositories without cloning anything to your laptop.
+GitHub's sidebar shows language percentages, but misses actual file and line counts. OctoCounts adds this missing SLOC (Source Lines of Code) view to public repos without cloning.
 
-Install the Chrome extension to see SLOC directly in GitHub's repo sidebar, or use the web app to paste any public repo URL and get a full report. OctoCounts downloads the archive, runs [tokei](https://github.com/XAMPPRocky/tokei), caches the result by commit SHA, and hands you a sortable breakdown before `git clone` would finish warming up.
+Install the extension for instant stats directly on GitHub, or use the web app. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results—delivering a breakdown faster than `git clone`.
 
 ## Preview
 
@@ -24,7 +25,7 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 
 ## What it does
 
-- Adds a Chrome extension card to GitHub repo pages with files, total lines, code, comments, blanks, and language count
+- Adds a browser extension card to GitHub repo pages with files, total lines, code, comments, blanks, and language count
 - Provides a web app where you can paste any public GitHub repo URL
 - Resolves any branch, tag, or commit SHA — pins results to an exact commit so the cache is actually meaningful
 - Downloads the GitHub archive tarball instead of cloning (much faster, no git history overhead)
