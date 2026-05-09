@@ -45,7 +45,6 @@ const extensionInfo = {
   version: "0.1.3",
   chromeWebStoreUrl: "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
   firefoxAddOnsUrl: "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc",
-  previewSrc: "/extension-preview.png",
 };
 const samples = [
   { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
@@ -61,7 +60,6 @@ function App() {
   );
   const [repoUrl, setRepoUrl] = useState("");
   const [refName, setRefName] = useState("");
-  const repoInputRef = useRef<HTMLInputElement>(null);
   const {
     report,
     error,
@@ -84,10 +82,13 @@ function App() {
   }, [scheme]);
 
   useEffect(() => {
-    repoInputRef.current?.focus();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setScheme(e.matches ? "matrix" : "paper");
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const submit = (event: FormEvent) => {
+const submit = (event: FormEvent) => {
     event.preventDefault();
     void runAnalysis(false);
   };
@@ -107,8 +108,7 @@ function App() {
               <input
                 id="repo-url"
                 name="repoUrl"
-                ref={repoInputRef}
-                value={repoUrl}
+value={repoUrl}
                 onChange={(event) => {
                   setRepoUrl(event.target.value);
                   setRefName("main");
@@ -256,7 +256,11 @@ function BrowserExtensionSection() {
   return (
     <div className="extension-panel">
       <div className="extension-preview">
-        <img src={extensionInfo.previewSrc} alt="OctoCounts browser extension showing SLOC results on a GitHub repository" loading="lazy" />
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card.webp" />
+          <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card.webp" />
+          <img src="/octocounts-light-card.webp" alt="OctoCounts browser extension showing SLOC results on a GitHub repository" loading="lazy" />
+        </picture>
       </div>
       <div className="extension-copy">
         <div className="terminal-label">browser-extension@octocounts v{extensionInfo.version}</div>
