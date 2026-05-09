@@ -15,7 +15,7 @@ Install the Chrome extension to see SLOC directly in GitHub's repo sidebar, or u
 ## Preview
 
 <p align="center">
-  <img src="images/extention-preview.png" alt="OctoCounts extentionpreview">
+  <img src="images/preview.png" alt="OctoCounts extentionpreview">
 </p>
 
 ## Why?
