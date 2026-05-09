@@ -1,3 +1,6 @@
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+@import "@fontsource/jetbrains-mono/800.css";
 
 :root,
 html[data-scheme="matrix"] {
@@ -369,22 +372,6 @@ section {
   margin-top: 20px;
 }
 
-.badges {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  border: 1px solid var(--rule);
-  color: var(--fg-dim);
-  font-size: var(--text-xs);
-  padding: 3px 8px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
 .ok,
 .hl {
   color: var(--accent);
@@ -402,14 +389,6 @@ section {
   color: var(--fg-mute);
 }
 
-.hero-left h2.kicker {
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--fg-mute);
-  margin: 0 0 10px;
-}
-
 .hero-left h1.title {
   font-size: clamp(34px, 5.4vw, 60px);
   line-height: 1.02;
@@ -420,13 +399,6 @@ section {
 
 .hero-left h1.title .glow {
   color: var(--accent);
-}
-
-.hero-left .lede {
-  color: var(--fg-dim);
-  max-width: 58ch;
-  margin: 0 0 20px;
-  font-size: 14px;
 }
 
 .subtitle {
@@ -585,20 +557,6 @@ html[data-scheme="paper"] .btn {
 .chip .k {
   color: var(--fg-mute);
   margin-right: 6px;
-}
-
-.meta-row {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-  margin-top: 22px;
-  color: var(--fg-mute);
-  font-size: 11px;
-}
-
-.meta-row b {
-  color: var(--fg-dim);
-  font-weight: 500;
 }
 
 .runner {
@@ -813,29 +771,6 @@ html[data-scheme="paper"] .btn {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.line-type-strip {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--rule);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: var(--text-xs);
-  color: var(--fg-mute);
-}
-
-.line-type-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.line-type-row .lname {
-  flex: 1;
-  letter-spacing: .5px;
 }
 
 .key-sw,
