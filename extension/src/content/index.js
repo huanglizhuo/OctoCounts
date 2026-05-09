@@ -113,6 +113,13 @@ function observeRouteChanges() {
   routeObserver.observe(document.body, { childList: true, subtree: true });
 }
 
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync') {
+    lastContextKey = '';
+    scheduleRun();
+  }
+});
+
 run();
 observeRouteChanges();
 document.addEventListener('turbo:load', scheduleRun);

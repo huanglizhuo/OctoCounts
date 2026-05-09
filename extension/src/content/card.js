@@ -58,12 +58,14 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   const theme = getTheme();
   shadow.host.setAttribute('data-theme', theme);
 
-  new MutationObserver(() => {
-    shadow.host.setAttribute('data-theme', getTheme());
-  }).observe(document.documentElement, {
+  const syncTheme = () => shadow.host.setAttribute('data-theme', getTheme());
+
+  new MutationObserver(syncTheme).observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['data-color-mode', 'data-dark-theme', 'data-light-theme'],
   });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
 
   if (placement === 'bottom') {
     grid.append(host);

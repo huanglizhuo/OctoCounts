@@ -17,12 +17,6 @@ async function load() {
   $('cacheTtl').value             = String(sync.cacheTtlMs);
   $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
 
-  try {
-    const { count } = await chrome.runtime.sendMessage({ type: 'COUNT_CACHE' });
-    $('cacheCount').textContent = count;
-  } catch (_) {
-    $('cacheCount').textContent = '?';
-  }
 }
 
 async function save() {
@@ -34,15 +28,6 @@ async function save() {
     replaceGhLanguages: $('replaceGhLanguages').checked,
   });
 }
-
-$('clearCache').addEventListener('click', async () => {
-  try {
-    const { cleared } = await chrome.runtime.sendMessage({ type: 'CLEAR_CACHE' });
-    $('cacheCount').textContent = 0;
-    $('clearCache').querySelector('span').textContent = '0';
-    $('clearCache').textContent = `Cleared ${cleared} entries ✓`;
-  } catch (_) {}
-});
 
 document.querySelectorAll('input, select, textarea').forEach(el => {
   el.addEventListener('change', save);
