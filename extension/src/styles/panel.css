@@ -215,6 +215,7 @@
   gap: 6px;
   font-size: 11px;
   color: var(--fg-dim);
+  min-width: 0;
 }
 
 .oc-legend-dot {
@@ -222,6 +223,20 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.oc-legend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.oc-legend-pct {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
 }
 
 .oc-table-wrap {

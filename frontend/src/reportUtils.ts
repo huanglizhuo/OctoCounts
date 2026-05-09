@@ -90,10 +90,8 @@ export function formatCompactNumber(value: number) {
 
 export function formatPercent(value: number, total: number) {
   if (total === 0) return "0%";
-  return `${percentNumber(value, total)}%`;
-}
-
-function percentNumber(value: number, total: number) {
-  if (total === 0) return 0;
-  return Math.round((value / total) * 100);
+  const pct = (value / total) * 100;
+  if (pct < 0.1) return "<0.1%";
+  const fixed = pct.toFixed(1);
+  return fixed.endsWith(".0") ? `${Math.round(pct)}%` : `${fixed}%`;
 }

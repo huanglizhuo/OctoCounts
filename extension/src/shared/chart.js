@@ -46,3 +46,17 @@ export function buildPieItems(report, theme, n = 5) {
   if (otherLines > 0) items.push({ label: 'Other', value: otherLines, color: '#8b949e' });
   return pieSlices(items);
 }
+
+// Like buildPieItems but sorts/values by code lines (no comments/blanks), used by card bar/donut
+export function buildBarItems(report, theme, n = 5) {
+  const sorted = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
+  const top = sorted.slice(0, n);
+  const otherCode = sorted.slice(n).reduce((s, l) => s + l.stats.code, 0);
+  const items = top.map(l => ({
+    label: l.name,
+    value: l.stats.code,
+    color: languageColor(l.name, theme),
+  }));
+  if (otherCode > 0) items.push({ label: 'Other', value: otherCode, color: '#8b949e' });
+  return items;
+}

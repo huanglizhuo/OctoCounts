@@ -1,6 +1,7 @@
 import cardCss from '../styles/card.css?inline';
-import { formatNumber } from '../shared/format.js';
-import { mountPanel } from './panel.js';
+import { formatNumber, formatCompact, formatPercent } from '../shared/format.js';
+import { buildBarItems, languageColor } from '../shared/chart.js';
+import { mountPanel, unmountPanel } from './panel.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -23,25 +24,26 @@ function findBorderGrid() {
 
 export function unmountCard() {
   stopPolling();
+  restoreGhLanguagesSection();
   document.querySelector('[data-octocount-card]')?.remove();
 }
 
-export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top' }) {
+export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false }) {
   const grid = findBorderGrid();
   if (!grid) {
     let tries = 0;
     const retry = setInterval(() => {
       tries++;
       const g = findBorderGrid();
-      if (g) { clearInterval(retry); _doMount(g, { owner, repo, ref, autoAnalyze, placement }); }
+      if (g) { clearInterval(retry); _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh }); }
       else if (tries >= 5) clearInterval(retry);
     }, 200);
     return false;
   }
-  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement });
+  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh });
 }
 
-function _doMount(grid, { owner, repo, ref, autoAnalyze, placement }) {
+function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh }) {
   const host = document.createElement('div');
   host.dataset.octocountCard = '1';
   host.className = 'BorderGrid-row';
@@ -70,14 +72,15 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement }) {
   }
 
   const root = shadow.querySelector('.oc-inner');
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
 
-  if (autoAnalyze) {
+  if (autoAnalyze || forceRefresh) {
     renderLoading(root, 'queued');
-    startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false });
+    startAnalysis({ ...ctx, root, forceRefresh });
   } else {
     renderIdle(root, () => {
       renderLoading(root, 'queued');
-      startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false });
+      startAnalysis({ ...ctx, root, forceRefresh: false });
     });
   }
 
@@ -117,43 +120,148 @@ function renderLoading(root, status) {
 }
 
 function renderCompleted(root, report, cachedAt, ctx) {
-  const { owner, repo, shadow } = ctx;
+  const { owner, repo, ref, shadow, replaceGhLanguages } = ctx;
   const theme = getTheme();
-  const total = report.total;
+  const t = report.total;
+
+  const cachedBadge = report.cached ? '<span class="oc-badge">cached</span>' : '';
+  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="Refresh">↺</button>`;
+
+  const statsHTML = `
+    <div class="oc-stats-grid">
+      <div class="oc-sg-cell">
+        <span class="oc-sg-val accent">${formatCompact(t.code)}</span>
+        <span class="oc-sg-label">code</span>
+      </div>
+      <div class="oc-sg-cell">
+        <span class="oc-sg-val">${formatCompact(t.files)}</span>
+        <span class="oc-sg-label">files</span>
+      </div>
+      <div class="oc-sg-cell">
+        <span class="oc-sg-val">${formatCompact(t.lines)}</span>
+        <span class="oc-sg-label">lines</span>
+      </div>
+      <div class="oc-sg-cell">
+        <span class="oc-sg-val">${formatCompact(t.comments)}</span>
+        <span class="oc-sg-label">comments</span>
+      </div>
+    </div>`;
+
+  const langListHTML = buildLangListHTML(report, theme, t.code);
 
   root.innerHTML = `<div class="oc-wrap">
-    ${header()}
-    <div class="oc-stats">
-      <div class="oc-stat">
-        <span>Total lines</span>
-        <span class="oc-stat-val">${formatNumber(total.lines)}</span>
-      </div>
-      <div class="oc-stat">
-        <span>Code lines</span>
-        <span class="oc-stat-val accent">${formatNumber(total.code)}</span>
-      </div>
-      <div class="oc-stat">
-        <span>Languages</span>
-        <span class="oc-stat-val">${report.languages.length}</span>
-      </div>
-    </div>
-    <div class="oc-more-hint">more detail →</div>
+    ${header(headerRight)}
+    ${statsHTML}
+    ${buildStackedBarHTML(report, theme)}
+    ${langListHTML}
   </div>`;
+
+  root.querySelector('.oc-refresh-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    renderLoading(root, 'queued');
+    startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: true, replaceGhLanguages });
+  });
+
+  root.querySelectorAll('.oc-lang-clickable').forEach(row => {
+    row.addEventListener('click', e => {
+      e.stopPropagation();
+      triggerGhLanguageFilter(row.dataset.lang);
+    });
+  });
+
+  const onForceRefresh = () => {
+    unmountPanel();
+    renderLoading(root, 'queued');
+    startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: true, replaceGhLanguages });
+  };
+
+  root.querySelector('.oc-lang-more')?.addEventListener('click', e => {
+    e.stopPropagation();
+    mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
+  });
 
   const cardHost = shadow.host.closest('[data-octocount-card]');
   cardHost.setAttribute('data-state', 'completed');
   cardHost.style.cursor = 'pointer';
-
-  // Remove any prior click listener before attaching the new one
-  if (cardHost._ocListener) {
-    cardHost.removeEventListener('click', cardHost._ocListener);
-  }
-  const openPanel = () => mountPanel({
-    report, owner, repo,
-    theme: getTheme(),
-  });
+  if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
+  const openPanel = () => mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
   cardHost._ocListener = openPanel;
   cardHost.addEventListener('click', openPanel);
+
+  if (replaceGhLanguages) hideGhLanguagesSection();
+}
+
+function buildStackedBarHTML(report, theme) {
+  const items = buildBarItems(report, theme);
+  const total = items.reduce((s, i) => s + i.value, 0);
+  if (total === 0) {
+    return `<div class="oc-bar"><div class="oc-bar-seg" style="flex:1;background:var(--border)"></div></div>`;
+  }
+  const segs = items.map(item => {
+    const tip = `${item.label}: ${formatPercent(item.value, total)} (${formatNumber(item.value)} code lines)`;
+    return `<div class="oc-bar-seg" style="flex:${item.value};background:${item.color}" title="${escapeHtml(tip)}"></div>`;
+  }).join('');
+  return `<div class="oc-bar">${segs}</div>`;
+}
+
+
+function buildLangListHTML(report, theme, totalCode) {
+  const sorted = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
+  const top5 = sorted.slice(0, 5);
+  const extraCount = Math.max(0, sorted.length - 5);
+
+  const rows = top5.map(lang => {
+    const color = languageColor(lang.name, theme);
+    const pct = formatPercent(lang.stats.code, totalCode);
+    return `<div class="oc-lang-row oc-lang-clickable" data-lang="${escapeHtml(lang.name)}">
+      <span class="oc-lang-dot" style="background:${color}"></span>
+      <span class="oc-lang-name">${escapeHtml(lang.name)}</span>
+      <span class="oc-lang-pct">${pct}</span>
+      <span class="oc-lang-code">${formatCompact(lang.stats.code)}</span>
+    </div>`;
+  }).join('');
+
+  const moreRow = extraCount > 0
+    ? `<div class="oc-lang-row oc-lang-more">+ ${extraCount} more →</div>`
+    : '';
+
+  return `<div class="oc-lang-list">${rows}${moreRow}</div>`;
+}
+
+function triggerGhLanguageFilter(langName) {
+  const links = document.querySelectorAll('a[href*="?l="]');
+  for (const a of links) {
+    try {
+      const url = new URL(a.href, location.href);
+      const l = url.searchParams.get('l');
+      if (l && l.toLowerCase() === langName.toLowerCase()) {
+        a.click();
+        return;
+      }
+    } catch (_) { }
+  }
+  const url = new URL(location.href);
+  url.searchParams.set('l', langName);
+  history.pushState({}, '', url.toString());
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+function hideGhLanguagesSection() {
+  document.querySelectorAll('.BorderGrid-row').forEach(row => {
+    if (row.dataset.octocountCard) return;
+    const h = row.querySelector('h2, h3');
+    if (h && h.textContent.trim() === 'Languages') {
+      row.style.display = 'none';
+      row.dataset.octocountHidden = '1';
+    }
+  });
+}
+
+function restoreGhLanguagesSection() {
+  document.querySelectorAll('[data-octocount-hidden]').forEach(row => {
+    row.style.display = '';
+    delete row.dataset.octocountHidden;
+  });
 }
 
 function renderError(root, error, onRetry) {
@@ -203,22 +311,22 @@ function pollingInterval(elapsedMs) {
   return 5_000;
 }
 
-async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
+async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, replaceGhLanguages }) {
   stopPolling();
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
   try {
     const res = await chrome.runtime.sendMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh });
 
     if (res?.error) {
-      renderError(root, res.error, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+      renderError(root, res.error, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
       return;
     }
 
     if (res.type === 'CACHED') {
-      renderCompleted(root, res.report, res.cachedAt, { owner, repo, ref, shadow, forceRefresh: false });
+      renderCompleted(root, res.report, res.cachedAt, ctx);
       return;
     }
 
-    // JOB — poll until done
     const { jobId } = res;
     _pollStart = Date.now();
 
@@ -226,7 +334,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
       const elapsed = Date.now() - _pollStart;
       if (elapsed > POLL_TIMEOUT_MS) {
         stopPolling();
-        renderError(root, { code: 'timeout', message: 'Analysis timed out' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, { code: 'timeout', message: 'Analysis timed out' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
@@ -235,12 +343,12 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
         poll = await chrome.runtime.sendMessage({ type: 'POLL', jobId, owner, repo, ref });
       } catch (_) {
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(elapsed));
-        return; // SW restarting, try next tick
+        return;
       }
 
       if (!poll || poll.error) {
         stopPolling();
-        renderError(root, poll?.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, poll?.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
@@ -252,20 +360,20 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh }) {
 
       if (poll.type === 'FAILED') {
         stopPolling();
-        renderError(root, poll.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+        renderError(root, poll.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
       if (poll.type === 'COMPLETED') {
         stopPolling();
-        renderCompleted(root, poll.report, null, { owner, repo, ref, shadow, forceRefresh: false });
+        renderCompleted(root, poll.report, null, ctx);
       }
     };
 
     _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
 
   } catch (err) {
-    renderError(root, { code: 'unknown', message: err.message || 'Failed to start analysis' }, () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false }));
+    renderError(root, { code: 'unknown', message: err.message || 'Failed to start analysis' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
   }
 }
 

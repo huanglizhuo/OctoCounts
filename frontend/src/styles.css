@@ -1498,6 +1498,10 @@ footer {
     gap: 8px;
   }
 
+  .github-link.install-link span {
+    display: none;
+  }
+
   .brand .logo {
     width: 72px;
     height: 72px;
@@ -1575,10 +1579,6 @@ footer {
 
   .topbar {
     gap: 10px;
-  }
-
-  .github-link.install-link span {
-    display: none;
   }
 
   .extension-copy,

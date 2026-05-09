@@ -19,7 +19,7 @@ function matchesIgnoreList(owner, repo, list) {
   });
 }
 
-async function run() {
+async function run(forceRefresh = false) {
   if (running) {
     scheduleRun();
     return;
@@ -62,7 +62,8 @@ async function run() {
     }
 
     const placement = settings.cardPlacement === 'bottom' ? 'bottom' : 'top';
-    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement });
+    const replaceGhLanguages = settings.replaceGhLanguages !== false;
+    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, forceRefresh });
     if (!injected) return;
 
     lastContextKey = contextKey;
@@ -72,7 +73,7 @@ async function run() {
       guardObserver = new MutationObserver(() => {
         if (running) return;
         if (!document.querySelector('[data-octocount-card]')) {
-          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement });
+          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages });
         }
       });
       guardObserver.observe(borderGrid, { childList: true });

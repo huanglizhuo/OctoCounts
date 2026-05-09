@@ -1,6 +1,6 @@
 import panelCss from '../styles/panel.css?inline';
 import { formatNumber, formatCompact, formatPercent, textReport } from '../shared/format.js';
-import { buildPieItems, languageColor } from '../shared/chart.js';
+import { languageColor } from '../shared/chart.js';
 import { sortRows } from '../shared/sort.js';
 
 let _panelHost = null;
@@ -17,7 +17,7 @@ function _escHandler(e) {
   if (e.key === 'Escape') unmountPanel();
 }
 
-export function mountPanel({ report, owner, repo, theme }) {
+export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   unmountPanel();
 
   _panelHost = document.createElement('div');
@@ -45,6 +45,11 @@ export function mountPanel({ report, owner, repo, theme }) {
   });
   shadow.querySelector('.oc-btn-json').addEventListener('click', () => {
     navigator.clipboard.writeText(JSON.stringify(report, null, 2)).catch(() => {});
+  });
+
+  // Force refresh
+  shadow.querySelector('.oc-btn-refresh')?.addEventListener('click', () => {
+    onForceRefresh?.();
   });
 
   // Sortable table
@@ -96,6 +101,7 @@ function buildPanelHTML(report, theme) {
         <div class="left">
           <button class="oc-export-btn oc-btn-txt">txt</button>
           <button class="oc-export-btn oc-btn-json">json</button>
+          <button class="oc-export-btn oc-btn-refresh">↺ refresh</button>
         </div>
         <div class="right">
           ${cacheInfo} · ${report.refName} → ${sha}
@@ -106,17 +112,18 @@ function buildPanelHTML(report, theme) {
 }
 
 function buildDonutHTML(report, theme) {
-  const items  = buildPieItems(report, theme);
-  const total  = report.total.lines;
+  const sorted = [...report.languages].sort((a, b) => b.stats.lines - a.stats.lines);
+  const total = report.total.lines;
   const r = 40, cx = 60, cy = 60, strokeW = 22;
   const circ = 2 * Math.PI * r;
 
   let offset = 0;
-  const arcs = items.map(item => {
-    const frac = total > 0 ? item.value / total : 0;
+  const arcs = sorted.map(lang => {
+    const color = languageColor(lang.name, theme);
+    const frac = total > 0 ? lang.stats.lines / total : 0;
     const dash = frac * circ;
     const svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
-      stroke="${item.color}" stroke-width="${strokeW}"
+      stroke="${color}" stroke-width="${strokeW}"
       stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}"
       stroke-dashoffset="${(-offset).toFixed(2)}"
       transform="rotate(-90 ${cx} ${cy})"/>`;
@@ -124,11 +131,13 @@ function buildDonutHTML(report, theme) {
     return svg;
   });
 
-  const legend = items.map(item => {
-    const pct = formatPercent(item.value, total);
+  const legend = sorted.map(lang => {
+    const color = languageColor(lang.name, theme);
+    const pct = formatPercent(lang.stats.lines, total);
     return `<div class="oc-legend-row">
-      <span class="oc-legend-dot" style="background:${item.color}"></span>
-      <span>${item.label} ${pct}</span>
+      <span class="oc-legend-dot" style="background:${color}"></span>
+      <span class="oc-legend-name">${lang.name}</span>
+      <span class="oc-legend-pct">${pct}</span>
     </div>`;
   }).join('');
 

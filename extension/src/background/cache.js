@@ -8,6 +8,7 @@ export async function getSettings() {
     cardPlacement: 'top',
     ignoreList:  '',
     cacheTtlMs:  DEFAULT_TTL_MS,
+    replaceGhLanguages: true,
   });
   return result;
 }

@@ -12,7 +12,10 @@ export function formatCompact(value) {
 
 export function formatPercent(value, total) {
   if (total === 0) return '0%';
-  return `${Math.round((value / total) * 100)}%`;
+  const pct = value / total * 100;
+  if (pct < 0.1) return '<0.1%';
+  const fixed = pct.toFixed(1);
+  return fixed.endsWith('.0') ? `${Math.round(pct)}%` : `${fixed}%`;
 }
 
 export function textReport(report) {

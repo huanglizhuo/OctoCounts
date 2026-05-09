@@ -8,12 +8,14 @@ async function load() {
     cardPlacement: 'top',
     ignoreList:  '',
     cacheTtlMs:  86400000,
+    replaceGhLanguages: true,
   });
 
-  $('autoAnalyze').checked  = sync.autoAnalyze;
-  $('cardPlacement').value  = sync.cardPlacement || 'top';
-  $('ignoreList').value     = sync.ignoreList;
-  $('cacheTtl').value       = String(sync.cacheTtlMs);
+  $('autoAnalyze').checked        = sync.autoAnalyze;
+  $('cardPlacement').value        = sync.cardPlacement || 'top';
+  $('ignoreList').value           = sync.ignoreList;
+  $('cacheTtl').value             = String(sync.cacheTtlMs);
+  $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
 
   try {
     const { count } = await chrome.runtime.sendMessage({ type: 'COUNT_CACHE' });
@@ -29,6 +31,7 @@ async function save() {
     cardPlacement: $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
     ignoreList:  $('ignoreList').value.trim(),
     cacheTtlMs:  Number($('cacheTtl').value),
+    replaceGhLanguages: $('replaceGhLanguages').checked,
   });
 }
 

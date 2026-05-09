@@ -32,6 +32,7 @@ const extensionInfo = {
   name: "OctoCounts — GitHub SLOC",
   version: "0.1.3",
   chromeWebStoreUrl: "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+  firefoxAddOnsUrl: "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc",
   previewSrc: "/extension-preview.png",
 };
 const samples = [
@@ -88,7 +89,7 @@ function App() {
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
             <h1 className="title">The SLOC panel <span className="glow">GitHub forgot</span>.</h1>
-            <p className="subtitle">Install the Chrome extension to see SLOC directly in GitHub's repo sidebar, or paste a public repo URL here for the full web report. Powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>, no clone required.</p>
+            <p className="subtitle">Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public repo URL here for the full web report. Powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>, no clone required.</p>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -115,7 +116,11 @@ function App() {
             <div className="hero-paths" aria-label="OctoCounts usage paths">
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
                 <Chrome size={15} />
-                Install Chrome Extension
+                Chrome Web Store
+              </a>
+              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
+                <ExternalLink size={14} />
+                Firefox Add-ons
               </a>
               <span>See SLOC directly in GitHub's repo sidebar.</span>
             </div>
@@ -157,10 +162,10 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">02</span>
-            <h2>Chrome Extension</h2>
+            <h2>Browser Extension</h2>
             <span className="sub">sidebar counts on GitHub</span>
           </div>
-          <ChromeExtensionSection />
+          <BrowserExtensionSection />
         </section>
 
         <section>
@@ -214,6 +219,10 @@ function Topbar() {
           <Chrome size={18} />
           <span>Chrome</span>
         </a>
+        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
+          <ExternalLink size={18} />
+          <span>Firefox</span>
+        </a>
         <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label="View OctoCounts on GitHub">
           <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg>
         </a>
@@ -222,7 +231,7 @@ function Topbar() {
   );
 }
 
-function ChromeExtensionSection() {
+function BrowserExtensionSection() {
   const features = [
     "Repo sidebar card",
     "Total/code/comment/blank counts",
@@ -235,10 +244,10 @@ function ChromeExtensionSection() {
   return (
     <div className="extension-panel">
       <div className="extension-preview">
-        <img src={extensionInfo.previewSrc} alt="OctoCounts Chrome extension showing SLOC results on a GitHub repository" loading="lazy" />
+        <img src={extensionInfo.previewSrc} alt="OctoCounts browser extension showing SLOC results on a GitHub repository" loading="lazy" />
       </div>
       <div className="extension-copy">
-        <div className="terminal-label">chrome-extension@octocounts v{extensionInfo.version}</div>
+        <div className="terminal-label">browser-extension@octocounts v{extensionInfo.version}</div>
         <h3>{extensionInfo.name}</h3>
         <p>Open a GitHub repository and OctoCounts adds a compact SLOC card to the repo sidebar. Click the card for the full panel with totals, language rows, and cached results.</p>
         <ul className="extension-features">
@@ -248,6 +257,10 @@ function ChromeExtensionSection() {
           <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
             <Chrome size={15} />
             Install from Chrome Web Store
+          </a>
+          <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
+            <ExternalLink size={14} />
+            Install from Firefox Add-ons
           </a>
           <a className="copybtn" href={defaultRepoUrl} target="_blank" rel="noreferrer">
             <ExternalLink size={14} />
