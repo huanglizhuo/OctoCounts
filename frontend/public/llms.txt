@@ -2,6 +2,11 @@
 
 > GitHub shows language bars. OctoCounts shows actual source line counts for public GitHub repositories — no cloning required.
 
+License: MIT
+AI-Usage: search-allowed, training-prohibited
+Author: huanglizhuo
+Version: 0.1.3 (2026-05-04)
+
 OctoCounts accepts any public GitHub repository URL, resolves the requested branch, tag, or commit SHA, downloads the archive tarball (faster than cloning), runs tokei to count lines of code by programming language, and returns a sortable report showing files, total lines, code lines, comment lines, and blank lines. It fills in the SLOC numbers GitHub's language sidebar does not show. Results are cached by commit SHA and tokei version, so repeat queries return instantly. Supports export as plain text, JSON, or a shareable PNG card.
 
 ## What it does
@@ -13,6 +18,7 @@ OctoCounts accepts any public GitHub repository URL, resolves the requested bran
 - Detects 200+ programming languages via tokei
 - Exports results as plain text, JSON, or 1200×630 PNG share card
 - No account or authentication required
+- Browser extensions for Chrome and Firefox add a SLOC card to GitHub repository sidebars
 
 ## How it works
 
@@ -25,23 +31,32 @@ OctoCounts accepts any public GitHub repository URL, resolves the requested bran
 ## Frequently Asked Questions
 
 **What is SLOC?**
-SLOC stands for Source Lines of Code. It measures software size by counting lines in source code. OctoCounts reports total lines, code lines, comment lines, and blank lines per language across a repository.
+SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting the lines in its source code. Unlike raw line count, SLOC distinguishes between code lines (actual instructions the compiler or interpreter processes), comment lines (documentation and explanations), and blank lines (whitespace). This matters because a 10,000-line file that is 40% comments tells a different story than one that is 95% code. Developers use SLOC to estimate project complexity, compare codebases when evaluating dependencies, scope billing and audit work, and communicate repository size to stakeholders who may not read code. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is tokei, written in Rust with parallel file processing.
 
 **Is OctoCounts free?**
-Yes. OctoCounts is completely free for public GitHub repositories with no account required.
+Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and no publicly documented rate limit. Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is React with TypeScript. You can self-host the entire stack — the source code is available on GitHub. The free tier covers all public GitHub repositories. The only current limitation is that private repositories are not supported because accessing a private repository's archive tarball requires an OAuth access token, which the service does not currently request. OctoCounts has no advertising and collects no personal data.
 
 **What languages are supported?**
-OctoCounts uses tokei, which supports over 200 programming languages including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, and Kotlin.
+OctoCounts uses tokei, which supports over 200 programming languages including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Erlang, Clojure, F#, Lua, R, Julia, Dart, Perl, Shell, Bash, PowerShell, HTML, CSS, SCSS, SQL, GraphQL, Dockerfile, YAML, JSON, TOML, XML, Markdown, and many more. tokei detects languages primarily by file extension, with fallback to shebang lines and content-based detection for ambiguous files. OctoCounts automatically skips heavy generated folders (node_modules, vendor, .git) before passing the archive to tokei, so the count reflects actual human-written source code.
 
 **Why use this instead of cloning locally?**
-OctoCounts downloads a compressed archive rather than a full git clone with history, making it significantly faster for large repositories. Cached results mean any repeat analysis of the same commit is instant.
+OctoCounts downloads a compressed archive tarball rather than a full git clone with history. A git clone transfers every commit object, tree object, and blob in the repository's history — for a long-lived project this can mean hundreds of megabytes of data even if the current source tree is small. OctoCounts fetches only the archive of the working tree at the requested ref, which is typically 10–50x smaller. Additionally, there is nothing to install — no git, no Rust toolchain, no tokei binary. Just paste a GitHub URL into the web app or install the browser extension once. Results are cached by commit SHA and tokei version, so repeated analysis of the same commit is instant.
+
+**Does OctoCounts have a browser extension?**
+Yes. OctoCounts has browser extensions for Chrome and Firefox, both named OctoCounts — GitHub SLOC. Install from the Chrome Web Store or Firefox Add-ons to add a compact SLOC card directly to GitHub repository sidebars. The card appears automatically on any public repository page and shows the total line count and analysis status. Clicking the card opens the full panel, which displays files, total lines, code lines, comment lines, and blank lines per language — the same breakdown as the web app. The extension includes a local cache so results load instantly on repeat visits. You can configure auto-analyze to fetch counts on page load, or trigger analysis manually. No GitHub account or API token is required.
+
+**Can I export the results?**
+Yes. OctoCounts supports three export formats available from the action buttons below the analysis results. Plain text copies a formatted table to your clipboard, showing language name, file count, total lines, code lines, comment lines, and blank lines in a column-aligned layout suitable for pasting into README files or documentation. JSON downloads the full structured report including per-language stats and aggregate totals, formatted for use in scripts or CI pipelines. PNG downloads a 1200 × 630 image card showing the language breakdown, suitable for sharing on social media, GitHub READMEs, or portfolio pages. The PNG card uses the same dark and light color palette as the web app. All three formats are generated client-side — no additional server request is needed.
+
+**Does it support private repositories?**
+OctoCounts currently supports public GitHub repositories only. Private repositories require an OAuth access token to authorize the GitHub API request that downloads the repository archive tarball. OctoCounts does not currently request GitHub authentication credentials or store OAuth tokens. If you need to count lines of code in a private repository, you can run tokei locally — download tokei from github.com/XAMPPRocky/tokei, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses. Support for private repositories via GitHub OAuth is a planned future feature. Public forks of private repositories are accessible because their archives are publicly available via the GitHub API.
 
 ## Technical details
 
 - Backend: Rust (Axum framework, Tokio async runtime, SQLx, Postgres)
 - Frontend: React, TypeScript, Vite, TanStack Query
 - Line counter: tokei (open source, multi-language SLOC tool)
-- Infrastructure: Docker Compose
+- Infrastructure: Docker Compose, Cloudflare Pages (frontend)
 
 ## Source code
 

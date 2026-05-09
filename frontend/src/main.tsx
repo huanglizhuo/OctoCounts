@@ -42,7 +42,7 @@ function App() {
   const [scheme, setScheme] = useState<Scheme>(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
   );
-  const [repoUrl, setRepoUrl] = useState("");
+  const [repoUrl, setRepoUrl] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [refName, setRefName] = useState("");
   const {
     report,
@@ -85,8 +85,13 @@ function App() {
         <section className="hero" aria-label="Repository analyzer">
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
-            <h1 className="title">The SLOC panel <span className="glow">GitHub forgot</span>.</h1>
+            <h1 className="title">GitHub <span className="glow">SLOC counter</span> — the panel GitHub forgot.</h1>
             <p className="subtitle">Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public repo URL here for the full web report. Powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>, no clone required.</p>
+            <div className="social-proof">
+              <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">Open source on GitHub</a>
+              <span className="proof-badge">Free · no sign-up</span>
+              <span className="proof-badge">200+ languages</span>
+            </div>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -145,6 +150,9 @@ function App() {
             <h2>Runner</h2>
             <span className="sub">{statusCopy[status]}</span>
           </div>
+          {!repoUrl && (
+            <p className="demo-note">Demo — analyzing OctoCounts itself. Paste any public repo URL above to analyze yours.</p>
+          )}
           <Runner
             command={lastCommand}
             status={status}
@@ -169,6 +177,28 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">03</span>
+            <h2>Use Cases</h2>
+            <span className="sub">common reasons developers count lines</span>
+          </div>
+          <div className="how">
+            <div className="step">
+              <h3>Evaluate a dependency</h3>
+              <p>Before adopting a new open source library, check its actual size — not just file count. A 50-file repo might be 20k lines of dense C++ or 500 lines of glue code. SLOC gives you the real picture before you commit to a dependency.</p>
+            </div>
+            <div className="step">
+              <h3>Estimate project scope</h3>
+              <p>Clients and stakeholders ask how big a codebase is. SLOC gives a concrete, defensible answer before a code review or audit: 12k lines across 8 languages, 89% code, 4% comments.</p>
+            </div>
+            <div className="step">
+              <h3>Compare forks or alternatives</h3>
+              <p>Paste two repos, compare language breakdowns side by side. See how much a fork diverged or how different two implementations of the same spec really are in practice.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="section-h">
+            <span className="num">04</span>
             <h2>How It Works</h2>
             <span className="sub">archive in, tokei report out</span>
           </div>
@@ -176,19 +206,19 @@ function App() {
             <div className="step">
               <span className="n">01</span>
               <h3>Resolve</h3>
-              <p>OctoCounts validates the public GitHub URL, resolves the requested branch, tag, or SHA, and pins the run to a commit.</p>
+              <p>OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Pinning to a commit means the analysis is deterministic — the same URL and ref always produces the same count, and the cache key is stable regardless of branch movement.</p>
               <div className="codeline">GET <span className="c">/repos/:owner/:repo</span></div>
             </div>
             <div className="step">
               <span className="n">02</span>
               <h3>Count</h3>
-              <p>The backend downloads the repository archive, skips heavy generated folders, extracts safely, and runs tokei in a worker job.</p>
+              <p>The Rust backend (Axum + Tokio) downloads a compressed archive tarball — not a full git clone with history. Generated folders (node_modules, vendor, .git) are skipped before extraction. tokei then counts every source file, producing files, code lines, comment lines, and blank lines for each detected language, in a background worker queue.</p>
               <div className="codeline">tokei <span className="c">--output json</span></div>
             </div>
             <div className="step">
               <span className="n">03</span>
               <h3>Cache</h3>
-              <p>Reports are cached by owner, repo, commit, and tokei version. Analyze reuses the cache; re-run forces a fresh count.</p>
+              <p>Reports are stored by owner, repo, commit SHA, and tokei version. When you re-analyze the same commit, the cache is hit immediately — no re-download, no re-count. Re-run forces a fresh analysis and updates the cache. The browser extension also caches results locally for instant offline viewing.</p>
               <div className="codeline">cache <span className="c">commit + version</span></div>
             </div>
           </div>
@@ -196,7 +226,7 @@ function App() {
 
         <footer>
           <span>OctoCounts // actual SLOC for public GitHub repos</span>
-          <span><a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> · (c) 2026</span>
+          <span><a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> — indie developer · (c) 2026</span>
         </footer>
       </main>
     </>

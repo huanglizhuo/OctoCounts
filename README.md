@@ -58,4 +58,4 @@ See **[how-to-run-and-deploy.md](how-to-run-and-deploy.md)** for local developme
 
 ## License
 
-MIT
+[MIT](LICENSE)
