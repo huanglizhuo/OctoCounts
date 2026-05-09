@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/favicon.png" alt="OctoCounts logo" width="128">
+  <img src="images/favicon.png" alt="OctoCounts logo" width="64">
 </p>
 
 # OctoCounts – the SLOC panel GitHub forgot
