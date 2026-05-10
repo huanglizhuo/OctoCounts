@@ -18,10 +18,10 @@ function isPrivateRepoPage() {
   const selectors = [
     '[aria-label="Private repository"]',
     '[aria-label*="private repository" i]',
-    '[title="Private"]',
+    // '[title="Private"]' — too broad, can match buttons/dropdowns
     '[data-testid="private-repo-label"]',
     '.Label.Label--secondary',
-    'svg.octicon-lock',
+    // 'svg.octicon-lock' — too broad, matches nav items like "Secret protection"
   ];
   if (selectors.some(selector => {
     const element = document.querySelector(selector);
@@ -35,8 +35,12 @@ function isPrivateRepoPage() {
   )?.content;
   if (privateMeta === 'true') return true;
 
-  for (const label of document.querySelectorAll('.Label, [data-view-component="true"]')) {
-    if (label.textContent.trim() === 'Private') return true;
+  // Scope to repo header to avoid false positives from unrelated "Private" text
+  const repoHeader = document.querySelector('.AppHeader-context .AppHeader-context-compact') || document.querySelector('.pagehead');
+  if (repoHeader) {
+    for (const label of repoHeader.querySelectorAll('.Label, [data-view-component="true"]')) {
+      if (label.textContent.trim() === 'Private') return true;
+    }
   }
 
   return embeddedRepoIsPrivate();
