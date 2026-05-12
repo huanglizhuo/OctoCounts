@@ -93,7 +93,8 @@
     "report": "Report",
     "lines": "lines",
     "other": "Other",
-    "noData": "No data"
+    "noData": "No data",
+    "totalLinesTooltip": "{{count}} total lines"
   },
   "table": {
     "language": "Language",

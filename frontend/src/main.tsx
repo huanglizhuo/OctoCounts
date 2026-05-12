@@ -235,26 +235,20 @@ function App() {
 }
 
 function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const locales = [
     { code: "en", label: "EN" },
     { code: "zh", label: "\u4e2d\u6587" },
   ];
   return (
-    <div className="language-switcher" style={{ marginTop: 8, fontSize: 12 }}>
+    <div className="language-switcher" role="group" aria-label={t("languageSwitcher.label")} style={{ marginTop: 8 }}>
       {locales.map((loc) => (
         <button
           key={loc.code}
           type="button"
+          className="lang-btn"
+          aria-current={i18n.language === loc.code ? "true" : undefined}
           onClick={() => i18n.changeLanguage(loc.code)}
-          style={{
-            background: "none",
-            border: "none",
-            color: i18n.language === loc.code ? "var(--accent)" : "var(--fg-mute)",
-            cursor: "pointer",
-            padding: "0 4px",
-            fontFamily: "inherit",
-          }}
         >
           {loc.label}
         </button>
@@ -489,7 +483,7 @@ function Donut({ items, total, report }: { items: PieItem[]; total: number; repo
           {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} />)}
           <circle r="0.58" fill="var(--bg-2)" />
         </svg>
-        <div className="donut-center" title={`${exactTotal} total lines`}>
+        <div className="donut-center" title={t("charts.totalLinesTooltip", { count: exactTotal })}>
           <span className="mute">{t("charts.lines")}</span>
           <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
         </div>
@@ -562,7 +556,18 @@ function ReportTable({ report, compact }: { report: Report; compact?: boolean })
 }
 
 function SortHead({ label, active, dir, onClick, className }: { label: string; active: boolean; dir: string; onClick: () => void; className?: string }) {
-  return <th className={className} onClick={onClick}>{label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span></th>;
+  return (
+    <th
+      className={className}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+      tabIndex={0}
+      role="columnheader"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      {label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
+    </th>
+  );
 }
 
 function LanguageRow({ row, expanded, child, onToggle }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void }) {

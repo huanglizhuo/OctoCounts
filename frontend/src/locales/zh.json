@@ -93,7 +93,8 @@
     "report": "报告",
     "lines": "行数",
     "other": "其他",
-    "noData": "无数据"
+    "noData": "无数据",
+    "totalLinesTooltip": "共 {{count}} 行"
   },
   "table": {
     "language": "语言",

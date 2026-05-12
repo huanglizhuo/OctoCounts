@@ -18,8 +18,8 @@ html[data-scheme="matrix"] {
   --bg: oklch(5% 0.010 148);
   --bg-2: oklch(8% 0.015 148);
   --fg: oklch(96% 0.035 148);
-  --fg-dim: oklch(74% 0.055 148);
-  --fg-mute: oklch(42% 0.048 148);
+  --fg-dim: oklch(78% 0.055 148);
+  --fg-mute: oklch(50% 0.048 148);
   --accent: oklch(87% 0.240 148);
   --accent-2: oklch(80% 0.115 220);
   --warn: oklch(86% 0.148 85);
@@ -29,6 +29,8 @@ html[data-scheme="matrix"] {
   --rule: oklch(24% 0.038 148);
   --rule-2: oklch(17% 0.032 148);
   --selection: oklch(23% 0.045 148);
+  --sw-paper: oklch(42% 0.100 148);
+  --sw-amber: oklch(79% 0.175 82);
 
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
@@ -42,8 +44,8 @@ html[data-scheme="amber"] {
   --bg: oklch(8% 0.020 62);
   --bg-2: oklch(11% 0.025 62);
   --fg: oklch(93% 0.075 85);
-  --fg-dim: oklch(70% 0.118 70);
-  --fg-mute: oklch(42% 0.078 68);
+  --fg-dim: oklch(74% 0.118 70);
+  --fg-mute: oklch(50% 0.078 68);
   --accent: oklch(79% 0.175 82);
   --accent-2: oklch(68% 0.175 32);
   --warn: oklch(89% 0.118 88);
@@ -60,7 +62,7 @@ html[data-scheme="paper"] {
   --bg-2: oklch(92% 0.018 90);
   --fg: oklch(14% 0.010 90);
   --fg-dim: oklch(38% 0.013 90);
-  --fg-mute: oklch(57% 0.012 90);
+  --fg-mute: oklch(62% 0.012 90);
   --accent: oklch(42% 0.100 148);
   --accent-2: oklch(54% 0.118 148);
   --warn: oklch(52% 0.118 72);
@@ -122,6 +124,15 @@ button {
   color: var(--fg);
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .crt {
   position: fixed;
   inset: 0;
@@ -148,8 +159,10 @@ html[data-scheme="paper"] .crt {
   display: none;
 }
 
-.flicker {
-  animation: flicker 6s infinite steps(60);
+@media (prefers-reduced-motion: no-preference) {
+  .flicker {
+    animation: flicker 6s infinite steps(60);
+  }
 }
 
 @keyframes flicker {
@@ -344,11 +357,11 @@ body {
 }
 
 .theme-sw.paper {
-  background: #1f6b3a;
+  background: var(--sw-paper);
 }
 
 .theme-sw.amber {
-  background: #ffb000;
+  background: var(--sw-amber);
 }
 
 section {
@@ -1385,6 +1398,24 @@ footer {
   gap: 10px;
 }
 
+.lang-btn {
+  background: none;
+  border: none;
+  color: var(--fg-mute);
+  cursor: pointer;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.lang-btn:hover {
+  color: var(--fg-dim);
+}
+
+.lang-btn[aria-current="true"] {
+  color: var(--accent);
+}
+
 @media (max-width: 980px) {
   .hero {
     grid-template-columns: 1fr;
@@ -1651,7 +1682,12 @@ a.proof-badge:hover {
   color: var(--fg-mute);
   margin: 0 0 8px;
   padding: 4px 8px;
-  border-left: 2px solid var(--rule);
+}
+
+.demo-note::before {
+  content: ">";
+  color: var(--accent);
+  margin-right: 7px;
 }
 
 /* Use cases grid (reuses .how/.step layout) */
