@@ -46,10 +46,7 @@
     "position": "OctoCounts 位置",
     "positionTop": "右侧面板顶部",
     "positionBottom": "右侧面板底部",
-    "ignoreList": "忽略列表",
-    "ignoreHint": "— 每行一个（例如 torvalds/* 或 owner/repo）",
-    "ignorePlaceholder": "torvalds/*\n微软/TypeScript",
-    "replaceGhLanguages": "替换 GitHub 语言部分",
+    "replaceGhLanguages": "隐藏 GitHub Languages 统计",
     "cacheTtl": "缓存有效期",
     "ttl1h": "1 小时",
     "ttl6h": "6 小时",
@@ -58,7 +55,8 @@
     "ttlNever": "永不过期",
     "reportIssue": "报告问题",
     "showDetails": "显示详情",
-    "hideDetails": "隐藏详情"
+    "hideDetails": "隐藏详情",
+    "privateNotice": "私有或内部仓库 — OctoCounts 仅支持公开仓库。"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

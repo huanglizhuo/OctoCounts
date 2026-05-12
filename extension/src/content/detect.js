@@ -14,7 +14,7 @@ export function isPublicRepoRoot() {
   return true;
 }
 
-function isPrivateRepoPage() {
+export function isPrivateRepoPage() {
   const selectors = [
     '[aria-label="Private repository"]',
     '[aria-label*="private repository" i]',
@@ -51,6 +51,24 @@ function isPrivateRepoPage() {
     }
   }
 
+  return embeddedRepoIsNotPublic();
+}
+
+export function isConfirmedPrivateRepo() {
+  // Label badge next to repo name — reliable, text-guarded
+  const label = document.querySelector('.Label.Label--secondary');
+  if (label) {
+    const t = label.textContent.trim();
+    if (t === 'Private' || t === 'Internal') return true;
+  }
+  // Exact aria-label matches only — no substring to avoid false positives
+  if (document.querySelector('[aria-label="Private repository"]')) return true;
+  if (document.querySelector('[aria-label="Internal repository"]')) return true;
+  if (document.querySelector('[data-testid="private-repo-label"]')) return true;
+  const meta = document.querySelector(
+    'meta[name="octolytics-dimension-repository_is_private"]'
+  )?.content;
+  if (meta === 'true') return true;
   return embeddedRepoIsNotPublic();
 }
 

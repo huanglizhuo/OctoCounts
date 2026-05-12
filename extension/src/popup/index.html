@@ -12,57 +12,56 @@
     <span class="logo">OctoCounts</span>
   </header>
 
-  <div id="errorSection" class="error-section" hidden>
-    <div class="error-header">
-      <span class="error-icon">✕</span>
-      <span class="error-title" id="errorTitle"></span>
-      <button id="errorDismiss" class="error-dismiss" title="Dismiss">✕</button>
+  <div id="noticeSection" class="notice-section" hidden>
+    <span class="notice-icon">&#128274;</span>
+    <span id="noticeText" class="notice-text"></span>
+  </div>
+
+  <div id="settingsSection">
+    <div id="errorSection" class="error-section" hidden>
+      <div class="error-header">
+        <span class="error-icon">✕</span>
+        <span class="error-title" id="errorTitle"></span>
+        <button id="errorDismiss" class="error-dismiss" title="Dismiss">✕</button>
+      </div>
+      <div class="error-repo" id="errorRepo"></div>
+      <div class="error-message" id="errorMessage"></div>
+      <div class="error-meta">
+        <span id="errorCode" class="error-code"></span>
+        <span id="errorTime" class="error-time"></span>
+      </div>
+      <pre id="errorDetail" class="error-detail" hidden></pre>
+      <button id="errorToggleDetail" class="error-detail-toggle" hidden></button>
     </div>
-    <div class="error-repo" id="errorRepo"></div>
-    <div class="error-message" id="errorMessage"></div>
-    <div class="error-meta">
-      <span id="errorCode" class="error-code"></span>
-      <span id="errorTime" class="error-time"></span>
+
+    <div class="field row">
+      <label for="autoAnalyze">Auto-analyze on page load</label>
+      <input id="autoAnalyze" type="checkbox">
     </div>
-    <pre id="errorDetail" class="error-detail" hidden></pre>
-    <button id="errorToggleDetail" class="error-detail-toggle" hidden></button>
-  </div>
 
-  <div class="field row">
-    <label for="autoAnalyze">Auto-analyze on page load</label>
-    <input id="autoAnalyze" type="checkbox">
-  </div>
+    <div class="field">
+      <label for="cardPlacement">OctoCounts position</label>
+      <select id="cardPlacement">
+        <option value="top">Top of right panel</option>
+        <option value="bottom">Bottom of right panel</option>
+      </select>
+    </div>
 
-  <div class="field">
-    <label for="cardPlacement">OctoCounts position</label>
-    <select id="cardPlacement">
-      <option value="top">Top of right panel</option>
-      <option value="bottom">Bottom of right panel</option>
-    </select>
-  </div>
+    <div class="field row">
+      <label for="replaceGhLanguages">Hide GitHub Languages section</label>
+      <input id="replaceGhLanguages" type="checkbox">
+    </div>
 
-  <div class="field">
-    <label for="ignoreList">
-      Ignore list
-      <span class="hint">— one per line (e.g. torvalds/* or owner/repo)</span>
-    </label>
-    <textarea id="ignoreList" rows="3" placeholder="torvalds/*&#10;microsoft/TypeScript"></textarea>
-  </div>
-
-  <div class="field row">
-    <label for="replaceGhLanguages">Replace GitHub Languages section</label>
-    <input id="replaceGhLanguages" type="checkbox">
-  </div>
-
-  <div class="field">
-    <label for="cacheTtl">Cache TTL</label>
-    <select id="cacheTtl">
-      <option value="3600000">1 hour</option>
-      <option value="21600000">6 hours</option>
-      <option value="86400000">24 hours</option>
-      <option value="604800000">7 days</option>
-      <option value="0">Never expire</option>
-    </select>
+    <div class="field">
+      <label for="cacheTtl">Cache TTL</label>
+      <select id="cacheTtl">
+        <option value="3600000">1 hour</option>
+        <option value="21600000">6 hours</option>
+        <option value="86400000">24 hours</option>
+        <option value="604800000">7 days</option>
+        <option value="0">Never expire</option>
+      </select>
+    </div>
   </div>
 
   <footer>

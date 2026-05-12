@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, build } from 'vite';
 import { resolve, join } from 'path';
 import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 
@@ -13,7 +13,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           background: resolve(__dirname, 'src/background/index.js'),
-          content:    resolve(__dirname, 'src/content/index.js'),
           popup:      resolve(__dirname, 'src/popup/index.html'),
         },
         output: {
@@ -25,6 +24,29 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       {
+        // Build content.js as a separate IIFE bundle so all modules are
+        // compiled in a single scope — prevents variable name collisions
+        // that occur when independently-minified shared chunks are concatenated.
+        name: 'build-content-script',
+        async closeBundle() {
+          await build({
+            configFile: false,
+            logLevel: 'warn',
+            build: {
+              outDir,
+              emptyOutDir: false,
+              rollupOptions: {
+                input: { content: resolve(__dirname, 'src/content/index.js') },
+                output: {
+                  entryFileNames: '[name].js',
+                  format: 'iife',
+                },
+              },
+            },
+          });
+        },
+      },
+      {
         name: 'copy-manifest-and-icons',
         closeBundle() {
           const manifest = isFirefox ? 'manifest.firefox.json' : 'manifest.chrome.json';
@@ -33,12 +55,9 @@ export default defineConfig(({ mode }) => {
           for (const size of [16, 48, 128]) {
             copyFileSync(`icons/icon${size}.png`, join(outDir, `icons/icon${size}.png`));
           }
-          // Vite nests HTML at src/popup/index.html; flatten to popup.html at root
           const nestedHtml = join(outDir, 'src/popup/index.html');
           let html = readFileSync(nestedHtml, 'utf8');
-          // Asset paths are already absolute (e.g. /popup.js) — correct for extension root
           writeFileSync(join(outDir, 'popup.html'), html);
-          // Copy manifest localization files
           cpSync('src/manifest-locales', join(outDir, '_locales'), { recursive: true });
         },
       },

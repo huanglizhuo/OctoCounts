@@ -1,4 +1,4 @@
-import { isPublicRepoRoot, parseRepoInfo } from './detect.js';
+import { isPublicRepoRoot, parseRepoInfo, isConfirmedPrivateRepo } from './detect.js';
 import { mountCard, unmountCard, isDisabled } from './card.js';
 import { unmountPanel } from './panel.js';
 
@@ -7,17 +7,6 @@ let routeObserver = null;
 let lastContextKey = '';
 let scheduled = false;
 let running = false;
-
-function matchesIgnoreList(owner, repo, list) {
-  if (!list) return false;
-  const patterns = list.split('\n').map(p => p.trim()).filter(Boolean);
-  const full = `${owner}/${repo}`;
-  return patterns.some(pat => {
-    if (pat.endsWith('/*')) return owner === pat.slice(0, -2);
-    if (pat.includes('/')) return full === pat;
-    return false;
-  });
-}
 
 async function run(forceRefresh = false) {
   if (running) {
@@ -49,14 +38,10 @@ async function run(forceRefresh = false) {
     try {
       settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     } catch (_) {
-      settings = { autoAnalyze: true, skipForks: true, cardPlacement: 'top', ignoreList: '' };
+      settings = { autoAnalyze: true, skipForks: true, cardPlacement: 'top' };
     }
 
     if (settings.skipForks && isFork) {
-      lastContextKey = contextKey;
-      return;
-    }
-    if (matchesIgnoreList(owner, repo, settings.ignoreList)) {
       lastContextKey = contextKey;
       return;
     }
@@ -117,6 +102,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync') {
     lastContextKey = '';
     scheduleRun();
+  }
+});
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.type === 'GET_PAGE_STATUS') {
+    const parts = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
+    const isRepoPage = window.location.hostname === 'github.com'
+      && (parts.length === 2 || (parts.length >= 4 && parts[2] === 'tree'))
+      && !!document.querySelector('.BorderGrid');
+    sendResponse({ isPrivateRepo: isRepoPage && isConfirmedPrivateRepo() });
+    return false;
   }
 });
 

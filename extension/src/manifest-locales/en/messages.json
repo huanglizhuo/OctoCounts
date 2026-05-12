@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "OctoCounts — GitHub SLOC",
+    "message": "OctoCounts",
     "description": "Extension name displayed in the browser toolbar and store."
   },
   "extDescription": {
-    "message": "Shows source lines of code on GitHub repo pages",
+    "message": "Shows actual source lines of code on GitHub repo pages, the panel GitHub forgot.",
     "description": "Extension description displayed in the store and toolbar."
   }
 }

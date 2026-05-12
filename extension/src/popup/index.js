@@ -23,16 +23,14 @@ function setText(id, key) {
 function applyTranslations() {
   document.title = t('popup.title');
   setText('autoAnalyze', 'popup.autoAnalyze');
-  setText('cardPlacement', 'popup.position');
+  const cardPlacementLabel = document.querySelector('label[for="cardPlacement"]');
+  if (cardPlacementLabel) cardPlacementLabel.textContent = t('popup.position');
   const opts = $('cardPlacement').querySelectorAll('option');
   if (opts[0]) opts[0].textContent = t('popup.positionTop');
   if (opts[1]) opts[1].textContent = t('popup.positionBottom');
-  setText('ignoreList', 'popup.ignoreList');
-  const ignoreHint = document.querySelector('label[for="ignoreList"] .hint');
-  if (ignoreHint) ignoreHint.textContent = t('popup.ignoreHint');
-  $('ignoreList').placeholder = t('popup.ignorePlaceholder');
   setText('replaceGhLanguages', 'popup.replaceGhLanguages');
-  setText('cacheTtl', 'popup.cacheTtl');
+  const cacheTtlLabel = document.querySelector('label[for="cacheTtl"]');
+  if (cacheTtlLabel) cacheTtlLabel.textContent = t('popup.cacheTtl');
   const ttlOpts = $('cacheTtl').querySelectorAll('option');
   if (ttlOpts[0]) ttlOpts[0].textContent = t('popup.ttl1h');
   if (ttlOpts[1]) ttlOpts[1].textContent = t('popup.ttl6h');
@@ -47,14 +45,12 @@ async function load() {
   const sync = await chrome.storage.sync.get({
     autoAnalyze: true,
     cardPlacement: 'top',
-    ignoreList:  '',
     cacheTtlMs:  86400000,
     replaceGhLanguages: true,
   });
 
   $('autoAnalyze').checked        = sync.autoAnalyze;
   $('cardPlacement').value        = sync.cardPlacement || 'top';
-  $('ignoreList').value           = sync.ignoreList;
   $('cacheTtl').value             = String(sync.cacheTtlMs);
   $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
 }
@@ -63,7 +59,6 @@ async function save() {
   await chrome.storage.sync.set({
     autoAnalyze: $('autoAnalyze').checked,
     cardPlacement: $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
-    ignoreList:  $('ignoreList').value.trim(),
     cacheTtlMs:  Number($('cacheTtl').value),
     replaceGhLanguages: $('replaceGhLanguages').checked,
   });
@@ -75,6 +70,26 @@ document.querySelectorAll('input, select, textarea').forEach(el => {
 
 load();
 loadError();
+checkPageStatus();
+
+async function checkPageStatus() {
+  let tab;
+  try {
+    [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  } catch (_) { return; }
+  if (!tab?.id) return;
+
+  try {
+    const status = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_STATUS' });
+    if (status?.isPrivateRepo) {
+      $('noticeText').textContent = t('popup.privateNotice');
+      $('noticeSection').hidden = false;
+      $('settingsSection').hidden = true;
+    }
+  } catch (_) {
+    // Content script not active on this tab
+  }
+}
 
 async function loadError() {
   const { lastError } = await chrome.storage.local.get('lastError');

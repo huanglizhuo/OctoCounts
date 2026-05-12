@@ -46,10 +46,7 @@
     "position": "OctoCounts position",
     "positionTop": "Top of right panel",
     "positionBottom": "Bottom of right panel",
-    "ignoreList": "Ignore list",
-    "ignoreHint": "— one per line (e.g. torvalds/* or owner/repo)",
-    "ignorePlaceholder": "torvalds/*\n微软/TypeScript",
-    "replaceGhLanguages": "Replace GitHub Languages section",
+    "replaceGhLanguages": "Hide GitHub Languages section",
     "cacheTtl": "Cache TTL",
     "ttl1h": "1 hour",
     "ttl6h": "6 hours",
@@ -58,7 +55,8 @@
     "ttlNever": "Never expire",
     "reportIssue": "Report issue",
     "showDetails": "Show details",
-    "hideDetails": "Hide details"
+    "hideDetails": "Hide details",
+    "privateNotice": "Private or internal repository — OctoCounts only supports public repos."
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",
