@@ -12,6 +12,22 @@
     <span class="logo">OctoCounts</span>
   </header>
 
+  <div id="errorSection" class="error-section" hidden>
+    <div class="error-header">
+      <span class="error-icon">✕</span>
+      <span class="error-title" id="errorTitle"></span>
+      <button id="errorDismiss" class="error-dismiss" title="Dismiss">✕</button>
+    </div>
+    <div class="error-repo" id="errorRepo"></div>
+    <div class="error-message" id="errorMessage"></div>
+    <div class="error-meta">
+      <span id="errorCode" class="error-code"></span>
+      <span id="errorTime" class="error-time"></span>
+    </div>
+    <pre id="errorDetail" class="error-detail" hidden></pre>
+    <button id="errorToggleDetail" class="error-detail-toggle" hidden></button>
+  </div>
+
   <div class="field row">
     <label for="autoAnalyze">Auto-analyze on page load</label>
     <input id="autoAnalyze" type="checkbox">

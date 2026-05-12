@@ -56,7 +56,9 @@
     "ttl24h": "24 hours",
     "ttl7d": "7 days",
     "ttlNever": "Never expire",
-    "reportIssue": "Report issue"
+    "reportIssue": "Report issue",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",

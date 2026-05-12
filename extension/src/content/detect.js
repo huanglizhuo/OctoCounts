@@ -18,32 +18,40 @@ function isPrivateRepoPage() {
   const selectors = [
     '[aria-label="Private repository"]',
     '[aria-label*="private repository" i]',
-    // '[title="Private"]' — too broad, can match buttons/dropdowns
+    '[aria-label="Internal repository"]',
+    '[aria-label*="internal repository" i]',
     '[data-testid="private-repo-label"]',
     '.Label.Label--secondary',
-    // 'svg.octicon-lock' — too broad, matches nav items like "Secret protection"
   ];
   if (selectors.some(selector => {
     const element = document.querySelector(selector);
     if (!element) return false;
-    if (selector === '.Label.Label--secondary') return element.textContent.trim() === 'Private';
+    if (selector === '.Label.Label--secondary') {
+      const text = element.textContent.trim();
+      return text === 'Private' || text === 'Internal';
+    }
     return true;
   })) return true;
+
+  // Lock icon in repo header breadcrumbs — scoped to avoid false positives from nav items
+  const repoHeaderLock = document.querySelector('.AppHeader-context .octicon-lock');
+  if (repoHeaderLock) return true;
 
   const privateMeta = document.querySelector(
     'meta[name="octolytics-dimension-repository_is_private"]'
   )?.content;
   if (privateMeta === 'true') return true;
 
-  // Scope to repo header to avoid false positives from unrelated "Private" text
+  // Scope to repo header to avoid false positives from unrelated text
   const repoHeader = document.querySelector('.AppHeader-context .AppHeader-context-compact') || document.querySelector('.pagehead');
   if (repoHeader) {
     for (const label of repoHeader.querySelectorAll('.Label, [data-view-component="true"]')) {
-      if (label.textContent.trim() === 'Private') return true;
+      const text = label.textContent.trim();
+      if (text === 'Private' || text === 'Internal') return true;
     }
   }
 
-  return embeddedRepoIsPrivate();
+  return embeddedRepoIsNotPublic();
 }
 
 export function parseRepoInfo() {
@@ -96,7 +104,7 @@ function embeddedRepoRef() {
   }
 }
 
-function embeddedRepoIsPrivate() {
+function embeddedRepoIsNotPublic() {
   const data = document.querySelector('script[data-target="react-app.embeddedData"]')?.textContent;
   if (!data) return false;
 
@@ -108,7 +116,9 @@ function embeddedRepoIsPrivate() {
       payload.repo ||
       payload.codeViewRepoRoute?.repository ||
       payload.codeViewRepoRoute?.repo;
-    return repo?.isPrivate === true || repo?.private === true || repo?.visibility === 'PRIVATE';
+    if (repo?.isPrivate === true || repo?.private === true) return true;
+    const vis = repo?.visibility;
+    return vis === 'PRIVATE' || vis === 'INTERNAL';
   } catch (_) {
     return false;
   }

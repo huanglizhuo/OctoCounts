@@ -56,7 +56,9 @@
     "ttl24h": "24 小时",
     "ttl7d": "7 天",
     "ttlNever": "永不过期",
-    "reportIssue": "报告问题"
+    "reportIssue": "报告问题",
+    "showDetails": "显示详情",
+    "hideDetails": "隐藏详情"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

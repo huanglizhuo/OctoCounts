@@ -74,3 +74,59 @@ document.querySelectorAll('input, select, textarea').forEach(el => {
 });
 
 load();
+loadError();
+
+async function loadError() {
+  const { lastError } = await chrome.storage.local.get('lastError');
+  if (!lastError) return;
+
+  const section = $('errorSection');
+  const codeMap = {
+    rate_limited: t('error.rateLimited'),
+    private_repo: t('error.privateRepo'),
+    forbidden: t('error.forbidden'),
+    too_large: t('error.tooLarge'),
+    not_found: t('error.notFound'),
+    auth_error: t('error.authError'),
+    offline: t('error.offline'),
+    timeout: t('card.error.timedOut'),
+    unknown: t('error.unknown'),
+  };
+
+  $('errorTitle').textContent = codeMap[lastError.code] || t('error.unknown');
+  $('errorRepo').textContent = `${lastError.owner}/${lastError.repo}`;
+  $('errorMessage').textContent = lastError.message || '';
+  $('errorCode').textContent = lastError.code ? `code: ${lastError.code}` : '';
+
+  if (lastError.timestamp) {
+    const d = new Date(lastError.timestamp);
+    $('errorTime').textContent = d.toLocaleString();
+  }
+
+  const detailEl = $('errorDetail');
+  const toggleBtn = $('errorToggleDetail');
+  const lines = [];
+  if (lastError.status) lines.push(`HTTP status: ${lastError.status}`);
+  if (lastError.code) lines.push(`Code: ${lastError.code}`);
+  if (lastError.message) lines.push(`Message: ${lastError.message}`);
+  if (lastError.detail) lines.push('', String(lastError.detail).trim());
+  const detailText = lines.join('\n');
+
+  if (detailText) {
+    detailEl.textContent = detailText;
+    toggleBtn.hidden = false;
+    toggleBtn.textContent = t('popup.showDetails');
+    toggleBtn.addEventListener('click', () => {
+      const hidden = detailEl.hidden;
+      detailEl.hidden = !hidden;
+      toggleBtn.textContent = hidden ? t('popup.hideDetails') : t('popup.showDetails');
+    });
+  }
+
+  $('errorDismiss').addEventListener('click', async () => {
+    await chrome.storage.local.remove('lastError');
+    section.hidden = true;
+  });
+
+  section.hidden = false;
+}

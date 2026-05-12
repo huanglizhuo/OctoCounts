@@ -1,5 +1,5 @@
 import { isPublicRepoRoot, parseRepoInfo } from './detect.js';
-import { mountCard, unmountCard } from './card.js';
+import { mountCard, unmountCard, isDisabled } from './card.js';
 import { unmountPanel } from './panel.js';
 
 let guardObserver = null;
@@ -71,7 +71,7 @@ async function run(forceRefresh = false) {
     const borderGrid = document.querySelector('.BorderGrid');
     if (borderGrid) {
       guardObserver = new MutationObserver(() => {
-        if (running) return;
+        if (running || isDisabled()) return;
         if (!document.querySelector('[data-octocount-card]')) {
           mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages });
         }

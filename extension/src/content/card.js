@@ -8,6 +8,7 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 let _pollTimer = null;
 let _pollStart = null;
+let _disabled = false;
 
 function findBorderGrid() {
   const selectors = [
@@ -30,6 +31,7 @@ export function unmountCard() {
 }
 
 export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false }) {
+  _disabled = false;
   const grid = findBorderGrid();
   if (!grid) {
     let tries = 0;
@@ -122,6 +124,7 @@ function renderLoading(root, status) {
 }
 
 function renderCompleted(root, report, cachedAt, ctx) {
+  chrome.storage.local.remove('lastError').catch(() => {});
   const { owner, repo, ref, shadow, replaceGhLanguages } = ctx;
   const theme = getTheme();
   const total = report.total;
@@ -267,40 +270,31 @@ function restoreGhLanguagesSection() {
   });
 }
 
-function renderError(root, error, onRetry) {
-  const code = error?.code || 'unknown';
-  const message = error?.message || t('card.error.title');
-  const detail = formatErrorDetail(error);
-  const isRateLimit = code === 'rate_limited';
-  const canRetry = code !== 'rate_limited' && code !== 'private_repo';
-  const cls = isRateLimit ? 'oc-warn-text' : 'oc-err-text';
-  const icon = isRateLimit ? '!' : 'x';
-
-  root.innerHTML = `<div class="oc-wrap">
-    ${header()}
-    <div class="${cls}">${icon} ${escapeHtml(message)}</div>
-    <div class="oc-more-hint">${t('card.error.clickDetails')}</div>
-    <pre class="oc-error-detail" hidden>${escapeHtml(detail)}</pre>
-    ${canRetry ? `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">${t('card.error.tryAgain')}</button></div>` : ''}
-  </div>`;
-
-  root.querySelector('.oc-retry-btn')?.addEventListener('click', event => {
-    event.stopPropagation();
-    onRetry();
-  });
-  const cardHost = root.getRootNode().host.closest('[data-octocount-card]');
-  if (!cardHost) return;
-  cardHost.setAttribute('data-state', 'error');
-  cardHost.style.cursor = 'pointer';
-  if (cardHost._ocListener) {
-    cardHost.removeEventListener('click', cardHost._ocListener);
-  }
-  cardHost._ocListener = event => {
-    if (event.target.closest('button')) return;
-    const detailEl = root.querySelector('.oc-error-detail');
-    detailEl.hidden = !detailEl.hidden;
+async function saveError(error, owner, repo) {
+  const errorInfo = {
+    owner,
+    repo,
+    code: error?.code || 'unknown',
+    message: error?.message || t('card.error.title'),
+    status: error?.status || null,
+    detail: error?.detail || '',
+    timestamp: Date.now(),
   };
-  cardHost.addEventListener('click', cardHost._ocListener);
+  try {
+    await chrome.storage.local.set({ lastError: errorInfo });
+  } catch (_) {}
+}
+
+function disableCard(root, error, owner, repo) {
+  stopPolling();
+  _disabled = true;
+  saveError(error, owner, repo);
+  restoreGhLanguagesSection();
+  document.querySelector('[data-octocount-card]')?.remove();
+}
+
+export function isDisabled() {
+  return _disabled;
 }
 
 function stopPolling() {
@@ -321,7 +315,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     const res = await chrome.runtime.sendMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh });
 
     if (res?.error) {
-      renderError(root, res.error, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+      disableCard(root, res.error, owner, repo);
       return;
     }
 
@@ -336,8 +330,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     const pollUntilDone = async () => {
       const elapsed = Date.now() - _pollStart;
       if (elapsed > POLL_TIMEOUT_MS) {
-        stopPolling();
-        renderError(root, { code: 'timeout', message: t('card.error.timedOut') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        disableCard(root, { code: 'timeout', message: t('card.error.timedOut') }, owner, repo);
         return;
       }
 
@@ -350,8 +343,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       }
 
       if (!poll || poll.error) {
-        stopPolling();
-        renderError(root, poll?.error || { code: 'unknown', message: t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        disableCard(root, poll?.error || { code: 'unknown', message: t('card.error.title') }, owner, repo);
         return;
       }
 
@@ -362,8 +354,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       }
 
       if (poll.type === 'FAILED') {
-        stopPolling();
-        renderError(root, poll.error || { code: 'unknown', message: t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        disableCard(root, poll.error || { code: 'unknown', message: t('card.error.title') }, owner, repo);
         return;
       }
 
@@ -376,17 +367,8 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
 
   } catch (err) {
-    renderError(root, { code: 'unknown', message: err.message || t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+    disableCard(root, { code: 'unknown', message: err.message || t('card.error.title') }, owner, repo);
   }
-}
-
-function formatErrorDetail(error) {
-  const lines = [];
-  if (error?.status) lines.push(`HTTP status: ${error.status}`);
-  if (error?.code) lines.push(`Code: ${error.code}`);
-  if (error?.message) lines.push(`Message: ${error.message}`);
-  if (error?.detail) lines.push('', String(error.detail).trim());
-  return lines.join('\n') || t('card.error.noDetails');
 }
 
 function escapeHtml(value) {
