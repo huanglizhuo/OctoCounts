@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "OctoCounts — GitHub SLOC",
+  "name": "__MSG_extName__",
   "version": "0.1.5",
-  "description": "Shows source lines of code on GitHub repo pages",
+  "description": "__MSG_extDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

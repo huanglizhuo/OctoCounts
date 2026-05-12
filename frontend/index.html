@@ -15,6 +15,15 @@
     <link rel="preload" as="image" href="/octocounts-dark-card.webp" media="(prefers-color-scheme: dark)" />
     <link rel="preload" as="font" href="/fonts/jetbrains-mono-400-latin.woff2" type="font/woff2" crossorigin />
     <script>document.documentElement.dataset.scheme=window.matchMedia('(prefers-color-scheme: dark)').matches?'matrix':'paper'</script>
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(location.search);
+          const lng = params.get('lng') || localStorage.getItem('i18nextLng') || navigator.language.split('-')[0];
+          if (lng && lng !== 'en') document.documentElement.lang = lng;
+        } catch (_) {}
+      })();
+    </script>
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://octocounts.com/" />

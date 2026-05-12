@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toPng } from "html-to-image";
 import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import "./i18n";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 
@@ -21,7 +23,6 @@ import {
   logLines,
   progressValue,
   sortRows,
-  statusCopy,
   textReport,
   tickerRows,
 } from "./reportUtils";
@@ -39,6 +40,7 @@ const samples = [
 const seedReport = initialReportData as Report;
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [scheme, setScheme] = useState<Scheme>(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
   );
@@ -66,6 +68,10 @@ function App() {
   }, [scheme]);
 
   useEffect(() => {
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
+
+  useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setScheme(e.matches ? "matrix" : "paper");
     mq.addEventListener("change", handler);
@@ -82,15 +88,19 @@ function App() {
       <div className="crt flicker" />
       <main className="page">
         <Topbar />
-        <section className="hero" aria-label="Repository analyzer">
+        <section className="hero" aria-label={t("hero.title")}>
           <div className="hero-left">
             <TopActions scheme={scheme} setScheme={setScheme} status={status} />
-            <h1 className="title">GitHub <span className="glow">SLOC counter</span> — the panel GitHub forgot.</h1>
-            <p className="subtitle">Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public repo URL here for the full web report. Powered by <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer">tokei</a>, no clone required.</p>
+            <h1 className="title">
+              <Trans i18nKey="hero.title" components={{ 1: <span className="glow" /> }} />
+            </h1>
+            <p className="subtitle">
+              <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
+            </p>
             <div className="social-proof">
-              <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">Open source on GitHub</a>
-              <span className="proof-badge">Free · no sign-up</span>
-              <span className="proof-badge">200+ languages</span>
+              <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
+              <span className="proof-badge">{t("hero.badgeFree")}</span>
+              <span className="proof-badge">{t("hero.badgeLanguages")}</span>
             </div>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
@@ -102,30 +112,30 @@ function App() {
                   setRepoUrl(event.target.value);
                   setRefName("main");
                 }}
-                placeholder="https://github.com/owner/repo"
-                aria-label="Repository URL"
+                placeholder={t("hero.placeholderUrl")}
+                aria-label={t("hero.ariaUrl")}
               />
               <label className="ref">
-                ref
-                <input id="repo-ref" name="refName" value={refName} onChange={(event) => setRefName(event.target.value)} placeholder="main" aria-label="Optional ref" />
+                {t("hero.refLabel")}
+                <input id="repo-ref" name="refName" value={refName} onChange={(event) => setRefName(event.target.value)} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
               </label>
               <button className="btn" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-                Analyze
+                {t("hero.analyze")}
               </button>
             </form>
-            <div className="hero-paths" aria-label="OctoCounts usage paths">
+            <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
                 <ChromeIcon size={15} />
-                Chrome Web Store
+                {t("hero.installChrome")}
               </a>
               <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
                 <FirefoxIcon size={14} />
-                Firefox Add-ons
+                {t("hero.installFirefox")}
               </a>
-              <span>See SLOC directly in GitHub's repo sidebar.</span>
+              <span>{t("hero.sidebarHint")}</span>
             </div>
-            <div className="quick-rows" aria-label="Example repositories">
+            <div className="quick-rows" aria-label={t("hero.ariaSamples")}>
               {samples.map((sample) => (
                 <button
                   className="chip"
@@ -137,7 +147,7 @@ function App() {
                     setLastCommand(commandText(sample.repoUrl, sample.refName, false));
                   }}
                 >
-                  <span className="k">sample</span>{sample.label}
+                  <span className="k">{t("samples.label")}</span>{sample.label}
                 </button>
               ))}
             </div>
@@ -147,11 +157,11 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">01</span>
-            <h2>Runner</h2>
-            <span className="sub">{statusCopy[status]}</span>
+            <h2>{t("runner.title")}</h2>
+            <span className="sub">{t("runner.status." + status)}</span>
           </div>
           {!repoUrl && (
-            <p className="demo-note">Demo — analyzing OctoCounts itself. Paste any public repo URL above to analyze yours.</p>
+            <p className="demo-note">{t("runner.demoNote")}</p>
           )}
           <Runner
             command={lastCommand}
@@ -166,8 +176,8 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">02</span>
-            <h2>Browser Extension</h2>
-            <span className="sub">Replace GitHub languages with OctoCounts.</span>
+            <h2>{t("extensionSection.title")}</h2>
+            <span className="sub">{t("extensionSection.subtitle")}</span>
           </div>
           <Suspense fallback={null}>
             <BrowserExtensionSection />
@@ -177,81 +187,102 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">03</span>
-            <h2>Use Cases</h2>
-            <span className="sub">common reasons developers count lines</span>
+            <h2>{t("useCases.title")}</h2>
+            <span className="sub">{t("useCases.subtitle")}</span>
           </div>
           <div className="how">
-            <div className="step">
-              <h3>Evaluate a dependency</h3>
-              <p>Before adopting a new open source library, check its actual size — not just file count. A 50-file repo might be 20k lines of dense C++ or 500 lines of glue code. SLOC gives you the real picture before you commit to a dependency.</p>
-            </div>
-            <div className="step">
-              <h3>Estimate project scope</h3>
-              <p>Clients and stakeholders ask how big a codebase is. SLOC gives a concrete, defensible answer before a code review or audit: 12k lines across 8 languages, 89% code, 4% comments.</p>
-            </div>
-            <div className="step">
-              <h3>Compare forks or alternatives</h3>
-              <p>Paste two repos, compare language breakdowns side by side. See how much a fork diverged or how different two implementations of the same spec really are in practice.</p>
-            </div>
+            {(t("useCases.cases", { returnObjects: true }) as Array<{ title: string; text: string }>).map((item, idx) => (
+              <div className="step" key={idx}>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         <section>
           <div className="section-h">
             <span className="num">04</span>
-            <h2>How It Works</h2>
-            <span className="sub">archive in, tokei report out</span>
+            <h2>{t("howItWorks.title")}</h2>
+            <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
           <div className="how">
-            <div className="step">
-              <span className="n">01</span>
-              <h3>Resolve</h3>
-              <p>OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Pinning to a commit means the analysis is deterministic — the same URL and ref always produces the same count, and the cache key is stable regardless of branch movement.</p>
-              <div className="codeline">GET <span className="c">/repos/:owner/:repo</span></div>
-            </div>
-            <div className="step">
-              <span className="n">02</span>
-              <h3>Count</h3>
-              <p>The Rust backend (Axum + Tokio) downloads a compressed archive tarball — not a full git clone with history. Generated folders (node_modules, vendor, .git) are skipped before extraction. tokei then counts every source file, producing files, code lines, comment lines, and blank lines for each detected language, in a background worker queue.</p>
-              <div className="codeline">tokei <span className="c">--output json</span></div>
-            </div>
-            <div className="step">
-              <span className="n">03</span>
-              <h3>Cache</h3>
-              <p>Reports are stored by owner, repo, commit SHA, and tokei version. When you re-analyze the same commit, the cache is hit immediately — no re-download, no re-count. Re-run forces a fresh analysis and updates the cache. The browser extension also caches results locally for instant offline viewing.</p>
-              <div className="codeline">cache <span className="c">commit + version</span></div>
-            </div>
+            {(t("howItWorks.steps", { returnObjects: true }) as Array<{ num: string; title: string; text: string; code: string }>).map((step) => (
+              <div className="step" key={step.num}>
+                <span className="n">{step.num}</span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+                <div className="codeline">
+                  <Trans i18nKey={`howItWorks.steps.${Number(step.num) - 1}.code`} components={{ 1: <span className="c" /> }} />
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
         <footer>
-          <span>OctoCounts // actual SLOC for public GitHub repos</span>
-          <span><a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · Built by <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a> — indie developer · (c) 2026</span>
+          <span>{t("footer.tagline")}</span>
+          <span>
+            <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
+            <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
+            {" "}{t("footer.copyright")}
+          </span>
+          <LanguageSwitcher />
         </footer>
       </main>
     </>
   );
 }
 
+function LanguageSwitcher() {
+  const { i18n } = useTranslation();
+  const locales = [
+    { code: "en", label: "EN" },
+    { code: "zh", label: "\u4e2d\u6587" },
+  ];
+  return (
+    <div className="language-switcher" style={{ marginTop: 8, fontSize: 12 }}>
+      {locales.map((loc) => (
+        <button
+          key={loc.code}
+          type="button"
+          onClick={() => i18n.changeLanguage(loc.code)}
+          style={{
+            background: "none",
+            border: "none",
+            color: i18n.language === loc.code ? "var(--accent)" : "var(--fg-mute)",
+            cursor: "pointer",
+            padding: "0 4px",
+            fontFamily: "inherit",
+          }}
+        >
+          {loc.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Topbar() {
+  const { t } = useTranslation();
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt="OctoCounts logo" /></div>
+        <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt={t("topbar.brandName") + " logo"} /></div>
         <div>
-          <span className="brand-name">OctoCounts</span>
+          <span className="brand-name">{t("topbar.brandName")}</span>
         </div>
       </div>
       <div className="topbar-links">
         <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
           <ChromeIcon size={18} />
-          <span>Chrome</span>
+          <span>{t("topbar.chrome")}</span>
         </a>
         <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
           <FirefoxIcon size={18} />
-          <span>Firefox</span>
+          <span>{t("topbar.firefox")}</span>
         </a>
-        <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label="View OctoCounts on GitHub">
+        <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>
           <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg>
         </a>
       </div>
@@ -260,22 +291,24 @@ function Topbar() {
 }
 
 function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: (scheme: Scheme) => void; status: AppStatus }) {
+  const { t } = useTranslation();
   return (
     <div className="top-actions">
-      <div className="theme-switch" role="group" aria-label="Theme">
+      <div className="theme-switch" role="group" aria-label={t("theme.ariaLabel")}>
         {(["matrix", "paper", "amber"] as const).map((item) => (
           <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button">
             <span className={`theme-sw ${item}`} />
-            {item}
+            {t("theme." + item)}
           </button>
         ))}
       </div>
-      <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{status}</span>
+      <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
     </div>
   );
 }
 
 function Runner({ command, status, report, error, onReset, onRerun }: { command: string; status: AppStatus; report: Report | null; error: string | null; onReset: () => void; onRerun: () => void }) {
+  const { t } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -300,11 +333,11 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
     <div className="runner">
       <div className="runner-head">
         <div className="left">
-          <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{status}</span>
+          <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
           <code>$ {command}</code>
         </div>
         <div className="row-flex">
-          {report ? <span>{report.refName} / {report.commitSha.slice(0, 12)} / {report.cached ? "cache hit" : "fresh run"}</span> : <span>{statusCopy[status]}</span>}
+          {report ? <span>{report.refName} / {report.commitSha.slice(0, 12)} / {report.cached ? t("runner.cacheHit") : t("runner.freshRun")}</span> : <span>{t("runner.status." + status)}</span>}
         </div>
       </div>
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ width: `${progressValue(status)}%` }} /></div>
@@ -318,24 +351,24 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
           <Summary stats={report.total} />
           <Charts report={report} />
           <div className="runner-foot">
-            <span>generated {new Date(report.generatedAt).toLocaleString()} / {report.durationMs}ms / {report.tokeiVersion}</span>
+            <span>{t("runner.generated", { date: new Date(report.generatedAt).toLocaleString(), duration: report.durationMs, version: report.tokeiVersion })}</span>
             <div className="actions">
-              <button className="copybtn" onClick={() => copyText(textReport(report))}><Clipboard size={14} /> text</button>
-              <button className="copybtn" onClick={() => copyText(JSON.stringify(report, null, 2))}><FileJson size={14} /> json</button>
-              <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> png</button>
-              <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> github</a>
-              <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> re-run</button>
-              <button className="copybtn" onClick={onReset}>clear</button>
+              <button className="copybtn" onClick={() => copyText(textReport(report))}><Clipboard size={14} /> {t("runner.exportText")}</button>
+              <button className="copybtn" onClick={() => copyText(JSON.stringify(report, null, 2))}><FileJson size={14} /> {t("runner.exportJson")}</button>
+              <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> {t("runner.exportPng")}</button>
+              <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
+              <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
+              <button className="copybtn" onClick={onReset}>{t("runner.clear")}</button>
             </div>
           </div>
           <div className="share-export-host" aria-hidden="true">
             <ShareTickerCard ref={shareCardRef} report={report} />
           </div>
           {showSharePreview ? (
-            <section className="share-preview" aria-label="PNG export debug preview">
+            <section className="share-preview" aria-label={t("sharePreview.pngExportPreview")}>
               <div className="section-h">
-                <span>debug</span>
-                <span className="sub">PNG export preview</span>
+                <span>{t("sharePreview.debug")}</span>
+                <span className="sub">{t("sharePreview.pngExportPreview")}</span>
               </div>
               <div className="share-preview-frame">
                 <ShareTickerCard report={report} />
@@ -349,6 +382,7 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
 }
 
 const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(function ShareTickerCard({ report }, ref) {
+  const { t } = useTranslation();
   const rows = tickerRows(report).slice(0, 6);
   const hasMoreLanguages = report.languages.length > rows.length;
   const total = report.total.code + report.total.comments + report.total.blanks;
@@ -357,19 +391,19 @@ const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(fun
       <div className="share-window">
         <div className="share-head">
           <div className="lights"><span className="r" /><span className="y" /><span className="g" /></div>
-          <span>OctoCounts // SLOC</span>
+          <span>{t("shareCard.title")}</span>
         </div>
         <div className="share-body">
           <div className="share-kicker">{report.repository.owner}/{report.repository.name}</div>
           <div className="share-ref">{report.refName} / {report.commitSha.slice(0, 12)}</div>
           <div className="share-total">
-            <span>// Total LOC</span>
+            <span>{t("shareCard.totalLoc")}</span>
             <strong>{formatNumber(report.total.lines)}</strong>
           </div>
           <div className="share-breakdown">
-            <ShareStat color="var(--accent)" label="Code" value={report.total.code} />
-            <ShareStat color="var(--accent-2)" label="Comments" value={report.total.comments} />
-            <ShareStat color="var(--violet)" label="Blanks" value={report.total.blanks} />
+            <ShareStat color="var(--accent)" label={t("shareCard.labelCode")} value={report.total.code} />
+            <ShareStat color="var(--accent-2)" label={t("shareCard.labelComments")} value={report.total.comments} />
+            <ShareStat color="var(--violet)" label={t("shareCard.labelBlanks")} value={report.total.blanks} />
           </div>
           <div className="share-ticker">
             <div className="share-ticker-list">
@@ -381,11 +415,11 @@ const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(fun
                 </div>
               ))}
             </div>
-            {hasMoreLanguages ? <div className="share-ticker-note">top languages loc</div> : null}
+            {hasMoreLanguages ? <div className="share-ticker-note">{t("shareCard.topLanguages")}</div> : null}
           </div>
           <div className="share-foot">
-            <span>{formatPercent(report.total.code, total)} code</span>
-            <span>generated by OctoCounts</span>
+            <span>{t("shareCard.percentCode", { percent: formatPercent(report.total.code, total) })}</span>
+            <span>{t("shareCard.generatedBy")}</span>
           </div>
         </div>
       </div>
@@ -404,13 +438,14 @@ function ShareStat({ color, label, value }: { color: string; label: string; valu
 }
 
 function Summary({ stats }: { stats: Stats }) {
+  const { t } = useTranslation();
   return (
     <div className="summary">
-      <Metric label="Files" value={stats.files} />
-      <Metric label="Lines" value={stats.lines} />
-      <Metric label="Code" value={stats.code} accent />
-      <Metric label="Comments" value={stats.comments} />
-      <Metric label="Blanks" value={stats.blanks} />
+      <Metric label={t("summary.files")} value={stats.files} />
+      <Metric label={t("summary.lines")} value={stats.lines} />
+      <Metric label={t("summary.code")} value={stats.code} accent />
+      <Metric label={t("summary.comments")} value={stats.comments} />
+      <Metric label={t("summary.blanks")} value={stats.blanks} />
     </div>
   );
 }
@@ -420,17 +455,18 @@ function Metric({ label, value, accent }: { label: string; value: number; accent
 }
 
 function Charts({ report }: { report: Report }) {
+  const { t } = useTranslation();
   const languageItems = useMemo(() => languagePieItems(report.languages), [report.languages]);
   const totalLines = report.total.lines;
 
   return (
     <div className="charts-grid">
       <div className="chart-card donut-card">
-        <div className="chart-h"><span className="chart-tag">chart</span>Language share</div>
+        <div className="chart-h"><span className="chart-tag">chart</span>{t("charts.languageShare")}</div>
         <Donut items={languageItems} total={totalLines} report={report} />
       </div>
       <div className="chart-card table-card">
-        <div className="chart-h"><span className="chart-tag">table</span>Report</div>
+        <div className="chart-h"><span className="chart-tag">table</span>{t("charts.report")}</div>
         <ReportTable report={report} compact />
       </div>
     </div>
@@ -438,22 +474,23 @@ function Charts({ report }: { report: Report }) {
 }
 
 function Donut({ items, total, report }: { items: PieItem[]; total: number; report: Report }) {
+  const { t } = useTranslation();
   const exactTotal = formatNumber(total);
   const slices = pieSlices(items);
   const breakdown = [
-    { label: "code", value: report.total.code, color: "var(--accent)" },
-    { label: "comments", value: report.total.comments, color: "var(--accent-2)" },
-    { label: "blanks", value: report.total.blanks, color: "var(--fg-mute)" },
+    { label: t("summary.code"), value: report.total.code, color: "var(--accent)" },
+    { label: t("summary.comments"), value: report.total.comments, color: "var(--accent-2)" },
+    { label: t("summary.blanks"), value: report.total.blanks, color: "var(--fg-mute)" },
   ];
   return (
     <>
-      <div className="donut-wrap" role="img" aria-label="Language share by total lines">
+      <div className="donut-wrap" role="img" aria-label={t("charts.languageShare")}>
         <svg viewBox="-1 -1 2 2">
           {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} />)}
           <circle r="0.58" fill="var(--bg-2)" />
         </svg>
         <div className="donut-center" title={`${exactTotal} total lines`}>
-          <span className="mute">lines</span>
+          <span className="mute">{t("charts.lines")}</span>
           <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
         </div>
       </div>
@@ -471,6 +508,7 @@ function Donut({ items, total, report }: { items: PieItem[]; total: number; repo
 }
 
 function ReportTable({ report, compact }: { report: Report; compact?: boolean }) {
+  const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<SortKey>("code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -496,9 +534,9 @@ function ReportTable({ report, compact }: { report: Report; compact?: boolean })
       <table className="report">
         <thead>
           <tr>
-            <SortHead label="Language" active={sortKey === "name"} dir={sortDir} onClick={() => updateSort("name")} className="lang" />
+            <SortHead label={t("table.language")} active={sortKey === "name"} dir={sortDir} onClick={() => updateSort("name")} className="lang" />
             {(["files", "lines", "code", "comments", "blanks"] as const).map((key) => (
-              <SortHead key={key} label={key} active={sortKey === key} dir={sortDir} onClick={() => updateSort(key)} />
+              <SortHead key={key} label={t("table." + key)} active={sortKey === key} dir={sortDir} onClick={() => updateSort(key)} />
             ))}
           </tr>
         </thead>
@@ -510,7 +548,7 @@ function ReportTable({ report, compact }: { report: Report; compact?: boolean })
             </React.Fragment>
           ))}
           <tr className="totals">
-            <td className="lang">Total</td>
+            <td className="lang">{t("table.total")}</td>
             <NumberCell value={report.total.files} />
             <NumberCell value={report.total.lines} />
             <NumberCell value={report.total.code} />

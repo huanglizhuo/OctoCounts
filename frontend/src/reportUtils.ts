@@ -1,12 +1,13 @@
+import i18n from "./i18n";
 import type { AppStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
 
 export const statusCopy: Record<AppStatus, string> = {
-  idle: "Paste a repository URL and run the analyzer.",
-  queued: "Job accepted. Waiting for an analysis slot.",
-  running: "Downloading archive, extracting files, and counting language statistics.",
-  completed: "Analysis completed.",
-  cached: "Served from commit-level cache.",
-  failed: "Analysis failed.",
+  idle: i18n.t("runner.status.idle"),
+  queued: i18n.t("runner.status.queued"),
+  running: i18n.t("runner.status.running"),
+  completed: i18n.t("runner.status.completed"),
+  cached: i18n.t("runner.status.cached"),
+  failed: i18n.t("runner.status.failed"),
 };
 
 export function tickerRows(report: Report): TickerRow[] {
@@ -21,11 +22,37 @@ export function tickerRows(report: Report): TickerRow[] {
 }
 
 export function logLines(status: AppStatus, report: Report | null, error: string | null) {
-  if (status === "failed") return [{ ts: "00:00", kind: "err", text: error ?? "analysis failed" }];
-  if (status === "idle") return [{ ts: "00:00", kind: "", text: "idle: command runner ready" }];
-  if (status === "queued") return [{ ts: "00:01", kind: "warn", text: "queued: waiting for worker permit" }, { ts: "00:02", kind: "", text: "repository ref accepted" }];
-  if (status === "running") return [{ ts: "00:01", kind: "ok", text: "ref resolved" }, { ts: "00:02", kind: "", text: "archive download in progress" }, { ts: "00:03", kind: "", text: "tokei counter running" }];
-  if (report) return [{ ts: "00:01", kind: "ok", text: `resolved ${report.refName} -> ${report.commitSha.slice(0, 12)}` }, { ts: "00:02", kind: "ok", text: report.cached ? "cache hit returned" : "fresh report saved to cache" }, { ts: "00:03", kind: "ok", text: `${formatNumber(report.languages.length)} language rows rendered` }];
+  if (status === "failed") return [{ ts: "00:00", kind: "err", text: error ?? i18n.t("runner.status.failed") }];
+  if (status === "idle") return [{ ts: "00:00", kind: "", text: i18n.t("runner.log.idle") }];
+  if (status === "queued")
+    return [
+      { ts: "00:01", kind: "warn", text: i18n.t("runner.log.queuedWaiting") },
+      { ts: "00:02", kind: "", text: i18n.t("runner.log.refAccepted") },
+    ];
+  if (status === "running")
+    return [
+      { ts: "00:01", kind: "ok", text: i18n.t("runner.log.refResolved") },
+      { ts: "00:02", kind: "", text: i18n.t("runner.log.archiveDownloading") },
+      { ts: "00:03", kind: "", text: i18n.t("runner.log.tokeiRunning") },
+    ];
+  if (report)
+    return [
+      {
+        ts: "00:01",
+        kind: "ok",
+        text: i18n.t("runner.log.resolvedRef", { ref: report.refName, sha: report.commitSha.slice(0, 12) }),
+      },
+      {
+        ts: "00:02",
+        kind: "ok",
+        text: report.cached ? i18n.t("runner.log.cacheHit") : i18n.t("runner.log.freshReport"),
+      },
+      {
+        ts: "00:03",
+        kind: "ok",
+        text: i18n.t("runner.log.languageRows", { count: formatNumber(report.languages.length) }),
+      },
+    ];
   return [];
 }
 
@@ -53,16 +80,28 @@ export function languageColor(name: string) {
 }
 
 export function textReport(report: Report) {
-  const lines = [`${report.repository.owner}/${report.repository.name} ${report.commitSha.slice(0, 12)}`, "Language        Files      Lines       Code   Comments     Blanks"];
+  const lines = [
+    `${report.repository.owner}/${report.repository.name} ${report.commitSha.slice(0, 12)}`,
+    `${i18n.t("textReport.language").padEnd(14)} ${i18n.t("textReport.files").padStart(6)} ${i18n.t("textReport.lines").padStart(10)} ${i18n.t("textReport.code").padStart(10)} ${i18n.t("textReport.comments").padStart(10)} ${i18n.t("textReport.blanks").padStart(10)}`,
+  ];
   for (const row of report.languages) {
-    lines.push(`${row.name.padEnd(14)} ${String(row.stats.files).padStart(6)} ${String(row.stats.lines).padStart(10)} ${String(row.stats.code).padStart(10)} ${String(row.stats.comments).padStart(10)} ${String(row.stats.blanks).padStart(10)}`);
+    lines.push(
+      `${row.name.padEnd(14)} ${String(row.stats.files).padStart(6)} ${String(row.stats.lines).padStart(10)} ${String(row.stats.code).padStart(10)} ${String(row.stats.comments).padStart(10)} ${String(row.stats.blanks).padStart(10)}`
+    );
   }
-  lines.push(`${"Total".padEnd(14)} ${String(report.total.files).padStart(6)} ${String(report.total.lines).padStart(10)} ${String(report.total.code).padStart(10)} ${String(report.total.comments).padStart(10)} ${String(report.total.blanks).padStart(10)}`);
+  const totalLabel = i18n.t("textReport.total");
+  lines.push(
+    `${totalLabel.padEnd(14)} ${String(report.total.files).padStart(6)} ${String(report.total.lines).padStart(10)} ${String(report.total.code).padStart(10)} ${String(report.total.comments).padStart(10)} ${String(report.total.blanks).padStart(10)}`
+  );
   return lines.join("\n");
 }
 
 export function commandText(repoUrl: string, refName: string, forceRefresh: boolean) {
-  return `octocount analyze ${repoUrl.trim() || "<repo>"}${refName.trim() ? ` --ref ${refName.trim()}` : ""}${forceRefresh ? " --force" : ""}`;
+  return i18n.t("runner.command", {
+    repo: repoUrl.trim() || "<repo>",
+    ref: refName.trim() ? ` --ref ${refName.trim()}` : "",
+    force: forceRefresh ? " --force" : "",
+  });
 }
 
 export function copyText(value: string) {

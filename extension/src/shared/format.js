@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 export function formatNumber(value) {
   return new Intl.NumberFormat().format(value);
 }
@@ -21,9 +23,10 @@ export function formatPercent(value, total) {
 export function textReport(report) {
   const { owner, name } = report.repository;
   const sha = report.commitSha.slice(0, 12);
+  const header = `${t('textReport.language').padEnd(14)} ${t('textReport.files').padStart(6)} ${t('textReport.lines').padStart(10)} ${t('textReport.code').padStart(10)} ${t('textReport.comments').padStart(10)} ${t('textReport.blanks').padStart(10)}`;
   const lines = [
     `${owner}/${name} ${sha}`,
-    'Language        Files      Lines       Code   Comments     Blanks',
+    header,
   ];
   for (const row of report.languages) {
     lines.push(
@@ -35,14 +38,15 @@ export function textReport(report) {
       `${String(row.stats.blanks).padStart(10)}`
     );
   }
-  const t = report.total;
+  const totalLabel = t('textReport.total');
+  const total = report.total;
   lines.push(
-    `${'Total'.padEnd(14)} ` +
-    `${String(t.files).padStart(6)} ` +
-    `${String(t.lines).padStart(10)} ` +
-    `${String(t.code).padStart(10)} ` +
-    `${String(t.comments).padStart(10)} ` +
-    `${String(t.blanks).padStart(10)}`
+    `${totalLabel.padEnd(14)} ` +
+    `${String(total.files).padStart(6)} ` +
+    `${String(total.lines).padStart(10)} ` +
+    `${String(total.code).padStart(10)} ` +
+    `${String(total.comments).padStart(10)} ` +
+    `${String(total.blanks).padStart(10)}`
   );
   return lines.join('\n');
 }

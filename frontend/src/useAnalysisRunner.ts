@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import i18n from "./i18n";
 import { analyzeRepository, fetchJson } from "./api";
 import { commandText } from "./reportUtils";
 import type { AppStatus, JobRecord, Report } from "./types";
@@ -53,7 +54,7 @@ export function useAnalysisRunner({
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to fetch completed report");
+        setError(err instanceof Error ? err.message : i18n.t("error.requestFailed"));
         setJobId(null);
         setJobStartedAt(null);
       });
@@ -91,7 +92,7 @@ export function useAnalysisRunner({
         setJobId(result.jobId);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network request failed");
+      setError(err instanceof Error ? err.message : i18n.t("error.requestFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -131,6 +132,6 @@ function pollingInterval(elapsedMs: number) {
 }
 
 function errorMessage(error: JobRecord["error"]) {
-  if (error?.code === "private_repo") return "Private repositories are not supported.";
-  return error?.message ?? "Analysis failed.";
+  if (error?.code === "private_repo") return i18n.t("error.privateRepo");
+  return error?.message ?? i18n.t("runner.status.failed");
 }

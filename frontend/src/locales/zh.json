@@ -1,0 +1,200 @@
+{
+  "app": {
+    "title": "OctoCounts — GitHub  forgot 的 SLOC 面板 | GitHub SLOC 计数器",
+    "description": "OctoCounts 在浏览器扩展侧边栏或网页应用中显示实际的 GitHub 源代码行数：文件数、代码行、注释行、空行和每种语言的统计。无需克隆。"
+  },
+  "topbar": {
+    "brandName": "OctoCounts",
+    "chrome": "Chrome",
+    "firefox": "Firefox",
+    "githubAria": "在 GitHub 上查看 OctoCounts"
+  },
+  "hero": {
+    "title": "GitHub <1>SLOC 计数器</1> — GitHub 忘记添加的面板。",
+    "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
+    "badgeOpenSource": "GitHub 开源",
+    "badgeFree": "免费 · 无需注册",
+    "badgeLanguages": "200+ 种语言",
+    "placeholderUrl": "https://github.com/owner/repo",
+    "refLabel": "分支",
+    "refPlaceholder": "main",
+    "ariaUrl": "仓库链接",
+    "ariaRef": "可选引用",
+    "ariaSamples": "示例仓库",
+    "analyze": "分析",
+    "installChrome": "Chrome 应用商店",
+    "installFirefox": "Firefox 附加组件",
+    "sidebarHint": "直接在 GitHub 仓库侧边栏查看 SLOC。"
+  },
+  "samples": {
+    "label": "示例"
+  },
+  "runner": {
+    "title": "运行器",
+    "status": {
+      "idle": "粘贴仓库链接并运行分析器。",
+      "queued": "任务已接受。等待分析槽位。",
+      "running": "正在下载归档、解压文件并统计语言数据。",
+      "completed": "分析完成。",
+      "cached": "来自提交级缓存。",
+      "failed": "分析失败。"
+    },
+    "statusShort": {
+      "idle": "空闲",
+      "queued": "排队中",
+      "running": "运行中",
+      "completed": "已完成",
+      "cached": "已缓存",
+      "failed": "失败"
+    },
+    "log": {
+      "idle": "空闲：命令运行器就绪",
+      "queuedWaiting": "排队中：等待工作进程许可",
+      "refAccepted": "仓库引用已接受",
+      "refResolved": "引用已解析",
+      "archiveDownloading": "归档下载中",
+      "tokeiRunning": "tokei 计数器运行中",
+      "resolvedRef": "已解析 {{ref}} -> {{sha}}",
+      "cacheHit": "缓存命中已返回",
+      "freshReport": "新报告已保存到缓存",
+      "languageRows": "{{count}} 种语言行已渲染"
+    },
+    "command": "octocount analyze {{repo}}{{ref}}{{force}}",
+    "cacheHit": "缓存命中",
+    "freshRun": "全新运行",
+    "demoNote": "演示 — 正在分析 OctoCounts 本身。在上面粘贴任何公开仓库链接来分析您的仓库。",
+    "generated": "生成于 {{date}} / {{duration}}ms / {{version}}",
+    "exportText": "文本",
+    "exportJson": "JSON",
+    "exportPng": "PNG",
+    "exportGitHub": "GitHub",
+    "reRun": "重新运行",
+    "clear": "清除"
+  },
+  "shareCard": {
+    "title": "OctoCounts // SLOC",
+    "totalLoc": "// 总行数",
+    "labelCode": "代码",
+    "labelComments": "注释",
+    "labelBlanks": "空行",
+    "topLanguages": "主要语言行数",
+    "percentCode": "{{percent}} 代码",
+    "generatedBy": "由 OctoCounts 生成"
+  },
+  "summary": {
+    "files": "文件",
+    "lines": "行数",
+    "code": "代码",
+    "comments": "注释",
+    "blanks": "空行"
+  },
+  "charts": {
+    "languageShare": "语言占比",
+    "report": "报告",
+    "lines": "行数",
+    "other": "其他",
+    "noData": "无数据"
+  },
+  "table": {
+    "language": "语言",
+    "files": "文件",
+    "lines": "行数",
+    "code": "代码",
+    "comments": "注释",
+    "blanks": "空行",
+    "total": "总计"
+  },
+  "extensionSection": {
+    "title": "浏览器扩展",
+    "subtitle": "用 OctoCounts 替换 GitHub 语言统计。",
+    "terminalLabel": "browser-extension@octocounts",
+    "name": "OctoCounts — GitHub SLOC",
+    "description": "打开 GitHub 仓库，OctoCounts 会在仓库侧边栏添加一个紧凑的 SLOC 卡片。点击卡片可查看包含总计、语言行和缓存结果的完整面板。",
+    "features": [
+      "仓库侧边栏卡片",
+      "语言表格",
+      "本地缓存",
+      "自动分析设置",
+      "位置设置"
+    ],
+    "installChrome": "从 Chrome 应用商店安装",
+    "installFirefox": "从 Firefox 附加组件安装",
+    "viewSource": "查看源码",
+    "previewAlt": "OctoCounts 浏览器扩展在 GitHub 仓库上显示 SLOC 结果"
+  },
+  "useCases": {
+    "title": "使用场景",
+    "subtitle": "开发者统计代码行的常见原因",
+    "cases": [
+      {
+        "title": "评估依赖项",
+        "text": "在采用新的开源库之前，检查它的实际大小 —— 不仅仅是文件数量。一个 50 个文件的仓库可能是 2 万行密集的 C++ 代码，也可能是 500 行胶水代码。SLOC 能在你提交依赖之前给你真实的画面。"
+      },
+      {
+        "title": "估算项目规模",
+        "text": "客户和利益相关者会问代码库有多大。SLOC 能在代码审查或审计之前给出一个具体、可辩护的答案：8 种语言共 1.2 万行，89% 代码，4% 注释。"
+      },
+      {
+        "title": "比较分支或替代方案",
+        "text": "粘贴两个仓库，并排比较语言细分。看看一个分支偏离了多少，或者同一规范的两个不同实现实际上有多大差异。"
+      }
+    ]
+  },
+  "howItWorks": {
+    "title": "工作原理",
+    "subtitle": "归档进，tokei 报告出",
+    "steps": [
+      {
+        "num": "01",
+        "title": "解析",
+        "text": "OctoCounts 验证公开 GitHub 链接，并通过 GitHub API 将请求的分支、标签或提交 SHA 解析为固定的提交哈希。固定到提交意味着分析是确定性的 —— 相同的链接和引用总是产生相同的计数，且缓存键稳定，不受分支移动影响。",
+        "code": "GET <1>/repos/:owner/:repo</1>"
+      },
+      {
+        "num": "02",
+        "title": "计数",
+        "text": "Rust 后端（Axum + Tokio）下载压缩的归档 tarball —— 而不是包含历史的完整 git 克隆。在解压前跳过生成的文件夹（node_modules、vendor、.git）。然后 tokei 计数每个源文件，为每种检测到的语言生成文件数、代码行、注释行和空行，在后台工作队列中完成。",
+        "code": "tokei <1>--output json</1>"
+      },
+      {
+        "num": "03",
+        "title": "缓存",
+        "text": "报告按所有者、仓库、提交 SHA 和 tokei 版本存储。当你重新分析同一提交时，缓存会立即命中 —— 无需重新下载，无需重新计数。重新运行会强制进行全新分析并更新缓存。浏览器扩展还会将结果本地缓存，以便离线即时查看。",
+        "code": "cache <1>commit + version</1>"
+      }
+    ]
+  },
+  "footer": {
+    "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
+    "privacy": "隐私",
+    "contact": "联系",
+    "builtBy": "由 <1>huanglizhuo</1> 构建 — 独立开发者",
+    "copyright": "(c) 2026"
+  },
+  "theme": {
+    "matrix": "矩阵",
+    "paper": "纸张",
+    "amber": "琥珀",
+    "ariaLabel": "主题"
+  },
+  "error": {
+    "privateRepo": "不支持私有仓库。",
+    "requestFailed": "请求失败"
+  },
+  "languageSwitcher": {
+    "label": "语言"
+  },
+  "sharePreview": {
+    "debug": "调试",
+    "pngExportPreview": "PNG 导出预览"
+  },
+  "textReport": {
+    "language": "语言",
+    "files": "文件",
+    "lines": "行数",
+    "code": "代码",
+    "comments": "注释",
+    "blanks": "空行",
+    "total": "总计"
+  }
+}

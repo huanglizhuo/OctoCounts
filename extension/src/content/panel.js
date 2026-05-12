@@ -1,4 +1,5 @@
 import panelCss from '../styles/panel.css?inline';
+import { t } from '../i18n/index.js';
 import { formatNumber, formatCompact, formatPercent, textReport } from '../shared/format.js';
 import { languageColor } from '../shared/chart.js';
 import { sortRows } from '../shared/sort.js';
@@ -57,17 +58,17 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
 }
 
 function buildPanelHTML(report, theme) {
-  const t   = report.total;
+  const total   = report.total;
   const sha = report.commitSha.slice(0, 12);
   const webUrl = `https://octocounts.com/?url=${encodeURIComponent(report.repository.htmlUrl)}`;
 
   const summaryHTML = ['files', 'lines', 'code', 'comments', 'blanks'].map(k => `
     <div class="oc-sum-cell">
-      <span class="oc-sum-val${k === 'code' ? ' accent' : ''}">${formatNumber(t[k])}</span>
-      <span class="oc-sum-label">${k}</span>
+      <span class="oc-sum-val${k === 'code' ? ' accent' : ''}">${formatNumber(total[k])}</span>
+      <span class="oc-sum-label">${t('panel.table.' + k)}</span>
     </div>`).join('');
 
-  const cacheInfo = report.cached ? 'cached' : 'fresh';
+  const cacheInfo = report.cached ? t('panel.cached') : t('panel.fresh');
 
   const logoUrl = chrome.runtime.getURL('icons/icon128.png');
 
@@ -77,12 +78,12 @@ function buildPanelHTML(report, theme) {
       <div class="oc-pheader">
         <div class="oc-pheader-brand">
           <img class="oc-plogo-img" src="${logoUrl}" alt="">
-          <span class="oc-plogo-text">OctoCounts</span>
+          <span class="oc-plogo-text">${t('panel.title')}</span>
         </div>
         <div class="oc-pheader-right">
           <span class="oc-prepo">${report.repository.owner}/${report.repository.name} @ ${sha}</span>
-          <a class="oc-popen" href="${webUrl}" target="_blank" rel="noopener noreferrer">↗ open</a>
-          <button class="oc-pclose" title="Close (Esc)">×</button>
+          <a class="oc-popen" href="${webUrl}" target="_blank" rel="noopener noreferrer">${t('panel.open')}</a>
+          <button class="oc-pclose" title="${t('panel.closeTitle')}">×</button>
         </div>
       </div>
 
@@ -99,9 +100,9 @@ function buildPanelHTML(report, theme) {
 
       <div class="oc-pfooter">
         <div class="left">
-          <button class="oc-export-btn oc-btn-txt">txt</button>
-          <button class="oc-export-btn oc-btn-json">json</button>
-          <button class="oc-export-btn oc-btn-refresh">↺ refresh</button>
+          <button class="oc-export-btn oc-btn-txt">${t('panel.txt')}</button>
+          <button class="oc-export-btn oc-btn-json">${t('panel.json')}</button>
+          <button class="oc-export-btn oc-btn-refresh">${t('panel.refresh')}</button>
         </div>
         <div class="right">
           ${cacheInfo} · ${report.refName} → ${sha}
@@ -148,7 +149,7 @@ function buildDonutHTML(report, theme) {
       <text x="${cx}" y="${cy - 4}" text-anchor="middle" dominant-baseline="middle"
         fill="currentColor" font-size="11" font-family="-apple-system,sans-serif">${formatCompact(total)}</text>
       <text x="${cx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle"
-        fill="#8b949e" font-size="9" font-family="-apple-system,sans-serif">lines</text>
+        fill="#8b949e" font-size="9" font-family="-apple-system,sans-serif">${t('panel.lines')}</text>
     </svg>
     <div class="oc-legend">${legend}</div>`;
 }
@@ -160,7 +161,7 @@ function buildTableHTML(report, theme, sortKey, sortDir) {
   const headers = cols.map(c => {
     const active = c === sortKey ? ' active' : '';
     const arrow  = c === sortKey ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-    const label  = c === 'name' ? 'Language' : c;
+    const label  = c === 'name' ? t('panel.table.language') : t('panel.table.' + c);
     return `<th class="col-${c}${active}" data-col="${c}">${label}${arrow}</th>`;
   }).join('');
 
@@ -172,12 +173,12 @@ function buildTableHTML(report, theme, sortKey, sortDir) {
       ).join('')}
     </tr>`).join('');
 
-  const t = report.total;
+  const totals = report.total;
   const totalsRow = `
     <tr class="totals">
-      <td>Total</td>
+      <td>${t('panel.table.total')}</td>
       ${['files', 'lines', 'code', 'comments', 'blanks'].map(k =>
-        `<td${k === 'code' ? ' class="accent"' : ''}>${formatNumber(t[k])}</td>`
+        `<td${k === 'code' ? ' class="accent"' : ''}>${formatNumber(totals[k])}</td>`
       ).join('')}
     </tr>`;
 

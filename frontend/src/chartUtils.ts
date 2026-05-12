@@ -1,3 +1,4 @@
+import i18n from "./i18n";
 import type { LanguageReport, PieItem } from "./types";
 import { languageColor } from "./reportUtils";
 
@@ -9,8 +10,8 @@ export function languagePieItems(languages: LanguageReport[]): PieItem[] {
     color: languageColor(language.name),
   }));
   const other = sorted.slice(5).reduce((sum, language) => sum + language.stats.lines, 0);
-  if (other > 0) visible.push({ label: "Other", value: other, color: "var(--fg-mute)" });
-  return visible.length > 0 ? visible : [{ label: "No data", value: 0, color: "var(--fg-mute)" }];
+  if (other > 0) visible.push({ label: i18n.t("charts.other"), value: other, color: "var(--fg-mute)" });
+  return visible.length > 0 ? visible : [{ label: i18n.t("charts.noData"), value: 0, color: "var(--fg-mute)" }];
 }
 
 export function pieSlices(items: PieItem[]) {

@@ -1,0 +1,81 @@
+{
+  "card": {
+    "title": "OctoCounts",
+    "countSloc": "统计 SLOC",
+    "queued": "排队中…",
+    "running": "正在计数…",
+    "analyzing": "分析中…",
+    "cached": "已缓存",
+    "refreshTitle": "刷新",
+    "code": "代码",
+    "files": "文件",
+    "lines": "行数",
+    "comments": "注释",
+    "moreLanguages": "+ {{count}} 更多 →",
+    "error": {
+      "title": "分析失败",
+      "timedOut": "分析超时",
+      "noDetails": "没有返回其他详细信息。",
+      "tryAgain": "重试",
+      "clickDetails": "点击查看错误详情"
+    }
+  },
+  "panel": {
+    "title": "OctoCounts",
+    "open": "↗ 打开",
+    "closeTitle": "关闭 (Esc)",
+    "txt": "文本",
+    "json": "JSON",
+    "refresh": "↺ 刷新",
+    "cached": "已缓存",
+    "fresh": "全新",
+    "lines": "行数",
+    "table": {
+      "language": "语言",
+      "files": "文件",
+      "lines": "行数",
+      "code": "代码",
+      "comments": "注释",
+      "blanks": "空行",
+      "total": "总计"
+    }
+  },
+  "popup": {
+    "title": "OctoCounts 设置",
+    "autoAnalyze": "页面加载时自动分析",
+    "position": "OctoCounts 位置",
+    "positionTop": "右侧面板顶部",
+    "positionBottom": "右侧面板底部",
+    "ignoreList": "忽略列表",
+    "ignoreHint": "— 每行一个（例如 torvalds/* 或 owner/repo）",
+    "ignorePlaceholder": "torvalds/*\n微软/TypeScript",
+    "replaceGhLanguages": "替换 GitHub 语言部分",
+    "cacheTtl": "缓存有效期",
+    "ttl1h": "1 小时",
+    "ttl6h": "6 小时",
+    "ttl24h": "24 小时",
+    "ttl7d": "7 天",
+    "ttlNever": "永不过期",
+    "reportIssue": "报告问题"
+  },
+  "error": {
+    "privateRepo": "不支持私有仓库。",
+    "rateLimited": "API 速率限制已达到。请稍后再试。",
+    "forbidden": "OctoCounts API 请求被阻止或禁止。",
+    "tooLarge": "仓库超过 2 GB 归档大小限制",
+    "notFound": "仓库未找到或为空",
+    "authError": "OctoCounts API 授权失败",
+    "offline": "无网络连接",
+    "unknown": "分析失败",
+    "failedToStart": "无法启动分析"
+  },
+  "textReport": {
+    "language": "语言",
+    "files": "文件",
+    "lines": "行数",
+    "code": "代码",
+    "comments": "注释",
+    "blanks": "空行",
+    "total": "总计"
+  }
+}

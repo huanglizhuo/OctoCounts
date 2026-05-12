@@ -1,0 +1,81 @@
+{
+  "card": {
+    "title": "OctoCounts",
+    "countSloc": "Count SLOC",
+    "queued": "Queued…",
+    "running": "Counting lines…",
+    "analyzing": "Analyzing…",
+    "cached": "cached",
+    "refreshTitle": "Refresh",
+    "code": "code",
+    "files": "files",
+    "lines": "lines",
+    "comments": "comments",
+    "moreLanguages": "+ {{count}} more →",
+    "error": {
+      "title": "Analysis failed",
+      "timedOut": "Analysis timed out",
+      "noDetails": "No additional details were returned.",
+      "tryAgain": "Try again",
+      "clickDetails": "click for error details"
+    }
+  },
+  "panel": {
+    "title": "OctoCounts",
+    "open": "↗ open",
+    "closeTitle": "Close (Esc)",
+    "txt": "txt",
+    "json": "json",
+    "refresh": "↺ refresh",
+    "cached": "cached",
+    "fresh": "fresh",
+    "lines": "lines",
+    "table": {
+      "language": "Language",
+      "files": "files",
+      "lines": "lines",
+      "code": "code",
+      "comments": "comments",
+      "blanks": "blanks",
+      "total": "Total"
+    }
+  },
+  "popup": {
+    "title": "OctoCounts Settings",
+    "autoAnalyze": "Auto-analyze on page load",
+    "position": "OctoCounts position",
+    "positionTop": "Top of right panel",
+    "positionBottom": "Bottom of right panel",
+    "ignoreList": "Ignore list",
+    "ignoreHint": "— one per line (e.g. torvalds/* or owner/repo)",
+    "ignorePlaceholder": "torvalds/*\n微软/TypeScript",
+    "replaceGhLanguages": "Replace GitHub Languages section",
+    "cacheTtl": "Cache TTL",
+    "ttl1h": "1 hour",
+    "ttl6h": "6 hours",
+    "ttl24h": "24 hours",
+    "ttl7d": "7 days",
+    "ttlNever": "Never expire",
+    "reportIssue": "Report issue"
+  },
+  "error": {
+    "privateRepo": "Private repositories are not supported.",
+    "rateLimited": "API rate limit reached. Try again later.",
+    "forbidden": "OctoCounts API request was blocked or forbidden.",
+    "tooLarge": "Repository exceeds the 2 GB archive size limit",
+    "notFound": "Repository not found or is empty",
+    "authError": "OctoCounts API authorization failed",
+    "offline": "No network connection",
+    "unknown": "Analysis failed",
+    "failedToStart": "Failed to start analysis"
+  },
+  "textReport": {
+    "language": "Language",
+    "files": "Files",
+    "lines": "Lines",
+    "code": "Code",
+    "comments": "Comments",
+    "blanks": "Blanks",
+    "total": "Total"
+  }
+}

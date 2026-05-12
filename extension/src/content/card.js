@@ -1,4 +1,5 @@
 import cardCss from '../styles/card.css?inline';
+import { t } from '../i18n/index.js';
 import { formatNumber, formatCompact, formatPercent } from '../shared/format.js';
 import { buildBarItems, languageColor } from '../shared/chart.js';
 import { mountPanel, unmountPanel } from './panel.js';
@@ -99,57 +100,56 @@ function getTheme() {
 function header(rightHTML = '') {
   return `
     <div class="oc-header">
-      <div class="oc-title">OctoCounts</div>
+      <div class="oc-title">${t('card.title')}</div>
       <div class="oc-header-right">${rightHTML}</div>
     </div>`;
 }
 
 function renderIdle(root, onCount) {
   root.innerHTML = `<div class="oc-wrap">
-    ${header('<button class="oc-count-btn">Count SLOC</button>')}
+    ${header(`<button class="oc-count-btn">${t('card.countSloc')}</button>`)}
   </div>`;
   root.querySelector('.oc-count-btn').addEventListener('click', onCount);
 }
 
-const LOADING_LABELS = { queued: 'Queued…', running: 'Counting lines…' };
-
 function renderLoading(root, status) {
+  const label = status === 'queued' ? t('card.queued') : status === 'running' ? t('card.running') : t('card.analyzing');
   root.innerHTML = `<div class="oc-wrap">
     ${header()}
     <div class="oc-progress"><div class="oc-progress-bar"></div></div>
-    <div class="oc-status-text">${LOADING_LABELS[status] || 'Analyzing…'}</div>
+    <div class="oc-status-text">${label}</div>
   </div>`;
 }
 
 function renderCompleted(root, report, cachedAt, ctx) {
   const { owner, repo, ref, shadow, replaceGhLanguages } = ctx;
   const theme = getTheme();
-  const t = report.total;
+  const total = report.total;
 
-  const cachedBadge = report.cached ? '<span class="oc-badge">cached</span>' : '';
-  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="Refresh">↺</button>`;
+  const cachedBadge = report.cached ? `<span class="oc-badge">${t('card.cached')}</span>` : '';
+  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="${t('card.refreshTitle')}">↺</button>`;
 
   const statsHTML = `
     <div class="oc-stats-grid">
       <div class="oc-sg-cell">
-        <span class="oc-sg-val accent">${formatCompact(t.code)}</span>
-        <span class="oc-sg-label">code</span>
+        <span class="oc-sg-val accent">${formatCompact(total.code)}</span>
+        <span class="oc-sg-label">${t('card.code')}</span>
       </div>
       <div class="oc-sg-cell">
-        <span class="oc-sg-val">${formatCompact(t.files)}</span>
-        <span class="oc-sg-label">files</span>
+        <span class="oc-sg-val">${formatCompact(total.files)}</span>
+        <span class="oc-sg-label">${t('card.files')}</span>
       </div>
       <div class="oc-sg-cell">
-        <span class="oc-sg-val">${formatCompact(t.lines)}</span>
-        <span class="oc-sg-label">lines</span>
+        <span class="oc-sg-val">${formatCompact(total.lines)}</span>
+        <span class="oc-sg-label">${t('card.lines')}</span>
       </div>
       <div class="oc-sg-cell">
-        <span class="oc-sg-val">${formatCompact(t.comments)}</span>
-        <span class="oc-sg-label">comments</span>
+        <span class="oc-sg-val">${formatCompact(total.comments)}</span>
+        <span class="oc-sg-label">${t('card.comments')}</span>
       </div>
     </div>`;
 
-  const langListHTML = buildLangListHTML(report, theme, t.code);
+  const langListHTML = buildLangListHTML(report, theme, total.code);
 
   root.innerHTML = `<div class="oc-wrap">
     ${header(headerRight)}
@@ -224,7 +224,7 @@ function buildLangListHTML(report, theme, totalCode) {
   }).join('');
 
   const moreRow = extraCount > 0
-    ? `<div class="oc-lang-row oc-lang-more">+ ${extraCount} more →</div>`
+    ? `<div class="oc-lang-row oc-lang-more">${t('card.moreLanguages', { count: extraCount })}</div>`
     : '';
 
   return `<div class="oc-lang-list">${rows}${moreRow}</div>`;
@@ -249,10 +249,11 @@ function triggerGhLanguageFilter(langName) {
 }
 
 function hideGhLanguagesSection() {
+  const languageHeadings = ['Languages', '语言'];
   document.querySelectorAll('.BorderGrid-row').forEach(row => {
     if (row.dataset.octocountCard) return;
     const h = row.querySelector('h2, h3');
-    if (h && h.textContent.trim() === 'Languages') {
+    if (h && languageHeadings.includes(h.textContent.trim())) {
       row.style.display = 'none';
       row.dataset.octocountHidden = '1';
     }
@@ -268,7 +269,7 @@ function restoreGhLanguagesSection() {
 
 function renderError(root, error, onRetry) {
   const code = error?.code || 'unknown';
-  const message = error?.message || 'Analysis failed';
+  const message = error?.message || t('card.error.title');
   const detail = formatErrorDetail(error);
   const isRateLimit = code === 'rate_limited';
   const canRetry = code !== 'rate_limited' && code !== 'private_repo';
@@ -277,10 +278,10 @@ function renderError(root, error, onRetry) {
 
   root.innerHTML = `<div class="oc-wrap">
     ${header()}
-    <div class="${cls}">${icon} ${message}</div>
-    <div class="oc-more-hint">click for error details</div>
+    <div class="${cls}">${icon} ${escapeHtml(message)}</div>
+    <div class="oc-more-hint">${t('card.error.clickDetails')}</div>
     <pre class="oc-error-detail" hidden>${escapeHtml(detail)}</pre>
-    ${canRetry ? `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">Try again</button></div>` : ''}
+    ${canRetry ? `<div style="margin-top:8px"><button class="oc-count-btn oc-retry-btn">${t('card.error.tryAgain')}</button></div>` : ''}
   </div>`;
 
   root.querySelector('.oc-retry-btn')?.addEventListener('click', event => {
@@ -336,7 +337,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       const elapsed = Date.now() - _pollStart;
       if (elapsed > POLL_TIMEOUT_MS) {
         stopPolling();
-        renderError(root, { code: 'timeout', message: 'Analysis timed out' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        renderError(root, { code: 'timeout', message: t('card.error.timedOut') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
@@ -350,7 +351,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
 
       if (!poll || poll.error) {
         stopPolling();
-        renderError(root, poll?.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        renderError(root, poll?.error || { code: 'unknown', message: t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
@@ -362,7 +363,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
 
       if (poll.type === 'FAILED') {
         stopPolling();
-        renderError(root, poll.error || { code: 'unknown', message: 'Analysis failed' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+        renderError(root, poll.error || { code: 'unknown', message: t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
         return;
       }
 
@@ -375,7 +376,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
 
   } catch (err) {
-    renderError(root, { code: 'unknown', message: err.message || 'Failed to start analysis' }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
+    renderError(root, { code: 'unknown', message: err.message || t('card.error.title') }, () => startAnalysis({ ...ctx, root, forceRefresh: false }));
   }
 }
 
@@ -385,7 +386,7 @@ function formatErrorDetail(error) {
   if (error?.code) lines.push(`Code: ${error.code}`);
   if (error?.message) lines.push(`Message: ${error.message}`);
   if (error?.detail) lines.push('', String(error.detail).trim());
-  return lines.join('\n') || 'No additional details were returned.';
+  return lines.join('\n') || t('card.error.noDetails');
 }
 
 function escapeHtml(value) {

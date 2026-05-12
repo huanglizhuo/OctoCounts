@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve, join } from 'path';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 
 export default defineConfig(({ mode }) => {
   const isFirefox = mode === 'firefox';
@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
           let html = readFileSync(nestedHtml, 'utf8');
           // Asset paths are already absolute (e.g. /popup.js) — correct for extension root
           writeFileSync(join(outDir, 'popup.html'), html);
+          // Copy manifest localization files
+          cpSync('src/manifest-locales', join(outDir, '_locales'), { recursive: true });
         },
       },
     ],
