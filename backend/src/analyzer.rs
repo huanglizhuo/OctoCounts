@@ -263,7 +263,11 @@ fn report_id(owner: &str, repo: &str, sha: &str) -> String {
     hasher.update(sha.as_bytes());
     hasher.update(b":");
     hasher.update(TOKEI_VERSION.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect()
 }
 
 #[cfg(test)]
