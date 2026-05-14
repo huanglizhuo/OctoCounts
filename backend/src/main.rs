@@ -1,5 +1,6 @@
 mod analyzer;
 mod api;
+mod badge;
 mod config;
 mod coordinator;
 mod error;
@@ -64,6 +65,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
+        .route("/badge/{owner}/{repo}", get(badge::badge_default))
+        .route("/badge/{owner}/{repo}/branch/{*branch}", get(badge::badge_branch))
+        .route("/badge/{owner}/{repo}/tag/{*tag}", get(badge::badge_tag))
+        .route("/badge/{owner}/{repo}/commit/{sha}", get(badge::badge_commit))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);
