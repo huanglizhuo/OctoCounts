@@ -185,6 +185,11 @@
   "languageSwitcher": {
     "label": "语言"
   },
+  "badgeEmbed": {
+    "description": "添加到您的 GitHub README 以显示实时 SLOC 统计：",
+    "copy": "复制",
+    "copied": "已复制！"
+  },
   "sharePreview": {
     "debug": "调试",
     "pngExportPreview": "PNG 导出预览"

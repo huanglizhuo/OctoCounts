@@ -31,6 +31,7 @@ import { useAnalysisRunner } from "./useAnalysisRunner";
 
 const queryClient = new QueryClient();
 const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
+const BADGE_API_BASE = (import.meta.env.VITE_BADGE_API_BASE ?? "https://api.octocounts.com") as string;
 const samples = [
   { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
@@ -133,6 +134,7 @@ function App() {
                 {t("hero.analyze")}
               </button>
             </form>
+            {report && <BadgeEmbed report={report} repoUrl={repoUrl} refName={refName} />}
             <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
                 <ChromeIcon size={15} />
@@ -436,6 +438,40 @@ function ShareStat({ color, label, value }: { color: string; label: string; valu
       <span style={{ background: color }} />
       <p>{label}</p>
       <strong>{formatNumber(value)}</strong>
+    </div>
+  );
+}
+
+function BadgeEmbed({ report, repoUrl, refName }: { report: Report; repoUrl: string; refName: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const { owner, name } = report.repository;
+  const effectiveRef = report.refName || refName;
+  const badgeUrl = effectiveRef
+    ? `${BADGE_API_BASE}/badge/${owner}/${name}/branch/${effectiveRef}`
+    : `${BADGE_API_BASE}/badge/${owner}/${name}`;
+  const params = new URLSearchParams({ q: repoUrl });
+  if (effectiveRef) params.set("ref", effectiveRef);
+  const frontendUrl = `${window.location.origin}/?${params.toString()}`;
+  const markdown = `[![OctoCounts](${badgeUrl})](${frontendUrl})`;
+
+  const handleCopy = () => {
+    copyText(markdown);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="badge-embed">
+      <p className="badge-embed-desc">{t("badgeEmbed.description")}</p>
+      <div className="badge-embed-row">
+        <code className="badge-embed-code">{markdown}</code>
+        <button className="copybtn" type="button" onClick={handleCopy}>
+          <Clipboard size={14} />
+          {copied ? t("badgeEmbed.copied") : t("badgeEmbed.copy")}
+        </button>
+      </div>
     </div>
   );
 }

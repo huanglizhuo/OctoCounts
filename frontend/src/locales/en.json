@@ -185,6 +185,11 @@
   "languageSwitcher": {
     "label": "Language"
   },
+  "badgeEmbed": {
+    "description": "Add to your GitHub README to show live SLOC stats:",
+    "copy": "copy",
+    "copied": "copied!"
+  },
   "sharePreview": {
     "debug": "debug",
     "pngExportPreview": "PNG export preview"
