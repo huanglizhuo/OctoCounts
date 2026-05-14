@@ -82,10 +82,6 @@ html[data-scheme="paper"] .dot {
   box-shadow: none;
 }
 
-html[data-scheme="paper"] .brand .logo {
-  box-shadow: none;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -232,11 +228,8 @@ body {
 .brand .logo {
   width: 136px;
   height: 136px;
-  border: 1px solid var(--rule);
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, var(--bg-2), var(--bg));
-  box-shadow: 0 0 0 1px var(--bg) inset, 0 0 24px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .brand img {
