@@ -507,6 +507,7 @@ impl Store {
             .map_err(Into::into)
     }
 
+    #[cfg(test)]
     pub async fn create_job(&self) -> anyhow::Result<JobRecord> {
         let id = Uuid::new_v4();
         let now = Utc::now();

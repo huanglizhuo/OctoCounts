@@ -62,8 +62,8 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/api/analyze", post(api::analyze))
-        .route("/api/jobs/:job_id", get(api::job_status))
-        .route("/api/reports/:report_id", get(api::report))
+        .route("/api/jobs/{job_id}", get(api::job_status))
+        .route("/api/reports/{report_id}", get(api::report))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);
