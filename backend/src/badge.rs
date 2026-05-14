@@ -1,12 +1,16 @@
+use std::time::Duration;
+
 use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
+use uuid::Uuid;
 
 use crate::{
     api::AppState,
-    models::{AnalyzeRequest, AnalyzeResponse, Report},
+    models::{AnalyzeRequest, AnalyzeResponse, JobStatus, Report},
+    store::Store,
 };
 
 pub async fn badge_default(
@@ -50,17 +54,42 @@ async fn serve_badge(
         force_refresh: false,
     };
 
+    let cache = if is_immutable {
+        "public, max-age=31536000, immutable"
+    } else {
+        "public, s-maxage=3600, stale-while-revalidate=86400"
+    };
+
     match state.coordinator.submit(request).await {
-        Ok(AnalyzeResponse::Cached { report, .. }) => {
-            let cache = if is_immutable {
-                "public, max-age=31536000, immutable"
-            } else {
-                "public, s-maxage=3600, stale-while-revalidate=86400"
-            };
-            svg_response(render_badge_svg(&report), cache)
+        Ok(AnalyzeResponse::Cached { report, .. }) => svg_response(render_badge_svg(&report), cache),
+        Ok(AnalyzeResponse::Job { job_id, .. }) => {
+            match wait_for_job(state.coordinator.store(), job_id, Duration::from_secs(30)).await {
+                Some(report) => svg_response(render_badge_svg(&report), cache),
+                None => svg_response(render_pending_svg(), "no-cache, no-store"),
+            }
         }
-        Ok(AnalyzeResponse::Job { .. }) => svg_response(render_pending_svg(), "no-cache, no-store"),
         Err(_) => svg_response(render_error_svg(), "no-cache, no-store"),
+    }
+}
+
+async fn wait_for_job(store: &Store, job_id: Uuid, timeout: Duration) -> Option<Report> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        if tokio::time::Instant::now() >= deadline {
+            return None;
+        }
+        match store.job(job_id).await {
+            Ok(Some(job)) => match job.status {
+                JobStatus::Completed => {
+                    let report_id = job.report_id?;
+                    return store.report(&report_id).await.ok().flatten();
+                }
+                JobStatus::Failed => return None,
+                _ => {}
+            },
+            _ => return None,
+        }
     }
 }
 
