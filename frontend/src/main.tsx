@@ -45,7 +45,7 @@ function App() {
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
   );
   const [repoUrl, setRepoUrl] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
-  const [refName, setRefName] = useState("");
+  const [refName, setRefName] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
   const {
     report,
     error,
@@ -62,6 +62,15 @@ function App() {
     defaultRefName,
     seedReport,
   });
+
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!autoRan.current && repoUrl) {
+      autoRan.current = true;
+      void runAnalysis(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
