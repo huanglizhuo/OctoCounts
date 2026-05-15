@@ -169,21 +169,21 @@ fn badge_svg(code: &str, files: &str, lines: &str, comments: &str, muted: bool) 
         .replace("__COMMENTS__", comments)
 }
 
-const SVG_TEMPLATE: &str = r##"<svg width="358" height="34" viewBox="0 0 358 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0.75" y="0.75" width="329" height="32" rx="3.75" fill="#30363D" stroke="#30363D" stroke-width="1.5"/>
-  <g font-family="Inter,Arial,Helvetica,sans-serif">
-    <text x="3.5" y="21.75" fill="#ffffff" font-size="15.6" font-weight="700" letter-spacing="-0.6">OctoCounts</text>
-    <g font-size="13.2" font-weight="700" fill="__VAL_COLOR__">
-      <text x="95.8" y="18.2" fill="__CODE_COLOR__">__CODE__</text>
-      <text x="158.1" y="18.2">__FILES__</text>
-      <text x="204.7" y="18.2">__LINES__</text>
-      <text x="272.6" y="18.2">__COMMENTS__</text>
+const SVG_TEMPLATE: &str = r##"<svg width="264" height="33" viewBox="0 0 264 33" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0.75" y="0.75" width="262.5" height="31.5" rx="3" fill="#30363D" stroke="#30363D" stroke-width="1.5"/>
+  <g font-family="Inter, Arial, Helvetica, sans-serif">
+    <text x="10" y="20.8" fill="#fff" font-size="14.5" font-weight="700" letter-spacing="0.3">SLOC</text>
+    <g text-anchor="middle" font-weight="700" font-size="12.5" fill="__VAL_COLOR__">
+      <text x="80" y="16.5" fill="__CODE_COLOR__">__CODE__</text>
+      <text x="130" y="16.5">__FILES__</text>
+      <text x="180" y="16.5">__LINES__</text>
+      <text x="230" y="16.5">__COMMENTS__</text>
     </g>
-    <g font-size="8.2" font-weight="400" fill="#8B949E">
-      <text x="96.1" y="29.2">code</text>
-      <text x="158.2" y="29.2">files</text>
-      <text x="205" y="29.2">lines</text>
-      <text x="272.8" y="29.2">comments</text>
+    <g text-anchor="middle" fill="#8B949E" font-size="9.5" font-weight="400">
+      <text x="80" y="27">code</text>
+      <text x="130" y="27">files</text>
+      <text x="180" y="27">lines</text>
+      <text x="230" y="27">comments</text>
     </g>
   </g>
 </svg>"##;
