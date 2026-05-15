@@ -169,18 +169,22 @@ fn badge_svg(code: &str, files: &str, lines: &str, comments: &str, muted: bool) 
         .replace("__COMMENTS__", comments)
 }
 
-const SVG_TEMPLATE: &str = r##"<svg width="366" height="33" viewBox="0 0 366 33" xmlns="http://www.w3.org/2000/svg">
-  <rect x="45.1" y="2" width="264.5" height="30" rx="3" fill="#30363D" stroke="#30363D" stroke-width="1.5"/>
-  <g font-family="Inter, Arial, Helvetica, sans-serif">
-    <text transform="translate(49.8 22) scale(0.77 1)" fill="#fff" font-size="20" font-weight="700">SLOC</text>
-    <text transform="translate(98.8 22) scale(0.66 1)" fill="__CODE_COLOR__" font-size="20" font-weight="700">__CODE__</text>
-    <text transform="translate(153.2 22) scale(0.66 1)" fill="__VAL_COLOR__" font-size="20" font-weight="700">__FILES__</text>
-    <text transform="translate(207.5 22) scale(0.66 1)" fill="__VAL_COLOR__" font-size="20" font-weight="700">__LINES__</text>
-    <text transform="translate(262 22) scale(0.66 1)" fill="__VAL_COLOR__" font-size="20" font-weight="700">__COMMENTS__</text>
-    <text transform="translate(99 28) scale(0.85 1)" fill="#8B949E" font-size="12.5" font-weight="400">code</text>
-    <text transform="translate(151 28) scale(0.85 1)" fill="#8B949E" font-size="12.5" font-weight="400">files</text>
-    <text transform="translate(205 28) scale(0.85 1)" fill="#8B949E" font-size="12.5" font-weight="400">lines</text>
-    <text transform="translate(260 28) scale(0.85 1)" fill="#8B949E" font-size="12.5" font-weight="400">comments</text>
+const SVG_TEMPLATE: &str = r##"<svg width="358" height="34" viewBox="0 0 358 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0.75" y="0.75" width="329" height="32" rx="3.75" fill="#30363D" stroke="#30363D" stroke-width="1.5"/>
+  <g font-family="Inter,Arial,Helvetica,sans-serif">
+    <text x="3.5" y="21.75" fill="#ffffff" font-size="15.6" font-weight="700" letter-spacing="-0.6">OctoCounts</text>
+    <g font-size="13.2" font-weight="700" fill="__VAL_COLOR__">
+      <text x="95.8" y="18.2" fill="__CODE_COLOR__">__CODE__</text>
+      <text x="158.1" y="18.2">__FILES__</text>
+      <text x="204.7" y="18.2">__LINES__</text>
+      <text x="272.6" y="18.2">__COMMENTS__</text>
+    </g>
+    <g font-size="8.2" font-weight="400" fill="#8B949E">
+      <text x="96.1" y="29.2">code</text>
+      <text x="158.2" y="29.2">files</text>
+      <text x="205" y="29.2">lines</text>
+      <text x="272.8" y="29.2">comments</text>
+    </g>
   </g>
 </svg>"##;
 
