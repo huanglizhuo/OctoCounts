@@ -9,6 +9,7 @@ export async function getSettings() {
     ignoreList:  '',
     cacheTtlMs:  DEFAULT_TTL_MS,
     replaceGhLanguages: true,
+    silentUntilSuccess: false,
   });
   return result;
 }

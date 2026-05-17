@@ -60,7 +60,8 @@
     "clearCache": "Clear local cache",
     "clearCacheSuccess": "Cleared {{count}} entries",
     "clearCacheFail": "Failed to clear cache",
-    "retriedN": "Retried {{count}} time(s) before giving up"
+    "retriedN": "Retried {{count}} time(s) before giving up",
+    "silentUntilSuccess": "Show card only after success"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",

@@ -11,7 +11,9 @@ const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_e
 let _pollTimer = null;
 let _pollStart = null;
 let _disabled = false;
+let _analyzing = false;
 let _retryCount = 0;
+let _generation = 0;
 
 function findBorderGrid() {
   const selectors = [
@@ -28,28 +30,37 @@ function findBorderGrid() {
 }
 
 export function unmountCard() {
+  _generation++;
   stopPolling();
+  _analyzing = false;
   restoreGhLanguagesSection();
   document.querySelector('[data-octocount-card]')?.remove();
 }
 
-export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false }) {
+export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false }) {
   _disabled = false;
+  _generation++;
+  const gen = _generation;
+
   const grid = findBorderGrid();
   if (!grid) {
     let tries = 0;
     const retry = setInterval(() => {
       tries++;
       const g = findBorderGrid();
-      if (g) { clearInterval(retry); _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh }); }
-      else if (tries >= 5) clearInterval(retry);
+      if (g) {
+        clearInterval(retry);
+        _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen });
+      } else if (tries >= 5) {
+        clearInterval(retry);
+      }
     }, 200);
     return false;
   }
-  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh });
+  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen });
 }
 
-function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh }) {
+function _createCardDom(grid, placement) {
   const host = document.createElement('div');
   host.dataset.octocountCard = '1';
   host.className = 'BorderGrid-row';
@@ -61,16 +72,12 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   const shadow = cell.attachShadow({ mode: 'open' });
   shadow.innerHTML = `<style>${cardCss}</style><div class="oc-inner"></div>`;
 
-  const theme = getTheme();
-  shadow.host.setAttribute('data-theme', theme);
-
   const syncTheme = () => shadow.host.setAttribute('data-theme', getTheme());
-
+  shadow.host.setAttribute('data-theme', getTheme());
   new MutationObserver(syncTheme).observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['data-color-mode', 'data-dark-theme', 'data-light-theme'],
   });
-
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
 
   if (placement === 'bottom') {
@@ -80,19 +87,112 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   }
 
   const root = shadow.querySelector('.oc-inner');
+  return { host, root, shadow };
+}
+
+function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen }) {
+  // Silent mode: don't insert a card until the API returns success
+  if (silentUntilSuccess) {
+    if (autoAnalyze || forceRefresh) {
+      _analyzing = true;
+      _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, gen });
+    } else {
+      // Idle card with button; on click remove it and run silently
+      const { host, root } = _createCardDom(grid, placement);
+      renderIdle(root, () => {
+        host.remove();
+        _analyzing = true;
+        _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, gen });
+      });
+    }
+    return true;
+  }
+
+  // Default mode: insert card immediately with loading/idle UI
+  const { host, root, shadow } = _createCardDom(grid, placement);
   const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
+
+  function runAnalysis(force) {
+    startAnalysis({
+      owner, repo, ref, forceRefresh: force,
+      onCompleted: (report, cachedAt) => {
+        if (_generation !== gen) return;
+        chrome.storage.local.remove('lastError').catch(() => {});
+        renderCompleted(root, report, cachedAt, ctx, () => {
+          renderLoading(root, 'queued');
+          runAnalysis(true);
+        });
+      },
+      onError: (error) => {
+        if (_generation !== gen) return;
+        _disabled = true;
+        saveError(error, owner, repo);
+        host.remove();
+        restoreGhLanguagesSection();
+      },
+    });
+  }
 
   if (autoAnalyze || forceRefresh) {
     renderLoading(root, 'queued');
-    startAnalysis({ ...ctx, root, forceRefresh });
+    runAnalysis(forceRefresh);
   } else {
     renderIdle(root, () => {
       renderLoading(root, 'queued');
-      startAnalysis({ ...ctx, root, forceRefresh: false });
+      runAnalysis(false);
     });
   }
 
   return true;
+}
+
+// Silent path: no card inserted until API succeeds
+function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, gen }) {
+  startAnalysis({
+    owner, repo, ref, forceRefresh,
+    onCompleted: (report, cachedAt) => {
+      if (_generation !== gen) return;
+      _analyzing = false;
+      chrome.storage.local.remove('lastError').catch(() => {});
+      _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, report, cachedAt });
+    },
+    onError: (error) => {
+      if (_generation !== gen) return;
+      _analyzing = false;
+      _disabled = true;
+      saveError(error, owner, repo);
+    },
+  });
+}
+
+function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, report, cachedAt }) {
+  const { host, root, shadow } = _createCardDom(grid, placement);
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
+
+  function onRefresh() {
+    const refreshBtn = root.querySelector('.oc-refresh-btn');
+    if (refreshBtn) refreshBtn.disabled = true;
+
+    startAnalysis({
+      owner, repo, ref, forceRefresh: true,
+      onCompleted: (newReport, newCachedAt) => {
+        chrome.storage.local.remove('lastError').catch(() => {});
+        renderCompleted(root, newReport, newCachedAt, ctx, onRefresh);
+      },
+      onError: (error) => {
+        _disabled = true;
+        saveError(error, owner, repo);
+        host.remove();
+        restoreGhLanguagesSection();
+      },
+    });
+  }
+
+  renderCompleted(root, report, cachedAt, ctx, onRefresh);
+}
+
+export function isDisabled() {
+  return _disabled || _analyzing;
 }
 
 function getTheme() {
@@ -117,17 +217,48 @@ function renderIdle(root, onCount) {
   root.querySelector('.oc-count-btn').addEventListener('click', onCount);
 }
 
-function renderLoading(root, status) {
-  const label = status === 'queued' ? t('card.queued') : status === 'running' ? t('card.running') : t('card.analyzing');
-  root.innerHTML = `<div class="oc-wrap">
-    ${header()}
-    <div class="oc-progress"><div class="oc-progress-bar"></div></div>
-    <div class="oc-status-text">${label}</div>
+function skelLangRow(nameWidth) {
+  return `<div class="oc-lang-row">
+    <div class="oc-skel oc-skel--dot"></div>
+    <div class="oc-skel oc-skel--lang-name" style="max-width:${nameWidth}%"></div>
+    <div class="oc-skel oc-skel--lang-num"></div>
+    <div class="oc-skel oc-skel--lang-num"></div>
   </div>`;
 }
 
-function renderCompleted(root, report, cachedAt, ctx) {
-  chrome.storage.local.remove('lastError').catch(() => {});
+function renderLoading(root) {
+  root.innerHTML = `<div class="oc-wrap">
+    ${header('<div class="oc-skel oc-skel--icon"></div>')}
+    <div class="oc-stats-grid">
+      <div class="oc-sg-cell">
+        <div class="oc-skel oc-skel--val" style="width:70%"></div>
+        <div class="oc-skel oc-skel--label" style="width:55%"></div>
+      </div>
+      <div class="oc-sg-cell">
+        <div class="oc-skel oc-skel--val" style="width:55%"></div>
+        <div class="oc-skel oc-skel--label" style="width:40%"></div>
+      </div>
+      <div class="oc-sg-cell">
+        <div class="oc-skel oc-skel--val" style="width:65%"></div>
+        <div class="oc-skel oc-skel--label" style="width:50%"></div>
+      </div>
+      <div class="oc-sg-cell">
+        <div class="oc-skel oc-skel--val" style="width:48%"></div>
+        <div class="oc-skel oc-skel--label" style="width:36%"></div>
+      </div>
+    </div>
+    <div class="oc-skel oc-skel--bar"></div>
+    <div class="oc-lang-list">
+      ${skelLangRow(78)}
+      ${skelLangRow(60)}
+      ${skelLangRow(70)}
+      ${skelLangRow(52)}
+      ${skelLangRow(65)}
+    </div>
+  </div>`;
+}
+
+function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const { owner, repo, ref, shadow, replaceGhLanguages } = ctx;
   const theme = getTheme();
   const total = report.total;
@@ -166,8 +297,7 @@ function renderCompleted(root, report, cachedAt, ctx) {
 
   root.querySelector('.oc-refresh-btn').addEventListener('click', e => {
     e.stopPropagation();
-    renderLoading(root, 'queued');
-    startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: true, replaceGhLanguages });
+    onRefresh();
   });
 
   root.querySelectorAll('.oc-lang-clickable').forEach(row => {
@@ -179,8 +309,7 @@ function renderCompleted(root, report, cachedAt, ctx) {
 
   const onForceRefresh = () => {
     unmountPanel();
-    renderLoading(root, 'queued');
-    startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: true, replaceGhLanguages });
+    onRefresh();
   };
 
   root.querySelector('.oc-lang-more')?.addEventListener('click', e => {
@@ -211,7 +340,6 @@ function buildStackedBarHTML(report, theme) {
   }).join('');
   return `<div class="oc-bar">${segs}</div>`;
 }
-
 
 function buildLangListHTML(report, theme, totalCode) {
   const sorted = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
@@ -289,18 +417,6 @@ async function saveError(error, owner, repo) {
   } catch (_) {}
 }
 
-function disableCard(root, error, owner, repo) {
-  stopPolling();
-  _disabled = true;
-  saveError(error, owner, repo);
-  restoreGhLanguagesSection();
-  document.querySelector('[data-octocount-card]')?.remove();
-}
-
-export function isDisabled() {
-  return _disabled;
-}
-
 function stopPolling() {
   if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
   _pollStart = null;
@@ -312,23 +428,21 @@ function pollingInterval(elapsedMs) {
   return 5_000;
 }
 
-async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, replaceGhLanguages, _retryEntry = false }) {
+async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onError, _retryEntry = false }) {
   if (!_retryEntry) _retryCount = 0;
   stopPolling();
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
 
   async function handleError(error) {
     if (!NON_RETRYABLE.has(error?.code) && _retryCount < MAX_RETRIES) {
       _retryCount++;
-      const delay = Math.min(1000 * (2 ** (_retryCount - 1)), 8000); // 1s, 2s, 4s, 8s
-      renderLoading(root, 'queued');
+      const delay = Math.min(1000 * (2 ** (_retryCount - 1)), 8000);
       _pollTimer = setTimeout(
-        () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false, replaceGhLanguages, _retryEntry: true }),
+        () => startAnalysis({ owner, repo, ref, forceRefresh: false, onCompleted, onError, _retryEntry: true }),
         delay,
       );
       return;
     }
-    disableCard(root, error, owner, repo);
+    onError(error);
   }
 
   try {
@@ -340,7 +454,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     }
 
     if (res.type === 'CACHED') {
-      renderCompleted(root, res.report, res.cachedAt, ctx);
+      onCompleted(res.report, res.cachedAt);
       return;
     }
 
@@ -368,7 +482,6 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       }
 
       if (poll.type === 'PENDING') {
-        renderLoading(root, poll.status);
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
         return;
       }
@@ -380,7 +493,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
 
       if (poll.type === 'COMPLETED') {
         stopPolling();
-        renderCompleted(root, poll.report, null, ctx);
+        onCompleted(poll.report, null);
       }
     };
 

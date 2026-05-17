@@ -29,6 +29,7 @@ function applyTranslations() {
   if (opts[0]) opts[0].textContent = t('popup.positionTop');
   if (opts[1]) opts[1].textContent = t('popup.positionBottom');
   setText('replaceGhLanguages', 'popup.replaceGhLanguages');
+  setText('silentUntilSuccess', 'popup.silentUntilSuccess');
   const cacheTtlLabel = document.querySelector('label[for="cacheTtl"]');
   if (cacheTtlLabel) cacheTtlLabel.textContent = t('popup.cacheTtl');
   const ttlOpts = $('cacheTtl').querySelectorAll('option');
@@ -47,12 +48,14 @@ async function load() {
     cardPlacement: 'top',
     cacheTtlMs:  86400000,
     replaceGhLanguages: true,
+    silentUntilSuccess: false,
   });
 
-  $('autoAnalyze').checked        = sync.autoAnalyze;
-  $('cardPlacement').value        = sync.cardPlacement || 'top';
-  $('cacheTtl').value             = String(sync.cacheTtlMs);
-  $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
+  $('autoAnalyze').checked          = sync.autoAnalyze;
+  $('cardPlacement').value          = sync.cardPlacement || 'top';
+  $('cacheTtl').value               = String(sync.cacheTtlMs);
+  $('replaceGhLanguages').checked   = sync.replaceGhLanguages !== false;
+  $('silentUntilSuccess').checked   = sync.silentUntilSuccess === true;
 }
 
 async function save() {
@@ -61,6 +64,7 @@ async function save() {
     cardPlacement: $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
     cacheTtlMs:  Number($('cacheTtl').value),
     replaceGhLanguages: $('replaceGhLanguages').checked,
+    silentUntilSuccess: $('silentUntilSuccess').checked,
   });
 }
 

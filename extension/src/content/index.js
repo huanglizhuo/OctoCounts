@@ -48,7 +48,8 @@ async function run(forceRefresh = false) {
 
     const placement = settings.cardPlacement === 'bottom' ? 'bottom' : 'top';
     const replaceGhLanguages = settings.replaceGhLanguages !== false;
-    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, forceRefresh });
+    const silentUntilSuccess = settings.silentUntilSuccess === true;
+    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, forceRefresh });
     if (!injected) return;
 
     lastContextKey = contextKey;
@@ -58,7 +59,7 @@ async function run(forceRefresh = false) {
       guardObserver = new MutationObserver(() => {
         if (running || isDisabled()) return;
         if (!document.querySelector('[data-octocount-card]')) {
-          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages });
+          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess });
         }
       });
       guardObserver.observe(borderGrid, { childList: true });

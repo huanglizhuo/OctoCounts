@@ -60,7 +60,8 @@
     "clearCache": "清除本地缓存",
     "clearCacheSuccess": "已清除 {{count}} 条缓存",
     "clearCacheFail": "清除缓存失败",
-    "retriedN": "重试 {{count}} 次后放弃"
+    "retriedN": "重试 {{count}} 次后放弃",
+    "silentUntilSuccess": "仅在成功后显示卡片"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

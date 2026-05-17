@@ -251,36 +251,66 @@
   color: var(--fg-dim);
 }
 
-/* ── Progress bar (loading state) ── */
-.oc-progress {
-  height: 2px;
-  background: var(--border);
-  border-radius: 2px;
-  margin-bottom: 12px;
-  overflow: hidden;
+/* ── Skeleton loading state ── */
+:host([data-theme="dark"]) {
+  --skel-base: #21262d;
+  --skel-shine: #30363d;
 }
 
-.oc-progress-bar {
-  height: 100%;
-  width: 50%;
-  background: var(--accent);
-  border-radius: 2px;
-  animation: oc-slide 1.6s ease-in-out infinite;
+:host([data-theme="light"]) {
+  --skel-base: #eaeef2;
+  --skel-shine: #f6f8fa;
 }
 
-@keyframes oc-slide {
-  0% {
-    transform: translateX(-200%);
-  }
-
-  100% {
-    transform: translateX(400%);
-  }
+.oc-skel {
+  background: linear-gradient(90deg, var(--skel-base) 0%, var(--skel-shine) 50%, var(--skel-base) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: oc-shimmer 1.6s ease-in-out infinite;
 }
 
-.oc-status-text {
-  font-size: 12px;
-  color: var(--fg-dim);
+@keyframes oc-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.oc-skel--icon {
+  width: 18px;
+  height: 18px;
+}
+
+.oc-skel--val {
+  height: 18px;
+  margin-bottom: 4px;
+}
+
+.oc-skel--label {
+  height: 10px;
+}
+
+.oc-skel--bar {
+  height: 8px;
+  width: 100%;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.oc-skel--dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.oc-skel--lang-name {
+  height: 10px;
+  flex: 1;
+}
+
+.oc-skel--lang-num {
+  height: 10px;
+  width: 36px;
+  flex-shrink: 0;
 }
 
 /* ── Error / warn states ── */
