@@ -56,7 +56,11 @@
     "reportIssue": "Report issue",
     "showDetails": "Show details",
     "hideDetails": "Hide details",
-    "privateNotice": "Private or internal repository — OctoCounts only supports public repos."
+    "privateNotice": "Private or internal repository — OctoCounts only supports public repos.",
+    "clearCache": "Clear local cache",
+    "clearCacheSuccess": "Cleared {{count}} entries",
+    "clearCacheFail": "Failed to clear cache",
+    "retriedN": "Retried {{count}} time(s) before giving up"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",

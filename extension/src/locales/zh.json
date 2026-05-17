@@ -56,7 +56,11 @@
     "reportIssue": "报告问题",
     "showDetails": "显示详情",
     "hideDetails": "隐藏详情",
-    "privateNotice": "私有或内部仓库 — OctoCounts 仅支持公开仓库。"
+    "privateNotice": "私有或内部仓库 — OctoCounts 仅支持公开仓库。",
+    "clearCache": "清除本地缓存",
+    "clearCacheSuccess": "已清除 {{count}} 条缓存",
+    "clearCacheFail": "清除缓存失败",
+    "retriedN": "重试 {{count}} 次后放弃"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

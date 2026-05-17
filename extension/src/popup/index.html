@@ -32,6 +32,7 @@
       </div>
       <pre id="errorDetail" class="error-detail" hidden></pre>
       <button id="errorToggleDetail" class="error-detail-toggle" hidden></button>
+      <div id="errorRetries" class="error-retries" hidden></div>
     </div>
 
     <div class="field row">
@@ -61,6 +62,11 @@
         <option value="604800000">7 days</option>
         <option value="0">Never expire</option>
       </select>
+    </div>
+
+    <div class="cache-actions">
+      <button id="clearCache" class="btn-secondary">Clear local cache</button>
+      <span id="clearCacheStatus" class="cache-status" hidden></span>
     </div>
   </div>
 

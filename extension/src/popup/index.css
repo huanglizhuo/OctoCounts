@@ -207,3 +207,25 @@ input[type="checkbox"] {
   cursor: pointer;
   accent-color: #0969da;
 }
+
+.cache-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #d0d7de;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cache-status {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.cache-status--ok  { color: #1a7f37; }
+.cache-status--err { color: #cf222e; }
+
+.error-retries {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8c959f;
+  font-style: italic;
+}

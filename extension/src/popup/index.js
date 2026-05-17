@@ -71,6 +71,7 @@ document.querySelectorAll('input, select, textarea').forEach(el => {
 load();
 loadError();
 checkPageStatus();
+initClearCache();
 
 async function checkPageStatus() {
   let tab;
@@ -138,10 +139,41 @@ async function loadError() {
     });
   }
 
+  const retriesEl = $('errorRetries');
+  if (lastError.retryCount > 0) {
+    retriesEl.textContent = t('popup.retriedN', { count: lastError.retryCount });
+    retriesEl.hidden = false;
+  }
+
   $('errorDismiss').addEventListener('click', async () => {
     await chrome.storage.local.remove('lastError');
     section.hidden = true;
   });
 
   section.hidden = false;
+}
+
+function initClearCache() {
+  const btn = $('clearCache');
+  const status = $('clearCacheStatus');
+  let statusTimer = null;
+
+  btn.textContent = t('popup.clearCache');
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'CLEAR_CACHE' });
+      status.textContent = t('popup.clearCacheSuccess', { count: res.cleared ?? 0 });
+      status.className = 'cache-status cache-status--ok';
+    } catch (_) {
+      status.textContent = t('popup.clearCacheFail');
+      status.className = 'cache-status cache-status--err';
+    } finally {
+      status.hidden = false;
+      btn.disabled = false;
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => { status.hidden = true; }, 2500);
+    }
+  });
 }

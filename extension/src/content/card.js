@@ -5,10 +5,13 @@ import { buildBarItems, languageColor } from '../shared/chart.js';
 import { mountPanel, unmountPanel } from './panel.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const MAX_RETRIES = 4;
+const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_error']);
 
 let _pollTimer = null;
 let _pollStart = null;
 let _disabled = false;
+let _retryCount = 0;
 
 function findBorderGrid() {
   const selectors = [
@@ -279,6 +282,7 @@ async function saveError(error, owner, repo) {
     status: error?.status || null,
     detail: error?.detail || '',
     timestamp: Date.now(),
+    retryCount: _retryCount,
   };
   try {
     await chrome.storage.local.set({ lastError: errorInfo });
@@ -308,14 +312,30 @@ function pollingInterval(elapsedMs) {
   return 5_000;
 }
 
-async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, replaceGhLanguages }) {
+async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, replaceGhLanguages, _retryEntry = false }) {
+  if (!_retryEntry) _retryCount = 0;
   stopPolling();
   const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
+
+  async function handleError(error) {
+    if (!NON_RETRYABLE.has(error?.code) && _retryCount < MAX_RETRIES) {
+      _retryCount++;
+      const delay = Math.min(1000 * (2 ** (_retryCount - 1)), 8000); // 1s, 2s, 4s, 8s
+      renderLoading(root, 'queued');
+      _pollTimer = setTimeout(
+        () => startAnalysis({ owner, repo, ref, shadow, root, forceRefresh: false, replaceGhLanguages, _retryEntry: true }),
+        delay,
+      );
+      return;
+    }
+    disableCard(root, error, owner, repo);
+  }
+
   try {
     const res = await chrome.runtime.sendMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh });
 
     if (res?.error) {
-      disableCard(root, res.error, owner, repo);
+      await handleError(res.error);
       return;
     }
 
@@ -330,7 +350,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     const pollUntilDone = async () => {
       const elapsed = Date.now() - _pollStart;
       if (elapsed > POLL_TIMEOUT_MS) {
-        disableCard(root, { code: 'timeout', message: t('card.error.timedOut') }, owner, repo);
+        await handleError({ code: 'timeout', message: t('card.error.timedOut') });
         return;
       }
 
@@ -343,7 +363,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       }
 
       if (!poll || poll.error) {
-        disableCard(root, poll?.error || { code: 'unknown', message: t('card.error.title') }, owner, repo);
+        await handleError(poll?.error || { code: 'unknown', message: t('card.error.title') });
         return;
       }
 
@@ -354,7 +374,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
       }
 
       if (poll.type === 'FAILED') {
-        disableCard(root, poll.error || { code: 'unknown', message: t('card.error.title') }, owner, repo);
+        await handleError(poll.error || { code: 'unknown', message: t('card.error.title') });
         return;
       }
 
@@ -367,7 +387,7 @@ async function startAnalysis({ owner, repo, ref, shadow, root, forceRefresh, rep
     _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
 
   } catch (err) {
-    disableCard(root, { code: 'unknown', message: err.message || t('card.error.title') }, owner, repo);
+    await handleError({ code: 'unknown', message: err.message || t('card.error.title') });
   }
 }
 
