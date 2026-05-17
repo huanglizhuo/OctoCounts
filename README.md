@@ -44,15 +44,53 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 | Frontend | React · TypeScript · Vite · TanStack Query |
 | Infra | Docker Compose (dev + prod configs) |
 
+## Badges
+
+Drop a live SLOC badge into any README:
+
+```markdown
+<!-- Default branch — full SLOC summary -->
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+
+<!-- Specific branch -->
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/branch/:branch)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+
+<!-- Specific tag (immutable, cached forever) -->
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/tag/:tag)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+
+<!-- Specific commit SHA (immutable, cached forever) -->
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/commit/:sha)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+```
+
+Add `?lang=<language>` to any of the above to get a per-language badge instead:
+
+```markdown
+<!-- Lines of code for a single language -->
+[![Rust](https://api.octocounts.com/badge/:owner/:repo?lang=rust)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![Rust](https://api.octocounts.com/badge/:owner/:repo/branch/:branch?lang=rust)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+```
+
+Language names are case-insensitive (`rust`, `Rust`, and `RUST` all work). If a language is not found in the report the badge shows `—`. While a fresh analysis is running the badge shows `···` — most badge CDNs will retry automatically.
+
+| Cache behaviour | Header |
+|---|---|
+| Default branch / branch | `s-maxage=3600, stale-while-revalidate=86400` |
+| Tag / commit | `max-age=31536000, immutable` |
+
 ## API
 
-Three endpoints, that's it:
-
 ```
-POST /api/analyze    { "repoUrl": "...", "refName": "main" }
+POST /api/analyze          { "repoUrl": "...", "refName": "main" }
 GET  /api/jobs/:id
 GET  /api/reports/:id
+
+GET  /badge/:owner/:repo
+GET  /badge/:owner/:repo/branch/:branch
+GET  /badge/:owner/:repo/tag/:tag
+GET  /badge/:owner/:repo/commit/:sha
 ```
+
+All badge routes accept an optional `?lang=<language>` query parameter that switches the response from the full SLOC summary badge to a per-language shields.io-style badge.
 
 ## Running it
 

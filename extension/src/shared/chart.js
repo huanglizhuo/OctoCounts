@@ -1,7 +1,50 @@
+const LANGUAGE_COLORS = {
+  rust: '#CE422B',
+  python: '#3572A5',
+  javascript: '#F1E05A',
+  typescript: '#3178C6',
+  go: '#00ADD8',
+  ruby: '#701516',
+  java: '#B07219',
+  c: '#555555',
+  'c++': '#F34B7D',
+  'c#': '#239120',
+  swift: '#F05138',
+  kotlin: '#7F52FF',
+  scala: '#DC322F',
+  php: '#4F5D95',
+  html: '#E34C26',
+  css: '#563D7C',
+  shell: '#89E051',
+  r: '#198CE7',
+  dart: '#00B4AB',
+  lua: '#000080',
+  haskell: '#5E5086',
+  elixir: '#6E4A7E',
+  clojure: '#DB5855',
+  perl: '#0298C3',
+  vue: '#41B883',
+  svelte: '#FF3E00',
+  zig: '#EC915C',
+  nix: '#7E7EFF',
+  ocaml: '#3BE133',
+  groovy: '#4298B8',
+  powershell: '#012456',
+  makefile: '#427819',
+  dockerfile: '#384D54',
+  json: '#292929',
+  yaml: '#CB171E',
+  toml: '#9C4221',
+  markdown: '#083FA1',
+  tex: '#3D6117',
+};
+
 const DARK_COLORS  = ['#3fb950','#58a6ff','#d29922','#79c0ff','#d2a8ff','#f85149'];
 const LIGHT_COLORS = ['#1a7f37','#0969da','#9a6700','#0550ae','#6639ba','#d1242f'];
 
 export function languageColor(name, theme = 'dark') {
+  const canonical = LANGUAGE_COLORS[name.toLowerCase()];
+  if (canonical) return canonical;
   const palette = theme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const hash = [...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   return palette[hash % palette.length];

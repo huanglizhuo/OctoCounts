@@ -42,7 +42,17 @@ async function handleMessage(msg) {
 
     case 'POLL': {
       const { jobId, owner, repo, ref } = msg;
-      const job = await pollJob(jobId);
+
+      let job;
+      try {
+        job = await pollJob(jobId);
+      } catch (err) {
+        if (err.status === 404) {
+          await clearInflight(owner, repo, ref);
+          return handleMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh: false });
+        }
+        throw err;
+      }
 
       if (job.status === 'completed' && job.reportId) {
         const report = await fetchReport(job.reportId);

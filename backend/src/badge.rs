@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
@@ -13,32 +13,41 @@ use crate::{
     store::Store,
 };
 
+#[derive(serde::Deserialize)]
+pub(crate) struct BadgeParams {
+    lang: Option<String>,
+}
+
 pub async fn badge_default(
     State(state): State<AppState>,
     Path((owner, repo)): Path<(String, String)>,
+    Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, None, false).await
+    serve_badge(state, owner, repo, None, false, params.lang).await
 }
 
 pub async fn badge_branch(
     State(state): State<AppState>,
     Path((owner, repo, branch)): Path<(String, String, String)>,
+    Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(branch), false).await
+    serve_badge(state, owner, repo, Some(branch), false, params.lang).await
 }
 
 pub async fn badge_tag(
     State(state): State<AppState>,
     Path((owner, repo, tag)): Path<(String, String, String)>,
+    Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(tag), true).await
+    serve_badge(state, owner, repo, Some(tag), true, params.lang).await
 }
 
 pub async fn badge_commit(
     State(state): State<AppState>,
     Path((owner, repo, sha)): Path<(String, String, String)>,
+    Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(sha), true).await
+    serve_badge(state, owner, repo, Some(sha), true, params.lang).await
 }
 
 async fn serve_badge(
@@ -47,6 +56,7 @@ async fn serve_badge(
     repo: String,
     ref_name: Option<String>,
     is_immutable: bool,
+    lang: Option<String>,
 ) -> Response {
     let request = AnalyzeRequest {
         repo_url: format!("https://github.com/{}/{}", owner, repo),
@@ -61,14 +71,16 @@ async fn serve_badge(
     };
 
     match state.coordinator.submit(request).await {
-        Ok(AnalyzeResponse::Cached { report, .. }) => svg_response(render_badge_svg(&report), cache),
+        Ok(AnalyzeResponse::Cached { report, .. }) => {
+            svg_response(render_for_lang(&report, lang.as_deref()), cache)
+        }
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
             match wait_for_job(state.coordinator.store(), job_id, Duration::from_secs(30)).await {
-                Some(report) => svg_response(render_badge_svg(&report), cache),
-                None => svg_response(render_pending_svg(), "no-cache, no-store"),
+                Some(report) => svg_response(render_for_lang(&report, lang.as_deref()), cache),
+                None => svg_response(render_pending_for_lang(lang.as_deref()), "no-cache, no-store"),
             }
         }
-        Err(_) => svg_response(render_error_svg(), "no-cache, no-store"),
+        Err(_) => svg_response(render_error_for_lang(lang.as_deref()), "no-cache, no-store"),
     }
 }
 
@@ -156,6 +168,32 @@ fn render_error_svg() -> String {
     badge_svg("\u{2014}", "\u{2014}", "\u{2014}", "\u{2014}", true)
 }
 
+fn render_for_lang(report: &Report, lang: Option<&str>) -> String {
+    let Some(name) = lang else {
+        return render_badge_svg(report);
+    };
+    let lower = name.to_lowercase();
+    let color = language_color(&lower);
+    match report.languages.iter().find(|l| l.name.to_lowercase() == lower) {
+        Some(lr) => lang_badge_svg(name, &format_stat(lr.stats.code), color),
+        None => lang_badge_svg(name, "\u{2014}", "#6e7681"),
+    }
+}
+
+fn render_pending_for_lang(lang: Option<&str>) -> String {
+    match lang {
+        None => render_pending_svg(),
+        Some(name) => lang_badge_svg(name, "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+    }
+}
+
+fn render_error_for_lang(lang: Option<&str>) -> String {
+    match lang {
+        None => render_error_svg(),
+        Some(name) => lang_badge_svg(name, "\u{2014}", "#6e7681"),
+    }
+}
+
 fn badge_svg(code: &str, files: &str, lines: &str, comments: &str, muted: bool) -> String {
     let code_color = if muted { "#8b949e" } else { "#78ff5b" };
     let val_color = if muted { "#8b949e" } else { "#ffffff" };
@@ -187,6 +225,137 @@ const SVG_TEMPLATE: &str = r##"<svg width="264" height="33" viewBox="0 0 264 33"
     </g>
   </g>
 </svg>"##;
+
+fn language_color(name: &str) -> &'static str {
+    match name {
+        "rust" => "#CE422B",
+        "python" => "#3572A5",
+        "javascript" => "#F1E05A",
+        "typescript" => "#3178C6",
+        "go" => "#00ADD8",
+        "ruby" => "#701516",
+        "java" => "#B07219",
+        "c" => "#555555",
+        "c++" => "#F34B7D",
+        "c#" => "#239120",
+        "swift" => "#F05138",
+        "kotlin" => "#7F52FF",
+        "scala" => "#DC322F",
+        "php" => "#4F5D95",
+        "html" => "#E34C26",
+        "css" => "#563D7C",
+        "shell" => "#89E051",
+        "r" => "#198CE7",
+        "dart" => "#00B4AB",
+        "lua" => "#000080",
+        "haskell" => "#5E5086",
+        "elixir" => "#6E4A7E",
+        "clojure" => "#DB5855",
+        "perl" => "#0298C3",
+        "vue" => "#41B883",
+        "svelte" => "#FF3E00",
+        "zig" => "#EC915C",
+        "nix" => "#7E7EFF",
+        "ocaml" => "#3BE133",
+        "groovy" => "#4298B8",
+        "powershell" => "#012456",
+        "makefile" => "#427819",
+        "dockerfile" => "#384D54",
+        "json" => "#292929",
+        "yaml" => "#CB171E",
+        "toml" => "#9C4221",
+        "markdown" => "#083FA1",
+        "tex" => "#3D6117",
+        _ => "#6e7681",
+    }
+}
+
+fn char_width(c: char) -> u32 {
+    match c {
+        ' ' => 36,
+        '!' | ',' | '.' => 38,
+        '\'' | 'i' | 'j' | 'l' | 'I' | 'J' => 33,
+        '(' | ')' | ':' | ';' => 43,
+        '-' | '/' => 43,
+        'f' | 'r' | 't' | '*' => 43,
+        'F' | 'L' => 57,
+        'c' | 's' | 'z' => 57,
+        'E' | 'T' | '?' => 62,
+        'k' | 'v' | 'x' | 'y' => 62,
+        '0'..='9' => 66,
+        'P' | 'S' | 'Y' => 66,
+        'a' | 'b' | 'd' | 'e' | 'g' | 'h' | 'n' | 'o' | 'p' | 'q' | 'u' => 68,
+        'A' | 'R' | 'V' | 'C' | 'Z' => 74,
+        'B' | 'K' | 'X' => 73,
+        'D' | 'H' | 'N' | 'U' => 83,
+        'G' | 'O' | 'Q' => 85,
+        '+' | '<' | '=' | '>' | '#' => 79,
+        'w' | '&' => 89,
+        'm' | '%' => 104,
+        'M' | 'W' => 98,
+        '@' => 120,
+        _ => 65,
+    }
+}
+
+fn text_width(s: &str) -> u32 {
+    s.chars().map(char_width).sum()
+}
+
+fn is_light_color(hex: &str) -> bool {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 {
+        return false;
+    }
+    let Ok(r) = u8::from_str_radix(&hex[0..2], 16) else { return false; };
+    let Ok(g) = u8::from_str_radix(&hex[2..4], 16) else { return false; };
+    let Ok(b) = u8::from_str_radix(&hex[4..6], 16) else { return false; };
+    0.2126 * (r as f64 / 255.0) + 0.7152 * (g as f64 / 255.0) + 0.0722 * (b as f64 / 255.0)
+        > 0.5
+}
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+fn lang_badge_svg(lang: &str, value: &str, color: &str) -> String {
+    let label_tenths = text_width(lang) + 100;
+    let value_tenths = text_width(value) + 100;
+    let left_w = (label_tenths + 9) / 10;
+    let right_w = (value_tenths + 9) / 10;
+    let total_w = left_w + right_w;
+    let left_cx = left_w / 2;
+    let right_cx = left_w + right_w / 2;
+    let val_color = if is_light_color(color) { "#333" } else { "#fff" };
+    let lang_esc = xml_escape(lang);
+    let value_esc = xml_escape(value);
+
+    format!(
+        r##"<svg width="{total_w}" height="20" viewBox="0 0 {total_w} 20" xmlns="http://www.w3.org/2000/svg">
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="{total_w}" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="{left_w}" height="20" fill="#555"/>
+    <rect x="{left_w}" width="{right_w}" height="20" fill="{color}"/>
+    <rect width="{total_w}" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+    <text x="{left_cx}" y="15" fill="#010101" fill-opacity=".3">{lang_esc}</text>
+    <text x="{left_cx}" y="14">{lang_esc}</text>
+    <text x="{right_cx}" y="15" fill="#010101" fill-opacity=".3">{value_esc}</text>
+    <text x="{right_cx}" y="14" fill="{val_color}">{value_esc}</text>
+  </g>
+</svg>"##
+    )
+}
 
 #[cfg(test)]
 mod tests {
