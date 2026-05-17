@@ -49,14 +49,18 @@ export default defineConfig(({ mode }) => {
       {
         name: 'copy-manifest-and-icons',
         closeBundle() {
+          const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
           const manifest = isFirefox ? 'manifest.firefox.json' : 'manifest.chrome.json';
-          copyFileSync(`manifests/${manifest}`, join(outDir, 'manifest.json'));
+          const manifestData = JSON.parse(readFileSync(`manifests/${manifest}`, 'utf8'));
+          manifestData.version = version;
+          writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifestData, null, 2));
           mkdirSync(join(outDir, 'icons'), { recursive: true });
           for (const size of [16, 48, 128]) {
             copyFileSync(`icons/icon${size}.png`, join(outDir, `icons/icon${size}.png`));
           }
           const nestedHtml = join(outDir, 'src/popup/index.html');
           let html = readFileSync(nestedHtml, 'utf8');
+          html = html.replace('v__VERSION__', `v${version}`);
           writeFileSync(join(outDir, 'popup.html'), html);
           cpSync('src/manifest-locales', join(outDir, '_locales'), { recursive: true });
         },
