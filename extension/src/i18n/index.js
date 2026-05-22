@@ -1,7 +1,10 @@
 import en from '../locales/en.json';
 import zh from '../locales/zh.json';
+import ja from '../locales/ja.json';
+import fr from '../locales/fr.json';
+import es from '../locales/es.json';
 
-const dictionaries = { en, zh };
+const dictionaries = { en, zh, ja, fr, es };
 
 function detectLocale() {
   if (typeof chrome !== 'undefined' && chrome.i18n?.getUILanguage) {

@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "OctoCounts",
+    "description": "Extension name displayed in the browser toolbar and store."
+  },
+  "extDescription": {
+    "message": "Connaissez la taille réelle d'un dépôt en un coup d'œil — fichiers, lignes de code, blancs et commentaires par langage, directement sur GitHub.",
+    "description": "Extension description displayed in the store and toolbar."
+  }
+}

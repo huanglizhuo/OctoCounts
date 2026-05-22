@@ -387,7 +387,7 @@ function triggerGhLanguageFilter(langName) {
 }
 
 function hideGhLanguagesSection() {
-  const languageHeadings = ['Languages', '语言'];
+  const languageHeadings = ['Languages', '语言', '言語', 'Langues', 'Idiomas'];
   document.querySelectorAll('.BorderGrid-row').forEach(row => {
     if (row.dataset.octocountCard) return;
     const h = row.querySelector('h2, h3');
