@@ -4,7 +4,7 @@
     "description": "Extension name displayed in the browser toolbar and store."
   },
   "extDescription": {
-    "message": "Shows actual source lines of code on GitHub repo pages, the panel GitHub forgot.",
+    "message": "Know a repo's real size at a glance — file counts, code lines, blanks & comments per language, directly on GitHub.",
     "description": "Extension description displayed in the store and toolbar."
   }
 }

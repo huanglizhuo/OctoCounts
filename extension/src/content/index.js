@@ -49,7 +49,8 @@ async function run(forceRefresh = false) {
     const placement = settings.cardPlacement === 'bottom' ? 'bottom' : 'top';
     const replaceGhLanguages = settings.replaceGhLanguages !== false;
     const silentUntilSuccess = settings.silentUntilSuccess === true;
-    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, forceRefresh });
+    const cardTitle = settings.cardTitle || '';
+    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, cardTitle, forceRefresh });
     if (!injected) return;
 
     lastContextKey = contextKey;
@@ -59,7 +60,7 @@ async function run(forceRefresh = false) {
       guardObserver = new MutationObserver(() => {
         if (running || isDisabled()) return;
         if (!document.querySelector('[data-octocount-card]')) {
-          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess });
+          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, cardTitle });
         }
       });
       guardObserver.observe(borderGrid, { childList: true });
@@ -112,7 +113,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const isRepoPage = window.location.hostname === 'github.com'
       && (parts.length === 2 || (parts.length >= 4 && parts[2] === 'tree'))
       && !!document.querySelector('.BorderGrid');
-    sendResponse({ isPrivateRepo: isRepoPage && isConfirmedPrivateRepo() });
+    sendResponse({ isRepoPage, isPrivateRepo: isRepoPage && isConfirmedPrivateRepo() });
     return false;
   }
 });

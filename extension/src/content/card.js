@@ -37,7 +37,7 @@ export function unmountCard() {
   document.querySelector('[data-octocount-card]')?.remove();
 }
 
-export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false }) {
+export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
   _disabled = false;
   _generation++;
   const gen = _generation;
@@ -50,14 +50,14 @@ export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', re
       const g = findBorderGrid();
       if (g) {
         clearInterval(retry);
-        _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen });
+        _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
       } else if (tries >= 5) {
         clearInterval(retry);
       }
     }, 200);
     return false;
   }
-  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen });
+  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
 }
 
 function _createCardDom(grid, placement) {
@@ -90,27 +90,27 @@ function _createCardDom(grid, placement) {
   return { host, root, shadow };
 }
 
-function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, gen }) {
+function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle = '', gen }) {
   // Silent mode: don't insert a card until the API returns success
   if (silentUntilSuccess) {
     if (autoAnalyze || forceRefresh) {
       _analyzing = true;
-      _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, gen });
+      _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen });
     } else {
       // Idle card with button; on click remove it and run silently
       const { host, root } = _createCardDom(grid, placement);
       renderIdle(root, () => {
         host.remove();
         _analyzing = true;
-        _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, gen });
-      });
+        _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, cardTitle, gen });
+      }, cardTitle);
     }
     return true;
   }
 
   // Default mode: insert card immediately with loading/idle UI
   const { host, root, shadow } = _createCardDom(grid, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
 
   function runAnalysis(force) {
     startAnalysis({
@@ -134,27 +134,27 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   }
 
   if (autoAnalyze || forceRefresh) {
-    renderLoading(root, 'queued');
+    renderLoading(root, cardTitle);
     runAnalysis(forceRefresh);
   } else {
     renderIdle(root, () => {
-      renderLoading(root, 'queued');
+      renderLoading(root, cardTitle);
       runAnalysis(false);
-    });
+    }, cardTitle);
   }
 
   return true;
 }
 
 // Silent path: no card inserted until API succeeds
-function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, gen }) {
+function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen }) {
   startAnalysis({
     owner, repo, ref, forceRefresh,
     onCompleted: (report, cachedAt) => {
       if (_generation !== gen) return;
       _analyzing = false;
       chrome.storage.local.remove('lastError').catch(() => {});
-      _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, report, cachedAt });
+      _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt });
     },
     onError: (error) => {
       if (_generation !== gen) return;
@@ -165,9 +165,9 @@ function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLan
   });
 }
 
-function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, report, cachedAt }) {
+function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt }) {
   const { host, root, shadow } = _createCardDom(grid, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages };
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
 
   function onRefresh() {
     const refreshBtn = root.querySelector('.oc-refresh-btn');
@@ -202,17 +202,18 @@ function getTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function header(rightHTML = '') {
+function header(rightHTML = '', cardTitle = '') {
+  const title = cardTitle.trim() || t('card.title');
   return `
     <div class="oc-header">
-      <div class="oc-title">${t('card.title')}</div>
+      <div class="oc-title">${escapeHtml(title)}</div>
       <div class="oc-header-right">${rightHTML}</div>
     </div>`;
 }
 
-function renderIdle(root, onCount) {
+function renderIdle(root, onCount, cardTitle = '') {
   root.innerHTML = `<div class="oc-wrap">
-    ${header(`<button class="oc-count-btn">${t('card.countSloc')}</button>`)}
+    ${header(`<button class="oc-count-btn">${t('card.countSloc')}</button>`, cardTitle)}
   </div>`;
   root.querySelector('.oc-count-btn').addEventListener('click', onCount);
 }
@@ -226,9 +227,9 @@ function skelLangRow(nameWidth) {
   </div>`;
 }
 
-function renderLoading(root) {
+function renderLoading(root, cardTitle = '') {
   root.innerHTML = `<div class="oc-wrap">
-    ${header('<div class="oc-skel oc-skel--icon"></div>')}
+    ${header('<div class="oc-skel oc-skel--icon"></div>', cardTitle)}
     <div class="oc-stats-grid">
       <div class="oc-sg-cell">
         <div class="oc-skel oc-skel--val" style="width:70%"></div>
@@ -259,12 +260,14 @@ function renderLoading(root) {
 }
 
 function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
-  const { owner, repo, ref, shadow, replaceGhLanguages } = ctx;
+  const { owner, repo, ref, shadow, replaceGhLanguages, cardTitle = '' } = ctx;
   const theme = getTheme();
   const total = report.total;
 
-  const cachedBadge = report.cached ? `<span class="oc-badge">${t('card.cached')}</span>` : '';
-  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="${t('card.refreshTitle')}">↺</button>`;
+  const cachedBadge = report.cached
+    ? `<span class="oc-badge" title="${cachedAt ? 'Cached ' + new Date(cachedAt).toLocaleString() : t('card.cached')}">${t('card.cached')}</span>`
+    : '';
+  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="${t('card.refreshTitle')}" aria-label="${t('card.refreshTitle')}">↺</button>`;
 
   const statsHTML = `
     <div class="oc-stats-grid">
@@ -289,7 +292,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const langListHTML = buildLangListHTML(report, theme, total.code);
 
   root.innerHTML = `<div class="oc-wrap">
-    ${header(headerRight)}
+    ${header(headerRight, cardTitle)}
     ${statsHTML}
     ${buildStackedBarHTML(report, theme)}
     ${langListHTML}
@@ -349,7 +352,8 @@ function buildLangListHTML(report, theme, totalCode) {
   const rows = top5.map(lang => {
     const color = languageColor(lang.name, theme);
     const pct = formatPercent(lang.stats.code, totalCode);
-    return `<div class="oc-lang-row oc-lang-clickable" data-lang="${escapeHtml(lang.name)}">
+    const tip = `${lang.name}: ${formatNumber(lang.stats.code)} code, ${formatNumber(lang.stats.lines)} lines, ${formatNumber(lang.stats.files)} files`;
+    return `<div class="oc-lang-row oc-lang-clickable" data-lang="${escapeHtml(lang.name)}" title="${escapeHtml(tip)}">
       <span class="oc-lang-dot" style="background:${color}"></span>
       <span class="oc-lang-name">${escapeHtml(lang.name)}</span>
       <span class="oc-lang-pct">${pct}</span>

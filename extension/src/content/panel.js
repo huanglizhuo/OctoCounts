@@ -5,6 +5,7 @@ import { languageColor } from '../shared/chart.js';
 import { sortRows } from '../shared/sort.js';
 
 let _panelHost = null;
+let _prevFocus = null;
 
 export function unmountPanel() {
   if (_panelHost) {
@@ -12,6 +13,8 @@ export function unmountPanel() {
     _panelHost = null;
   }
   document.removeEventListener('keydown', _escHandler);
+  _prevFocus?.focus();
+  _prevFocus = null;
 }
 
 function _escHandler(e) {
@@ -20,6 +23,8 @@ function _escHandler(e) {
 
 export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   unmountPanel();
+
+  _prevFocus = document.activeElement;
 
   _panelHost = document.createElement('div');
   const shadow = _panelHost.attachShadow({ mode: 'open' });
@@ -30,7 +35,11 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
 
   // Animate open
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => shadow.querySelector('.oc-panel')?.classList.add('open'));
+    requestAnimationFrame(() => {
+      shadow.querySelector('.oc-panel')?.classList.add('open');
+      // Focus close button after animation settles
+      shadow.querySelector('.oc-pclose')?.focus();
+    });
   });
 
   // Close handlers
@@ -40,21 +49,30 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   });
   document.addEventListener('keydown', _escHandler);
 
-  // Export
-  shadow.querySelector('.oc-btn-txt').addEventListener('click', () => {
-    navigator.clipboard.writeText(textReport(report)).catch(() => {});
-  });
-  shadow.querySelector('.oc-btn-json').addEventListener('click', () => {
-    navigator.clipboard.writeText(JSON.stringify(report, null, 2)).catch(() => {});
-  });
+  // Export with copy feedback
+  bindCopyBtn(shadow.querySelector('.oc-btn-txt'), textReport(report), t('panel.txt'));
+  bindCopyBtn(shadow.querySelector('.oc-btn-json'), JSON.stringify(report, null, 2), t('panel.json'));
 
   // Force refresh
-  shadow.querySelector('.oc-btn-refresh')?.addEventListener('click', () => {
+  const refreshBtn = shadow.querySelector('.oc-btn-refresh');
+  refreshBtn?.addEventListener('click', () => {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = t('panel.refreshing');
     onForceRefresh?.();
   });
 
   // Sortable table
   bindTableSort(shadow, report, theme, 'code', 'desc');
+}
+
+function bindCopyBtn(btn, data, origLabel) {
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(data).then(() => {
+      btn.textContent = t('panel.copied');
+      setTimeout(() => { btn.textContent = origLabel; }, 1500);
+    }).catch(() => {});
+  });
 }
 
 function buildPanelHTML(report, theme) {
@@ -74,7 +92,7 @@ function buildPanelHTML(report, theme) {
 
   return `
   <div class="oc-backdrop">
-    <div class="oc-panel">
+    <div class="oc-panel" role="dialog" aria-modal="true" aria-label="${t('panel.title')}">
       <div class="oc-pheader">
         <div class="oc-pheader-brand">
           <img class="oc-plogo-img" src="${logoUrl}" alt="">
@@ -83,7 +101,7 @@ function buildPanelHTML(report, theme) {
         <div class="oc-pheader-right">
           <span class="oc-prepo">${report.repository.owner}/${report.repository.name} @ ${sha}</span>
           <a class="oc-popen" href="${webUrl}" target="_blank" rel="noopener noreferrer">${t('panel.open')}</a>
-          <button class="oc-pclose" title="${t('panel.closeTitle')}">×</button>
+          <button class="oc-pclose" title="${t('panel.closeTitle')}" aria-label="${t('panel.closeTitle')}">×</button>
         </div>
       </div>
 
@@ -144,7 +162,7 @@ function buildDonutHTML(report, theme) {
 
   return `
     <svg class="oc-donut-svg" viewBox="0 0 120 120">
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#3d444d" stroke-width="${strokeW}"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${strokeW}"/>
       ${arcs.join('')}
       <text x="${cx}" y="${cy - 4}" text-anchor="middle" dominant-baseline="middle"
         fill="currentColor" font-size="11" font-family="-apple-system,sans-serif">${formatCompact(total)}</text>

@@ -10,6 +10,7 @@ export async function getSettings() {
     cacheTtlMs:  DEFAULT_TTL_MS,
     replaceGhLanguages: true,
     silentUntilSuccess: false,
+    cardTitle: '',
   });
   return result;
 }

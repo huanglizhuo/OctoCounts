@@ -5,66 +5,68 @@ const $ = id => document.getElementById(id);
 $('logoMark').src = chrome.runtime.getURL('icons/icon48.png');
 applyTranslations();
 
-function setText(id, key) {
-  const el = $(id);
-  if (el) {
-    if (el.tagName === 'LABEL') {
-      const textNode = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
-      if (textNode) textNode.textContent = t(key);
-      else el.insertBefore(document.createTextNode(t(key)), el.firstChild);
-    } else if (el.tagName === 'OPTION') {
-      el.textContent = t(key);
-    } else {
-      el.textContent = t(key);
-    }
-  }
-}
-
 function applyTranslations() {
   document.title = t('popup.title');
-  setText('autoAnalyze', 'popup.autoAnalyze');
-  const cardPlacementLabel = document.querySelector('label[for="cardPlacement"]');
-  if (cardPlacementLabel) cardPlacementLabel.textContent = t('popup.position');
-  const opts = $('cardPlacement').querySelectorAll('option');
-  if (opts[0]) opts[0].textContent = t('popup.positionTop');
-  if (opts[1]) opts[1].textContent = t('popup.positionBottom');
-  setText('replaceGhLanguages', 'popup.replaceGhLanguages');
-  setText('silentUntilSuccess', 'popup.silentUntilSuccess');
-  const cacheTtlLabel = document.querySelector('label[for="cacheTtl"]');
-  if (cacheTtlLabel) cacheTtlLabel.textContent = t('popup.cacheTtl');
+
+  $('groupBehaviorLabel').textContent    = t('popup.groupBehavior');
+  $('groupAppearanceLabel').textContent  = t('popup.groupAppearance');
+  $('groupCacheLabel').textContent       = t('popup.groupCache');
+
+  $('autoAnalyzeLabel').textContent         = t('popup.autoAnalyze');
+  $('silentUntilSuccessLabel').textContent  = t('popup.silentUntilSuccess');
+  $('replaceGhLanguagesLabel').textContent  = t('popup.replaceGhLanguages');
+
+  $('cardPlacementLabel').textContent    = t('popup.position');
+  $('hintPosition').textContent          = t('popup.hintPosition');
+  const placementOpts = $('cardPlacement').querySelectorAll('option');
+  if (placementOpts[0]) placementOpts[0].textContent = t('popup.positionTop');
+  if (placementOpts[1]) placementOpts[1].textContent = t('popup.positionBottom');
+
+  $('cardTitleLabel').textContent  = t('popup.cardTitle');
+  $('cardTitle').placeholder       = t('popup.cardTitlePlaceholder');
+  $('hintCardTitle').textContent   = t('popup.hintCardTitle');
+
+  $('cacheTtlLabel').textContent  = t('popup.cacheTtl');
+  $('hintCacheTtl').textContent   = t('popup.hintCacheTtl');
   const ttlOpts = $('cacheTtl').querySelectorAll('option');
   if (ttlOpts[0]) ttlOpts[0].textContent = t('popup.ttl1h');
   if (ttlOpts[1]) ttlOpts[1].textContent = t('popup.ttl6h');
   if (ttlOpts[2]) ttlOpts[2].textContent = t('popup.ttl24h');
   if (ttlOpts[3]) ttlOpts[3].textContent = t('popup.ttl7d');
   if (ttlOpts[4]) ttlOpts[4].textContent = t('popup.ttlNever');
-  const issueLink = document.querySelector('footer a');
-  if (issueLink) issueLink.textContent = t('popup.reportIssue');
+
+  $('footerPrivacy').textContent   = t('popup.privacyNote');
+  $('footerIssueLink').textContent = t('popup.reportIssue');
+  $('welcomeText').textContent     = t('popup.welcomeHint');
+  $('tabStatus').textContent       = t('popup.tabStatusIdle');
 }
 
 async function load() {
   const sync = await chrome.storage.sync.get({
     autoAnalyze: true,
     cardPlacement: 'top',
-    cacheTtlMs:  86400000,
+    cacheTtlMs: 86400000,
     replaceGhLanguages: true,
     silentUntilSuccess: false,
+    cardTitle: '',
   });
 
-  $('autoAnalyze').checked          = sync.autoAnalyze;
-  $('cardPlacement').value          = sync.cardPlacement || 'top';
-  $('cacheTtl').value               = String(sync.cacheTtlMs);
-  $('replaceGhLanguages').checked   = sync.replaceGhLanguages !== false;
-  $('silentUntilSuccess').checked   = sync.silentUntilSuccess === true;
+  $('autoAnalyze').checked        = sync.autoAnalyze;
+  $('silentUntilSuccess').checked = sync.silentUntilSuccess === true;
+  $('cardTitle').value            = sync.cardTitle || '';
+  $('cardPlacement').value        = sync.cardPlacement || 'top';
+  $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
+  $('cacheTtl').value             = String(sync.cacheTtlMs);
 }
 
 async function save() {
   await chrome.storage.sync.set({
-    autoAnalyze: $('autoAnalyze').checked,
-    cardPlacement: $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
-    cacheTtlMs:  Number($('cacheTtl').value),
-    replaceGhLanguages: $('replaceGhLanguages').checked,
+    autoAnalyze:        $('autoAnalyze').checked,
     silentUntilSuccess: $('silentUntilSuccess').checked,
+    cardTitle:          $('cardTitle').value.trim(),
+    cardPlacement:      $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
+    replaceGhLanguages: $('replaceGhLanguages').checked,
+    cacheTtlMs:         Number($('cacheTtl').value),
   });
 }
 
@@ -76,6 +78,12 @@ load();
 loadError();
 checkPageStatus();
 initClearCache();
+setFooterVersion();
+
+function setFooterVersion() {
+  const manifest = chrome.runtime.getManifest();
+  $('footerVersion').textContent = `v${manifest.version}`;
+}
 
 async function checkPageStatus() {
   let tab;
@@ -84,16 +92,48 @@ async function checkPageStatus() {
   } catch (_) { return; }
   if (!tab?.id) return;
 
+  const isGithubTab = tab.url && tab.url.startsWith('https://github.com/');
+
+  if (!isGithubTab) {
+    setTabStatus('idle');
+    showWelcomeBanner();
+    return;
+  }
+
   try {
     const status = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_STATUS' });
     if (status?.isPrivateRepo) {
-      $('noticeText').textContent = t('popup.privateNotice');
-      $('noticeSection').hidden = false;
-      $('settingsSection').hidden = true;
+      $('noticeText').textContent  = t('popup.privateNotice');
+      $('noticeSection').hidden    = false;
+      $('settingsSection').hidden  = true;
+      setTabStatus('private');
+    } else if (status?.isRepoPage) {
+      setTabStatus('active');
+      chrome.storage.local.set({ welcomed: true }).catch(() => {});
+    } else {
+      setTabStatus('idle');
+      showWelcomeBanner();
     }
   } catch (_) {
-    // Content script not active on this tab
+    setTabStatus('idle');
+    if (!isGithubTab) showWelcomeBanner();
   }
+}
+
+function setTabStatus(state) {
+  const el = $('tabStatus');
+  el.className = `status-pill status-pill--${state}`;
+  const key = state === 'active'  ? 'tabStatusActive'
+    : state === 'private' ? 'tabStatusPrivate'
+    : 'tabStatusIdle';
+  el.textContent = t(`popup.${key}`);
+}
+
+async function showWelcomeBanner() {
+  try {
+    const { welcomed } = await chrome.storage.local.get('welcomed');
+    if (!welcomed) $('welcomeSection').hidden = false;
+  } catch (_) {}
 }
 
 async function loadError() {
@@ -104,41 +144,40 @@ async function loadError() {
   const codeMap = {
     rate_limited: t('error.rateLimited'),
     private_repo: t('error.privateRepo'),
-    forbidden: t('error.forbidden'),
-    too_large: t('error.tooLarge'),
-    not_found: t('error.notFound'),
-    auth_error: t('error.authError'),
-    offline: t('error.offline'),
-    timeout: t('card.error.timedOut'),
-    unknown: t('error.unknown'),
+    forbidden:    t('error.forbidden'),
+    too_large:    t('error.tooLarge'),
+    not_found:    t('error.notFound'),
+    auth_error:   t('error.authError'),
+    offline:      t('error.offline'),
+    timeout:      t('card.error.timedOut'),
+    unknown:      t('error.unknown'),
   };
 
-  $('errorTitle').textContent = codeMap[lastError.code] || t('error.unknown');
-  $('errorRepo').textContent = `${lastError.owner}/${lastError.repo}`;
+  $('errorTitle').textContent   = codeMap[lastError.code] || t('error.unknown');
+  $('errorRepo').textContent    = `${lastError.owner}/${lastError.repo}`;
   $('errorMessage').textContent = lastError.message || '';
-  $('errorCode').textContent = lastError.code ? `code: ${lastError.code}` : '';
+  $('errorCode').textContent    = lastError.code ? `code: ${lastError.code}` : '';
 
   if (lastError.timestamp) {
-    const d = new Date(lastError.timestamp);
-    $('errorTime').textContent = d.toLocaleString();
+    $('errorTime').textContent = new Date(lastError.timestamp).toLocaleString();
   }
 
-  const detailEl = $('errorDetail');
+  const detailEl  = $('errorDetail');
   const toggleBtn = $('errorToggleDetail');
   const lines = [];
-  if (lastError.status) lines.push(`HTTP status: ${lastError.status}`);
-  if (lastError.code) lines.push(`Code: ${lastError.code}`);
+  if (lastError.status)  lines.push(`HTTP status: ${lastError.status}`);
+  if (lastError.code)    lines.push(`Code: ${lastError.code}`);
   if (lastError.message) lines.push(`Message: ${lastError.message}`);
-  if (lastError.detail) lines.push('', String(lastError.detail).trim());
+  if (lastError.detail)  lines.push('', String(lastError.detail).trim());
   const detailText = lines.join('\n');
 
   if (detailText) {
-    detailEl.textContent = detailText;
-    toggleBtn.hidden = false;
-    toggleBtn.textContent = t('popup.showDetails');
+    detailEl.textContent    = detailText;
+    toggleBtn.hidden        = false;
+    toggleBtn.textContent   = t('popup.showDetails');
     toggleBtn.addEventListener('click', () => {
-      const hidden = detailEl.hidden;
-      detailEl.hidden = !hidden;
+      const hidden       = detailEl.hidden;
+      detailEl.hidden    = !hidden;
       toggleBtn.textContent = hidden ? t('popup.hideDetails') : t('popup.showDetails');
     });
   }
@@ -146,7 +185,7 @@ async function loadError() {
   const retriesEl = $('errorRetries');
   if (lastError.retryCount > 0) {
     retriesEl.textContent = t('popup.retriedN', { count: lastError.retryCount });
-    retriesEl.hidden = false;
+    retriesEl.hidden      = false;
   }
 
   $('errorDismiss').addEventListener('click', async () => {
@@ -158,26 +197,27 @@ async function loadError() {
 }
 
 function initClearCache() {
-  const btn = $('clearCache');
+  const btn    = $('clearCache');
+  const label  = $('clearCacheBtn');
   const status = $('clearCacheStatus');
-  let statusTimer = null;
+  let timer    = null;
 
-  btn.textContent = t('popup.clearCache');
+  label.textContent = t('popup.clearCache');
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
       const res = await chrome.runtime.sendMessage({ type: 'CLEAR_CACHE' });
       status.textContent = t('popup.clearCacheSuccess', { count: res.cleared ?? 0 });
-      status.className = 'cache-status cache-status--ok';
+      status.className   = 'cache-status cache-status--ok';
     } catch (_) {
       status.textContent = t('popup.clearCacheFail');
-      status.className = 'cache-status cache-status--err';
+      status.className   = 'cache-status cache-status--err';
     } finally {
-      status.hidden = false;
-      btn.disabled = false;
-      clearTimeout(statusTimer);
-      statusTimer = setTimeout(() => { status.hidden = true; }, 2500);
+      status.hidden  = false;
+      btn.disabled   = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { status.hidden = true; }, 2500);
     }
   });
 }
