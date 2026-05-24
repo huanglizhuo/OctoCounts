@@ -49,8 +49,6 @@
     "groupAdvanced": "Avanzado",
     "groupCache": "Caché",
     "hintPosition": "Dónde aparece la tarjeta.",
-    "autoAnalyze": "Analizar automáticamente al cargar",
-    "hintAutoAnalyze": "Cuenta las líneas en cuanto abres un repositorio",
     "silentUntilSuccess": "Ocultar tarjeta hasta que carguen los datos",
     "hintSilent": "Evita mostrar un indicador de carga en repositorios que OctoCounts no puede analizar",
     "position": "Posición de la tarjeta",
@@ -80,7 +78,8 @@
     "clearCache": "Limpiar caché local",
     "clearCacheSuccess": "{{count}} entradas eliminadas",
     "clearCacheFail": "Error al limpiar el caché",
-    "retriedN": "Reintentado {{count}} vez/veces antes de abandonar"
+    "retriedN": "Reintentado {{count}} vez/veces antes de abandonar",
+    "tabStatusRepoOff": "deshabilitado para este repo"
   },
   "error": {
     "privateRepo": "Los repositorios privados no están admitidos.",

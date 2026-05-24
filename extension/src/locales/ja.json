@@ -49,8 +49,6 @@
     "groupAdvanced": "詳細設定",
     "groupCache": "キャッシュ",
     "hintPosition": "カードが表示される場所",
-    "autoAnalyze": "ページ読み込み時に自動分析",
-    "hintAutoAnalyze": "リポジトリを開いた際に自動的にコード行数を集計",
     "silentUntilSuccess": "データが読み込まれるまでカードを非表示",
     "hintSilent": "分析できないリポジトリで読み込みスピナーを表示しない",
     "position": "カードの位置",
@@ -80,7 +78,8 @@
     "clearCache": "ローカルキャッシュを消去",
     "clearCacheSuccess": "{{count}} 件のキャッシュを消去しました",
     "clearCacheFail": "キャッシュの消去に失敗しました",
-    "retriedN": "{{count}} 回再試行後に中断"
+    "retriedN": "{{count}} 回再試行後に中断",
+    "tabStatusRepoOff": "このリポジトリで無効"
   },
   "error": {
     "privateRepo": "非公開リポジトリはサポートされていません。",

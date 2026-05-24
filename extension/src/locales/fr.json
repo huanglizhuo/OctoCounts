@@ -49,8 +49,6 @@
     "groupAdvanced": "Avancé",
     "groupCache": "Cache",
     "hintPosition": "Emplacement d'affichage de la carte.",
-    "autoAnalyze": "Analyser automatiquement au chargement",
-    "hintAutoAnalyze": "Compte les lignes dès que vous ouvrez un dépôt",
     "silentUntilSuccess": "Masquer la carte jusqu'au chargement des données",
     "hintSilent": "Évite un indicateur de chargement sur les dépôts qu'OctoCounts ne peut pas analyser",
     "position": "Position de la carte",
@@ -80,7 +78,8 @@
     "clearCache": "Vider le cache local",
     "clearCacheSuccess": "{{count}} entrée(s) supprimée(s)",
     "clearCacheFail": "Échec de la suppression du cache",
-    "retriedN": "Réessayé {{count}} fois avant d'abandonner"
+    "retriedN": "Réessayé {{count}} fois avant d'abandonner",
+    "tabStatusRepoOff": "désactivé pour ce dépôt"
   },
   "error": {
     "privateRepo": "Les dépôts privés ne sont pas pris en charge.",

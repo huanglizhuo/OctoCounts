@@ -12,7 +12,6 @@ function applyTranslations() {
   $('groupAppearanceLabel').textContent  = t('popup.groupAppearance');
   $('groupCacheLabel').textContent       = t('popup.groupCache');
 
-  $('autoAnalyzeLabel').textContent         = t('popup.autoAnalyze');
   $('silentUntilSuccessLabel').textContent  = t('popup.silentUntilSuccess');
   $('replaceGhLanguagesLabel').textContent  = t('popup.replaceGhLanguages');
 
@@ -43,7 +42,6 @@ function applyTranslations() {
 
 async function load() {
   const sync = await chrome.storage.sync.get({
-    autoAnalyze: true,
     cardPlacement: 'top',
     cacheTtlMs: 86400000,
     replaceGhLanguages: true,
@@ -51,7 +49,6 @@ async function load() {
     cardTitle: '',
   });
 
-  $('autoAnalyze').checked        = sync.autoAnalyze;
   $('silentUntilSuccess').checked = sync.silentUntilSuccess === true;
   $('cardTitle').value            = sync.cardTitle || '';
   $('cardPlacement').value        = sync.cardPlacement || 'top';
@@ -61,7 +58,6 @@ async function load() {
 
 async function save() {
   await chrome.storage.sync.set({
-    autoAnalyze:        $('autoAnalyze').checked,
     silentUntilSuccess: $('silentUntilSuccess').checked,
     cardTitle:          $('cardTitle').value.trim(),
     cardPlacement:      $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
@@ -108,8 +104,12 @@ async function checkPageStatus() {
       $('settingsSection').hidden  = true;
       setTabStatus('private');
     } else if (status?.isRepoPage) {
-      setTabStatus('active');
       chrome.storage.local.set({ welcomed: true }).catch(() => {});
+      if (status.owner && status.repo) {
+        await initRepoPill(status.owner, status.repo);
+      } else {
+        setTabStatus('active');
+      }
     } else {
       setTabStatus('idle');
       showWelcomeBanner();
@@ -117,6 +117,36 @@ async function checkPageStatus() {
   } catch (_) {
     setTabStatus('idle');
     if (!isGithubTab) showWelcomeBanner();
+  }
+}
+
+async function initRepoPill(owner, repo) {
+  const storageKey = `disabled::${owner}/${repo}`;
+  const result = await chrome.storage.local.get(storageKey);
+  let disabled = result[storageKey] === true;
+
+  const pill = $('tabStatus');
+  renderPillState(pill, disabled);
+
+  pill.style.cursor = 'pointer';
+  pill.addEventListener('click', async () => {
+    disabled = !disabled;
+    if (disabled) {
+      await chrome.storage.local.set({ [storageKey]: true });
+    } else {
+      await chrome.storage.local.remove(storageKey);
+    }
+    renderPillState(pill, disabled);
+  });
+}
+
+function renderPillState(pill, disabled) {
+  if (disabled) {
+    pill.className   = 'status-pill status-pill--idle';
+    pill.textContent = t('popup.tabStatusRepoOff');
+  } else {
+    pill.className   = 'status-pill status-pill--active';
+    pill.textContent = t('popup.tabStatusActive');
   }
 }
 

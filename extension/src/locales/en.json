@@ -49,8 +49,6 @@
     "groupAdvanced": "Advanced",
     "groupCache": "Cache",
     "hintPosition": "Where the card appears.",
-    "autoAnalyze": "Auto-analyze on page load",
-    "hintAutoAnalyze": "Counts lines as soon as you open a repo",
     "silentUntilSuccess": "Hide card until data loads",
     "hintSilent": "Prevents a loading spinner on repos OctoCounts can't analyze",
     "position": "Card position",
@@ -80,7 +78,8 @@
     "clearCache": "Clear local cache",
     "clearCacheSuccess": "Cleared {{count}} entries",
     "clearCacheFail": "Failed to clear cache",
-    "retriedN": "Retried {{count}} time(s) before giving up"
+    "retriedN": "Retried {{count}} time(s) before giving up",
+    "tabStatusRepoOff": "disabled for this repo"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",

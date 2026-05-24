@@ -8,6 +8,11 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 4;
 const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_error']);
 
+const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
+const SKEL_DEFAULT = 4;
+const SKEL_MIN     = 2;
+const SKEL_MAX     = 8;
+
 let _pollTimer = null;
 let _pollStart = null;
 let _disabled = false;
@@ -227,7 +232,28 @@ function skelLangRow(nameWidth) {
   </div>`;
 }
 
+function readGhLanguageCount() {
+  try {
+    const headings = ['Languages', '语言', '言語', 'Langues', 'Idiomas'];
+    for (const row of document.querySelectorAll('.BorderGrid-row')) {
+      if (row.dataset.octocountCard) continue;
+      const h = row.querySelector('h2, h3');
+      if (h && headings.includes(h.textContent.trim())) {
+        const n = row.querySelectorAll('li').length;
+        if (n > 0) return Math.min(Math.max(n, SKEL_MIN), SKEL_MAX);
+        break;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
 function renderLoading(root, cardTitle = '') {
+  const count = readGhLanguageCount() ?? SKEL_DEFAULT;
+  const langRows = Array.from({ length: count }, (_, i) =>
+    skelLangRow(SKEL_WIDTHS[i % SKEL_WIDTHS.length])
+  ).join('');
+
   root.innerHTML = `<div class="oc-wrap">
     ${header('<div class="oc-skel oc-skel--icon"></div>', cardTitle)}
     <div class="oc-stats-grid">
@@ -249,13 +275,7 @@ function renderLoading(root, cardTitle = '') {
       </div>
     </div>
     <div class="oc-skel oc-skel--bar"></div>
-    <div class="oc-lang-list">
-      ${skelLangRow(78)}
-      ${skelLangRow(60)}
-      ${skelLangRow(70)}
-      ${skelLangRow(52)}
-      ${skelLangRow(65)}
-    </div>
+    <div class="oc-lang-list">${langRows}</div>
   </div>`;
 }
 

@@ -156,6 +156,9 @@ header {
 .status-pill--private::before { background: var(--pill-private-dot); }
 .status-pill--idle    { background: var(--pill-idle-bg);    color: var(--pill-idle-fg); }
 .status-pill--idle::before    { background: var(--pill-idle-dot); }
+.status-pill[style*="cursor"] { transition: opacity 120ms; }
+.status-pill[style*="cursor"]:hover  { opacity: 0.75; }
+.status-pill[style*="cursor"]:active { opacity: 0.55; }
 
 /* ── Banners ── */
 .banner {

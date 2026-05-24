@@ -49,8 +49,6 @@
     "groupAdvanced": "高级",
     "groupCache": "缓存",
     "hintPosition": "卡片在 GitHub 侧边栏中出现的位置",
-    "autoAnalyze": "页面加载时自动分析",
-    "hintAutoAnalyze": "打开仓库时自动统计代码行数",
     "silentUntilSuccess": "数据加载完成后再显示卡片",
     "hintSilent": "在无法分析的仓库上不显示加载动画",
     "position": "OctoCounts 位置",
@@ -80,7 +78,8 @@
     "clearCache": "清除本地缓存",
     "clearCacheSuccess": "已清除 {{count}} 条缓存",
     "clearCacheFail": "清除缓存失败",
-    "retriedN": "重试 {{count}} 次后放弃"
+    "retriedN": "重试 {{count}} 次后放弃",
+    "tabStatusRepoOff": "已在此仓库禁用"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

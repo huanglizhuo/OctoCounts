@@ -46,11 +46,19 @@ async function run(forceRefresh = false) {
       return;
     }
 
+    const disabledResult = await chrome.storage.local.get(`disabled::${owner}/${repo}`);
+    if (disabledResult[`disabled::${owner}/${repo}`] === true) {
+      unmountCard();
+      unmountPanel();
+      lastContextKey = contextKey;
+      return;
+    }
+
     const placement = settings.cardPlacement === 'bottom' ? 'bottom' : 'top';
     const replaceGhLanguages = settings.replaceGhLanguages !== false;
     const silentUntilSuccess = settings.silentUntilSuccess === true;
     const cardTitle = settings.cardTitle || '';
-    const injected = mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, cardTitle, forceRefresh });
+    const injected = mountCard({ owner, repo, ref, autoAnalyze: true, placement, replaceGhLanguages, silentUntilSuccess, cardTitle, forceRefresh });
     if (!injected) return;
 
     lastContextKey = contextKey;
@@ -60,7 +68,7 @@ async function run(forceRefresh = false) {
       guardObserver = new MutationObserver(() => {
         if (running || isDisabled()) return;
         if (!document.querySelector('[data-octocount-card]')) {
-          mountCard({ owner, repo, ref, autoAnalyze: settings.autoAnalyze, placement, replaceGhLanguages, silentUntilSuccess, cardTitle });
+          mountCard({ owner, repo, ref, autoAnalyze: true, placement, replaceGhLanguages, silentUntilSuccess, cardTitle });
         }
       });
       guardObserver.observe(borderGrid, { childList: true });
@@ -105,6 +113,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     lastContextKey = '';
     scheduleRun();
   }
+  if (area === 'local' && Object.keys(changes).some(k => k.startsWith('disabled::'))) {
+    lastContextKey = '';
+    scheduleRun();
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -113,7 +125,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const isRepoPage = window.location.hostname === 'github.com'
       && (parts.length === 2 || (parts.length >= 4 && parts[2] === 'tree'))
       && !!document.querySelector('.BorderGrid');
-    sendResponse({ isRepoPage, isPrivateRepo: isRepoPage && isConfirmedPrivateRepo() });
+    const owner = isRepoPage ? (parts[0] || null) : null;
+    const repo  = isRepoPage ? (parts[1] || null) : null;
+    sendResponse({ isRepoPage, isPrivateRepo: isRepoPage && isConfirmedPrivateRepo(), owner, repo });
     return false;
   }
 });
