@@ -31,10 +31,10 @@
   ],
   "permissions": [
     "storage",
-    "alarms",
-    "activeTab"
+    "alarms"
   ],
   "host_permissions": [
+    "https://github.com/*",
     "https://api.octocounts.com/*"
   ],
   "web_accessible_resources": [

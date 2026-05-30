@@ -11,7 +11,7 @@ const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_e
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
 const SKEL_DEFAULT = 4;
 const SKEL_MIN     = 2;
-const SKEL_MAX     = 8;
+const SKEL_MAX     = 5;
 
 let _pollTimer = null;
 let _pollStart = null;
@@ -232,6 +232,12 @@ function skelLangRow(nameWidth) {
   </div>`;
 }
 
+function skelMoreRow() {
+  return `<div class="oc-lang-row oc-lang-more">
+    <div class="oc-skel oc-skel--lang-name" style="max-width:45%"></div>
+  </div>`;
+}
+
 function readGhLanguageCount() {
   try {
     const headings = ['Languages', '语言', '言語', 'Langues', 'Idiomas'];
@@ -249,10 +255,12 @@ function readGhLanguageCount() {
 }
 
 function renderLoading(root, cardTitle = '') {
-  const count = readGhLanguageCount() ?? SKEL_DEFAULT;
+  const rawCount = readGhLanguageCount() ?? SKEL_DEFAULT;
+  const count    = Math.min(rawCount, SKEL_MAX);
+  const hasMore  = rawCount > SKEL_MAX;
   const langRows = Array.from({ length: count }, (_, i) =>
     skelLangRow(SKEL_WIDTHS[i % SKEL_WIDTHS.length])
-  ).join('');
+  ).join('') + (hasMore ? skelMoreRow() : '');
 
   root.innerHTML = `<div class="oc-wrap">
     ${header('<div class="oc-skel oc-skel--icon"></div>', cardTitle)}
