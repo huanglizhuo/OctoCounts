@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import i18n from "./i18n";
-import { analyzeRepository, fetchJson } from "./api";
+import { analyzeRepository, ApiRequestError, fetchJson } from "./api";
 import { commandText } from "./reportUtils";
-import type { AppStatus, JobRecord, Report } from "./types";
+import type { AnalysisOptions, AppStatus, JobRecord, Report } from "./types";
+
+type AnalysisError = {
+  code?: string;
+  message: string;
+};
 
 export function useAnalysisRunner({
   repoUrl,
@@ -11,17 +16,19 @@ export function useAnalysisRunner({
   defaultRepoUrl,
   defaultRefName,
   seedReport,
+  analysisOptions,
 }: {
   repoUrl: string;
   refName: string;
   defaultRepoUrl: string;
   defaultRefName: string;
   seedReport: Report | null;
+  analysisOptions: AnalysisOptions;
 }) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStartedAt, setJobStartedAt] = useState<number | null>(null);
   const [report, setReport] = useState<Report | null>(seedReport);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AnalysisError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
 
@@ -54,7 +61,7 @@ export function useAnalysisRunner({
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : i18n.t("error.requestFailed"));
+        setError(toAnalysisError(err));
         setJobId(null);
         setJobStartedAt(null);
       });
@@ -84,7 +91,7 @@ export function useAnalysisRunner({
     setLastCommand(command);
 
     try {
-      const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh });
+      const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions });
       if (result.kind === "cached") {
         setReport(result.report);
       } else {
@@ -92,7 +99,7 @@ export function useAnalysisRunner({
         setJobId(result.jobId);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : i18n.t("error.requestFailed"));
+      setError(toAnalysisError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +122,8 @@ export function useAnalysisRunner({
 
   return {
     report,
-    error: error ?? jobQuery.data?.error?.message ?? null,
+    error: error?.message ?? jobQuery.data?.error?.message ?? null,
+    errorCode: error?.code ?? jobQuery.data?.error?.code,
     isSubmitting,
     lastCommand,
     status,
@@ -131,7 +139,26 @@ function pollingInterval(elapsedMs: number) {
   return 5_000;
 }
 
-function errorMessage(error: JobRecord["error"]) {
-  if (error?.code === "private_repo") return i18n.t("error.privateRepo");
-  return error?.message ?? i18n.t("runner.status.failed");
+function errorMessage(error: JobRecord["error"]): AnalysisError {
+  if (!error) return { message: i18n.t("runner.status.failed") };
+  return { code: error.code, message: localizedErrorMessage(error.code, error.message) };
+}
+
+function toAnalysisError(error: unknown): AnalysisError {
+  if (error instanceof ApiRequestError) {
+    return { code: error.code, message: error.message };
+  }
+  return { message: error instanceof Error ? error.message : i18n.t("error.requestFailed") };
+}
+
+function localizedErrorMessage(code: string | undefined, fallback: string) {
+  if (code === "private_repo") return i18n.t("error.privateRepo");
+  if (code === "invalid_url") return i18n.t("error.invalidUrl");
+  if (code === "ref_not_found") return i18n.t("error.refNotFound");
+  if (code === "rate_limited") return i18n.t("error.rateLimited");
+  if (code === "too_large") return i18n.t("error.tooLarge");
+  if (code === "not_found") return i18n.t("error.notFound");
+  if (code === "github_request_failed") return i18n.t("error.githubRequestFailed");
+  if (code === "analysis_failed") return i18n.t("error.analysisFailed");
+  return fallback || i18n.t("runner.status.failed");
 }

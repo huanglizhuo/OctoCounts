@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "OctoCounts — GitHub  forgot 的 SLOC 面板 | GitHub SLOC 计数器",
-    "description": "OctoCounts 在浏览器扩展侧边栏或网页应用中显示实际的 GitHub 源代码行数：文件数、代码行、注释行、空行和每种语言的统计。无需克隆。"
+    "title": "OctoCounts — GitHub 与 GitLab SLOC 计数器",
+    "description": "OctoCounts 显示公开 GitHub 与 GitLab 仓库的实际源代码行数：文件数、代码行、注释行、空行和每种语言的统计。无需克隆。"
   },
   "topbar": {
     "brandName": "OctoCounts",
@@ -11,7 +11,7 @@
   },
   "hero": {
     "title": "GitHub <1>SLOC 计数器</1> — GitHub 忘记添加的面板。",
-    "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
+    "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开 GitHub/GitLab 仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
     "badgeOpenSource": "GitHub 开源",
     "badgeFree": "免费 · 无需注册",
     "badgeLanguages": "200+ 种语言",
@@ -69,7 +69,8 @@
     "exportPng": "PNG",
     "exportGitHub": "GitHub",
     "reRun": "重新运行",
-    "clear": "清除"
+    "clear": "清除",
+    "runDetails": "运行详情"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -87,6 +88,65 @@
     "code": "代码",
     "comments": "注释",
     "blanks": "空行"
+  },
+  "insights": {
+    "kicker": "洞察",
+    "title": "代码库读数",
+    "scale": "规模",
+    "topLanguage": "主语言",
+    "codeShare": "代码占比",
+    "languageMix": "语言结构",
+    "cacheState": "结果",
+    "topLanguageDetail": "占总行数 {{percent}}",
+    "noLanguageDetail": "未检测到语言行",
+    "codeShareDetail": "{{lines}} 总行中有 {{code}} 行代码",
+    "mixDetail": "检测到 {{count}} 种语言",
+    "scaleValues": {
+      "tiny": "极小",
+      "small": "小型",
+      "medium": "中型",
+      "large": "大型",
+      "huge": "超大型"
+    },
+    "scaleDetails": {
+      "tiny": "少于 1k 行代码",
+      "small": "1k-10k 行代码",
+      "medium": "10k-100k 行代码",
+      "large": "100k-500k 行代码",
+      "huge": "500k+ 行代码"
+    },
+    "mixValues": {
+      "single": "单语言",
+      "focused": "主语言集中",
+      "mixed": "多语言混合",
+      "polyglot": "多语言项目"
+    }
+  },
+  "trust": {
+    "title": "报告可信度详情",
+    "commit": "提交",
+    "ref": "引用",
+    "counter": "计数器",
+    "cache": "缓存",
+    "profile": "配置",
+    "ignored": "忽略目录",
+    "languages": "忽略语言",
+    "none": "无"
+  },
+  "analysisOptions": {
+    "summary": "高级分析选项",
+    "profile": "配置",
+    "defaultProfile": "默认",
+    "sourceOnlyProfile": "仅源码",
+    "ignoredDirs": "忽略目录",
+    "ignoredLanguages": "忽略语言",
+    "includeDocs": "包含文档",
+    "includeTests": "包含测试",
+    "includeGenerated": "包含生成代码",
+    "profiles": {
+      "default": "默认",
+      "source-only": "仅源码"
+    }
   },
   "charts": {
     "languageShare": "语言占比",
@@ -166,9 +226,11 @@
     ]
   },
   "footer": {
-    "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
+    "tagline": "OctoCounts // 公开 GitHub 与 GitLab 仓库的实际 SLOC",
     "privacy": "隐私",
     "contact": "联系",
+    "apiDocs": "API 文档",
+    "slocGuide": "SLOC 指南",
     "builtBy": "由 <1>huanglizhuo</1> 构建 — 独立开发者",
     "copyright": "(c) 2026"
   },
@@ -180,7 +242,26 @@
   },
   "error": {
     "privateRepo": "不支持私有仓库。",
-    "requestFailed": "请求失败"
+    "invalidUrl": "请输入公开的 github.com 或 gitlab.com 仓库链接。",
+    "refNotFound": "未找到请求的分支、标签或提交。",
+    "rateLimited": "已达到 GitHub API 限流。",
+    "tooLarge": "该仓库当前过大，无法分析。",
+    "notFound": "未找到仓库，或仓库不是公开的。",
+    "githubRequestFailed": "GitHub 请求失败。",
+    "analysisFailed": "统计仓库时分析失败。",
+    "requestFailed": "请求失败",
+    "failedCode": "失败"
+  },
+  "errorHelp": {
+    "private_repo": "OctoCounts 只分析公开仓库。它不请求 GitHub 或 GitLab 账号授权，不支持私有仓库，也不接收源码上传。",
+    "invalid_url": "请使用类似 https://github.com/owner/repo 或 https://gitlab.com/group/project 的链接。",
+    "ref_not_found": "请检查分支、标签或提交字段是否拼写正确；也可以留空以使用仓库默认分支。",
+    "rate_limited": "请等待几分钟后重试。已有缓存的报告仍会即时加载。",
+    "too_large": "当前分析器有归档大小、解压大小、文件数量和超时限制。后续的排除规则会让大型仓库更容易分析。",
+    "not_found": "请确认仓库存在且为公开仓库。私有仓库明确不在当前产品范围内。",
+    "github_request_failed": "GitHub 没有返回可用的归档或仓库响应。请稍后重试。",
+    "analysis_failed": "归档已下载，但计数步骤失败。请重试一次；如果持续出现，可能是该仓库触发了分析器边界情况。",
+    "default": "请重试分析，或检查仓库链接和引用。"
   },
   "languageSwitcher": {
     "label": "语言"
@@ -189,6 +270,53 @@
     "description": "添加到您的 GitHub README 以显示实时 SLOC 统计：",
     "copy": "复制",
     "copied": "已复制！"
+  },
+  "badgeBuilder": {
+    "title": "Badge 生成器",
+    "subtitle": "复制实时 README badge",
+    "type": "Badge 类型",
+    "language": "语言",
+    "copyMarkdown": "复制 Markdown",
+    "previewAlt": "OctoCounts badge 预览",
+    "noRepo": "请先在上方输入有效的公开 GitHub 仓库链接。",
+    "types": {
+      "summary": "摘要",
+      "code": "代码行",
+      "lines": "总行数",
+      "files": "文件数",
+      "comments": "注释数",
+      "languages": "语言数量",
+      "top-language": "主语言",
+      "ratio": "代码占比",
+      "language": "单语言"
+    }
+  },
+  "compare": {
+    "title": "仓库对比",
+    "subtitle": "对比分支、fork 或替代方案",
+    "help": "对比两个公开仓库或引用的总 SLOC、代码行、语言结构和差异。",
+    "leftRepo": "左侧仓库",
+    "rightRepo": "右侧仓库",
+    "repoUrl": "仓库链接",
+    "ref": "引用",
+    "refPlaceholder": "可选引用",
+    "run": "对比",
+    "languages": "语言数",
+    "metric": "指标",
+    "left": "左侧",
+    "right": "右侧",
+    "delta": "差异",
+    "copyUrl": "复制链接"
+  },
+  "diff": {
+    "title": "引用差异",
+    "subtitle": "分支、标签或提交差异",
+    "help": "对比同一仓库的两个引用，用于评估发布、分支或 PR 端点之间的代码规模变化。",
+    "repo": "仓库",
+    "refs": "引用",
+    "base": "基准引用",
+    "head": "目标引用",
+    "run": "对比差异"
   },
   "sharePreview": {
     "debug": "调试",

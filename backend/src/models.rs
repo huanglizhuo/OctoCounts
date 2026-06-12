@@ -9,6 +9,8 @@ pub struct AnalyzeRequest {
     pub ref_name: Option<String>,
     #[serde(default)]
     pub force_refresh: bool,
+    #[serde(default)]
+    pub options: AnalysisOptions,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -64,6 +66,10 @@ pub struct Report {
     pub duration_ms: u128,
     pub cached: bool,
     pub tokei_version: String,
+    #[serde(default)]
+    pub analysis_key: String,
+    #[serde(default)]
+    pub analysis_options: AnalysisOptions,
     pub languages: Vec<LanguageReport>,
     pub total: LanguageStats,
 }
@@ -74,6 +80,40 @@ pub struct Repository {
     pub owner: String,
     pub name: String,
     pub html_url: String,
+    #[serde(default = "default_provider")]
+    pub provider: RepositoryProvider,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RepositoryProvider {
+    GitHub,
+    GitLab,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisOptions {
+    #[serde(default)]
+    pub ignored_dirs: Vec<String>,
+    #[serde(default)]
+    pub ignored_languages: Vec<String>,
+    #[serde(default)]
+    pub profile: AnalysisProfile,
+    #[serde(default = "default_true")]
+    pub include_docs: bool,
+    #[serde(default = "default_true")]
+    pub include_tests: bool,
+    #[serde(default = "default_true")]
+    pub include_generated: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnalysisProfile {
+    #[default]
+    Default,
+    SourceOnly,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,11 +136,20 @@ pub struct LanguageStats {
 
 #[derive(Debug, Clone)]
 pub struct RepoRef {
+    pub provider: RepositoryProvider,
     pub owner: String,
     pub repo: String,
     pub ref_name: String,
     pub commit_sha: String,
     pub html_url: String,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_provider() -> RepositoryProvider {
+    RepositoryProvider::GitHub
 }
 
 #[cfg(test)]

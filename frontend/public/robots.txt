@@ -25,8 +25,17 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot
+Allow: /
+
 # Block Common Crawl training scraper (not needed for search visibility)
 User-agent: CCBot
 Disallow: /
 
 Sitemap: https://octocounts.com/sitemap.xml
+
+# Machine-readable product summary for answer engines:
+# https://octocounts.com/llms.txt

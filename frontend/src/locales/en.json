@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "OctoCounts — The SLOC Panel GitHub Forgot | GitHub SLOC Counter",
-    "description": "OctoCounts shows actual GitHub source line counts in browser extension sidebars or the web app: files, code lines, comments, blanks, and per-language totals. No clone required."
+    "title": "OctoCounts — GitHub and GitLab SLOC Counter",
+    "description": "OctoCounts shows actual source line counts for public GitHub and GitLab repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
   },
   "topbar": {
     "brandName": "OctoCounts",
@@ -11,7 +11,7 @@
   },
   "hero": {
     "title": "GitHub <1>SLOC counter</1> — the panel GitHub forgot.",
-    "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
+    "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub/GitLab repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
     "badgeOpenSource": "Open source on GitHub",
     "badgeFree": "Free · no sign-up",
     "badgeLanguages": "200+ languages",
@@ -69,7 +69,8 @@
     "exportPng": "png",
     "exportGitHub": "github",
     "reRun": "re-run",
-    "clear": "clear"
+    "clear": "clear",
+    "runDetails": "Run details"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -87,6 +88,65 @@
     "code": "Code",
     "comments": "Comments",
     "blanks": "Blanks"
+  },
+  "insights": {
+    "kicker": "insight",
+    "title": "Codebase readout",
+    "scale": "Scale",
+    "topLanguage": "Primary language",
+    "codeShare": "Code share",
+    "languageMix": "Language mix",
+    "cacheState": "Result",
+    "topLanguageDetail": "{{percent}} of total lines",
+    "noLanguageDetail": "No language rows detected",
+    "codeShareDetail": "{{code}} code lines across {{lines}} total lines",
+    "mixDetail": "{{count}} detected languages",
+    "scaleValues": {
+      "tiny": "Tiny",
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
+      "huge": "Huge"
+    },
+    "scaleDetails": {
+      "tiny": "Under 1k code lines",
+      "small": "1k-10k code lines",
+      "medium": "10k-100k code lines",
+      "large": "100k-500k code lines",
+      "huge": "500k+ code lines"
+    },
+    "mixValues": {
+      "single": "Single language",
+      "focused": "Focused",
+      "mixed": "Mixed",
+      "polyglot": "Polyglot"
+    }
+  },
+  "trust": {
+    "title": "Report trust details",
+    "commit": "Commit",
+    "ref": "Ref",
+    "counter": "Counter",
+    "cache": "Cache",
+    "profile": "Profile",
+    "ignored": "Ignored dirs",
+    "languages": "Ignored languages",
+    "none": "none"
+  },
+  "analysisOptions": {
+    "summary": "Advanced analysis options",
+    "profile": "Profile",
+    "defaultProfile": "Default",
+    "sourceOnlyProfile": "Source only",
+    "ignoredDirs": "Ignore dirs",
+    "ignoredLanguages": "Ignore languages",
+    "includeDocs": "Include docs",
+    "includeTests": "Include tests",
+    "includeGenerated": "Include generated",
+    "profiles": {
+      "default": "default",
+      "source-only": "source only"
+    }
   },
   "charts": {
     "languageShare": "Language share",
@@ -166,9 +226,11 @@
     ]
   },
   "footer": {
-    "tagline": "OctoCounts // actual SLOC for public GitHub repos",
+    "tagline": "OctoCounts // actual SLOC for public GitHub and GitLab repos",
     "privacy": "Privacy",
     "contact": "Contact",
+    "apiDocs": "API docs",
+    "slocGuide": "SLOC guide",
     "builtBy": "Built by <1>huanglizhuo</1> — indie developer",
     "copyright": "(c) 2026"
   },
@@ -180,7 +242,26 @@
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",
-    "requestFailed": "Request failed"
+    "invalidUrl": "Enter a public github.com or gitlab.com repository URL.",
+    "refNotFound": "The requested branch, tag, or commit was not found.",
+    "rateLimited": "GitHub API rate limit was reached.",
+    "tooLarge": "This repository is too large to analyze right now.",
+    "notFound": "Repository was not found or is not public.",
+    "githubRequestFailed": "GitHub request failed.",
+    "analysisFailed": "Analysis failed while counting the repository.",
+    "requestFailed": "Request failed",
+    "failedCode": "failed"
+  },
+  "errorHelp": {
+    "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads.",
+    "invalid_url": "Use a URL like https://github.com/owner/repo or https://gitlab.com/group/project.",
+    "ref_not_found": "Check the ref field for typos, or leave it empty to use the repository default branch.",
+    "rate_limited": "Wait a few minutes and retry. Cached reports continue to load instantly when available.",
+    "too_large": "The current analyzer has archive, extraction, file-count, and timeout limits. Exclude rules are planned to make large repositories easier to analyze.",
+    "not_found": "Confirm that the repository exists and is public. Private repositories are intentionally out of scope.",
+    "github_request_failed": "GitHub did not return a usable archive or repository response. Retry after a short wait.",
+    "analysis_failed": "The archive downloaded, but the counting step failed. Retry once; if it repeats, the repository may hit an analyzer edge case.",
+    "default": "Retry the analysis, or check the repository URL and ref."
   },
   "languageSwitcher": {
     "label": "Language"
@@ -189,6 +270,53 @@
     "description": "Add to your GitHub README to show live SLOC stats:",
     "copy": "copy",
     "copied": "copied!"
+  },
+  "badgeBuilder": {
+    "title": "Badge Builder",
+    "subtitle": "copy live README badges",
+    "type": "Badge type",
+    "language": "Language",
+    "copyMarkdown": "copy markdown",
+    "previewAlt": "OctoCounts badge preview",
+    "noRepo": "Enter a valid public GitHub repository URL above.",
+    "types": {
+      "summary": "Summary",
+      "code": "Code lines",
+      "lines": "Total lines",
+      "files": "Files",
+      "comments": "Comments",
+      "languages": "Language count",
+      "top-language": "Top language",
+      "ratio": "Code share",
+      "language": "Single language"
+    }
+  },
+  "compare": {
+    "title": "Compare Repos",
+    "subtitle": "forks, alternatives, or branches",
+    "help": "Compare total SLOC, code lines, language mix, and deltas between two public repositories or refs.",
+    "leftRepo": "Left repository",
+    "rightRepo": "Right repository",
+    "repoUrl": "Repository URL",
+    "ref": "Ref",
+    "refPlaceholder": "optional ref",
+    "run": "Compare",
+    "languages": "Languages",
+    "metric": "Metric",
+    "left": "Left",
+    "right": "Right",
+    "delta": "Delta",
+    "copyUrl": "copy URL"
+  },
+  "diff": {
+    "title": "Ref Diff",
+    "subtitle": "branch, tag, or commit deltas",
+    "help": "Compare one repository across two refs to estimate growth between releases, branches, or pull request endpoints.",
+    "repo": "Repository",
+    "refs": "Refs",
+    "base": "base ref",
+    "head": "head ref",
+    "run": "Diff"
   },
   "sharePreview": {
     "debug": "debug",

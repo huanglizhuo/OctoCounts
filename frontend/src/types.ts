@@ -4,6 +4,16 @@ export type Scheme = "matrix" | "paper" | "amber";
 export type SortKey = "name" | keyof Stats;
 export type PieItem = { label: string; value: number; color: string };
 export type TickerRow = { label: string; value: number; color: string; percent: number };
+export type AnalysisProfile = "default" | "source-only";
+
+export type AnalysisOptions = {
+  ignoredDirs: string[];
+  ignoredLanguages: string[];
+  profile: AnalysisProfile;
+  includeDocs: boolean;
+  includeTests: boolean;
+  includeGenerated: boolean;
+};
 
 export type Stats = {
   files: number;
@@ -28,6 +38,8 @@ export type Report = {
   durationMs: number;
   cached: boolean;
   tokeiVersion: string;
+  analysisKey: string;
+  analysisOptions: AnalysisOptions;
   languages: LanguageReport[];
   total: Stats;
 };

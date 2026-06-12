@@ -260,7 +260,7 @@ impl Store {
         .bind(&report.repository.owner)
         .bind(&report.repository.name)
         .bind(&report.commit_sha)
-        .bind(&report.tokei_version)
+        .bind(&report.analysis_key)
         .bind(body)
         .bind(report.generated_at)
         .bind(body_bytes)
@@ -747,7 +747,10 @@ fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{CleanupConfig, JobKey, Store};
-    use crate::models::{JobStatus, LanguageReport, LanguageStats, Report, Repository};
+    use crate::models::{
+        AnalysisOptions, JobStatus, LanguageReport, LanguageStats, Report, Repository,
+        RepositoryProvider,
+    };
     use chrono::{Duration, Utc};
     use sqlx::postgres::PgPoolOptions;
     use std::ops::Deref;
@@ -764,7 +767,7 @@ mod tests {
         store.save_report(&report).await.unwrap();
 
         let cached = store
-            .cached_report(&owner, "count", "abc123", "tokei-test")
+            .cached_report(&owner, "count", "abc123", "tokei-test:default")
             .await
             .unwrap()
             .unwrap();
@@ -790,7 +793,7 @@ mod tests {
             .unwrap();
 
         let cached = store
-            .cached_report(&owner, "count", "abc123", "tokei-test")
+            .cached_report(&owner, "count", "abc123", "tokei-test:default")
             .await
             .unwrap()
             .unwrap();
@@ -1101,7 +1104,7 @@ mod tests {
             owner,
             repo: "count",
             commit_sha: "abc123",
-            tokei_version: "tokei-test",
+            tokei_version: "tokei-test:default",
         }
     }
 
@@ -1148,6 +1151,7 @@ mod tests {
         Report {
             id: id.to_string(),
             repository: Repository {
+                provider: RepositoryProvider::GitHub,
                 owner: owner.to_string(),
                 name: "count".to_string(),
                 html_url: "https://github.com/octo/count".to_string(),
@@ -1158,6 +1162,8 @@ mod tests {
             duration_ms: 42,
             cached: false,
             tokei_version: "tokei-test".to_string(),
+            analysis_key: "tokei-test:default".to_string(),
+            analysis_options: AnalysisOptions::default(),
             languages: vec![LanguageReport {
                 name: "Rust".to_string(),
                 stats: LanguageStats {

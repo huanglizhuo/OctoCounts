@@ -7,6 +7,13 @@
   Link: </octocounts-light-card.webp>; rel=preload; as=image; media="(prefers-color-scheme: light)"
   Link: </octocounts-dark-card.webp>; rel=preload; as=image; media="(prefers-color-scheme: dark)"
 
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+/docs/*
+  Cache-Control: public, max-age=3600
+
 # Security headers for all routes
 /*
   X-Content-Type-Options: nosniff

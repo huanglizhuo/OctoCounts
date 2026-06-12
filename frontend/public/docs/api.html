@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts API Docs | Public Repository SLOC API</title>
+    <meta name="description" content="OctoCounts API documentation for public GitHub and GitLab repository SLOC analysis, reports, jobs, badges, compare URLs, and diff URLs." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/api.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts API Docs" />
+    <meta property="og:description" content="Analyze public GitHub and GitLab repositories, poll jobs, fetch SLOC reports, and generate live badges through the OctoCounts API." />
+    <meta property="og:url" content="https://octocounts.com/docs/api.html" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts API Docs" />
+    <meta name="twitter:description" content="Public repository SLOC analysis API, report fields, job polling, and badge routes." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      body { max-width: 880px; margin: 40px auto; padding: 0 20px; font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #1f2328; }
+      h1, h2 { line-height: 1.2; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px; }
+      code { padding: 1px 4px; }
+      pre { padding: 12px; overflow: auto; }
+      a { color: #0969da; }
+      .note { border-left: 3px solid #1a7f37; padding-left: 12px; color: #57606a; }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts API Docs",
+      "description": "API documentation for public GitHub and GitLab repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
+      "dateModified": "2026-06-11",
+      "mainEntityOfPage": "https://octocounts.com/docs/api.html",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <h1>OctoCounts API Docs</h1>
+    <p class="note">OctoCounts analyzes public GitHub and GitLab repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads.</p>
+
+    <h2>Analyze a Repository</h2>
+    <pre><code>POST https://api.octocounts.com/api/analyze
+Content-Type: application/json
+
+{
+  "repoUrl": "https://github.com/owner/repo",
+  "refName": "main",
+  "forceRefresh": false,
+  "options": {
+    "profile": "default",
+    "ignoredDirs": [],
+    "ignoredLanguages": [],
+    "includeDocs": true,
+    "includeTests": true,
+    "includeGenerated": true
+  }
+}</code></pre>
+    <p><code>repoUrl</code> supports public <code>github.com</code> repositories and public <code>gitlab.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch.</p>
+
+    <h2>Job Status</h2>
+    <pre><code>GET https://api.octocounts.com/api/jobs/:jobId</code></pre>
+    <p>Jobs return <code>queued</code>, <code>running</code>, <code>completed</code>, or <code>failed</code>. Completed jobs include <code>reportId</code>.</p>
+
+    <h2>Report</h2>
+    <pre><code>GET https://api.octocounts.com/api/reports/:reportId</code></pre>
+    <p>Reports include repository metadata, pinned commit SHA, tokei version, analysis key, active analysis options, language rows, and totals for files, lines, code, comments, and blanks.</p>
+
+    <h2>Badges</h2>
+    <pre><code>GET https://api.octocounts.com/badge/:owner/:repo
+GET https://api.octocounts.com/badge/:owner/:repo/branch/:branch
+GET https://api.octocounts.com/badge/:owner/:repo/tag/:tag
+GET https://api.octocounts.com/badge/:owner/:repo/commit/:sha</code></pre>
+    <p>Badge query parameters:</p>
+    <ul>
+      <li><code>type=code</code>, <code>lines</code>, <code>files</code>, <code>comments</code>, <code>languages</code>, <code>top-language</code>, or <code>ratio</code></li>
+      <li><code>lang=Rust</code> for a single-language code-line badge</li>
+    </ul>
+
+    <h2>Shareable Web URLs</h2>
+    <pre><code>https://octocounts.com/github/:owner/:repo
+https://octocounts.com/github/:owner/:repo/tree/:ref
+https://octocounts.com/github/:owner/:repo/commit/:sha
+https://octocounts.com/compare?left=...&amp;right=...&amp;leftRef=...&amp;rightRef=...
+https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
+
+    <p><a href="/">Back to OctoCounts</a></p>
+  </body>
+</html>

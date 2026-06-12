@@ -16,6 +16,8 @@ use crate::{
 #[derive(serde::Deserialize)]
 pub(crate) struct BadgeParams {
     lang: Option<String>,
+    #[serde(rename = "type")]
+    badge_type: Option<String>,
 }
 
 pub async fn badge_default(
@@ -23,7 +25,7 @@ pub async fn badge_default(
     Path((owner, repo)): Path<(String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, None, false, params.lang).await
+    serve_badge(state, owner, repo, None, false, params).await
 }
 
 pub async fn badge_branch(
@@ -31,7 +33,7 @@ pub async fn badge_branch(
     Path((owner, repo, branch)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(branch), false, params.lang).await
+    serve_badge(state, owner, repo, Some(branch), false, params).await
 }
 
 pub async fn badge_tag(
@@ -39,7 +41,7 @@ pub async fn badge_tag(
     Path((owner, repo, tag)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(tag), true, params.lang).await
+    serve_badge(state, owner, repo, Some(tag), true, params).await
 }
 
 pub async fn badge_commit(
@@ -47,7 +49,7 @@ pub async fn badge_commit(
     Path((owner, repo, sha)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(sha), true, params.lang).await
+    serve_badge(state, owner, repo, Some(sha), true, params).await
 }
 
 async fn serve_badge(
@@ -56,12 +58,13 @@ async fn serve_badge(
     repo: String,
     ref_name: Option<String>,
     is_immutable: bool,
-    lang: Option<String>,
+    params: BadgeParams,
 ) -> Response {
     let request = AnalyzeRequest {
         repo_url: format!("https://github.com/{}/{}", owner, repo),
         ref_name,
         force_refresh: false,
+        options: Default::default(),
     };
 
     let cache = if is_immutable {
@@ -72,15 +75,15 @@ async fn serve_badge(
 
     match state.coordinator.submit(request).await {
         Ok(AnalyzeResponse::Cached { report, .. }) => {
-            svg_response(render_for_lang(&report, lang.as_deref()), cache)
+            svg_response(render_for_params(&report, &params), cache)
         }
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
             match wait_for_job(state.coordinator.store(), job_id, Duration::from_secs(30)).await {
-                Some(report) => svg_response(render_for_lang(&report, lang.as_deref()), cache),
-                None => svg_response(render_pending_for_lang(lang.as_deref()), "no-cache, no-store"),
+                Some(report) => svg_response(render_for_params(&report, &params), cache),
+                None => svg_response(render_pending_for_params(&params), "no-cache, no-store"),
             }
         }
-        Err(_) => svg_response(render_error_for_lang(lang.as_deref()), "no-cache, no-store"),
+        Err(_) => svg_response(render_error_for_params(&params), "no-cache, no-store"),
     }
 }
 
@@ -161,7 +164,13 @@ fn render_badge_svg(report: &Report) -> String {
 }
 
 fn render_pending_svg() -> String {
-    badge_svg("\u{00B7}\u{00B7}\u{00B7}", "\u{00B7}\u{00B7}\u{00B7}", "\u{00B7}\u{00B7}\u{00B7}", "\u{00B7}\u{00B7}\u{00B7}", true)
+    badge_svg(
+        "\u{00B7}\u{00B7}\u{00B7}",
+        "\u{00B7}\u{00B7}\u{00B7}",
+        "\u{00B7}\u{00B7}\u{00B7}",
+        "\u{00B7}\u{00B7}\u{00B7}",
+        true,
+    )
 }
 
 fn render_error_svg() -> String {
@@ -174,9 +183,69 @@ fn render_for_lang(report: &Report, lang: Option<&str>) -> String {
     };
     let lower = name.to_lowercase();
     let color = language_color(&lower);
-    match report.languages.iter().find(|l| l.name.to_lowercase() == lower) {
+    match report
+        .languages
+        .iter()
+        .find(|l| l.name.to_lowercase() == lower)
+    {
         Some(lr) => lang_badge_svg(name, &format_stat(lr.stats.code), color),
         None => lang_badge_svg(name, "\u{2014}", "#6e7681"),
+    }
+}
+
+fn render_for_params(report: &Report, params: &BadgeParams) -> String {
+    if params.lang.is_some() {
+        return render_for_lang(report, params.lang.as_deref());
+    }
+
+    match params.badge_type.as_deref().map(normalize_badge_type) {
+        Some("code") => single_badge_svg("code", &format_stat(report.total.code), "#78ff5b"),
+        Some("lines") => single_badge_svg("lines", &format_stat(report.total.lines), "#58a6ff"),
+        Some("files") => single_badge_svg("files", &format_stat(report.total.files), "#d29922"),
+        Some("comments") => {
+            single_badge_svg("comments", &format_stat(report.total.comments), "#d2a8ff")
+        }
+        Some("languages") => {
+            single_badge_svg("languages", &format_stat(report.languages.len()), "#79c0ff")
+        }
+        Some("top-language") => match report.languages.first() {
+            Some(language) => {
+                let color = language_color(&language.name.to_lowercase());
+                single_badge_svg("top language", &language.name, color)
+            }
+            None => single_badge_svg("top language", "\u{2014}", "#6e7681"),
+        },
+        Some("ratio") => single_badge_svg(
+            "code share",
+            &format_percent(report.total.code, report.total.lines),
+            "#78ff5b",
+        ),
+        _ => render_badge_svg(report),
+    }
+}
+
+fn normalize_badge_type(value: &str) -> &str {
+    match value {
+        "code-lines" | "code_lines" | "sloc" => "code",
+        "total" | "total-lines" | "total_lines" => "lines",
+        "language-count" | "language_count" => "languages",
+        "top" | "top_language" | "top-language" => "top-language",
+        "code-ratio" | "code_ratio" | "code-share" | "code_share" => "ratio",
+        other => other,
+    }
+}
+
+fn format_percent(value: usize, total: usize) -> String {
+    if total == 0 {
+        return "0%".to_string();
+    }
+    let pct = (value as f64 / total as f64) * 100.0;
+    if pct < 0.1 {
+        "<0.1%".to_string()
+    } else if (pct.round() - pct).abs() < 0.05 {
+        format!("{}%", pct.round() as usize)
+    } else {
+        format!("{:.1}%", pct)
     }
 }
 
@@ -187,10 +256,44 @@ fn render_pending_for_lang(lang: Option<&str>) -> String {
     }
 }
 
+fn render_pending_for_params(params: &BadgeParams) -> String {
+    if params.lang.is_some() {
+        return render_pending_for_lang(params.lang.as_deref());
+    }
+    match params.badge_type.as_deref().map(normalize_badge_type) {
+        Some("code") => single_badge_svg("code", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        Some("lines") => single_badge_svg("lines", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        Some("files") => single_badge_svg("files", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        Some("comments") => single_badge_svg("comments", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        Some("languages") => single_badge_svg("languages", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        Some("top-language") => {
+            single_badge_svg("top language", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681")
+        }
+        Some("ratio") => single_badge_svg("code share", "\u{00B7}\u{00B7}\u{00B7}", "#6e7681"),
+        _ => render_pending_svg(),
+    }
+}
+
 fn render_error_for_lang(lang: Option<&str>) -> String {
     match lang {
         None => render_error_svg(),
         Some(name) => lang_badge_svg(name, "\u{2014}", "#6e7681"),
+    }
+}
+
+fn render_error_for_params(params: &BadgeParams) -> String {
+    if params.lang.is_some() {
+        return render_error_for_lang(params.lang.as_deref());
+    }
+    match params.badge_type.as_deref().map(normalize_badge_type) {
+        Some("code") => single_badge_svg("code", "\u{2014}", "#6e7681"),
+        Some("lines") => single_badge_svg("lines", "\u{2014}", "#6e7681"),
+        Some("files") => single_badge_svg("files", "\u{2014}", "#6e7681"),
+        Some("comments") => single_badge_svg("comments", "\u{2014}", "#6e7681"),
+        Some("languages") => single_badge_svg("languages", "\u{2014}", "#6e7681"),
+        Some("top-language") => single_badge_svg("top language", "\u{2014}", "#6e7681"),
+        Some("ratio") => single_badge_svg("code share", "\u{2014}", "#6e7681"),
+        _ => render_error_svg(),
     }
 }
 
@@ -307,11 +410,16 @@ fn is_light_color(hex: &str) -> bool {
     if hex.len() != 6 {
         return false;
     }
-    let Ok(r) = u8::from_str_radix(&hex[0..2], 16) else { return false; };
-    let Ok(g) = u8::from_str_radix(&hex[2..4], 16) else { return false; };
-    let Ok(b) = u8::from_str_radix(&hex[4..6], 16) else { return false; };
-    0.2126 * (r as f64 / 255.0) + 0.7152 * (g as f64 / 255.0) + 0.0722 * (b as f64 / 255.0)
-        > 0.5
+    let Ok(r) = u8::from_str_radix(&hex[0..2], 16) else {
+        return false;
+    };
+    let Ok(g) = u8::from_str_radix(&hex[2..4], 16) else {
+        return false;
+    };
+    let Ok(b) = u8::from_str_radix(&hex[4..6], 16) else {
+        return false;
+    };
+    0.2126 * (r as f64 / 255.0) + 0.7152 * (g as f64 / 255.0) + 0.0722 * (b as f64 / 255.0) > 0.5
 }
 
 fn xml_escape(s: &str) -> String {
@@ -329,7 +437,11 @@ fn lang_badge_svg(lang: &str, value: &str, color: &str) -> String {
     let total_w = left_w + right_w;
     let left_cx = left_w / 2;
     let right_cx = left_w + right_w / 2;
-    let val_color = if is_light_color(color) { "#333" } else { "#fff" };
+    let val_color = if is_light_color(color) {
+        "#333"
+    } else {
+        "#fff"
+    };
     let lang_esc = xml_escape(lang);
     let value_esc = xml_escape(value);
 
@@ -357,9 +469,13 @@ fn lang_badge_svg(lang: &str, value: &str, color: &str) -> String {
     )
 }
 
+fn single_badge_svg(label: &str, value: &str, color: &str) -> String {
+    lang_badge_svg(label, value, color)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::format_stat;
+    use super::{format_percent, format_stat, normalize_badge_type};
 
     #[test]
     fn format_stat_small_numbers() {
@@ -384,5 +500,20 @@ mod tests {
     fn format_stat_compact_billions() {
         assert_eq!(format_stat(1_000_000_000), "1B");
         assert_eq!(format_stat(1_500_000_000), "1.5B");
+    }
+
+    #[test]
+    fn normalizes_badge_type_aliases() {
+        assert_eq!(normalize_badge_type("sloc"), "code");
+        assert_eq!(normalize_badge_type("total-lines"), "lines");
+        assert_eq!(normalize_badge_type("language-count"), "languages");
+        assert_eq!(normalize_badge_type("code-share"), "ratio");
+    }
+
+    #[test]
+    fn formats_percent() {
+        assert_eq!(format_percent(0, 0), "0%");
+        assert_eq!(format_percent(9, 10), "90%");
+        assert_eq!(format_percent(1, 3), "33.3%");
     }
 }

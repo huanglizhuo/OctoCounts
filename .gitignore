@@ -25,3 +25,6 @@ yarn-error.log*
 
 # Local verification artifacts
 /screenshots/
+
+# Local product planning/progress notes
+.octocounts-roadmap-progress.json

@@ -32,6 +32,8 @@ impl AnalysisCoordinator {
     }
 
     pub async fn submit(&self, request: AnalyzeRequest) -> Result<AnalyzeResponse, ApiError> {
+        let options = request.options.clone();
+        let analysis_key = analyzer::analysis_key(&options);
         let repo_ref = self
             .github
             .resolve_ref(&request.repo_url, request.ref_name, request.force_refresh)
@@ -45,7 +47,7 @@ impl AnalysisCoordinator {
                     &repo_ref.owner,
                     &repo_ref.repo,
                     &repo_ref.commit_sha,
-                    analyzer::tokei_version(),
+                    &analysis_key,
                 )
                 .await
                 .map_err(ApiError::internal)?
@@ -63,12 +65,12 @@ impl AnalysisCoordinator {
                 owner: &repo_ref.owner,
                 repo: &repo_ref.repo,
                 commit_sha: &repo_ref.commit_sha,
-                tokei_version: analyzer::tokei_version(),
+                tokei_version: &analysis_key,
             })
             .await
             .map_err(ApiError::internal)?;
         if created {
-            self.spawn_analysis_job(job.id, repo_ref);
+            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key);
         }
 
         Ok(AnalyzeResponse::Job {
@@ -77,7 +79,13 @@ impl AnalysisCoordinator {
         })
     }
 
-    fn spawn_analysis_job(&self, job_id: Uuid, repo_ref: RepoRef) {
+    fn spawn_analysis_job(
+        &self,
+        job_id: Uuid,
+        repo_ref: RepoRef,
+        options: crate::models::AnalysisOptions,
+        analysis_key: String,
+    ) {
         let coordinator = self.clone();
         tokio::spawn(async move {
             let Ok(_permit) = coordinator.semaphore.acquire().await else {
@@ -98,6 +106,7 @@ impl AnalysisCoordinator {
             let archive = match coordinator
                 .github
                 .download_archive(
+                    &repo_ref.provider,
                     &repo_ref.owner,
                     &repo_ref.repo,
                     &repo_ref.commit_sha,
@@ -120,7 +129,14 @@ impl AnalysisCoordinator {
                 }
             };
 
-            match analyzer::analyze(AnalysisInput { repo_ref, archive }).await {
+            match analyzer::analyze(AnalysisInput {
+                repo_ref,
+                archive,
+                options,
+                analysis_key,
+            })
+            .await
+            {
                 Ok(report) => complete_job(&coordinator.store, job_id, report).await,
                 Err(error) => {
                     tracing::warn!(%error, "analysis failed");

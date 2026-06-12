@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub and GitLab SLOC Counter Guide | OctoCounts</title>
+    <meta name="description" content="Learn how OctoCounts counts source lines of code for public GitHub and GitLab repositories: files, code, comments, blanks, languages, badges, exports, and API usage." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/github-sloc-counter.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="GitHub and GitLab SLOC Counter Guide | OctoCounts" />
+    <meta property="og:description" content="Count source lines of code for public repositories without cloning. Understand SLOC, code lines, comments, blanks, language totals, badges, exports, and API usage." />
+    <meta property="og:url" content="https://octocounts.com/docs/github-sloc-counter.html" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GitHub and GitLab SLOC Counter Guide | OctoCounts" />
+    <meta name="twitter:description" content="A practical guide to repository SLOC counts, language totals, badges, exports, and the OctoCounts API." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; }
+      pre { padding: 14px; overflow: auto; }
+      table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "GitHub and GitLab SLOC Counter Guide",
+      "description": "A practical guide to counting source lines of code in public GitHub and GitLab repositories with OctoCounts.",
+      "dateModified": "2026-06-11",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/github-sloc-counter.html"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What does OctoCounts count?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts counts files, total lines, code lines, comment lines, blank lines, and per-language totals for public GitHub and GitLab repositories."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need to clone the repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts downloads the source archive for a branch, tag, or commit SHA, runs tokei on the extracted files, and caches the result by commit and analysis options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts support private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public repositories only and does not accept source-code uploads or request account access."
+          }
+        }
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/api.html">API docs</a> / SLOC guide</nav>
+    <main>
+      <p class="meta">Updated June 11, 2026</p>
+      <h1>GitHub and GitLab SLOC Counter Guide</h1>
+      <p class="note">OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.</p>
+
+      <h2>What OctoCounts Is Best For</h2>
+      <ul>
+        <li>Quickly estimate the size of an unfamiliar open source repository.</li>
+        <li>Compare a dependency, fork, alternative project, branch, tag, or commit.</li>
+        <li>Add a live SLOC badge to a README.</li>
+        <li>Export language counts as text, JSON, or a social share image.</li>
+        <li>Use an API for public repository size checks in internal tools or CI dashboards.</li>
+      </ul>
+
+      <h2>Supported Repository Hosts</h2>
+      <table>
+        <thead>
+          <tr><th>Host</th><th>Support</th><th>Entry point</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GitHub public repositories</td><td>Web app, API, badges, Chrome extension, Firefox extension</td><td><code>https://github.com/owner/repo</code></td></tr>
+          <tr><td>GitLab public repositories</td><td>Web app and API</td><td><code>https://gitlab.com/group/project</code></td></tr>
+          <tr><td>Private repositories</td><td>Not supported</td><td>Run <code>tokei</code> locally instead</td></tr>
+        </tbody>
+      </table>
+
+      <h2>How the Count Works</h2>
+      <ol>
+        <li>OctoCounts validates the public repository URL and resolves the requested branch, tag, or commit SHA.</li>
+        <li>The backend downloads a source archive for that exact ref instead of cloning full git history.</li>
+        <li>The extracted source tree is counted with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>.</li>
+        <li>Generated and heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default.</li>
+        <li>The report is cached by repository, commit SHA, tokei version, and analysis options.</li>
+      </ol>
+
+      <h2>Metrics Explained</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Files</td><td>Source files detected by language rules.</td></tr>
+          <tr><td>Total lines</td><td>Code lines + comment lines + blank lines.</td></tr>
+          <tr><td>Code lines</td><td>Executable or meaningful source lines after language parsing.</td></tr>
+          <tr><td>Comments</td><td>Line and block comments recognized by the language parser.</td></tr>
+          <tr><td>Blanks</td><td>Whitespace-only lines.</td></tr>
+          <tr><td>Languages</td><td>Detected programming languages and file types, sorted by code lines.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Examples</h2>
+      <pre><code>https://octocounts.com/?q=https://github.com/huanglizhuo/OctoCount
+https://octocounts.com/github/huanglizhuo/OctoCount
+https://octocounts.com/github/huanglizhuo/OctoCount/tree/main
+https://octocounts.com/compare?left=https://github.com/huanglizhuo/OctoCount&amp;right=https://github.com/tokio-rs/axum
+https://octocounts.com/diff?repo=https://github.com/huanglizhuo/OctoCount&amp;base=main&amp;head=22c3647</code></pre>
+
+      <h2>Badges</h2>
+      <p>Use live badges to show repository size in a README:</p>
+      <pre><code>[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
+[![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
+[![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)</code></pre>
+
+      <h2>API</h2>
+      <p>Programmatic users can start an analysis with <code>POST /api/analyze</code>, poll <code>GET /api/jobs/:jobId</code>, and fetch the result with <code>GET /api/reports/:reportId</code>. See the <a href="/docs/api.html">OctoCounts API docs</a> for request bodies, report fields, and badge routes.</p>
+
+      <h2>Privacy and Scope</h2>
+      <p>OctoCounts analyzes public repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.</p>
+    </main>
+  </body>
+</html>

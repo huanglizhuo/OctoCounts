@@ -43,8 +43,8 @@
       <h2>Analytics</h2>
       <p>We use <a href="https://www.cloudflare.com/web-analytics/">Cloudflare Web Analytics</a>, a privacy-first analytics service. It collects aggregated, non-personal data (page views, referrers, browser types) without cookies or fingerprinting. Cloudflare Web Analytics does not track individual users across sessions.</p>
 
-      <h2>GitHub API</h2>
-      <p>When you analyze a repository, OctoCounts sends the repository URL to the <a href="https://docs.github.com/en/rest">GitHub API</a> to resolve the branch, tag, or commit SHA. OctoCounts does not store your GitHub credentials and only accesses public repository metadata.</p>
+      <h2>Repository Host APIs</h2>
+      <p>When you analyze a repository, OctoCounts sends the repository URL to the public GitHub or GitLab API to resolve the branch, tag, or commit SHA. OctoCounts does not store GitHub or GitLab credentials and only accesses public repository metadata.</p>
 
       <h2>Data Storage</h2>
       <p>SLOC reports are cached by repository owner, name, commit SHA, and tokei version. This cache contains only public repository data (language statistics) and no personal information. Cached reports can be accessed by anyone who knows the repository URL and commit.</p>

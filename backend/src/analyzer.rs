@@ -14,7 +14,9 @@ use tempfile::TempDir;
 use tokei::{Config, Language, Languages, Report as TokeiReport};
 use tokio::time::timeout;
 
-use crate::models::{LanguageReport, LanguageStats, RepoRef, Report, Repository};
+use crate::models::{
+    AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, RepoRef, Report, Repository,
+};
 
 const TOKEI_VERSION: &str = "tokei-12.1";
 const MAX_ARCHIVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -38,10 +40,8 @@ const IGNORED_DIRS: &[&str] = &[
 pub struct AnalysisInput {
     pub repo_ref: RepoRef,
     pub archive: bytes::Bytes,
-}
-
-pub fn tokei_version() -> &'static str {
-    TOKEI_VERSION
+    pub options: AnalysisOptions,
+    pub analysis_key: String,
 }
 
 pub fn max_archive_bytes() -> u64 {
@@ -59,23 +59,35 @@ pub async fn analyze(input: AnalysisInput) -> anyhow::Result<Report> {
 }
 
 fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
-    let AnalysisInput { repo_ref, archive } = input;
+    let AnalysisInput {
+        repo_ref,
+        archive,
+        options,
+        analysis_key,
+    } = input;
     let started = Instant::now();
     let temp_dir = TempDir::new().context("failed to create temp directory")?;
     let extract_root = temp_dir.path().join("repo");
     fs::create_dir(&extract_root)?;
 
-    extract_archive(&archive, &extract_root)?;
+    let ignored_dirs = effective_ignored_dirs(&options);
+    extract_archive(&archive, &extract_root, &ignored_dirs)?;
     drop(archive);
 
-    let languages = run_tokei(&extract_root);
-    let (language_reports, total) = normalize_languages(&languages);
+    let languages = run_tokei(&extract_root, &ignored_dirs);
+    let (language_reports, total) = normalize_languages(&languages, &options);
     let duration_ms = started.elapsed().as_millis();
-    let id = report_id(&repo_ref.owner, &repo_ref.repo, &repo_ref.commit_sha);
+    let id = report_id(
+        &repo_ref.owner,
+        &repo_ref.repo,
+        &repo_ref.commit_sha,
+        &analysis_key,
+    );
 
     let report = Report {
         id,
         repository: Repository {
+            provider: repo_ref.provider,
             owner: repo_ref.owner,
             name: repo_ref.repo,
             html_url: repo_ref.html_url,
@@ -86,6 +98,8 @@ fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
         duration_ms,
         cached: false,
         tokei_version: TOKEI_VERSION.to_string(),
+        analysis_key,
+        analysis_options: options,
         languages: language_reports,
         total,
     };
@@ -97,7 +111,11 @@ fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
     Ok(report)
 }
 
-fn extract_archive(archive_bytes: &[u8], destination: &Path) -> anyhow::Result<()> {
+fn extract_archive(
+    archive_bytes: &[u8],
+    destination: &Path,
+    ignored_dirs: &[String],
+) -> anyhow::Result<()> {
     let decoder = GzDecoder::new(Cursor::new(archive_bytes));
     let mut archive = Archive::new(decoder);
     let mut extracted_bytes = 0_u64;
@@ -108,7 +126,7 @@ fn extract_archive(archive_bytes: &[u8], destination: &Path) -> anyhow::Result<(
         let path = entry.path()?.into_owned();
         let stripped = strip_archive_root(&path).ok_or_else(|| anyhow!("invalid archive path"))?;
 
-        if stripped.as_os_str().is_empty() || should_ignore(&stripped) {
+        if stripped.as_os_str().is_empty() || should_ignore(&stripped, ignored_dirs) {
             continue;
         }
 
@@ -162,7 +180,7 @@ fn strip_archive_root(path: &Path) -> Option<PathBuf> {
     Some(stripped)
 }
 
-fn should_ignore(path: &Path) -> bool {
+fn should_ignore(path: &Path, ignored_dirs: &[String]) -> bool {
     path.components().any(|component| {
         let Component::Normal(part) = component else {
             return false;
@@ -170,20 +188,34 @@ fn should_ignore(path: &Path) -> bool {
         let Some(part) = part.to_str() else {
             return false;
         };
-        IGNORED_DIRS.iter().any(|ignored| part == *ignored)
+        ignored_dirs.iter().any(|ignored| part == ignored)
     })
 }
 
-fn run_tokei(root: &Path) -> Languages {
+fn run_tokei(root: &Path, ignored_dirs: &[String]) -> Languages {
     let mut languages = Languages::new();
     let config = Config::default();
-    languages.get_statistics(&[root], IGNORED_DIRS, &config);
+    let ignored_refs: Vec<&str> = ignored_dirs.iter().map(String::as_str).collect();
+    languages.get_statistics(&[root], &ignored_refs, &config);
     languages
 }
 
-fn normalize_languages(languages: &Languages) -> (Vec<LanguageReport>, LanguageStats) {
+fn normalize_languages(
+    languages: &Languages,
+    options: &AnalysisOptions,
+) -> (Vec<LanguageReport>, LanguageStats) {
+    let ignored_languages: Vec<String> = options
+        .ignored_languages
+        .iter()
+        .map(|language| language.to_lowercase())
+        .collect();
     let mut rows: Vec<_> = languages
         .iter()
+        .filter(|(language_type, _)| {
+            !ignored_languages
+                .iter()
+                .any(|ignored| ignored == &language_type.name().to_lowercase())
+        })
         .map(|(language_type, language)| language_to_report(language_type.name(), language))
         .collect();
     rows.sort_by(|a, b| {
@@ -254,7 +286,59 @@ fn add_stats(total: &mut LanguageStats, stats: &LanguageStats) {
     total.blanks += stats.blanks;
 }
 
-fn report_id(owner: &str, repo: &str, sha: &str) -> String {
+pub fn analysis_key(options: &AnalysisOptions) -> String {
+    let canonical = serde_json::to_string(options).unwrap_or_default();
+    let mut hasher = Sha256::new();
+    hasher.update(TOKEI_VERSION.as_bytes());
+    hasher.update(b":");
+    hasher.update(canonical.as_bytes());
+    let digest: String = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    format!("{}:{}", TOKEI_VERSION, &digest[..16])
+}
+
+pub fn effective_ignored_dirs(options: &AnalysisOptions) -> Vec<String> {
+    let mut dirs: Vec<String> = IGNORED_DIRS
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect();
+    dirs.extend(
+        options
+            .ignored_dirs
+            .iter()
+            .map(|value| value.trim().to_string()),
+    );
+    if matches!(options.profile, AnalysisProfile::SourceOnly) || !options.include_docs {
+        dirs.extend(
+            ["docs", "doc", "documentation"]
+                .iter()
+                .map(|value| (*value).to_string()),
+        );
+    }
+    if matches!(options.profile, AnalysisProfile::SourceOnly) || !options.include_tests {
+        dirs.extend(
+            ["test", "tests", "__tests__", "fixtures"]
+                .iter()
+                .map(|value| (*value).to_string()),
+        );
+    }
+    if matches!(options.profile, AnalysisProfile::SourceOnly) || !options.include_generated {
+        dirs.extend(
+            ["generated", "gen", ".generated"]
+                .iter()
+                .map(|value| (*value).to_string()),
+        );
+    }
+    dirs.retain(|value| !value.is_empty());
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
+fn report_id(owner: &str, repo: &str, sha: &str, analysis_key: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(owner.as_bytes());
     hasher.update(b"/");
@@ -262,7 +346,7 @@ fn report_id(owner: &str, repo: &str, sha: &str) -> String {
     hasher.update(b"@");
     hasher.update(sha.as_bytes());
     hasher.update(b":");
-    hasher.update(TOKEI_VERSION.as_bytes());
+    hasher.update(analysis_key.as_bytes());
     hasher
         .finalize()
         .iter()
@@ -272,18 +356,49 @@ fn report_id(owner: &str, repo: &str, sha: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{report_id, should_ignore};
+    use super::{analysis_key, effective_ignored_dirs, report_id, should_ignore};
+    use crate::models::{AnalysisOptions, AnalysisProfile};
     use std::path::Path;
 
     #[test]
     fn cache_key_includes_commit() {
-        assert_ne!(report_id("a", "b", "1"), report_id("a", "b", "2"));
+        let key = analysis_key(&AnalysisOptions::default());
+        assert_ne!(
+            report_id("a", "b", "1", &key),
+            report_id("a", "b", "2", &key)
+        );
     }
 
     #[test]
     fn ignores_heavy_directories() {
-        assert!(should_ignore(Path::new("web/node_modules/react/index.js")));
-        assert!(should_ignore(Path::new("target/debug/app")));
-        assert!(!should_ignore(Path::new("src/main.rs")));
+        let ignored = effective_ignored_dirs(&AnalysisOptions::default());
+        assert!(should_ignore(
+            Path::new("web/node_modules/react/index.js"),
+            &ignored
+        ));
+        assert!(should_ignore(Path::new("target/debug/app"), &ignored));
+        assert!(!should_ignore(Path::new("src/main.rs"), &ignored));
+    }
+
+    #[test]
+    fn source_only_profile_adds_common_non_source_dirs() {
+        let options = AnalysisOptions {
+            profile: AnalysisProfile::SourceOnly,
+            ..AnalysisOptions::default()
+        };
+        let ignored = effective_ignored_dirs(&options);
+        assert!(ignored.contains(&"docs".to_string()));
+        assert!(ignored.contains(&"tests".to_string()));
+        assert!(ignored.contains(&"generated".to_string()));
+    }
+
+    #[test]
+    fn analysis_key_changes_with_options() {
+        let default_key = analysis_key(&AnalysisOptions::default());
+        let custom_key = analysis_key(&AnalysisOptions {
+            ignored_dirs: vec!["examples".to_string()],
+            ..AnalysisOptions::default()
+        });
+        assert_ne!(default_key, custom_key);
     }
 }

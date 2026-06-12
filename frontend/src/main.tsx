@@ -3,9 +3,10 @@ import { toPng } from "html-to-image";
 import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import "./i18n";
+import i18n from "./i18n";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
+import { analyzeRepository, fetchJson } from "./api";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
 import { createRoot } from "react-dom/client";
@@ -26,7 +27,8 @@ import {
   textReport,
   tickerRows,
 } from "./reportUtils";
-import type { AppStatus, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
+import type { AnalysisOptions, AppStatus, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
+import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 
 const queryClient = new QueryClient();
@@ -37,19 +39,32 @@ const samples = [
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
 ];
+const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
+const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
+const defaultAnalysisOptions: AnalysisOptions = {
+  ignoredDirs: [],
+  ignoredLanguages: [],
+  profile: "default",
+  includeDocs: true,
+  includeTests: true,
+  includeGenerated: true,
+};
 
-const seedReport = initialReportData as Report;
+const seedReport = normalizeReport(initialReportData as unknown as Report);
 
 function App() {
   const { t, i18n } = useTranslation();
+  const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [scheme, setScheme] = useState<Scheme>(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
   );
-  const [repoUrl, setRepoUrl] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
-  const [refName, setRefName] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
+  const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
+  const [refName, setRefName] = useState(() => initialRequest.refName);
+  const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => defaultAnalysisOptions);
   const {
     report,
     error,
+    errorCode,
     isSubmitting,
     lastCommand,
     status,
@@ -62,6 +77,7 @@ function App() {
     defaultRepoUrl,
     defaultRefName,
     seedReport,
+    analysisOptions,
   });
 
   const autoRan = useRef(false);
@@ -80,6 +96,10 @@ function App() {
   useEffect(() => {
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
+
+  useEffect(() => {
+    syncPageMetadata({ report, repoUrl, refName, defaultTitle: t("app.title"), defaultDescription: t("app.description") });
+  }, [report, repoUrl, refName, t, i18n.language]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -134,7 +154,8 @@ function App() {
                 {t("hero.analyze")}
               </button>
             </form>
-            {report && <BadgeEmbed report={report} repoUrl={repoUrl} refName={refName} />}
+            <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
+            {report && <BadgeEmbed report={report} refName={refName} />}
             <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
                 <ChromeIcon size={15} />
@@ -179,6 +200,7 @@ function App() {
             status={status}
             report={report}
             error={error}
+            errorCode={errorCode}
             onReset={reset}
             onRerun={() => void runAnalysis(true)}
           />
@@ -187,6 +209,33 @@ function App() {
         <section>
           <div className="section-h">
             <span className="num">02</span>
+            <h2>{t("badgeBuilder.title")}</h2>
+            <span className="sub">{t("badgeBuilder.subtitle")}</span>
+          </div>
+          <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
+        </section>
+
+        <section>
+          <div className="section-h">
+            <span className="num">03</span>
+            <h2>{t("compare.title")}</h2>
+            <span className="sub">{t("compare.subtitle")}</span>
+          </div>
+          <CompareRepos />
+        </section>
+
+        <section>
+          <div className="section-h">
+            <span className="num">04</span>
+            <h2>{t("diff.title")}</h2>
+            <span className="sub">{t("diff.subtitle")}</span>
+          </div>
+          <DiffRefs />
+        </section>
+
+        <section>
+          <div className="section-h">
+            <span className="num">05</span>
             <h2>{t("extensionSection.title")}</h2>
             <span className="sub">{t("extensionSection.subtitle")}</span>
           </div>
@@ -197,7 +246,7 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">03</span>
+            <span className="num">06</span>
             <h2>{t("useCases.title")}</h2>
             <span className="sub">{t("useCases.subtitle")}</span>
           </div>
@@ -213,7 +262,7 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">04</span>
+            <span className="num">07</span>
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
@@ -235,6 +284,8 @@ function App() {
           <span>{t("footer.tagline")}</span>
           <span>
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
+            <a href="/docs/api.html">{t("footer.apiDocs")}</a> &middot;
+            <a href="/docs/github-sloc-counter.html">{t("footer.slocGuide")}</a> &middot;
             <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
             {" "}{t("footer.copyright")}
           </span>
@@ -312,7 +363,7 @@ function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: 
   );
 }
 
-function Runner({ command, status, report, error, onReset, onRerun }: { command: string; status: AppStatus; report: Report | null; error: string | null; onReset: () => void; onRerun: () => void }) {
+function Runner({ command, status, report, error, errorCode, onReset, onRerun }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void }) {
   const { t } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -346,13 +397,11 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
         </div>
       </div>
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ width: `${progressValue(status)}%` }} /></div>
-      <div className="log">
-        {logLines(status, report, error).map((line) => (
-          <div key={line.text}><span className="ts">{line.ts}</span><span className={line.kind}>{line.text}</span></div>
-        ))}
-      </div>
+      {!report ? <RunnerLog status={status} report={report} error={error} /> : null}
+      {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
       {report ? (
         <>
+          <Insights report={report} />
           <Summary stats={report.total} />
           <Charts report={report} />
           <div className="runner-foot">
@@ -366,6 +415,11 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
               <button className="copybtn" onClick={onReset}>{t("runner.clear")}</button>
             </div>
           </div>
+          <TrustDetails report={report} />
+          <details className="run-details">
+            <summary>{t("runner.runDetails")}</summary>
+            <RunnerLog status={status} report={report} error={error} />
+          </details>
           <div className="share-export-host" aria-hidden="true">
             <ShareTickerCard ref={shareCardRef} report={report} />
           </div>
@@ -382,6 +436,54 @@ function Runner({ command, status, report, error, onReset, onRerun }: { command:
           ) : null}
         </>
       ) : null}
+    </div>
+  );
+}
+
+function TrustDetails({ report }: { report: Report }) {
+  const { t } = useTranslation();
+  const details = [
+    { label: t("trust.commit"), value: report.commitSha },
+    { label: t("trust.ref"), value: report.refName },
+    { label: t("trust.counter"), value: report.tokeiVersion },
+    { label: t("trust.cache"), value: report.cached ? t("runner.cacheHit") : t("runner.freshRun") },
+    { label: t("trust.profile"), value: t(`analysisOptions.profiles.${report.analysisOptions.profile}`) },
+    { label: t("trust.ignored"), value: [...defaultIgnoredDirs, ...report.analysisOptions.ignoredDirs].join(", ") },
+    { label: t("trust.languages"), value: report.analysisOptions.ignoredLanguages.join(", ") || t("trust.none") },
+  ];
+
+  return (
+    <div className="trust-details" aria-label={t("trust.title")}>
+      {details.map((detail) => (
+        <div key={detail.label}>
+          <span>{detail.label}</span>
+          <code>{detail.value}</code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ErrorState({ code, message }: { code?: string; message: string | null }) {
+  const { t } = useTranslation();
+  const helpKey = code && i18n.exists(`errorHelp.${code}`) ? `errorHelp.${code}` : "errorHelp.default";
+  return (
+    <div className="error-state" role="alert">
+      <div>
+        <span className="chart-tag">{code ?? t("error.failedCode")}</span>
+        <h3>{message ?? t("runner.status.failed")}</h3>
+        <p>{t(helpKey)}</p>
+      </div>
+    </div>
+  );
+}
+
+function RunnerLog({ status, report, error }: { status: AppStatus; report: Report | null; error: string | null }) {
+  return (
+    <div className="log">
+      {logLines(status, report, error).map((line) => (
+        <div key={line.text}><span className="ts">{line.ts}</span><span className={line.kind}>{line.text}</span></div>
+      ))}
     </div>
   );
 }
@@ -442,18 +544,14 @@ function ShareStat({ color, label, value }: { color: string; label: string; valu
   );
 }
 
-function BadgeEmbed({ report, repoUrl, refName }: { report: Report; repoUrl: string; refName: string }) {
+function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const { owner, name } = report.repository;
   const effectiveRef = report.refName || refName;
-  const badgeUrl = effectiveRef
-    ? `${BADGE_API_BASE}/badge/${owner}/${name}/branch/${effectiveRef}`
-    : `${BADGE_API_BASE}/badge/${owner}/${name}`;
-  const params = new URLSearchParams({ q: repoUrl });
-  if (effectiveRef) params.set("ref", effectiveRef);
-  const frontendUrl = `${window.location.origin}/?${params.toString()}`;
+  const badgeUrl = buildBadgeUrl(owner, name, effectiveRef, "summary", "");
+  const frontendUrl = buildPublicReportUrl(owner, name, effectiveRef || refName);
   const markdown = `[![OctoCounts](${badgeUrl})](${frontendUrl})`;
 
   const handleCopy = () => {
@@ -476,6 +574,577 @@ function BadgeEmbed({ report, repoUrl, refName }: { report: Report; repoUrl: str
   );
 }
 
+function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOptions; setOptions: (options: AnalysisOptions) => void }) {
+  const { t } = useTranslation();
+  const update = (patch: Partial<AnalysisOptions>) => setOptions({ ...options, ...patch });
+  return (
+    <details className="analysis-options">
+      <summary>{t("analysisOptions.summary")}</summary>
+      <div className="analysis-options-grid">
+        <label>
+          <span>{t("analysisOptions.profile")}</span>
+          <select value={options.profile} onChange={(event) => update({ profile: event.target.value as AnalysisOptions["profile"] })}>
+            <option value="default">{t("analysisOptions.defaultProfile")}</option>
+            <option value="source-only">{t("analysisOptions.sourceOnlyProfile")}</option>
+          </select>
+        </label>
+        <label>
+          <span>{t("analysisOptions.ignoredDirs")}</span>
+          <input value={options.ignoredDirs.join(", ")} onChange={(event) => update({ ignoredDirs: csvList(event.target.value) })} placeholder="examples, fixtures" />
+        </label>
+        <label>
+          <span>{t("analysisOptions.ignoredLanguages")}</span>
+          <input value={options.ignoredLanguages.join(", ")} onChange={(event) => update({ ignoredLanguages: csvList(event.target.value) })} placeholder="Markdown, JSON" />
+        </label>
+        <div className="analysis-toggles">
+          <label><input type="checkbox" checked={options.includeDocs} onChange={(event) => update({ includeDocs: event.target.checked })} />{t("analysisOptions.includeDocs")}</label>
+          <label><input type="checkbox" checked={options.includeTests} onChange={(event) => update({ includeTests: event.target.checked })} />{t("analysisOptions.includeTests")}</label>
+          <label><input type="checkbox" checked={options.includeGenerated} onChange={(event) => update({ includeGenerated: event.target.checked })} />{t("analysisOptions.includeGenerated")}</label>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function csvList(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function CompareRepos() {
+  const { t } = useTranslation();
+  const initialCompare = useMemo(() => initialCompareFromLocation(), []);
+  const [leftRepo, setLeftRepo] = useState(initialCompare.leftRepo);
+  const [leftRef, setLeftRef] = useState(initialCompare.leftRef);
+  const [rightRepo, setRightRepo] = useState(initialCompare.rightRepo);
+  const [rightRef, setRightRef] = useState(initialCompare.rightRef);
+  const [leftReport, setLeftReport] = useState<Report | null>(null);
+  const [rightReport, setRightReport] = useState<Report | null>(null);
+  const [compareStatus, setCompareStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
+  const [compareError, setCompareError] = useState("");
+
+  const runCompare = async (event: FormEvent) => {
+    event.preventDefault();
+    setCompareStatus("running");
+    setCompareError("");
+    setLeftReport(null);
+    setRightReport(null);
+    try {
+      const [left, right] = await Promise.all([
+        analyzeAndWait(leftRepo, leftRef),
+        analyzeAndWait(rightRepo, rightRef),
+      ]);
+      setLeftReport(left);
+      setRightReport(right);
+      setCompareStatus("completed");
+    } catch (error) {
+      setCompareError(error instanceof Error ? error.message : t("error.requestFailed"));
+      setCompareStatus("failed");
+    }
+  };
+
+  return (
+    <div className="compare-panel">
+      <p className="compare-help">{t("compare.help")}</p>
+      <form className="compare-form" onSubmit={(event) => void runCompare(event)}>
+        <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
+        <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
+        <button className="btn compare-run" disabled={compareStatus === "running"}>
+          {compareStatus === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+          {t("compare.run")}
+        </button>
+      </form>
+      <div className="compare-share-row">
+        <code>{buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)}</code>
+        <button className="copybtn" type="button" onClick={() => copyText(buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef))}>
+          <Clipboard size={14} />
+          {t("compare.copyUrl")}
+        </button>
+      </div>
+      {compareStatus === "failed" ? <div className="compare-error">{compareError}</div> : null}
+      {leftReport && rightReport ? <CompareResults left={leftReport} right={rightReport} /> : null}
+    </div>
+  );
+}
+
+function CompareInput({
+  label,
+  repo,
+  refName,
+  setRepo,
+  setRef,
+}: {
+  label: string;
+  repo: string;
+  refName: string;
+  setRepo: (value: string) => void;
+  setRef: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <fieldset className="compare-field">
+      <legend>{label}</legend>
+      <label>
+        <span>{t("compare.repoUrl")}</span>
+        <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" aria-label={label} />
+      </label>
+      <label>
+        <span>{t("compare.ref")}</span>
+        <input value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} aria-label={`${label} ref`} />
+      </label>
+    </fieldset>
+  );
+}
+
+function CompareResults({ left, right }: { left: Report; right: Report }) {
+  const { t } = useTranslation();
+  const topLeft = left.languages[0]?.name ?? t("charts.noData");
+  const topRight = right.languages[0]?.name ?? t("charts.noData");
+  const rows = [
+    { label: t("summary.files"), left: left.total.files, right: right.total.files },
+    { label: t("summary.lines"), left: left.total.lines, right: right.total.lines },
+    { label: t("summary.code"), left: left.total.code, right: right.total.code },
+    { label: t("summary.comments"), left: left.total.comments, right: right.total.comments },
+    { label: t("summary.blanks"), left: left.total.blanks, right: right.total.blanks },
+    { label: t("compare.languages"), left: left.languages.length, right: right.languages.length },
+  ];
+  const languageRows = compareLanguages(left, right).slice(0, 8);
+
+  return (
+    <div className="compare-results">
+      <div className="compare-head">
+        <div>
+          <span>{left.repository.owner}/{left.repository.name}</span>
+          <strong>{topLeft}</strong>
+        </div>
+        <div>
+          <span>{right.repository.owner}/{right.repository.name}</span>
+          <strong>{topRight}</strong>
+        </div>
+      </div>
+      <div className="compare-table-wrap">
+        <table className="compare-table">
+          <thead>
+            <tr>
+              <th>{t("compare.metric")}</th>
+              <th>{t("compare.left")}</th>
+              <th>{t("compare.right")}</th>
+              <th>{t("compare.delta")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <td>{row.label}</td>
+                <td>{formatNumber(row.left)}</td>
+                <td>{formatNumber(row.right)}</td>
+                <td className={row.right - row.left >= 0 ? "pos" : "neg"}>{formatSignedNumber(row.right - row.left)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="compare-language-grid">
+        {languageRows.map((row) => (
+          <div className="compare-lang" key={row.name}>
+            <span className="key-sw" style={{ background: languageColor(row.name) }} />
+            <strong>{row.name}</strong>
+            <span>{formatNumber(row.left)}</span>
+            <span>{formatNumber(row.right)}</span>
+            <em className={row.delta >= 0 ? "pos" : "neg"}>{formatSignedNumber(row.delta)}</em>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiffRefs() {
+  const { t } = useTranslation();
+  const initialDiff = useMemo(() => initialDiffFromLocation(), []);
+  const [repo, setRepo] = useState(initialDiff.repo);
+  const [baseRef, setBaseRef] = useState(initialDiff.base);
+  const [headRef, setHeadRef] = useState(initialDiff.head);
+  const [baseReport, setBaseReport] = useState<Report | null>(null);
+  const [headReport, setHeadReport] = useState<Report | null>(null);
+  const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
+  const [error, setError] = useState("");
+
+  const runDiff = async (event: FormEvent) => {
+    event.preventDefault();
+    setStatus("running");
+    setError("");
+    setBaseReport(null);
+    setHeadReport(null);
+    try {
+      const [base, head] = await Promise.all([
+        analyzeAndWait(repo, baseRef),
+        analyzeAndWait(repo, headRef),
+      ]);
+      setBaseReport(base);
+      setHeadReport(head);
+      setStatus("completed");
+    } catch (err) {
+      setStatus("failed");
+      setError(err instanceof Error ? err.message : t("error.requestFailed"));
+    }
+  };
+
+  return (
+    <div className="compare-panel diff-panel">
+      <p className="compare-help">{t("diff.help")}</p>
+      <form className="compare-form diff-form" onSubmit={(event) => void runDiff(event)}>
+        <fieldset className="compare-field">
+          <legend>{t("diff.repo")}</legend>
+          <label>
+            <span>{t("compare.repoUrl")}</span>
+            <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
+          </label>
+        </fieldset>
+        <fieldset className="compare-field">
+          <legend>{t("diff.refs")}</legend>
+          <label>
+            <span>{t("diff.base")}</span>
+            <input value={baseRef} onChange={(event) => setBaseRef(event.target.value)} placeholder={t("diff.base")} />
+          </label>
+          <label>
+            <span>{t("diff.head")}</span>
+            <input value={headRef} onChange={(event) => setHeadRef(event.target.value)} placeholder={t("diff.head")} />
+          </label>
+        </fieldset>
+        <button className="btn compare-run" disabled={status === "running"}>
+          {status === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+          {t("diff.run")}
+        </button>
+      </form>
+      <div className="compare-share-row">
+        <code>{buildDiffUrl(repo, baseRef, headRef)}</code>
+        <button className="copybtn" type="button" onClick={() => copyText(buildDiffUrl(repo, baseRef, headRef))}>
+          <Clipboard size={14} />
+          {t("compare.copyUrl")}
+        </button>
+      </div>
+      {status === "failed" ? <div className="compare-error">{error}</div> : null}
+      {baseReport && headReport ? <CompareResults left={baseReport} right={headReport} /> : null}
+    </div>
+  );
+}
+
+async function analyzeAndWait(repoUrl: string, refName: string) {
+  const result = await analyzeRepository({ repoUrl, refName, forceRefresh: false });
+  if (result.kind === "cached") return result.report;
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    await delay(attempt < 5 ? 1_200 : 2_500);
+    const job = await fetchJson<JobRecord>(`/api/jobs/${result.jobId}`);
+    if (job.status === "failed") {
+      throw new Error(job.error?.message ?? "analysis failed");
+    }
+    if (job.status === "completed" && job.reportId) {
+      return fetchJson<Report>(`/api/reports/${job.reportId}`);
+    }
+  }
+  throw new Error("analysis timed out");
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function compareLanguages(left: Report, right: Report) {
+  const names = new Set([...left.languages.map((row) => row.name), ...right.languages.map((row) => row.name)]);
+  return [...names]
+    .map((name) => {
+      const leftCode = left.languages.find((row) => row.name === name)?.stats.code ?? 0;
+      const rightCode = right.languages.find((row) => row.name === name)?.stats.code ?? 0;
+      return { name, left: leftCode, right: rightCode, delta: rightCode - leftCode };
+    })
+    .sort((a, b) => Math.max(b.left, b.right) - Math.max(a.left, a.right));
+}
+
+function formatSignedNumber(value: number) {
+  if (value === 0) return "0";
+  return `${value > 0 ? "+" : "-"}${formatNumber(Math.abs(value))}`;
+}
+
+function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: string; report: Report | null }) {
+  const { t } = useTranslation();
+  const [badgeType, setBadgeType] = useState<(typeof badgeTypes)[number]>("summary");
+  const [language, setLanguage] = useState("rust");
+  const repoPath = report
+    ? { owner: report.repository.owner, repo: report.repository.name }
+    : parseGitHubRepo(repoUrl || defaultRepoUrl);
+  const effectiveRef = report?.refName || refName.trim();
+  const badgeUrl = repoPath ? buildBadgeUrl(repoPath.owner, repoPath.repo, effectiveRef, badgeType, language) : "";
+  const frontendUrl = repoPath ? buildPublicReportUrl(repoPath.owner, repoPath.repo, effectiveRef) : window.location.origin;
+  const markdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${frontendUrl})` : "";
+
+  return (
+    <div className="badge-builder">
+      <div className="badge-builder-controls">
+        <label>
+          <span>{t("badgeBuilder.type")}</span>
+          <select value={badgeType} onChange={(event) => setBadgeType(event.target.value as (typeof badgeTypes)[number])}>
+            {badgeTypes.map((type) => (
+              <option value={type} key={type}>{t(`badgeBuilder.types.${type}`)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t("badgeBuilder.language")}</span>
+          <input value={language} onChange={(event) => setLanguage(event.target.value)} disabled={badgeType !== "language"} placeholder="rust" />
+        </label>
+      </div>
+      <div className="badge-builder-preview">
+        {badgeUrl ? <img src={badgeUrl} alt={t("badgeBuilder.previewAlt")} /> : <span>{t("badgeBuilder.noRepo")}</span>}
+      </div>
+      <div className="badge-builder-output">
+        <code>{markdown || t("badgeBuilder.noRepo")}</code>
+        <button className="copybtn" type="button" disabled={!markdown} onClick={() => copyText(markdown)}>
+          <Clipboard size={14} />
+          {t("badgeBuilder.copyMarkdown")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function parseGitHubRepo(value: string) {
+  try {
+    const normalized = value.trim().startsWith("git@github.com:")
+      ? value.trim().replace("git@github.com:", "https://github.com/")
+      : value.trim();
+    const url = new URL(normalized);
+    if (url.hostname !== "github.com") return null;
+    const [owner, repo] = url.pathname.split("/").filter(Boolean);
+    if (!owner || !repo) return null;
+    return { owner, repo: repo.replace(/\.git$/, "") };
+  } catch {
+    return null;
+  }
+}
+
+function parsePublicRepo(value: string) {
+  try {
+    const trimmed = value.trim();
+    const normalized = trimmed.startsWith("git@github.com:")
+      ? trimmed.replace("git@github.com:", "https://github.com/")
+      : trimmed.startsWith("git@gitlab.com:")
+        ? trimmed.replace("git@gitlab.com:", "https://gitlab.com/")
+        : trimmed;
+    const url = new URL(normalized);
+    if (url.hostname !== "github.com" && url.hostname !== "gitlab.com") return null;
+    const segments = url.pathname.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+    return {
+      host: url.hostname,
+      owner: segments.slice(0, -1).join("/"),
+      repo: segments[segments.length - 1].replace(/\.git$/, ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function initialRequestFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const queryRepo = params.get("q") ?? params.get("url");
+  const queryRef = params.get("ref") ?? "";
+  if (queryRepo) return { repoUrl: queryRepo, refName: queryRef };
+
+  const route = parsePublicReportPath(window.location.pathname);
+  if (route) return route;
+
+  return { repoUrl: "", refName: "" };
+}
+
+function initialCompareFromLocation() {
+  if (window.location.pathname !== "/compare") {
+    return {
+      leftRepo: defaultRepoUrl,
+      leftRef: defaultRefName,
+      rightRepo: "https://github.com/tokio-rs/axum",
+      rightRef: "",
+    };
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    leftRepo: params.get("left") || defaultRepoUrl,
+    leftRef: params.get("leftRef") || defaultRefName,
+    rightRepo: params.get("right") || "https://github.com/tokio-rs/axum",
+    rightRef: params.get("rightRef") || "",
+  };
+}
+
+function initialDiffFromLocation() {
+  if (window.location.pathname !== "/diff") {
+    return { repo: defaultRepoUrl, base: defaultRefName, head: "main" };
+  }
+  const params = new URLSearchParams(window.location.search);
+  return {
+    repo: params.get("repo") || defaultRepoUrl,
+    base: params.get("base") || defaultRefName,
+    head: params.get("head") || "main",
+  };
+}
+
+function buildCompareUrl(leftRepo: string, rightRepo: string, leftRef: string, rightRef: string) {
+  const params = new URLSearchParams({ left: leftRepo.trim(), right: rightRepo.trim() });
+  if (leftRef.trim()) params.set("leftRef", leftRef.trim());
+  if (rightRef.trim()) params.set("rightRef", rightRef.trim());
+  return `${window.location.origin}/compare?${params.toString()}`;
+}
+
+function buildDiffUrl(repo: string, base: string, head: string) {
+  const params = new URLSearchParams({ repo: repo.trim(), base: base.trim(), head: head.trim() });
+  return `${window.location.origin}/diff?${params.toString()}`;
+}
+
+function normalizeReport(report: Report): Report {
+  return {
+    ...report,
+    analysisKey: report.analysisKey || report.tokeiVersion,
+    analysisOptions: { ...defaultAnalysisOptions, ...(report.analysisOptions ?? {}) },
+  };
+}
+
+function parsePublicReportPath(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  if (segments[0] !== "github" || !segments[1] || !segments[2]) return null;
+  const owner = segments[1];
+  const repo = segments[2];
+  const marker = segments[3];
+  const refName = marker === "tree" || marker === "commit" ? segments.slice(4).join("/") : "";
+  return { repoUrl: `https://github.com/${owner}/${repo}`, refName };
+}
+
+function buildPublicReportUrl(owner: string, repo: string, ref: string) {
+  const base = `${window.location.origin}/github/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  if (!ref.trim()) return base;
+  const marker = looksLikeCommit(ref) ? "commit" : "tree";
+  return `${base}/${marker}/${encodeRefPath(ref)}`;
+}
+
+function encodeRefPath(ref: string) {
+  return ref.trim().split("/").map(encodeURIComponent).join("/");
+}
+
+function looksLikeCommit(ref: string) {
+  return /^[a-f0-9]{7,40}$/i.test(ref.trim());
+}
+
+function buildBadgeUrl(owner: string, repo: string, ref: string, type: (typeof badgeTypes)[number], language: string) {
+  const safeOwner = encodeURIComponent(owner);
+  const safeRepo = encodeURIComponent(repo);
+  const refKind = looksLikeCommit(ref) ? "commit" : "branch";
+  const safeRef = ref.trim() ? `/${refKind}/${encodeRefPath(ref)}` : "";
+  const params = new URLSearchParams();
+  if (type === "language") {
+    params.set("lang", language.trim() || "rust");
+  } else if (type !== "summary") {
+    params.set("type", type);
+  }
+  const query = params.toString();
+  return `${BADGE_API_BASE}/badge/${safeOwner}/${safeRepo}${safeRef}${query ? `?${query}` : ""}`;
+}
+
+function syncPageMetadata({
+  report,
+  repoUrl,
+  refName,
+  defaultTitle,
+  defaultDescription,
+}: {
+  report: Report | null;
+  repoUrl: string;
+  refName: string;
+  defaultTitle: string;
+  defaultDescription: string;
+}) {
+  const path = window.location.pathname;
+  if (path === "/compare" || path === "/diff") {
+    const title = path === "/compare" ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
+    const description = path === "/compare"
+      ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
+      : "Compare source line count changes between two branches, tags, or commits in a public repository.";
+    document.title = title;
+    setMeta("name", "description", description);
+    setMeta("name", "robots", "noindex,follow,max-image-preview:large");
+    setMeta("property", "og:title", title);
+    setMeta("property", "og:description", description);
+    setMeta("property", "og:url", window.location.href);
+    setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
+    setMeta("name", "twitter:title", title);
+    setMeta("name", "twitter:description", description);
+    setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
+    setCanonical(`${window.location.origin}${path}`);
+    return;
+  }
+
+  const parsed = report ? { owner: report.repository.owner, repo: report.repository.name } : parsePublicRepo(repoUrl);
+  const effectiveRef = report?.refName || refName.trim();
+  const title = parsed ? `${parsed.owner}/${parsed.repo} SLOC report | OctoCounts` : defaultTitle;
+  const description = report
+    ? `${parsed?.owner}/${parsed?.repo} has ${formatNumber(report.total.code)} code lines across ${formatNumber(report.total.files)} files and ${formatNumber(report.languages.length)} languages.`
+    : parsed
+      ? `Source line count report for ${parsed.owner}/${parsed.repo}: files, code lines, comments, blanks, and language totals.`
+      : defaultDescription;
+  const canonical = report
+    ? buildCanonicalReportUrl(report, effectiveRef)
+    : parsed
+      ? buildCanonicalUrlForParsedRepo(parsed, repoUrl, effectiveRef)
+      : window.location.origin + "/";
+
+  document.title = title;
+  setMeta("name", "description", description);
+  setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1");
+  setMeta("property", "og:title", title);
+  setMeta("property", "og:description", description);
+  setMeta("property", "og:url", canonical);
+  setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
+  setMeta("name", "twitter:title", title);
+  setMeta("name", "twitter:description", description);
+  setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
+  setCanonical(canonical);
+}
+
+function buildCanonicalReportUrl(report: Report, ref: string) {
+  if (report.repository.htmlUrl.includes("github.com/")) {
+    return buildPublicReportUrl(report.repository.owner, report.repository.name, ref);
+  }
+  const params = new URLSearchParams({ q: report.repository.htmlUrl });
+  if (ref.trim()) params.set("ref", ref.trim());
+  return `${window.location.origin}/?${params.toString()}`;
+}
+
+function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string; host?: string }, repoUrl: string, ref: string) {
+  if (parsed.host === "github.com") {
+    return buildPublicReportUrl(parsed.owner, parsed.repo, ref);
+  }
+  const params = new URLSearchParams({ q: repoUrl.trim() });
+  if (ref.trim()) params.set("ref", ref.trim());
+  return `${window.location.origin}/?${params.toString()}`;
+}
+
+function setMeta(attr: "name" | "property", key: string, content: string) {
+  let element = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attr, key);
+    document.head.appendChild(element);
+  }
+  element.content = content;
+}
+
+function setCanonical(href: string) {
+  let element = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!element) {
+    element = document.createElement("link");
+    element.rel = "canonical";
+    document.head.appendChild(element);
+  }
+  element.href = href;
+}
+
 function Summary({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
@@ -487,6 +1156,86 @@ function Summary({ stats }: { stats: Stats }) {
       <Metric label={t("summary.blanks")} value={stats.blanks} />
     </div>
   );
+}
+
+function Insights({ report }: { report: Report }) {
+  const { t } = useTranslation();
+  const topLanguage = report.languages[0];
+  const totalLines = report.total.lines;
+  const totalCode = report.total.code;
+  const totalLanguages = report.languages.length;
+  const topLanguageShare = topLanguage ? formatPercent(topLanguage.stats.lines, totalLines) : t("charts.noData");
+  const codeShare = formatPercent(totalCode, totalLines);
+  const scale = projectScale(totalCode);
+  const mix = languageMix(report.languages, totalLines);
+  const cacheState = report.cached ? t("runner.cacheHit") : t("runner.freshRun");
+  const commitLabel = `${report.refName} / ${report.commitSha.slice(0, 12)}`;
+  const insightItems = [
+    {
+      label: t("insights.scale"),
+      value: t(`insights.scaleValues.${scale}`),
+      detail: t(`insights.scaleDetails.${scale}`),
+      tone: "accent",
+    },
+    {
+      label: t("insights.topLanguage"),
+      value: topLanguage?.name ?? t("charts.noData"),
+      detail: topLanguage ? t("insights.topLanguageDetail", { percent: topLanguageShare }) : t("insights.noLanguageDetail"),
+      tone: "blue",
+    },
+    {
+      label: t("insights.codeShare"),
+      value: codeShare,
+      detail: t("insights.codeShareDetail", { code: formatNumber(totalCode), lines: formatNumber(totalLines) }),
+      tone: "violet",
+    },
+    {
+      label: t("insights.languageMix"),
+      value: t(`insights.mixValues.${mix}`),
+      detail: t("insights.mixDetail", { count: formatNumber(totalLanguages) }),
+      tone: "warn",
+    },
+    {
+      label: t("insights.cacheState"),
+      value: cacheState,
+      detail: commitLabel,
+      tone: "muted",
+    },
+  ];
+
+  return (
+    <div className="insights" aria-label={t("insights.title")}>
+      <div className="insights-head">
+        <span className="chart-tag">{t("insights.kicker")}</span>
+        <h3>{t("insights.title")}</h3>
+      </div>
+      <div className="insight-grid">
+        {insightItems.map((item) => (
+          <div className={`insight-card ${item.tone}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <p>{item.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function projectScale(codeLines: number) {
+  if (codeLines < 1_000) return "tiny";
+  if (codeLines < 10_000) return "small";
+  if (codeLines < 100_000) return "medium";
+  if (codeLines < 500_000) return "large";
+  return "huge";
+}
+
+function languageMix(languages: LanguageReport[], totalLines: number) {
+  if (languages.length <= 1) return "single";
+  const topShare = totalLines > 0 ? languages[0].stats.lines / totalLines : 0;
+  if (topShare >= 0.8) return "focused";
+  if (languages.length >= 6 && topShare < 0.55) return "polyglot";
+  return "mixed";
 }
 
 function Metric({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
