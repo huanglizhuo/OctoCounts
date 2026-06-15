@@ -1,7 +1,7 @@
 {
   "card": {
     "title": "OctoCounts",
-    "countSloc": "Count lines of code",
+    "countSloc": "Count code lines",
     "queued": "Queued…",
     "running": "Counting lines…",
     "analyzing": "Analyzing…",
@@ -17,7 +17,7 @@
       "timedOut": "Analysis timed out",
       "noDetails": "No additional details were returned.",
       "tryAgain": "Try again",
-      "clickDetails": "click for error details"
+      "clickDetails": "view error details"
     }
   },
   "panel": {
@@ -50,7 +50,7 @@
     "groupCache": "Cache",
     "hintPosition": "Where the card appears.",
     "silentUntilSuccess": "Hide card until data loads",
-    "hintSilent": "Prevents a loading spinner on repos OctoCounts can't analyze",
+    "hintSilent": "Hide the loading spinner on repos OctoCounts can't analyze",
     "position": "Card position",
     "positionTop": "Top of right panel",
     "positionBottom": "Bottom of right panel",
@@ -58,27 +58,27 @@
     "hintCardTitle": "Leave blank to use the default “OctoCounts”",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "Hide GitHub Languages section",
-    "hintReplaceGhLanguages": "Removes GitHub's percentage",
+    "hintReplaceGhLanguages": "Hide GitHub's language percentage bar",
     "cacheTtl": "Cache TTL",
-    "hintCacheTtl": "How long to keep results before re-analyzing",
+    "hintCacheTtl": "How long to cache results before re-analyzing",
     "ttl1h": "1 hour",
     "ttl6h": "6 hours",
     "ttl24h": "24 hours",
     "ttl7d": "7 days",
-    "ttlNever": "Never expire",
+    "ttlNever": "Never",
     "reportIssue": "Report issue",
     "showDetails": "Show details",
     "hideDetails": "Hide details",
-    "privateNotice": "Private or internal repository — OctoCounts only supports public repos.",
-    "welcomeHint": "Navigate to any public GitHub repo — OctoCounts adds a SLOC card to the sidebar automatically.",
+    "privateNotice": "Private repo — OctoCounts only works on public repos.",
+    "welcomeHint": "Open any public GitHub repo and OctoCounts adds a SLOC card to the sidebar automatically.",
     "tabStatusActive": "active on this repo",
     "tabStatusPrivate": "private repo",
     "tabStatusIdle": "open a GitHub repo",
     "privacyNote": "Only public repos are analyzed",
     "clearCache": "Clear local cache",
-    "clearCacheSuccess": "Cleared {{count}} entries",
+    "clearCacheSuccess": "Cleared from cache: {{count}}",
     "clearCacheFail": "Failed to clear cache",
-    "retriedN": "Retried {{count}} time(s) before giving up",
+    "retriedN": "Retries exhausted: {{count}}",
     "tabStatusRepoOff": "disabled for this repo"
   },
   "error": {

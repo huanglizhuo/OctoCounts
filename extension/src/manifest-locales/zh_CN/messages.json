@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "OctoCounts — GitHub 代码统计",
+    "message": "OctoCounts – GitHub 代码统计",
     "description": "Extension name displayed in the browser toolbar and store."
   },
   "extDescription": {
-    "message": "在 GitHub 仓库页面显示源代码行数统计",
+    "message": "直接在 GitHub 公开仓库页面查看各语言 SLOC、文件数、代码行、注释行与空行。",
     "description": "Extension description displayed in the store and toolbar."
   }
 }

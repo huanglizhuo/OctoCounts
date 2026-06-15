@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OctoCounts - GitHub and GitLab SLOC Counter",
+    "title": "OctoCounts – GitHub and GitLab SLOC Counter",
     "description": "OctoCounts shows actual source line counts for public GitHub and GitLab repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
   },
   "topbar": {
@@ -168,10 +168,10 @@
   },
   "extensionSection": {
     "title": "Browser Extension",
-    "subtitle": "Replace GitHub languages with OctoCounts.",
+    "subtitle": "GitHub SLOC & code statistics in the repo sidebar.",
     "terminalLabel": "browser-extension@octocounts",
-    "name": "OctoCounts - GitHub SLOC",
-    "description": "Open a GitHub repository and OctoCounts adds a compact SLOC card to the repo sidebar. Click the card for the full panel with totals, language rows, and cached results.",
+    "name": "OctoCounts – GitHub SLOC & Code Statistics",
+    "description": "Open a GitHub repository and OctoCounts adds a compact SLOC card to the repo sidebar. Click the card for the full panel with totals, language breakdown, and cached stats.",
     "features": [
       "Repo sidebar card",
       "Language table",
@@ -194,11 +194,11 @@
       },
       {
         "title": "Estimate project scope",
-        "text": "Clients and stakeholders ask how big a codebase is. SLOC gives a concrete, defensible answer before a code review or audit: 12k lines across 8 languages, 89% code, 4% comments."
+        "text": "Clients and stakeholders ask how big a codebase is. SLOC gives you a solid number before a review or audit: 12k lines across 8 languages, 89% code, 4% comments."
       },
       {
         "title": "Compare forks or alternatives",
-        "text": "Paste two repos, compare language breakdowns side by side. See how much a fork diverged or how different two implementations of the same spec really are in practice."
+        "text": "Paste two repos and compare language breakdowns side by side. See how much a fork diverged, or how different two implementations of the same spec really are."
       }
     ]
   },
@@ -215,7 +215,7 @@
       {
         "num": "02",
         "title": "Count",
-        "text": "The Rust backend (Axum + Tokio) downloads a compressed archive tarball, not a full git clone with history. Generated folders (node_modules, vendor, .git) are skipped before extraction. tokei then counts every source file, producing files, code lines, comment lines, and blank lines for each detected language, in a background worker queue.",
+        "text": "The Rust backend downloads a compressed archive—no full git clone. It skips generated folders like node_modules, vendor, and .git, then tokei counts every source file in a background worker queue.",
         "code": "tokei <1>--output json</1>"
       },
       {
@@ -258,7 +258,7 @@
     "invalid_url": "Use a URL like https://github.com/owner/repo or https://gitlab.com/group/project.",
     "ref_not_found": "Check the ref field for typos, or leave it empty to use the repository default branch.",
     "rate_limited": "Wait a few minutes and retry. Cached reports continue to load instantly when available.",
-    "too_large": "The current analyzer has archive, extraction, file-count, and timeout limits. Exclude rules are planned to make large repositories easier to analyze.",
+    "too_large": "The analyzer has size and timeout limits. Try a smaller ref or retry later.",
     "not_found": "Confirm that the repository exists and is public. Private repositories are intentionally out of scope.",
     "github_request_failed": "GitHub did not return a usable archive or repository response. Retry after a short wait.",
     "analysis_failed": "The archive downloaded, but the counting step failed. Retry once; if it repeats, the repository may hit an analyzer edge case.",

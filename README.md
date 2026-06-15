@@ -2,7 +2,7 @@
   <img src="images/favicon.png" alt="OctoCounts logo" width="64">
 </p>
 
-# OctoCounts – the SLOC panel GitHub forgot
+# OctoCounts – GitHub and GitLab SLOC Counter
 
 > GitHub shows language bars. OctoCounts shows the actual line counts.
 

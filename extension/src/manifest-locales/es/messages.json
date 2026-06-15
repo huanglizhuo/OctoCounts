@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "OctoCounts",
+    "message": "OctoCounts – SLOC y estadísticas de código para GitHub",
     "description": "Extension name displayed in the browser toolbar and store."
   },
   "extDescription": {
-    "message": "Conoce el tamaño real de un repositorio de un vistazo — archivos, líneas de código, blancos y comentarios por lenguaje, directamente en GitHub.",
+    "message": "Muestra SLOC, número de archivos, líneas de código, comentarios y líneas en blanco por idioma directamente en repositorios públicos de GitHub.",
     "description": "Extension description displayed in the store and toolbar."
   }
 }
