@@ -115,8 +115,9 @@ function App() {
 
   return (
     <>
+      <a className="skip-link" href="#main">Skip to content</a>
       <div className="crt flicker" />
-      <main className="page">
+      <main id="main" className="page">
         <Topbar />
         <section className="hero" aria-label={t("hero.title")}>
           <div className="hero-left">
@@ -127,11 +128,6 @@ function App() {
             <p className="subtitle">
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
-            <div className="social-proof">
-              <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
-              <span className="proof-badge">{t("hero.badgeFree")}</span>
-              <span className="proof-badge">{t("hero.badgeLanguages")}</span>
-            </div>
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -186,9 +182,16 @@ function App() {
           </div>
         </section>
 
+        <section className="trust-strip" aria-label={t("hero.ariaTrust")}>
+          <div className="social-proof">
+            <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
+            <span className="proof-badge">{t("hero.badgeFree")}</span>
+            <span className="proof-badge">{t("hero.badgeLanguages")}</span>
+          </div>
+        </section>
+
         <section>
           <div className="section-h">
-            <span className="num">01</span>
             <h2>{t("runner.title")}</h2>
             <span className="sub">{t("runner.status." + status)}</span>
           </div>
@@ -208,7 +211,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">02</span>
             <h2>{t("badgeBuilder.title")}</h2>
             <span className="sub">{t("badgeBuilder.subtitle")}</span>
           </div>
@@ -217,7 +219,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">03</span>
             <h2>{t("compare.title")}</h2>
             <span className="sub">{t("compare.subtitle")}</span>
           </div>
@@ -226,7 +227,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">04</span>
             <h2>{t("diff.title")}</h2>
             <span className="sub">{t("diff.subtitle")}</span>
           </div>
@@ -235,7 +235,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">05</span>
             <h2>{t("extensionSection.title")}</h2>
             <span className="sub">{t("extensionSection.subtitle")}</span>
           </div>
@@ -246,7 +245,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">06</span>
             <h2>{t("useCases.title")}</h2>
             <span className="sub">{t("useCases.subtitle")}</span>
           </div>
@@ -262,7 +260,6 @@ function App() {
 
         <section>
           <div className="section-h">
-            <span className="num">07</span>
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
@@ -330,12 +327,12 @@ function Topbar() {
         </div>
       </div>
       <div className="topbar-links">
-        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
-          <ChromeIcon size={18} />
+        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")}>
+          <ChromeIcon size={18} aria-hidden="true" />
           <span>{t("topbar.chrome")}</span>
         </a>
-        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
-          <FirefoxIcon size={18} />
+        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")}>
+          <FirefoxIcon size={18} aria-hidden="true" />
           <span>{t("topbar.firefox")}</span>
         </a>
         <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>
@@ -397,6 +394,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
         </div>
       </div>
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ width: `${progressValue(status)}%` }} /></div>
+      <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
       {!report ? <RunnerLog status={status} report={report} error={error} /> : null}
       {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
       {report ? (
@@ -1353,13 +1351,12 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
   return (
     <th
       className={className}
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-      tabIndex={0}
       role="columnheader"
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
     >
-      {label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
+      <button type="button" className="sort-btn" onClick={onClick}>
+        {label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
+      </button>
     </th>
   );
 }

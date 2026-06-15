@@ -6,7 +6,7 @@ User-agent: *
 Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
-# AI search crawlers — explicitly allowed for AI Overview / chat search visibility
+# AI search crawlers - explicitly allowed for AI Overview / chat search visibility
 User-agent: GPTBot
 Allow: /
 

@@ -1,4 +1,4 @@
-# Vite hashed assets — browsers cache forever, no revalidation needed
+# Vite hashed assets - browsers cache forever, no revalidation needed
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 

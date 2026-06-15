@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OctoCounts — GitHub and GitLab SLOC Counter",
+    "title": "OctoCounts - GitHub and GitLab SLOC Counter",
     "description": "OctoCounts shows actual source line counts for public GitHub and GitLab repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
   },
   "topbar": {
@@ -10,7 +10,7 @@
     "githubAria": "View OctoCounts on GitHub"
   },
   "hero": {
-    "title": "GitHub <1>SLOC counter</1> — the panel GitHub forgot.",
+    "title": "GitHub <1>SLOC counter</1>: the panel GitHub forgot.",
     "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub/GitLab repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
     "badgeOpenSource": "Open source on GitHub",
     "badgeFree": "Free · no sign-up",
@@ -21,6 +21,7 @@
     "ariaUrl": "Repository URL",
     "ariaRef": "Optional ref",
     "ariaSamples": "Example repositories",
+    "ariaTrust": "Trust badges",
     "analyze": "Analyze",
     "installChrome": "Chrome Web Store",
     "installFirefox": "Firefox Add-ons",
@@ -62,7 +63,7 @@
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "cache hit",
     "freshRun": "fresh run",
-    "demoNote": "Demo — analyzing OctoCounts itself. Paste any public repo URL above to analyze yours.",
+    "demoNote": "Demo: analyzing OctoCounts itself. Paste any public repo URL above to analyze yours.",
     "generated": "generated {{date}} / {{duration}}ms / {{version}}",
     "exportText": "text",
     "exportJson": "json",
@@ -169,7 +170,7 @@
     "title": "Browser Extension",
     "subtitle": "Replace GitHub languages with OctoCounts.",
     "terminalLabel": "browser-extension@octocounts",
-    "name": "OctoCounts — GitHub SLOC",
+    "name": "OctoCounts - GitHub SLOC",
     "description": "Open a GitHub repository and OctoCounts adds a compact SLOC card to the repo sidebar. Click the card for the full panel with totals, language rows, and cached results.",
     "features": [
       "Repo sidebar card",
@@ -189,7 +190,7 @@
     "cases": [
       {
         "title": "Evaluate a dependency",
-        "text": "Before adopting a new open source library, check its actual size — not just file count. A 50-file repo might be 20k lines of dense C++ or 500 lines of glue code. SLOC gives you the real picture before you commit to a dependency."
+        "text": "Before adopting a new open source library, check its actual size, not just file count. A 50-file repo might be 20k lines of dense C++ or 500 lines of glue code. SLOC gives you the real picture before you commit to a dependency."
       },
       {
         "title": "Estimate project scope",
@@ -208,19 +209,19 @@
       {
         "num": "01",
         "title": "Resolve",
-        "text": "OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Pinning to a commit means the analysis is deterministic — the same URL and ref always produces the same count, and the cache key is stable regardless of branch movement.",
+        "text": "OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Pinning to a commit means the analysis is deterministic: the same URL and ref always produce the same count, and the cache key is stable regardless of branch movement.",
         "code": "GET <1>/repos/:owner/:repo</1>"
       },
       {
         "num": "02",
         "title": "Count",
-        "text": "The Rust backend (Axum + Tokio) downloads a compressed archive tarball — not a full git clone with history. Generated folders (node_modules, vendor, .git) are skipped before extraction. tokei then counts every source file, producing files, code lines, comment lines, and blank lines for each detected language, in a background worker queue.",
+        "text": "The Rust backend (Axum + Tokio) downloads a compressed archive tarball, not a full git clone with history. Generated folders (node_modules, vendor, .git) are skipped before extraction. tokei then counts every source file, producing files, code lines, comment lines, and blank lines for each detected language, in a background worker queue.",
         "code": "tokei <1>--output json</1>"
       },
       {
         "num": "03",
         "title": "Cache",
-        "text": "Reports are stored by owner, repo, commit SHA, and tokei version. When you re-analyze the same commit, the cache is hit immediately — no re-download, no re-count. Re-run forces a fresh analysis and updates the cache. The browser extension also caches results locally for instant offline viewing.",
+        "text": "Reports are stored by owner, repo, commit SHA, and tokei version. When you re-analyze the same commit, the cache is hit immediately, with no re-download and no re-count. Re-run forces a fresh analysis and updates the cache. The browser extension also caches results locally for instant offline viewing.",
         "code": "cache <1>commit + version</1>"
       }
     ]
@@ -231,7 +232,7 @@
     "contact": "Contact",
     "apiDocs": "API docs",
     "slocGuide": "SLOC guide",
-    "builtBy": "Built by <1>huanglizhuo</1> — indie developer",
+    "builtBy": "Built by <1>huanglizhuo</1>, indie developer",
     "copyright": "(c) 2026"
   },
   "theme": {

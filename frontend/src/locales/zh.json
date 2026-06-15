@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OctoCounts — GitHub 与 GitLab SLOC 计数器",
+    "title": "OctoCounts - GitHub 与 GitLab SLOC 计数器",
     "description": "OctoCounts 显示公开 GitHub 与 GitLab 仓库的实际源代码行数：文件数、代码行、注释行、空行和每种语言的统计。无需克隆。"
   },
   "topbar": {
@@ -10,7 +10,7 @@
     "githubAria": "在 GitHub 上查看 OctoCounts"
   },
   "hero": {
-    "title": "GitHub <1>SLOC 计数器</1> — GitHub 忘记添加的面板。",
+    "title": "GitHub <1>SLOC 计数器</1>：GitHub 忘记添加的面板。",
     "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开 GitHub/GitLab 仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
     "badgeOpenSource": "GitHub 开源",
     "badgeFree": "免费 · 无需注册",
@@ -21,6 +21,7 @@
     "ariaUrl": "仓库链接",
     "ariaRef": "可选引用",
     "ariaSamples": "示例仓库",
+    "ariaTrust": "信任徽章",
     "analyze": "分析",
     "installChrome": "Chrome 应用商店",
     "installFirefox": "Firefox 附加组件",
@@ -62,7 +63,7 @@
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "缓存命中",
     "freshRun": "全新运行",
-    "demoNote": "演示 — 正在分析 OctoCounts 本身。在上面粘贴任何公开仓库链接来分析您的仓库。",
+    "demoNote": "演示：正在分析 OctoCounts 本身。在上面粘贴任何公开仓库链接来分析您的仓库。",
     "generated": "生成于 {{date}} / {{duration}}ms / {{version}}",
     "exportText": "文本",
     "exportJson": "JSON",
@@ -169,7 +170,7 @@
     "title": "浏览器扩展",
     "subtitle": "用 OctoCounts 替换 GitHub 语言统计。",
     "terminalLabel": "browser-extension@octocounts",
-    "name": "OctoCounts — GitHub SLOC",
+    "name": "OctoCounts - GitHub SLOC",
     "description": "打开 GitHub 仓库，OctoCounts 会在仓库侧边栏添加一个紧凑的 SLOC 卡片。点击卡片可查看包含总计、语言行和缓存结果的完整面板。",
     "features": [
       "仓库侧边栏卡片",
@@ -189,7 +190,7 @@
     "cases": [
       {
         "title": "评估依赖项",
-        "text": "在采用新的开源库之前，检查它的实际大小 —— 不仅仅是文件数量。一个 50 个文件的仓库可能是 2 万行密集的 C++ 代码，也可能是 500 行胶水代码。SLOC 能在你提交依赖之前给你真实的画面。"
+        "text": "在采用新的开源库之前，检查它的实际大小，而不仅仅是文件数量。一个 50 个文件的仓库可能是 2 万行密集的 C++ 代码，也可能是 500 行胶水代码。SLOC 能在你提交依赖之前给你真实的画面。"
       },
       {
         "title": "估算项目规模",
@@ -208,19 +209,19 @@
       {
         "num": "01",
         "title": "解析",
-        "text": "OctoCounts 验证公开 GitHub 链接，并通过 GitHub API 将请求的分支、标签或提交 SHA 解析为固定的提交哈希。固定到提交意味着分析是确定性的 —— 相同的链接和引用总是产生相同的计数，且缓存键稳定，不受分支移动影响。",
+        "text": "OctoCounts 验证公开 GitHub 链接，并通过 GitHub API 将请求的分支、标签或提交 SHA 解析为固定的提交哈希。固定到提交意味着分析是确定性的，相同的链接和引用总是产生相同的计数，且缓存键稳定，不受分支移动影响。",
         "code": "GET <1>/repos/:owner/:repo</1>"
       },
       {
         "num": "02",
         "title": "计数",
-        "text": "Rust 后端（Axum + Tokio）下载压缩的归档 tarball —— 而不是包含历史的完整 git 克隆。在解压前跳过生成的文件夹（node_modules、vendor、.git）。然后 tokei 计数每个源文件，为每种检测到的语言生成文件数、代码行、注释行和空行，在后台工作队列中完成。",
+        "text": "Rust 后端（Axum + Tokio）下载压缩的归档 tarball，而不是包含历史的完整 git 克隆。在解压前跳过生成的文件夹（node_modules、vendor、.git）。然后 tokei 计数每个源文件，为每种检测到的语言生成文件数、代码行、注释行和空行，在后台工作队列中完成。",
         "code": "tokei <1>--output json</1>"
       },
       {
         "num": "03",
         "title": "缓存",
-        "text": "报告按所有者、仓库、提交 SHA 和 tokei 版本存储。当你重新分析同一提交时，缓存会立即命中 —— 无需重新下载，无需重新计数。重新运行会强制进行全新分析并更新缓存。浏览器扩展还会将结果本地缓存，以便离线即时查看。",
+        "text": "报告按所有者、仓库、提交 SHA 和 tokei 版本存储。当你重新分析同一提交时，缓存会立即命中，无需重新下载，无需重新计数。重新运行会强制进行全新分析并更新缓存。浏览器扩展还会将结果本地缓存，以便离线即时查看。",
         "code": "cache <1>commit + version</1>"
       }
     ]
@@ -231,7 +232,7 @@
     "contact": "联系",
     "apiDocs": "API 文档",
     "slocGuide": "SLOC 指南",
-    "builtBy": "由 <1>huanglizhuo</1> 构建 — 独立开发者",
+    "builtBy": "由 <1>huanglizhuo</1> 构建，独立开发者",
     "copyright": "(c) 2026"
   },
   "theme": {
