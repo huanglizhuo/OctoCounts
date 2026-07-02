@@ -153,20 +153,29 @@ The release workflow attaches both packages to the tag's GitHub Release. Chrome 
 
 ## Production Deployment
 
-Tested on a plain VPS. No Kubernetes required, no Helm charts, no regrets.
+Production is **not** built on the server. CI builds the images and the private
+infra repo deploys them.
 
-```bash
-cp .env.example .env
-# Edit .env — at minimum set DATABASE_URL to Neon/Postgres and set GITHUB_TOKEN
-docker compose up --build -d
-```
+**1. Images — built by CI, pushed to GHCR.**
+`.github/workflows/build-images.yml` builds the backend and frontend on every push
+to `main` and on `v*` tags, publishing:
 
-Services expose:
-
-| Service | Address |
+| Image | Contents |
 |---|---|
-| API | `http://SERVER_IP:8080` |
-| Frontend | `http://SERVER_IP:5173` |
+| `ghcr.io/huanglizhuo/octocounts-api` | backend (`backend/`) |
+| `ghcr.io/huanglizhuo/octocounts-web` | frontend (`frontend/`) |
+
+Cut a release by pushing a version tag (`git tag v0.4.0 && git push origin v0.4.0`),
+which also tags the images `:v0.4.0` and `:latest`.
+
+**2. Deploy — from the private `sloc-infra` repo.**
+The running stack (Caddy + Cloudflare Tunnel + this API, and the librivox service)
+lives in `huanglizhuo/sloc-infra`. It pulls the pinned GHCR images — no `docker build`
+on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
+`sloc-infra/secrets/prod.env` and run `make deploy`. Roll back by setting the tag back.
+
+> The old `docker compose up --build -d` flow (build-on-server) is superseded by the
+> above. `docker-compose.dev.yml` remains for local development.
 
 ### Environment variables
 
