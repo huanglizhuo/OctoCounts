@@ -58,7 +58,8 @@
       "resolvedRef": "resolved {{ref}} -> {{sha}}",
       "cacheHit": "cache hit returned",
       "freshReport": "fresh report saved to cache",
-      "languageRows": "{{count}} language rows rendered"
+      "languageRows": "{{count}} language rows rendered",
+      "counted": "counted {{lines}} lines in {{duration}}ms"
     },
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "cache hit",
@@ -98,6 +99,8 @@
     "codeShare": "Code share",
     "languageMix": "Language mix",
     "cacheState": "Result",
+    "speed": "Speed",
+    "speedDetail": "{{lines}} lines via {{version}}",
     "topLanguageDetail": "{{percent}} of total lines",
     "noLanguageDetail": "No language rows detected",
     "codeShareDetail": "{{code}} code lines across {{lines}} total lines",
@@ -291,6 +294,11 @@
       "ratio": "Code share",
       "language": "Single language"
     }
+  },
+  "badgeWall": {
+    "kicker": "badges, live",
+    "hint": "rendered by the badge API right now — embed yours from the builder above",
+    "alt": "OctoCounts badge for {{repo}}"
   },
   "compare": {
     "title": "Compare Repos",

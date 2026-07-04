@@ -58,7 +58,8 @@
       "resolvedRef": "已解析 {{ref}} -> {{sha}}",
       "cacheHit": "缓存命中已返回",
       "freshReport": "新报告已保存到缓存",
-      "languageRows": "{{count}} 种语言行已渲染"
+      "languageRows": "{{count}} 种语言行已渲染",
+      "counted": "已统计 {{lines}} 行，耗时 {{duration}}ms"
     },
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "缓存命中",
@@ -98,6 +99,8 @@
     "codeShare": "代码占比",
     "languageMix": "语言结构",
     "cacheState": "结果",
+    "speed": "速度",
+    "speedDetail": "{{version}} 统计 {{lines}} 行",
     "topLanguageDetail": "占总行数 {{percent}}",
     "noLanguageDetail": "未检测到语言行",
     "codeShareDetail": "{{lines}} 总行中有 {{code}} 行代码",
@@ -291,6 +294,11 @@
       "ratio": "代码占比",
       "language": "单语言"
     }
+  },
+  "badgeWall": {
+    "kicker": "实时徽章",
+    "hint": "由徽章 API 实时渲染 — 用上方生成器嵌入你自己的仓库",
+    "alt": "{{repo}} 的 OctoCounts 徽章"
   },
   "compare": {
     "title": "仓库对比",

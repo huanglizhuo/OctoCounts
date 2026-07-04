@@ -149,6 +149,7 @@ impl GitHubClient {
         }
     }
 
+    #[cfg(test)]
     pub fn parse_repo_owner_name(input: &str) -> Result<(String, String), GitHubError> {
         let target = Self::parse_repo_url(input)?;
         Ok((target.owner, target.repo))

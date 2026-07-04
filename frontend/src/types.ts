@@ -29,9 +29,11 @@ export type LanguageReport = {
   children: LanguageReport[];
 };
 
+export type RepositoryProvider = "github" | "gitlab" | "gitHub" | "gitLab";
+
 export type Report = {
   id: string;
-  repository: { owner: string; name: string; htmlUrl: string };
+  repository: { owner: string; name: string; htmlUrl: string; provider?: RepositoryProvider };
   refName: string;
   commitSha: string;
   generatedAt: string;

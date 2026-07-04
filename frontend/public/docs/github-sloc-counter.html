@@ -117,8 +117,8 @@
           <tr><th>Host</th><th>Support</th><th>Entry point</th></tr>
         </thead>
         <tbody>
-          <tr><td>GitHub public repositories</td><td>Web app, API, badges, Chrome extension, Firefox extension</td><td><code>https://github.com/owner/repo</code></td></tr>
-          <tr><td>GitLab public repositories</td><td>Web app and API</td><td><code>https://gitlab.com/group/project</code></td></tr>
+          <tr><td>GitHub public repositories</td><td>Web app, API, report pages, badges, Chrome extension, Firefox extension</td><td><code>https://github.com/owner/repo</code></td></tr>
+          <tr><td>GitLab public repositories</td><td>Web app, API, and report pages</td><td><code>https://gitlab.com/group/project</code></td></tr>
           <tr><td>Private repositories</td><td>Not supported</td><td>Run <code>tokei</code> locally instead</td></tr>
         </tbody>
       </table>
@@ -150,6 +150,7 @@
       <h2>Examples</h2>
       <pre><code>https://octocounts.com/?q=https://github.com/huanglizhuo/OctoCount
 https://octocounts.com/github/huanglizhuo/OctoCount
+https://octocounts.com/gitlab/gitlab-org/gitlab
 https://octocounts.com/github/huanglizhuo/OctoCount/tree/main
 https://octocounts.com/compare?left=https://github.com/huanglizhuo/OctoCount&amp;right=https://github.com/tokio-rs/axum
 https://octocounts.com/diff?repo=https://github.com/huanglizhuo/OctoCount&amp;base=main&amp;head=22c3647</code></pre>
@@ -159,6 +160,7 @@ https://octocounts.com/diff?repo=https://github.com/huanglizhuo/OctoCount&amp;ba
       <pre><code>[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
 [![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
 [![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)</code></pre>
+      <p>Badges and browser extension sidebar cards are GitHub-only in the current version. GitLab repositories use the web app, API, and report pages.</p>
 
       <h2>API</h2>
       <p>Programmatic users can start an analysis with <code>POST /api/analyze</code>, poll <code>GET /api/jobs/:jobId</code>, and fetch the result with <code>GET /api/reports/:reportId</code>. See the <a href="/docs/api.html">OctoCounts API docs</a> for request bodies, report fields, and badge routes.</p>

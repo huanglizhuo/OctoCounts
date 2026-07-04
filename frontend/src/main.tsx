@@ -7,6 +7,7 @@ import i18n from "./i18n";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchJson } from "./api";
+import { initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
 import { createRoot } from "react-dom/client";
@@ -82,12 +83,51 @@ function App() {
 
   const autoRan = useRef(false);
   useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
     if (!autoRan.current && repoUrl) {
       autoRan.current = true;
       void runAnalysis(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const typingTimer = useRef<number | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const stopTyping = () => {
+    if (typingTimer.current !== null) {
+      window.clearInterval(typingTimer.current);
+      typingTimer.current = null;
+    }
+    setIsTyping(false);
+  };
+  useEffect(() => stopTyping, []);
+
+  const playSample = (sample: (typeof samples)[number]) => {
+    trackEvent("sample_chip_clicked", { sample: sample.label, provider: providerFromRepoUrl(sample.repoUrl) });
+    stopTyping();
+    setRefName(sample.refName);
+    setLastCommand(commandText(sample.repoUrl, sample.refName, false));
+    const runSample = () => void runAnalysis(false, { repoUrl: sample.repoUrl, refName: sample.refName });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setRepoUrl(sample.repoUrl);
+      runSample();
+      return;
+    }
+    setIsTyping(true);
+    setRepoUrl("");
+    let index = 0;
+    typingTimer.current = window.setInterval(() => {
+      index += 1;
+      setRepoUrl(sample.repoUrl.slice(0, index));
+      if (index >= sample.repoUrl.length) {
+        stopTyping();
+        runSample();
+      }
+    }, 18);
+  };
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
@@ -133,8 +173,10 @@ function App() {
               <input
                 id="repo-url"
                 name="repoUrl"
+                className={isTyping ? "typing" : undefined}
                 value={repoUrl}
                 onChange={(event) => {
+                  stopTyping();
                   setRepoUrl(event.target.value);
                   setRefName("main");
                 }}
@@ -153,11 +195,11 @@ function App() {
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {report && <BadgeEmbed report={report} refName={refName} />}
             <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
-              <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">
+              <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "chrome" })}>
                 <ChromeIcon size={15} />
                 {t("hero.installChrome")}
               </a>
-              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer">
+              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "firefox" })}>
                 <FirefoxIcon size={14} />
                 {t("hero.installFirefox")}
               </a>
@@ -169,11 +211,7 @@ function App() {
                   className="chip"
                   key={sample.repoUrl}
                   type="button"
-                  onClick={() => {
-                    setRepoUrl(sample.repoUrl);
-                    setRefName(sample.refName);
-                    setLastCommand(commandText(sample.repoUrl, sample.refName, false));
-                  }}
+                  onClick={() => playSample(sample)}
                 >
                   <span className="k">{t("samples.label")}</span>{sample.label}
                 </button>
@@ -215,6 +253,7 @@ function App() {
             <span className="sub">{t("badgeBuilder.subtitle")}</span>
           </div>
           <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
+          <BadgeWall />
         </section>
 
         <section>
@@ -327,11 +366,11 @@ function Topbar() {
         </div>
       </div>
       <div className="topbar-links">
-        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")}>
+        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")} onClick={() => trackEvent("extension_store_click", { store: "chrome", placement: "topbar" })}>
           <ChromeIcon size={18} aria-hidden="true" />
           <span>{t("topbar.chrome")}</span>
         </a>
-        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")}>
+        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")} onClick={() => trackEvent("extension_store_click", { store: "firefox", placement: "topbar" })}>
           <FirefoxIcon size={18} aria-hidden="true" />
           <span>{t("topbar.firefox")}</span>
         </a>
@@ -377,6 +416,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
         backgroundColor: "#050a06",
       });
       downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
+      trackEvent("png_exported", { provider: normalizedProvider(report) });
     } finally {
       setIsExporting(false);
     }
@@ -390,10 +430,10 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
           <code>$ {command}</code>
         </div>
         <div className="row-flex">
-          {report ? <span>{report.refName} / {report.commitSha.slice(0, 12)} / {report.cached ? t("runner.cacheHit") : t("runner.freshRun")}</span> : <span>{t("runner.status." + status)}</span>}
+          {report ? <span>{report.refName} / {report.commitSha.slice(0, 12)} / {report.cached ? t("runner.cacheHit") : t("runner.freshRun")} / <b className="speed-val">{report.durationMs}ms</b></span> : <span>{t("runner.status." + status)}</span>}
         </div>
       </div>
-      <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ width: `${progressValue(status)}%` }} /></div>
+      <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ transform: `scaleX(${progressValue(status) / 100})` }} /></div>
       <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
       {!report ? <RunnerLog status={status} report={report} error={error} /> : null}
       {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
@@ -405,8 +445,8 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
           <div className="runner-foot">
             <span>{t("runner.generated", { date: new Date(report.generatedAt).toLocaleString(), duration: report.durationMs, version: report.tokeiVersion })}</span>
             <div className="actions">
-              <button className="copybtn" onClick={() => copyText(textReport(report))}><Clipboard size={14} /> {t("runner.exportText")}</button>
-              <button className="copybtn" onClick={() => copyText(JSON.stringify(report, null, 2))}><FileJson size={14} /> {t("runner.exportJson")}</button>
+              <button className="copybtn" onClick={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report) }); }}><Clipboard size={14} /> {t("runner.exportText")}</button>
+              <button className="copybtn" onClick={() => { copyText(JSON.stringify(report, null, 2)); trackEvent("report_json_copied", { provider: normalizedProvider(report) }); }}><FileJson size={14} /> {t("runner.exportJson")}</button>
               <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> {t("runner.exportPng")}</button>
               <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
               <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
@@ -546,14 +586,19 @@ function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
+  if (normalizedProvider(report) !== "github") {
+    return null;
+  }
+
   const { owner, name } = report.repository;
   const effectiveRef = report.refName || refName;
   const badgeUrl = buildBadgeUrl(owner, name, effectiveRef, "summary", "");
-  const frontendUrl = buildPublicReportUrl(owner, name, effectiveRef || refName);
+  const frontendUrl = buildPublicReportUrl(owner, name, effectiveRef || refName, "github");
   const markdown = `[![OctoCounts](${badgeUrl})](${frontendUrl})`;
 
   const handleCopy = () => {
     copyText(markdown);
+    trackEvent("badge_markdown_copied", { provider: "github", placement: "report" });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -622,6 +667,7 @@ function CompareRepos() {
 
   const runCompare = async (event: FormEvent) => {
     event.preventDefault();
+    trackEvent("compare_run", { mode: "repos", leftProvider: providerFromRepoUrl(leftRepo), rightProvider: providerFromRepoUrl(rightRepo) });
     setCompareStatus("running");
     setCompareError("");
     setLeftReport(null);
@@ -769,6 +815,7 @@ function DiffRefs() {
 
   const runDiff = async (event: FormEvent) => {
     event.preventDefault();
+    trackEvent("compare_run", { mode: "diff", provider: providerFromRepoUrl(repo) });
     setStatus("running");
     setError("");
     setBaseReport(null);
@@ -868,12 +915,12 @@ function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: 
   const { t } = useTranslation();
   const [badgeType, setBadgeType] = useState<(typeof badgeTypes)[number]>("summary");
   const [language, setLanguage] = useState("rust");
-  const repoPath = report
+  const repoPath = report && normalizedProvider(report) === "github"
     ? { owner: report.repository.owner, repo: report.repository.name }
     : parseGitHubRepo(repoUrl || defaultRepoUrl);
   const effectiveRef = report?.refName || refName.trim();
   const badgeUrl = repoPath ? buildBadgeUrl(repoPath.owner, repoPath.repo, effectiveRef, badgeType, language) : "";
-  const frontendUrl = repoPath ? buildPublicReportUrl(repoPath.owner, repoPath.repo, effectiveRef) : window.location.origin;
+  const frontendUrl = repoPath ? buildPublicReportUrl(repoPath.owner, repoPath.repo, effectiveRef, "github") : window.location.origin;
   const markdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${frontendUrl})` : "";
 
   return (
@@ -897,10 +944,36 @@ function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: 
       </div>
       <div className="badge-builder-output">
         <code>{markdown || t("badgeBuilder.noRepo")}</code>
-        <button className="copybtn" type="button" disabled={!markdown} onClick={() => copyText(markdown)}>
+        <button className="copybtn" type="button" disabled={!markdown} onClick={() => { copyText(markdown); trackEvent("badge_markdown_copied", { provider: "github", placement: "builder" }); }}>
           <Clipboard size={14} />
           {t("badgeBuilder.copyMarkdown")}
         </button>
+      </div>
+    </div>
+  );
+}
+
+const badgeWallEntries: Array<{ owner: string; repo: string; type: (typeof badgeTypes)[number] }> = [
+  { owner: "huanglizhuo", repo: "OctoCount", type: "summary" },
+  { owner: "tokio-rs", repo: "axum", type: "code" },
+  { owner: "vitejs", repo: "vite", type: "top-language" },
+];
+
+function BadgeWall() {
+  const { t } = useTranslation();
+  return (
+    <div className="badge-wall">
+      <div className="badge-wall-head">
+        <span className="chart-tag">{t("badgeWall.kicker")}</span>
+        <span>{t("badgeWall.hint")}</span>
+      </div>
+      <div className="badge-wall-row">
+        {badgeWallEntries.map((entry) => (
+          <a key={`${entry.owner}/${entry.repo}`} href={buildPublicReportUrl(entry.owner, entry.repo, "")} target="_blank" rel="noreferrer">
+            <img src={buildBadgeUrl(entry.owner, entry.repo, "", entry.type, "")} alt={t("badgeWall.alt", { repo: `${entry.owner}/${entry.repo}` })} loading="lazy" />
+            <code>{entry.owner}/{entry.repo}</code>
+          </a>
+        ))}
       </div>
     </div>
   );
@@ -1000,6 +1073,7 @@ function buildDiffUrl(repo: string, base: string, head: string) {
 function normalizeReport(report: Report): Report {
   return {
     ...report,
+    repository: { ...report.repository, provider: normalizedProvider(report) },
     analysisKey: report.analysisKey || report.tokeiVersion,
     analysisOptions: { ...defaultAnalysisOptions, ...(report.analysisOptions ?? {}) },
   };
@@ -1007,16 +1081,29 @@ function normalizeReport(report: Report): Report {
 
 function parsePublicReportPath(pathname: string) {
   const segments = pathname.split("/").filter(Boolean).map(decodeURIComponent);
-  if (segments[0] !== "github" || !segments[1] || !segments[2]) return null;
-  const owner = segments[1];
-  const repo = segments[2];
-  const marker = segments[3];
-  const refName = marker === "tree" || marker === "commit" ? segments.slice(4).join("/") : "";
-  return { repoUrl: `https://github.com/${owner}/${repo}`, refName };
+  if (segments[0] === "github" && segments[1] && segments[2]) {
+    const owner = segments[1];
+    const repo = segments[2];
+    const marker = segments[3];
+    const refName = marker === "tree" || marker === "commit" ? segments.slice(4).join("/") : "";
+    return { repoUrl: `https://github.com/${owner}/${repo}`, refName };
+  }
+  if (segments[0] === "gitlab" && segments.length >= 3) {
+    const rest = segments.slice(1);
+    const markerIndex = rest.findIndex((segment, index) => index >= 2 && (segment === "tree" || segment === "commit"));
+    const repoParts = markerIndex === -1 ? rest : rest.slice(0, markerIndex);
+    if (repoParts.length < 2) return null;
+    const refName = markerIndex === -1 ? "" : rest.slice(markerIndex + 1).join("/");
+    return { repoUrl: `https://gitlab.com/${repoParts.join("/")}`, refName };
+  }
+  return null;
 }
 
-function buildPublicReportUrl(owner: string, repo: string, ref: string) {
-  const base = `${window.location.origin}/github/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+function buildPublicReportUrl(owner: string, repo: string, ref: string, provider: "github" | "gitlab" = "github") {
+  const ownerPath = provider === "gitlab"
+    ? owner.split("/").map(encodeURIComponent).join("/")
+    : encodeURIComponent(owner);
+  const base = `${window.location.origin}/${provider}/${ownerPath}/${encodeURIComponent(repo)}`;
   if (!ref.trim()) return base;
   const marker = looksLikeCommit(ref) ? "commit" : "tree";
   return `${base}/${marker}/${encodeRefPath(ref)}`;
@@ -1028,6 +1115,13 @@ function encodeRefPath(ref: string) {
 
 function looksLikeCommit(ref: string) {
   return /^[a-f0-9]{7,40}$/i.test(ref.trim());
+}
+
+function normalizedProvider(report: Report): "github" | "gitlab" {
+  const provider = report.repository.provider;
+  if (provider === "gitlab" || provider === "gitLab") return "gitlab";
+  if (provider === "github" || provider === "gitHub") return "github";
+  return report.repository.htmlUrl.includes("gitlab.com/") ? "gitlab" : "github";
 }
 
 function buildBadgeUrl(owner: string, repo: string, ref: string, type: (typeof badgeTypes)[number], language: string) {
@@ -1106,8 +1200,9 @@ function syncPageMetadata({
 }
 
 function buildCanonicalReportUrl(report: Report, ref: string) {
-  if (report.repository.htmlUrl.includes("github.com/")) {
-    return buildPublicReportUrl(report.repository.owner, report.repository.name, ref);
+  const provider = normalizedProvider(report);
+  if (provider === "github" || provider === "gitlab") {
+    return buildPublicReportUrl(report.repository.owner, report.repository.name, ref, provider);
   }
   const params = new URLSearchParams({ q: report.repository.htmlUrl });
   if (ref.trim()) params.set("ref", ref.trim());
@@ -1116,7 +1211,10 @@ function buildCanonicalReportUrl(report: Report, ref: string) {
 
 function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string; host?: string }, repoUrl: string, ref: string) {
   if (parsed.host === "github.com") {
-    return buildPublicReportUrl(parsed.owner, parsed.repo, ref);
+    return buildPublicReportUrl(parsed.owner, parsed.repo, ref, "github");
+  }
+  if (parsed.host === "gitlab.com") {
+    return buildPublicReportUrl(parsed.owner, parsed.repo, ref, "gitlab");
   }
   const params = new URLSearchParams({ q: repoUrl.trim() });
   if (ref.trim()) params.set("ref", ref.trim());
@@ -1174,6 +1272,12 @@ function Insights({ report }: { report: Report }) {
       value: t(`insights.scaleValues.${scale}`),
       detail: t(`insights.scaleDetails.${scale}`),
       tone: "accent",
+    },
+    {
+      label: t("insights.speed"),
+      value: `${report.durationMs}ms`,
+      detail: t("insights.speedDetail", { lines: formatNumber(totalLines), version: report.tokeiVersion }),
+      tone: "warn",
     },
     {
       label: t("insights.topLanguage"),

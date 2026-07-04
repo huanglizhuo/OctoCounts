@@ -32,7 +32,7 @@
       "@type": "TechArticle",
       "headline": "OctoCounts API Docs",
       "description": "API documentation for public GitHub and GitLab repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
-      "dateModified": "2026-06-11",
+      "dateModified": "2026-07-04",
       "mainEntityOfPage": "https://octocounts.com/docs/api.html",
       "author": {
         "@type": "Person",
@@ -78,6 +78,16 @@ Content-Type: application/json
     <pre><code>GET https://api.octocounts.com/api/reports/:reportId</code></pre>
     <p>Reports include repository metadata, pinned commit SHA, tokei version, analysis key, active analysis options, language rows, and totals for files, lines, code, comments, and blanks.</p>
 
+    <h2>SEO Data and OG Images</h2>
+    <pre><code>GET https://api.octocounts.com/api/seo/report?provider=github&amp;owner=owner&amp;repo=repo
+GET https://api.octocounts.com/api/seo/report?provider=gitlab&amp;owner=group/subgroup&amp;repo=project
+GET https://api.octocounts.com/api/seo/recent
+GET https://api.octocounts.com/api/seo/popular
+GET https://api.octocounts.com/api/seo/sitemap
+GET https://api.octocounts.com/og/github/:owner/:repo
+GET https://api.octocounts.com/og/gitlab/:namespace/:repo</code></pre>
+    <p>These endpoints power indexable report pages on <code>octocounts.com</code>. They return cached report metadata only; they do not start new analyses.</p>
+
     <h2>Badges</h2>
     <pre><code>GET https://api.octocounts.com/badge/:owner/:repo
 GET https://api.octocounts.com/badge/:owner/:repo/branch/:branch
@@ -88,11 +98,15 @@ GET https://api.octocounts.com/badge/:owner/:repo/commit/:sha</code></pre>
       <li><code>type=code</code>, <code>lines</code>, <code>files</code>, <code>comments</code>, <code>languages</code>, <code>top-language</code>, or <code>ratio</code></li>
       <li><code>lang=Rust</code> for a single-language code-line badge</li>
     </ul>
+    <p>Badge routes are currently GitHub-only. Public GitLab projects are supported by the web app, API, and report pages, but not by README badges yet.</p>
 
     <h2>Shareable Web URLs</h2>
     <pre><code>https://octocounts.com/github/:owner/:repo
 https://octocounts.com/github/:owner/:repo/tree/:ref
 https://octocounts.com/github/:owner/:repo/commit/:sha
+https://octocounts.com/gitlab/:namespace/:repo
+https://octocounts.com/gitlab/:namespace/:repo/tree/:ref
+https://octocounts.com/gitlab/:namespace/:repo/commit/:sha
 https://octocounts.com/compare?left=...&amp;right=...&amp;leftRef=...&amp;rightRef=...
 https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
 

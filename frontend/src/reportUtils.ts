@@ -52,6 +52,11 @@ export function logLines(status: AppStatus, report: Report | null, error: string
         kind: "ok",
         text: i18n.t("runner.log.languageRows", { count: formatNumber(report.languages.length) }),
       },
+      {
+        ts: "00:04",
+        kind: "ok",
+        text: i18n.t("runner.log.counted", { lines: formatNumber(report.total.lines), duration: report.durationMs }),
+      },
     ];
   return [];
 }

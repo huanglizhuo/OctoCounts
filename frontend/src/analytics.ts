@@ -1,0 +1,41 @@
+type AnalyticsProps = Record<string, string | number | boolean | undefined>;
+
+declare global {
+  interface Window {
+    plausible?: (eventName: string, options?: { props?: AnalyticsProps }) => void;
+  }
+}
+
+const domain = import.meta.env.VITE_PLAUSIBLE_DOMAIN as string | undefined;
+const scriptSrc = (import.meta.env.VITE_PLAUSIBLE_SRC as string | undefined) ?? "https://plausible.io/js/script.js";
+
+export function initAnalytics() {
+  if (!domain || typeof document === "undefined" || document.querySelector("script[data-domain][src*='plausible']")) {
+    return;
+  }
+  const script = document.createElement("script");
+  script.defer = true;
+  script.dataset.domain = domain;
+  script.src = scriptSrc;
+  document.head.appendChild(script);
+}
+
+export function trackEvent(eventName: string, props?: AnalyticsProps) {
+  window.plausible?.(eventName, props ? { props } : undefined);
+}
+
+export function providerFromRepoUrl(repoUrl: string) {
+  try {
+    const normalized = repoUrl.trim().startsWith("git@gitlab.com:")
+      ? repoUrl.trim().replace("git@gitlab.com:", "https://gitlab.com/")
+      : repoUrl.trim().startsWith("git@github.com:")
+        ? repoUrl.trim().replace("git@github.com:", "https://github.com/")
+        : repoUrl.trim();
+    const hostname = new URL(normalized).hostname;
+    if (hostname === "gitlab.com") return "gitlab";
+    if (hostname === "github.com") return "github";
+  } catch {
+    return "unknown";
+  }
+  return "unknown";
+}

@@ -39,7 +39,7 @@ pub struct JobRecord {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum JobStatus {
     Queued,
@@ -84,10 +84,11 @@ pub struct Repository {
     pub provider: RepositoryProvider,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RepositoryProvider {
+    #[serde(rename = "github", alias = "gitHub", alias = "GitHub")]
     GitHub,
+    #[serde(rename = "gitlab", alias = "gitLab", alias = "GitLab")]
     GitLab,
 }
 
@@ -154,7 +155,7 @@ fn default_provider() -> RepositoryProvider {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnalyzeRequest, AnalyzeResponse, JobStatus};
+    use super::{AnalyzeRequest, AnalyzeResponse, JobStatus, RepositoryProvider};
     use uuid::Uuid;
 
     #[test]
@@ -187,5 +188,21 @@ mod tests {
         let request: AnalyzeRequest = serde_json::from_str(json).unwrap();
 
         assert!(!request.force_refresh);
+    }
+
+    #[test]
+    fn repository_provider_serializes_lowercase_and_accepts_legacy_camel_case() {
+        assert_eq!(
+            serde_json::to_value(RepositoryProvider::GitHub).unwrap(),
+            "github"
+        );
+        assert_eq!(
+            serde_json::from_str::<RepositoryProvider>(r#""gitHub""#).unwrap(),
+            RepositoryProvider::GitHub
+        );
+        assert_eq!(
+            serde_json::from_str::<RepositoryProvider>(r#""gitLab""#).unwrap(),
+            RepositoryProvider::GitLab
+        );
     }
 }

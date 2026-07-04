@@ -43,7 +43,8 @@ impl AnalysisCoordinator {
         if !request.force_refresh {
             if let Some(report) = self
                 .store
-                .cached_report(
+                .cached_report_for_provider(
+                    repo_ref.provider.clone(),
                     &repo_ref.owner,
                     &repo_ref.repo,
                     &repo_ref.commit_sha,
@@ -62,6 +63,7 @@ impl AnalysisCoordinator {
         let (job, created) = self
             .store
             .create_or_get_active_job(JobKey {
+                provider: repo_ref.provider.clone(),
                 owner: &repo_ref.owner,
                 repo: &repo_ref.repo,
                 commit_sha: &repo_ref.commit_sha,

@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
-use crate::models::{ApiErrorBody, JobRecord, JobStatus, Report};
+use crate::models::{ApiErrorBody, JobRecord, JobStatus, Report, RepositoryProvider};
 
 #[derive(Clone)]
 pub struct Store {
@@ -19,6 +19,7 @@ impl Store {
             r#"
             CREATE TABLE IF NOT EXISTS reports (
                 id TEXT PRIMARY KEY,
+                provider TEXT NOT NULL DEFAULT 'github',
                 owner TEXT NOT NULL,
                 repo TEXT NOT NULL,
                 commit_sha TEXT NOT NULL,
@@ -28,9 +29,10 @@ impl Store {
                 last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 access_count BIGINT NOT NULL DEFAULT 0,
                 body_bytes BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT reports_provider_valid CHECK (provider IN ('github', 'gitlab')),
                 CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0),
                 CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0),
-                UNIQUE(owner, repo, commit_sha, tokei_version)
+                UNIQUE(provider, owner, repo, commit_sha, tokei_version)
             );
             "#,
         )
@@ -42,10 +44,12 @@ impl Store {
             CREATE TABLE IF NOT EXISTS jobs (
                 id UUID PRIMARY KEY,
                 status TEXT NOT NULL,
+                provider TEXT,
                 report_id TEXT,
                 error JSONB,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab')),
                 CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
             );
             "#,
@@ -116,10 +120,31 @@ impl Store {
         sqlx::query("ALTER TABLE reports ALTER COLUMN body_bytes SET DEFAULT 0")
             .execute(&self.pool)
             .await?;
+        sqlx::query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS provider TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            r#"
+            UPDATE reports
+            SET provider = LOWER(COALESCE(NULLIF(body->'repository'->>'provider', ''), 'github'))
+            WHERE provider IS NULL
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN provider SET DEFAULT 'github'")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN provider SET NOT NULL")
+            .execute(&self.pool)
+            .await?;
         sqlx::query("ALTER TABLE jobs ALTER COLUMN created_at SET DEFAULT NOW()")
             .execute(&self.pool)
             .await?;
         sqlx::query("ALTER TABLE jobs ALTER COLUMN updated_at SET DEFAULT NOW()")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS provider TEXT")
             .execute(&self.pool)
             .await?;
         sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS owner TEXT")
@@ -134,11 +159,45 @@ impl Store {
         sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tokei_version TEXT")
             .execute(&self.pool)
             .await?;
+        sqlx::query(
+            "UPDATE jobs SET provider = 'github' WHERE provider IS NULL AND owner IS NOT NULL",
+        )
+        .execute(&self.pool)
+        .await?;
 
         sqlx::query(
             r#"
             DO $$
             BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'reports_owner_repo_commit_sha_tokei_version_key'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE reports DROP CONSTRAINT reports_owner_repo_commit_sha_tokei_version_key;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'reports_provider_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE reports
+                    ADD CONSTRAINT reports_provider_valid CHECK (provider IN ('github', 'gitlab'));
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'jobs_provider_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE jobs
+                    ADD CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab'));
+                END IF;
+
                 IF NOT EXISTS (
                     SELECT 1
                     FROM pg_constraint
@@ -178,9 +237,30 @@ impl Store {
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
             .await?;
+        sqlx::query("DROP INDEX IF EXISTS idx_reports_repo_ref_unique")
+            .execute(&self.pool)
+            .await?;
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cleanup")
             .execute(&self.pool)
             .await?;
+        sqlx::query(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_provider_cache_unique ON reports (provider, owner, repo, commit_sha, tokei_version)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_provider_latest ON reports (provider, owner, repo, created_at DESC)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_reports_recent ON reports (created_at DESC)")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_popular ON reports (access_count DESC, last_accessed_at DESC)",
+        )
+        .execute(&self.pool)
+        .await?;
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_reports_lru_cleanup ON reports (last_accessed_at, created_at)",
         )
@@ -199,10 +279,13 @@ impl Store {
         )
             .execute(&self.pool)
             .await?;
+        sqlx::query("DROP INDEX IF EXISTS idx_jobs_active_key_unique")
+            .execute(&self.pool)
+            .await?;
         sqlx::query(
             r#"
             CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_active_key_unique
-            ON jobs (owner, repo, commit_sha, tokei_version)
+            ON jobs (provider, owner, repo, commit_sha, tokei_version)
             WHERE status IN ('queued', 'running')
             "#,
         )
@@ -212,6 +295,7 @@ impl Store {
         Ok(())
     }
 
+    #[cfg(test)]
     pub async fn cached_report(
         &self,
         owner: &str,
@@ -219,7 +303,26 @@ impl Store {
         commit_sha: &str,
         tokei_version: &str,
     ) -> anyhow::Result<Option<Report>> {
+        self.cached_report_for_provider(
+            RepositoryProvider::GitHub,
+            owner,
+            repo,
+            commit_sha,
+            tokei_version,
+        )
+        .await
+    }
+
+    pub async fn cached_report_for_provider(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        commit_sha: &str,
+        tokei_version: &str,
+    ) -> anyhow::Result<Option<Report>> {
         let key = ReportCacheKey {
+            provider,
             owner,
             repo,
             commit_sha,
@@ -239,14 +342,15 @@ impl Store {
     pub async fn save_report(&self, report: &Report) -> anyhow::Result<()> {
         let body = serde_json::to_string(report)?;
         let body_bytes = body.len() as i64;
+        let provider = provider_to_str(&report.repository.provider);
         sqlx::query(
             r#"
             INSERT INTO reports (
-                id, owner, repo, commit_sha, tokei_version, body, created_at,
+                id, provider, owner, repo, commit_sha, tokei_version, body, created_at,
                 last_accessed_at, access_count, body_bytes
             )
-            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $7, 0, $8)
-            ON CONFLICT (owner, repo, commit_sha, tokei_version)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $8, 0, $9)
+            ON CONFLICT (provider, owner, repo, commit_sha, tokei_version)
             DO UPDATE SET
                 id = EXCLUDED.id,
                 body = EXCLUDED.body,
@@ -257,6 +361,7 @@ impl Store {
             "#,
         )
         .bind(&report.id)
+        .bind(provider)
         .bind(&report.repository.owner)
         .bind(&report.repository.name)
         .bind(&report.commit_sha)
@@ -276,6 +381,98 @@ impl Store {
             .transpose()
     }
 
+    pub async fn latest_report(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Option<Report>> {
+        let row = sqlx::query(
+            r#"
+            SELECT body::text AS body
+            FROM reports
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|row| row.try_get::<String, _>("body"))
+            .transpose()?
+            .map(|body| Ok(serde_json::from_str(&body)?))
+            .transpose()
+    }
+
+    pub async fn recent_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
+        self.distinct_reports("created_at DESC", limit, offset)
+            .await
+    }
+
+    pub async fn popular_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
+        self.distinct_reports("access_count DESC, last_accessed_at DESC", limit, offset)
+            .await
+    }
+
+    pub async fn sitemap_reports(&self, limit: i64) -> anyhow::Result<Vec<Report>> {
+        self.distinct_reports("created_at DESC", limit, 0).await
+    }
+
+    async fn distinct_reports(
+        &self,
+        order: &'static str,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<Report>> {
+        let sql = match order {
+            "created_at DESC" => {
+                r#"
+                SELECT body::text AS body
+                FROM (
+                    SELECT DISTINCT ON (provider, owner, repo)
+                        body, created_at
+                    FROM reports
+                    ORDER BY provider, owner, repo, created_at DESC
+                ) latest
+                ORDER BY created_at DESC
+                LIMIT $1 OFFSET $2
+                "#
+            }
+            "access_count DESC, last_accessed_at DESC" => {
+                r#"
+                SELECT body::text AS body
+                FROM (
+                    SELECT DISTINCT ON (provider, owner, repo)
+                        body, access_count, last_accessed_at, created_at
+                    FROM reports
+                    ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
+                ) popular
+                ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
+                LIMIT $1 OFFSET $2
+                "#
+            }
+            _ => unreachable!("unsupported report order"),
+        };
+
+        let rows = sqlx::query(sql)
+            .bind(limit.clamp(0, 500))
+            .bind(offset.max(0))
+            .fetch_all(&self.pool)
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let body: String = row.try_get("body")?;
+                let report: Report = serde_json::from_str(&body)?;
+                Ok(report)
+            })
+            .collect()
+    }
+
     async fn fetch_cached_report_by_key(
         &self,
         key: ReportCacheKey<'_>,
@@ -287,12 +484,13 @@ impl Store {
             WHERE id = (
                 SELECT id
                 FROM reports
-                WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4
+                WHERE provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5
             )
             AND last_accessed_at < NOW() - INTERVAL '1 hour'
             RETURNING body::text AS body
             "#,
         )
+        .bind(provider_to_str(&key.provider))
         .bind(key.owner)
         .bind(key.repo)
         .bind(key.commit_sha)
@@ -305,8 +503,9 @@ impl Store {
         }
 
         let row = sqlx::query(
-            "SELECT body::text AS body FROM reports WHERE owner = $1 AND repo = $2 AND commit_sha = $3 AND tokei_version = $4",
+            "SELECT body::text AS body FROM reports WHERE provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5",
         )
+        .bind(provider_to_str(&key.provider))
         .bind(key.owner)
         .bind(key.repo)
         .bind(key.commit_sha)
@@ -557,14 +756,15 @@ impl Store {
         let row = sqlx::query(
             r#"
             INSERT INTO jobs (
-                id, status, owner, repo, commit_sha, tokei_version, created_at, updated_at
+                id, status, provider, owner, repo, commit_sha, tokei_version, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
             RETURNING id, status, report_id, error::text AS error, created_at, updated_at
             "#,
         )
         .bind(id)
         .bind(status_to_str(&JobStatus::Queued))
+        .bind(provider_to_str(&key.provider))
         .bind(key.owner)
         .bind(key.repo)
         .bind(key.commit_sha)
@@ -581,15 +781,17 @@ impl Store {
             r#"
             SELECT id, status, report_id, error::text AS error, created_at, updated_at
             FROM jobs
-            WHERE owner = $1
-            AND repo = $2
-            AND commit_sha = $3
-            AND tokei_version = $4
+            WHERE provider = $1
+            AND owner = $2
+            AND repo = $3
+            AND commit_sha = $4
+            AND tokei_version = $5
             AND status IN ('queued', 'running')
             ORDER BY created_at ASC
             LIMIT 1
             "#,
         )
+        .bind(provider_to_str(&key.provider))
         .bind(key.owner)
         .bind(key.repo)
         .bind(key.commit_sha)
@@ -653,6 +855,7 @@ const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 
 #[derive(Clone, Copy, Debug)]
 struct ReportCacheKey<'a> {
+    provider: RepositoryProvider,
     owner: &'a str,
     repo: &'a str,
     commit_sha: &'a str,
@@ -661,6 +864,7 @@ struct ReportCacheKey<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct JobKey<'a> {
+    pub provider: RepositoryProvider,
     pub owner: &'a str,
     pub repo: &'a str,
     pub commit_sha: &'a str,
@@ -732,6 +936,21 @@ fn status_from_str(status: &str) -> anyhow::Result<JobStatus> {
         "completed" => Ok(JobStatus::Completed),
         "failed" => Ok(JobStatus::Failed),
         _ => anyhow::bail!("invalid job status in database: {status}"),
+    }
+}
+
+pub fn provider_to_str(provider: &RepositoryProvider) -> &'static str {
+    match provider {
+        RepositoryProvider::GitHub => "github",
+        RepositoryProvider::GitLab => "gitlab",
+    }
+}
+
+pub fn provider_from_str(provider: &str) -> Option<RepositoryProvider> {
+    match provider {
+        "github" => Some(RepositoryProvider::GitHub),
+        "gitlab" => Some(RepositoryProvider::GitLab),
+        _ => None,
     }
 }
 
@@ -1018,6 +1237,11 @@ mod tests {
             return;
         };
 
+        assert_eq!(
+            store.column_type("reports", "provider").await.unwrap(),
+            "text"
+        );
+        assert_eq!(store.column_type("jobs", "provider").await.unwrap(), "text");
         assert_eq!(store.column_type("jobs", "owner").await.unwrap(), "text");
         assert_eq!(store.column_type("jobs", "repo").await.unwrap(), "text");
         assert_eq!(
@@ -1101,6 +1325,7 @@ mod tests {
 
     fn test_job_key(owner: &str) -> JobKey<'_> {
         JobKey {
+            provider: RepositoryProvider::GitHub,
             owner,
             repo: "count",
             commit_sha: "abc123",

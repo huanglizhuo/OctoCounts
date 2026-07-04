@@ -7,7 +7,7 @@ AI-Usage: search-allowed, training-prohibited
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCount
-Last-Updated: 2026-06-11
+Last-Updated: 2026-07-04
 
 ## Short Answer
 
@@ -50,8 +50,8 @@ Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `nod
 
 | Host | Support |
 |---|---|
-| Public GitHub repositories | Web app, API, badges, Chrome extension, Firefox extension |
-| Public GitLab repositories on gitlab.com | Web app and API |
+| Public GitHub repositories | Web app, API, report pages, badges, Chrome extension, Firefox extension |
+| Public GitLab repositories on gitlab.com | Web app, API, and report pages |
 | Private repositories | Not supported |
 | Source-code uploads | Not supported |
 
@@ -65,6 +65,12 @@ Base API: https://api.octocounts.com
 POST /api/analyze
 GET /api/jobs/:jobId
 GET /api/reports/:reportId
+GET /api/seo/report?provider=github|gitlab&owner=:owner&repo=:repo
+GET /api/seo/recent
+GET /api/seo/popular
+GET /api/seo/sitemap
+GET /og/github/:owner/:repo
+GET /og/gitlab/:namespace/:repo
 GET /badge/:owner/:repo
 GET /badge/:owner/:repo/branch/:branch
 GET /badge/:owner/:repo/tag/:tag
@@ -100,10 +106,13 @@ GET /badge/:owner/:repo/commit/:sha
 ```
 
 Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `top-language`, and `ratio`.
+Badge routes are GitHub-only in the current version. GitLab repositories use web/API/report pages but do not yet have README badges or browser extension sidebar cards.
 
 ## Important URLs
 
 - Web app: https://octocounts.com/
+- GitHub report URL pattern: https://octocounts.com/github/:owner/:repo
+- GitLab report URL pattern: https://octocounts.com/gitlab/:namespace/:repo
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
 - API docs: https://octocounts.com/docs/api.html
 - Privacy policy: https://octocounts.com/privacy
@@ -125,7 +134,7 @@ SLOC means source lines of code. OctoCounts separates total lines into code line
 Yes. The web app, API, and browser extensions are free for public repositories.
 
 **Does OctoCounts support GitLab?**
-Yes. The web app and API support public repositories on gitlab.com.
+Yes. The web app, API, and report pages support public repositories on gitlab.com. Browser extension sidebar cards and README badges are GitHub-only for now.
 
 **Does OctoCounts support private repositories?**
 No. OctoCounts analyzes public repositories only and does not accept source-code uploads.

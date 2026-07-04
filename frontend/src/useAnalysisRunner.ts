@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import i18n from "./i18n";
+import { providerFromRepoUrl, trackEvent } from "./analytics";
 import { analyzeRepository, ApiRequestError, fetchJson } from "./api";
 import { commandText } from "./reportUtils";
 import type { AnalysisOptions, AppStatus, JobRecord, Report } from "./types";
@@ -56,6 +57,12 @@ export function useAnalysisRunner({
       .then((nextReport) => {
         if (cancelled) return;
         setReport(nextReport);
+        trackEvent("analyze_completed", {
+          provider: normalizedProvider(nextReport.repository.provider, nextReport.repository.htmlUrl),
+          cached: nextReport.cached,
+          code: nextReport.total.code,
+          languages: nextReport.languages.length,
+        });
         setJobId(null);
         setJobStartedAt(null);
       })
@@ -79,9 +86,11 @@ export function useAnalysisRunner({
     }
   }, [jobQuery.data]);
 
-  const runAnalysis = async (forceRefresh: boolean) => {
-    const effectiveRepoUrl = repoUrl.trim() || defaultRepoUrl;
-    const effectiveRefName = refName.trim() || (repoUrl.trim() ? "" : defaultRefName);
+  const runAnalysis = async (forceRefresh: boolean, overrides?: { repoUrl?: string; refName?: string }) => {
+    const requestedRepoUrl = overrides?.repoUrl ?? repoUrl;
+    const requestedRefName = overrides?.refName ?? refName;
+    const effectiveRepoUrl = requestedRepoUrl.trim() || defaultRepoUrl;
+    const effectiveRefName = requestedRefName.trim() || (requestedRepoUrl.trim() ? "" : defaultRefName);
     setError(null);
     setReport(null);
     setJobId(null);
@@ -89,11 +98,21 @@ export function useAnalysisRunner({
     setIsSubmitting(true);
     const command = commandText(effectiveRepoUrl, effectiveRefName, forceRefresh);
     setLastCommand(command);
+    trackEvent("analyze_submitted", {
+      provider: providerFromRepoUrl(effectiveRepoUrl),
+      forceRefresh,
+    });
 
     try {
       const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions });
       if (result.kind === "cached") {
         setReport(result.report);
+        trackEvent("analyze_completed", {
+          provider: normalizedProvider(result.report.repository.provider, effectiveRepoUrl),
+          cached: true,
+          code: result.report.total.code,
+          languages: result.report.languages.length,
+        });
       } else {
         setJobStartedAt(Date.now());
         setJobId(result.jobId);
@@ -137,6 +156,12 @@ function pollingInterval(elapsedMs: number) {
   if (elapsedMs < 5_000) return 1_200;
   if (elapsedMs < 30_000) return 2_500;
   return 5_000;
+}
+
+function normalizedProvider(provider: Report["repository"]["provider"], fallbackUrl: string) {
+  if (provider === "gitlab" || provider === "gitLab") return "gitlab";
+  if (provider === "github" || provider === "gitHub") return "github";
+  return providerFromRepoUrl(fallbackUrl);
 }
 
 function errorMessage(error: JobRecord["error"]): AnalysisError {

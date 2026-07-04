@@ -6,6 +6,8 @@ mod coordinator;
 mod error;
 mod github;
 mod models;
+mod og;
+mod seo;
 mod store;
 
 use std::{net::SocketAddr, time::Duration};
@@ -65,6 +67,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
+        .route("/api/seo/report", get(seo::report))
+        .route("/api/seo/recent", get(seo::recent))
+        .route("/api/seo/popular", get(seo::popular))
+        .route("/api/seo/sitemap", get(seo::sitemap))
+        .route("/og/github/{owner}/{repo}", get(og::github))
+        .route("/og/gitlab/{*path}", get(og::gitlab))
         .route("/badge/{owner}/{repo}", get(badge::badge_default))
         .route(
             "/badge/{owner}/{repo}/branch/{*branch}",
