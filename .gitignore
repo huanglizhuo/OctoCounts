@@ -16,6 +16,7 @@
 /frontend/dist/
 /extension/node_modules/
 /extension/dist/
+/extension/packages/
 
 # Logs
 *.log
