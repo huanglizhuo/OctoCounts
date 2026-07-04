@@ -65,6 +65,15 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   bindTableSort(shadow, report, theme, 'code', 'desc');
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function bindCopyBtn(btn, data, origLabel) {
   if (!btn) return;
   btn.addEventListener('click', () => {
@@ -99,7 +108,7 @@ function buildPanelHTML(report, theme) {
           <span class="oc-plogo-text">${t('panel.title')}</span>
         </div>
         <div class="oc-pheader-right">
-          <span class="oc-prepo">${report.repository.owner}/${report.repository.name} @ ${sha}</span>
+          <span class="oc-prepo">${escapeHtml(report.repository.owner)}/${escapeHtml(report.repository.name)} @ ${sha}</span>
           <a class="oc-popen" href="${webUrl}" target="_blank" rel="noopener noreferrer">${t('panel.open')}</a>
           <button class="oc-pclose" title="${t('panel.closeTitle')}" aria-label="${t('panel.closeTitle')}">×</button>
         </div>
@@ -123,7 +132,7 @@ function buildPanelHTML(report, theme) {
           <button class="oc-export-btn oc-btn-refresh">${t('panel.refresh')}</button>
         </div>
         <div class="right">
-          ${cacheInfo} · ${report.refName} → ${sha}
+          ${cacheInfo} · ${escapeHtml(report.refName)} → ${sha}
         </div>
       </div>
     </div>
@@ -155,7 +164,7 @@ function buildDonutHTML(report, theme) {
     const pct = formatPercent(lang.stats.lines, total);
     return `<div class="oc-legend-row">
       <span class="oc-legend-dot" style="background:${color}"></span>
-      <span class="oc-legend-name">${lang.name}</span>
+      <span class="oc-legend-name">${escapeHtml(lang.name)}</span>
       <span class="oc-legend-pct">${pct}</span>
     </div>`;
   }).join('');
@@ -185,7 +194,7 @@ function buildTableHTML(report, theme, sortKey, sortDir) {
 
   const rows = sorted.map(lang => `
     <tr>
-      <td>${lang.name}</td>
+      <td>${escapeHtml(lang.name)}</td>
       ${['files', 'lines', 'code', 'comments', 'blanks'].map(k =>
         `<td${k === 'code' ? ' class="accent"' : ''}>${formatNumber(lang.stats[k])}</td>`
       ).join('')}

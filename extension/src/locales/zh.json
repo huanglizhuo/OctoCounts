@@ -14,6 +14,7 @@
     "moreLanguages": "+ {{count}} 更多 →",
     "starPrompt": "// 省了一次 clone?给个 star →",
     "starDismiss": "关闭",
+    "openPanel": "打开详细报告",
     "error": {
       "title": "分析失败",
       "timedOut": "分析超时",
@@ -60,6 +61,7 @@
     "hintCardTitle": "留空则使用默认标题 “OctoCounts”",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "隐藏 GitHub Languages 统计",
+    "skipForks": "跳过 fork 仓库",
     "hintReplaceGhLanguages": "隐藏 GitHub 的语言百分比栏",
     "cacheTtl": "缓存有效期",
     "hintCacheTtl": "结果缓存多久后重新分析",

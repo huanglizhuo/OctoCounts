@@ -14,6 +14,7 @@
     "moreLanguages": "+ {{count}} more →",
     "starPrompt": "// saved you a clone? star the repo →",
     "starDismiss": "Dismiss",
+    "openPanel": "Open detailed report",
     "error": {
       "title": "Analysis failed",
       "timedOut": "Analysis timed out",
@@ -60,6 +61,7 @@
     "hintCardTitle": "Leave blank to use the default “OctoCounts”",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "Hide GitHub Languages section",
+    "skipForks": "Skip forked repositories",
     "hintReplaceGhLanguages": "Hide GitHub's language percentage bar",
     "cacheTtl": "Cache TTL",
     "hintCacheTtl": "How long to cache results before re-analyzing",

@@ -14,6 +14,7 @@
     "moreLanguages": "+ {{count}} 件以上 →",
     "starPrompt": "// clone を節約できた? リポジトリに star を →",
     "starDismiss": "閉じる",
+    "openPanel": "詳細レポートを開く",
     "error": {
       "title": "分析に失敗しました",
       "timedOut": "分析がタイムアウトしました",
@@ -60,6 +61,7 @@
     "hintCardTitle": "空白にするとデフォルトの「OctoCounts」が使われます",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "GitHubの言語セクションを非表示",
+    "skipForks": "フォークしたリポジトリをスキップ",
     "hintReplaceGhLanguages": "GitHub の言語パーセンテージバーを非表示",
     "cacheTtl": "キャッシュの有効期限",
     "hintCacheTtl": "再分析するまでの結果の保持期間",

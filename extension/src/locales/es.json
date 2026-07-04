@@ -14,6 +14,7 @@
     "moreLanguages": "+ {{count}} más →",
     "starPrompt": "// ¿te ahorró un clone? dale una estrella →",
     "starDismiss": "Cerrar",
+    "openPanel": "Abrir informe detallado",
     "error": {
       "title": "Error en el análisis",
       "timedOut": "Tiempo de análisis agotado",
@@ -60,6 +61,7 @@
     "hintCardTitle": "Dejar en blanco para usar el título por defecto «OctoCounts»",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "Ocultar sección Languages de GitHub",
+    "skipForks": "Omitir repositorios bifurcados",
     "hintReplaceGhLanguages": "Oculta la barra de porcentaje de idiomas de GitHub",
     "cacheTtl": "Duración de caché",
     "hintCacheTtl": "Cuánto tiempo conservar los resultados antes de volver a analizar",
