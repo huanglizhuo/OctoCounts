@@ -12,8 +12,6 @@
     "lines": "行数",
     "comments": "コメント",
     "moreLanguages": "+ {{count}} 件以上 →",
-    "starPrompt": "// clone を節約できた? リポジトリに star を →",
-    "starDismiss": "閉じる",
     "openPanel": "詳細レポートを開く",
     "error": {
       "title": "分析に失敗しました",
@@ -34,6 +32,8 @@
     "refreshing": "更新中…",
     "cached": "キャッシュ済み",
     "fresh": "最新",
+    "starPrompt": "// clone を節約できた? リポジトリに star を →",
+    "starDismiss": "閉じる",
     "lines": "行数",
     "table": {
       "language": "言語",

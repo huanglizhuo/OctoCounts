@@ -12,8 +12,6 @@
     "lines": "lignes",
     "comments": "commentaires",
     "moreLanguages": "+ {{count}} de plus →",
-    "starPrompt": "// un clone évité ? mettez une étoile →",
-    "starDismiss": "Fermer",
     "openPanel": "Ouvrir le rapport détaillé",
     "error": {
       "title": "Échec de l'analyse",
@@ -34,6 +32,8 @@
     "refreshing": "actualisation…",
     "cached": "mis en cache",
     "fresh": "récent",
+    "starPrompt": "// un clone évité ? mettez une étoile →",
+    "starDismiss": "Fermer",
     "lines": "lignes",
     "table": {
       "language": "Langage",

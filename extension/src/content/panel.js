@@ -7,6 +7,10 @@ import { sortRows } from '../shared/sort.js';
 let _panelHost = null;
 let _prevFocus = null;
 
+// Dismissible star nudge shown in the panel footer. It stays until the user
+// interacts with it once (clicks the link or the × close).
+const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCount';
+
 export function unmountPanel() {
   if (_panelHost) {
     _panelHost.remove();
@@ -63,6 +67,49 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
 
   // Sortable table
   bindTableSort(shadow, report, theme, 'code', 'desc');
+
+  // One-time star nudge
+  maybeShowStarNudge(shadow);
+}
+
+async function maybeShowStarNudge(shadow) {
+  let state;
+  try {
+    state = await chrome.storage.local.get({ starPromptDismissed: false });
+  } catch (_) {
+    return;
+  }
+  if (state.starPromptDismissed) return;
+
+  const panel = shadow.querySelector('.oc-panel');
+  if (!panel || panel.querySelector('.oc-star-prompt')) return;
+
+  const el = document.createElement('div');
+  el.className = 'oc-star-prompt';
+
+  const link = document.createElement('a');
+  link.className = 'oc-star-link';
+  link.href = STAR_REPO_URL;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = t('panel.starPrompt');
+  link.addEventListener('click', () => {
+    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
+  });
+
+  const close = document.createElement('button');
+  close.className = 'oc-star-close';
+  close.type = 'button';
+  close.setAttribute('aria-label', t('panel.starDismiss'));
+  close.textContent = '×';
+  close.addEventListener('click', () => {
+    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
+    el.remove();
+  });
+
+  el.appendChild(link);
+  el.appendChild(close);
+  panel.appendChild(el);
 }
 
 function escapeHtml(value) {

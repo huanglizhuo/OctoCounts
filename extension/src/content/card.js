@@ -8,13 +8,6 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 4;
 const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_error']);
 
-// Value-moment star nudge: after this many successful card renders, show a
-// one-time, dismissible "star the repo" line at the bottom of the card.
-const STAR_PROMPT_THRESHOLD = 4;
-const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCount';
-// Guard so a single mount (including its refreshes) counts as one success.
-let _starCountedThisMount = false;
-
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
 const SKEL_DEFAULT = 4;
 const SKEL_MIN     = 2;
@@ -52,7 +45,6 @@ export function unmountCard() {
   _generation++;
   stopPolling();
   _analyzing = false;
-  _starCountedThisMount = false;
   restoreGhLanguagesSection();
   teardownCardHost(document.querySelector('[data-octocount-card]'));
 }
@@ -60,7 +52,6 @@ export function unmountCard() {
 export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
   _disabled = false;
   _generation++;
-  _starCountedThisMount = false;
   const gen = _generation;
 
   const grid = findBorderGrid();
@@ -396,66 +387,6 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   cardHost.addEventListener('keydown', onKey);
 
   if (replaceGhLanguages) hideGhLanguagesSection();
-
-  recordSuccessAndMaybePrompt(root);
-}
-
-// Count this successful render (once per mount) and, once the threshold is
-// reached, append a one-time dismissible star nudge to the card.
-async function recordSuccessAndMaybePrompt(root) {
-  const increment = !_starCountedThisMount;
-  _starCountedThisMount = true;
-
-  let state;
-  try {
-    state = await chrome.storage.local.get({ starPromptCount: 0, starPromptDismissed: false });
-  } catch (_) {
-    return;
-  }
-  if (state.starPromptDismissed) return;
-
-  let count = state.starPromptCount;
-  if (increment) {
-    count += 1;
-    try { await chrome.storage.local.set({ starPromptCount: count }); } catch (_) {}
-  }
-  if (count < STAR_PROMPT_THRESHOLD) return;
-
-  appendStarPrompt(root);
-}
-
-function appendStarPrompt(root) {
-  const wrap = root.querySelector('.oc-wrap');
-  if (!wrap || wrap.querySelector('.oc-star-prompt')) return;
-
-  const el = document.createElement('div');
-  el.className = 'oc-star-prompt';
-  // Clicks inside the prompt must not bubble to the card's open-panel handler.
-  el.addEventListener('click', e => e.stopPropagation());
-
-  const link = document.createElement('a');
-  link.className = 'oc-star-link';
-  link.href = STAR_REPO_URL;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  link.textContent = t('card.starPrompt');
-  link.addEventListener('click', () => {
-    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
-  });
-
-  const close = document.createElement('button');
-  close.className = 'oc-star-close';
-  close.type = 'button';
-  close.setAttribute('aria-label', t('card.starDismiss'));
-  close.textContent = '×';
-  close.addEventListener('click', () => {
-    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
-    el.remove();
-  });
-
-  el.appendChild(link);
-  el.appendChild(close);
-  wrap.appendChild(el);
 }
 
 function buildStackedBarHTML(report, theme) {

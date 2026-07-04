@@ -12,8 +12,6 @@
     "lines": "líneas",
     "comments": "comentarios",
     "moreLanguages": "+ {{count}} más →",
-    "starPrompt": "// ¿te ahorró un clone? dale una estrella →",
-    "starDismiss": "Cerrar",
     "openPanel": "Abrir informe detallado",
     "error": {
       "title": "Error en el análisis",
@@ -34,6 +32,8 @@
     "refreshing": "actualizando…",
     "cached": "en caché",
     "fresh": "reciente",
+    "starPrompt": "// ¿te ahorró un clone? dale una estrella →",
+    "starDismiss": "Cerrar",
     "lines": "líneas",
     "table": {
       "language": "Lenguaje",
