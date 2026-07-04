@@ -12,6 +12,8 @@
     "lines": "líneas",
     "comments": "comentarios",
     "moreLanguages": "+ {{count}} más →",
+    "starPrompt": "// ¿te ahorró un clone? dale una estrella →",
+    "starDismiss": "Cerrar",
     "error": {
       "title": "Error en el análisis",
       "timedOut": "Tiempo de análisis agotado",
@@ -67,6 +69,7 @@
     "ttl7d": "7 días",
     "ttlNever": "Nunca",
     "reportIssue": "Reportar problema",
+    "starRepo": "★ star",
     "showDetails": "Mostrar detalles",
     "hideDetails": "Ocultar detalles",
     "privateNotice": "Repositorio privado o interno — OctoCounts solo funciona con repositorios públicos.",

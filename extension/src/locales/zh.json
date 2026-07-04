@@ -12,6 +12,8 @@
     "lines": "行数",
     "comments": "注释",
     "moreLanguages": "+ {{count}} 更多 →",
+    "starPrompt": "// 省了一次 clone?给个 star →",
+    "starDismiss": "关闭",
     "error": {
       "title": "分析失败",
       "timedOut": "分析超时",
@@ -67,6 +69,7 @@
     "ttl7d": "7 天",
     "ttlNever": "永不过期",
     "reportIssue": "报告问题",
+    "starRepo": "★ star",
     "showDetails": "显示详情",
     "hideDetails": "隐藏详情",
     "privateNotice": "私有或内部仓库 — OctoCounts 仅支持公开仓库。",

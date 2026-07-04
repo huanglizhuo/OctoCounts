@@ -36,6 +36,7 @@ function applyTranslations() {
 
   $('footerPrivacy').textContent   = t('popup.privacyNote');
   $('footerIssueLink').textContent = t('popup.reportIssue');
+  $('footerStarLink').textContent  = t('popup.starRepo');
   $('welcomeText').textContent     = t('popup.welcomeHint');
   $('tabStatus').textContent       = t('popup.tabStatusIdle');
 }

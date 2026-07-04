@@ -12,6 +12,8 @@
     "lines": "lines",
     "comments": "comments",
     "moreLanguages": "+ {{count}} more →",
+    "starPrompt": "// saved you a clone? star the repo →",
+    "starDismiss": "Dismiss",
     "error": {
       "title": "Analysis failed",
       "timedOut": "Analysis timed out",
@@ -67,6 +69,7 @@
     "ttl7d": "7 days",
     "ttlNever": "Never",
     "reportIssue": "Report issue",
+    "starRepo": "★ star",
     "showDetails": "Show details",
     "hideDetails": "Hide details",
     "privateNotice": "Private repo — OctoCounts only works on public repos.",

@@ -12,6 +12,8 @@
     "lines": "行数",
     "comments": "コメント",
     "moreLanguages": "+ {{count}} 件以上 →",
+    "starPrompt": "// clone を節約できた? リポジトリに star を →",
+    "starDismiss": "閉じる",
     "error": {
       "title": "分析に失敗しました",
       "timedOut": "分析がタイムアウトしました",
@@ -67,6 +69,7 @@
     "ttl7d": "7日間",
     "ttlNever": "期限なし",
     "reportIssue": "問題を報告",
+    "starRepo": "★ star",
     "showDetails": "詳細を表示",
     "hideDetails": "詳細を非表示",
     "privateNotice": "非公開または内部リポジトリ — OctoCounts は公開リポジトリのみ対応しています。",
