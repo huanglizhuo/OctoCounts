@@ -143,7 +143,7 @@ async function sitemapResponse(context) {
 
 async function indexHtml(context) {
   const url = new URL(context.request.url);
-  url.pathname = "/index.html";
+  url.pathname = "/";
   url.search = "";
   const response = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   return response.text();
