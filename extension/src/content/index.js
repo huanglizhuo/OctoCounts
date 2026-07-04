@@ -38,7 +38,7 @@ async function run(forceRefresh = false) {
     try {
       settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     } catch (_) {
-      settings = { autoAnalyze: true, skipForks: true, cardPlacement: 'top' };
+      settings = { skipForks: true, cardPlacement: 'top' };
     }
 
     if (settings.skipForks && isFork) {
@@ -102,9 +102,17 @@ function maybeRerunForContextChange() {
   }
 }
 
+let routeDebounce = null;
+function scheduleContextCheck() {
+  // GitHub mutates the DOM constantly; coalesce bursts so we run the (DOM-query
+  // heavy) context check at most once per idle window instead of per mutation.
+  clearTimeout(routeDebounce);
+  routeDebounce = setTimeout(maybeRerunForContextChange, 150);
+}
+
 function observeRouteChanges() {
   if (routeObserver) return;
-  routeObserver = new MutationObserver(maybeRerunForContextChange);
+  routeObserver = new MutationObserver(scheduleContextCheck);
   routeObserver.observe(document.body, { childList: true, subtree: true });
 }
 

@@ -52,12 +52,16 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
           echo "chrome_zip=octocounts-chrome-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
+          echo "edge_zip=octocounts-edge-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
           echo "firefox_zip=octocounts-firefox-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
 
       - name: Package extensions
         run: |
           mkdir -p packages
+          # Edge is Chromium — the Chrome MV3 build is uploaded to the Edge
+          # Add-ons store as-is, just packaged under an Edge-labelled name.
           (cd dist/chrome && zip -r "../../packages/${{ steps.package.outputs.chrome_zip }}" .)
+          (cd dist/chrome && zip -r "../../packages/${{ steps.package.outputs.edge_zip }}" .)
           (cd dist/firefox && zip -r "../../packages/${{ steps.package.outputs.firefox_zip }}" .)
 
       - name: Upload Chrome extension artifact
@@ -65,6 +69,13 @@ jobs:
         with:
           name: ${{ steps.package.outputs.chrome_zip }}
           path: extension/packages/${{ steps.package.outputs.chrome_zip }}
+          if-no-files-found: error
+
+      - name: Upload Edge extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.edge_zip }}
+          path: extension/packages/${{ steps.package.outputs.edge_zip }}
           if-no-files-found: error
 
       - name: Upload Firefox extension artifact
@@ -83,4 +94,5 @@ jobs:
           generate_release_notes: true
           files: |
             extension/packages/${{ steps.package.outputs.chrome_zip }}
+            extension/packages/${{ steps.package.outputs.edge_zip }}
             extension/packages/${{ steps.package.outputs.firefox_zip }}

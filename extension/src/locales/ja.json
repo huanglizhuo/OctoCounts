@@ -12,6 +12,7 @@
     "lines": "行数",
     "comments": "コメント",
     "moreLanguages": "+ {{count}} 件以上 →",
+    "openPanel": "詳細レポートを開く",
     "error": {
       "title": "分析に失敗しました",
       "timedOut": "分析がタイムアウトしました",
@@ -31,6 +32,8 @@
     "refreshing": "更新中…",
     "cached": "キャッシュ済み",
     "fresh": "最新",
+    "starPrompt": "// clone を節約できた? リポジトリに star を →",
+    "starDismiss": "閉じる",
     "lines": "行数",
     "table": {
       "language": "言語",
@@ -58,6 +61,7 @@
     "hintCardTitle": "空白にするとデフォルトの「OctoCounts」が使われます",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "GitHubの言語セクションを非表示",
+    "skipForks": "フォークしたリポジトリをスキップ",
     "hintReplaceGhLanguages": "GitHub の言語パーセンテージバーを非表示",
     "cacheTtl": "キャッシュの有効期限",
     "hintCacheTtl": "再分析するまでの結果の保持期間",
@@ -67,6 +71,7 @@
     "ttl7d": "7日間",
     "ttlNever": "期限なし",
     "reportIssue": "問題を報告",
+    "starRepo": "★ star",
     "showDetails": "詳細を表示",
     "hideDetails": "詳細を非表示",
     "privateNotice": "非公開または内部リポジトリ — OctoCounts は公開リポジトリのみ対応しています。",

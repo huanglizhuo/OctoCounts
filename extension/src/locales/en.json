@@ -12,6 +12,7 @@
     "lines": "lines",
     "comments": "comments",
     "moreLanguages": "+ {{count}} more →",
+    "openPanel": "Open detailed report",
     "error": {
       "title": "Analysis failed",
       "timedOut": "Analysis timed out",
@@ -31,6 +32,8 @@
     "refreshing": "refreshing…",
     "cached": "cached",
     "fresh": "fresh",
+    "starPrompt": "// saved you a clone? star the repo →",
+    "starDismiss": "Dismiss",
     "lines": "lines",
     "table": {
       "language": "Language",
@@ -58,6 +61,7 @@
     "hintCardTitle": "Leave blank to use the default “OctoCounts”",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "Hide GitHub Languages section",
+    "skipForks": "Skip forked repositories",
     "hintReplaceGhLanguages": "Hide GitHub's language percentage bar",
     "cacheTtl": "Cache TTL",
     "hintCacheTtl": "How long to cache results before re-analyzing",
@@ -67,6 +71,7 @@
     "ttl7d": "7 days",
     "ttlNever": "Never",
     "reportIssue": "Report issue",
+    "starRepo": "★ star",
     "showDetails": "Show details",
     "hideDetails": "Hide details",
     "privateNotice": "Private repo — OctoCounts only works on public repos.",

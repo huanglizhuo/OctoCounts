@@ -1,4 +1,5 @@
 import { t } from '../i18n/index.js';
+import { DEFAULT_SETTINGS } from '../shared/settings.js';
 
 const $ = id => document.getElementById(id);
 
@@ -14,6 +15,7 @@ function applyTranslations() {
 
   $('silentUntilSuccessLabel').textContent  = t('popup.silentUntilSuccess');
   $('replaceGhLanguagesLabel').textContent  = t('popup.replaceGhLanguages');
+  $('skipForksLabel').textContent           = t('popup.skipForks');
 
   $('cardPlacementLabel').textContent    = t('popup.position');
   $('hintPosition').textContent          = t('popup.hintPosition');
@@ -36,23 +38,19 @@ function applyTranslations() {
 
   $('footerPrivacy').textContent   = t('popup.privacyNote');
   $('footerIssueLink').textContent = t('popup.reportIssue');
+  $('footerStarLink').textContent  = t('popup.starRepo');
   $('welcomeText').textContent     = t('popup.welcomeHint');
   $('tabStatus').textContent       = t('popup.tabStatusIdle');
 }
 
 async function load() {
-  const sync = await chrome.storage.sync.get({
-    cardPlacement: 'top',
-    cacheTtlMs: 86400000,
-    replaceGhLanguages: true,
-    silentUntilSuccess: false,
-    cardTitle: '',
-  });
+  const sync = await chrome.storage.sync.get(DEFAULT_SETTINGS);
 
   $('silentUntilSuccess').checked = sync.silentUntilSuccess === true;
   $('cardTitle').value            = sync.cardTitle || '';
   $('cardPlacement').value        = sync.cardPlacement || 'top';
   $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
+  $('skipForks').checked          = sync.skipForks !== false;
   $('cacheTtl').value             = String(sync.cacheTtlMs);
 }
 
@@ -62,6 +60,7 @@ async function save() {
     cardTitle:          $('cardTitle').value.trim(),
     cardPlacement:      $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
     replaceGhLanguages: $('replaceGhLanguages').checked,
+    skipForks:          $('skipForks').checked,
     cacheTtlMs:         Number($('cacheTtl').value),
   });
 }
@@ -232,7 +231,17 @@ function initClearCache() {
   const status = $('clearCacheStatus');
   let timer    = null;
 
-  label.textContent = t('popup.clearCache');
+  const baseLabel = t('popup.clearCache');
+  label.textContent = baseLabel;
+
+  async function refreshCount() {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'COUNT_CACHE' });
+      const n = res?.count ?? 0;
+      label.textContent = n > 0 ? `${baseLabel} (${n})` : baseLabel;
+    } catch (_) {}
+  }
+  refreshCount();
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
@@ -240,6 +249,7 @@ function initClearCache() {
       const res = await chrome.runtime.sendMessage({ type: 'CLEAR_CACHE' });
       status.textContent = t('popup.clearCacheSuccess', { count: res.cleared ?? 0 });
       status.className   = 'cache-status cache-status--ok';
+      refreshCount();
     } catch (_) {
       status.textContent = t('popup.clearCacheFail');
       status.className   = 'cache-status cache-status--err';

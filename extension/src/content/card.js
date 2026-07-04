@@ -34,12 +34,19 @@ function findBorderGrid() {
   return null;
 }
 
+// Remove a card host, running any theme-listener cleanup registered on it.
+function teardownCardHost(host) {
+  if (!host) return;
+  host._ocThemeCleanup?.();
+  host.remove();
+}
+
 export function unmountCard() {
   _generation++;
   stopPolling();
   _analyzing = false;
   restoreGhLanguagesSection();
-  document.querySelector('[data-octocount-card]')?.remove();
+  teardownCardHost(document.querySelector('[data-octocount-card]'));
 }
 
 export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
@@ -79,11 +86,19 @@ function _createCardDom(grid, placement) {
 
   const syncTheme = () => shadow.host.setAttribute('data-theme', getTheme());
   shadow.host.setAttribute('data-theme', getTheme());
-  new MutationObserver(syncTheme).observe(document.documentElement, {
+  const themeObserver = new MutationObserver(syncTheme);
+  themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['data-color-mode', 'data-dark-theme', 'data-light-theme'],
   });
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+  const mql = window.matchMedia('(prefers-color-scheme: dark)');
+  mql.addEventListener('change', syncTheme);
+  // Store teardown on the host so remounts (SPA navigation) don't leak the
+  // documentElement observer and matchMedia listener onto detached shadow roots.
+  host._ocThemeCleanup = () => {
+    themeObserver.disconnect();
+    mql.removeEventListener('change', syncTheme);
+  };
 
   if (placement === 'bottom') {
     grid.append(host);
@@ -105,7 +120,7 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
       // Idle card with button; on click remove it and run silently
       const { host, root } = _createCardDom(grid, placement);
       renderIdle(root, () => {
-        host.remove();
+        teardownCardHost(host);
         _analyzing = true;
         _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, cardTitle, gen });
       }, cardTitle);
@@ -132,7 +147,7 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
         if (_generation !== gen) return;
         _disabled = true;
         saveError(error, owner, repo);
-        host.remove();
+        teardownCardHost(host);
         restoreGhLanguagesSection();
       },
     });
@@ -187,7 +202,7 @@ function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLang
       onError: (error) => {
         _disabled = true;
         saveError(error, owner, repo);
-        host.remove();
+        teardownCardHost(host);
         restoreGhLanguagesSection();
       },
     });
@@ -351,10 +366,25 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const cardHost = shadow.host.closest('[data-octocount-card]');
   cardHost.setAttribute('data-state', 'completed');
   cardHost.style.cursor = 'pointer';
+  cardHost.setAttribute('role', 'button');
+  cardHost.setAttribute('tabindex', '0');
+  cardHost.setAttribute('aria-label', t('card.openPanel'));
   if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
+  if (cardHost._ocKeyListener) cardHost.removeEventListener('keydown', cardHost._ocKeyListener);
   const openPanel = () => mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
+  const onKey = e => {
+    // Only when the card itself is focused — keydowns from inner controls
+    // (refresh, language rows, star link) retarget to the shadow host, not this.
+    if (e.target !== cardHost) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openPanel();
+    }
+  };
   cardHost._ocListener = openPanel;
+  cardHost._ocKeyListener = onKey;
   cardHost.addEventListener('click', openPanel);
+  cardHost.addEventListener('keydown', onKey);
 
   if (replaceGhLanguages) hideGhLanguagesSection();
 }

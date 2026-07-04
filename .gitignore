@@ -16,6 +16,11 @@
 /frontend/dist/
 /extension/node_modules/
 /extension/dist/
+/extension/packages/
+
+# Local tooling (impeccable design skill/hook — not part of the repo)
+/.github/hooks/
+/.github/skills/
 
 # Logs
 *.log

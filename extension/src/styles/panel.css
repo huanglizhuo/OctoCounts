@@ -335,6 +335,46 @@
   border-color: var(--fg-dim);
 }
 
+/* ── One-time star nudge (value moment) ── */
+.oc-star-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.oc-star-link {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg-dim);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.oc-star-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.oc-star-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-mute);
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.oc-star-close:hover {
+  color: var(--fg);
+}
+
 @media (max-width: 600px) {
   .oc-panel {
     width: 100vw;

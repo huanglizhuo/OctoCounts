@@ -12,6 +12,7 @@
     "lines": "lignes",
     "comments": "commentaires",
     "moreLanguages": "+ {{count}} de plus →",
+    "openPanel": "Ouvrir le rapport détaillé",
     "error": {
       "title": "Échec de l'analyse",
       "timedOut": "Délai d'analyse dépassé",
@@ -31,6 +32,8 @@
     "refreshing": "actualisation…",
     "cached": "mis en cache",
     "fresh": "récent",
+    "starPrompt": "// un clone évité ? mettez une étoile →",
+    "starDismiss": "Fermer",
     "lines": "lignes",
     "table": {
       "language": "Langage",
@@ -58,6 +61,7 @@
     "hintCardTitle": "Laisser vide pour utiliser le titre par défaut « OctoCounts »",
     "cardTitlePlaceholder": "OctoCounts",
     "replaceGhLanguages": "Masquer la section Langages de GitHub",
+    "skipForks": "Ignorer les dépôts forkés",
     "hintReplaceGhLanguages": "Masque la barre de pourcentage des langages de GitHub",
     "cacheTtl": "Durée du cache",
     "hintCacheTtl": "Durée de conservation des résultats avant nouvelle analyse",
@@ -67,6 +71,7 @@
     "ttl7d": "7 jours",
     "ttlNever": "Jamais",
     "reportIssue": "Signaler un problème",
+    "starRepo": "★ star",
     "showDetails": "Afficher les détails",
     "hideDetails": "Masquer les détails",
     "privateNotice": "Dépôt privé ou interne — OctoCounts ne fonctionne qu'avec les dépôts publics.",
