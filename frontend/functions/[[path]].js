@@ -21,11 +21,6 @@ export async function onRequest(context) {
     return reportResponse(context, route);
   }
 
-  if (parts[0] === "gitlab" && parts.length >= 3) {
-    const route = parseGitLabRoute(parts);
-    if (route) return reportResponse(context, route);
-  }
-
   if (url.pathname === "/recent" || url.pathname === "/popular") {
     return listPageResponse(context, url.pathname.slice(1), url);
   }
@@ -41,19 +36,6 @@ function parseGitHubRoute(parts) {
     owner: parts[1],
     repo: parts[2],
     refName,
-  };
-}
-
-function parseGitLabRoute(parts) {
-  const rest = parts.slice(1);
-  const markerIndex = rest.findIndex((part, index) => index >= 2 && (part === "tree" || part === "commit"));
-  const repoParts = markerIndex === -1 ? rest : rest.slice(0, markerIndex);
-  if (repoParts.length < 2) return null;
-  return {
-    provider: "gitlab",
-    owner: repoParts.slice(0, -1).join("/"),
-    repo: repoParts[repoParts.length - 1],
-    refName: markerIndex === -1 ? "" : rest.slice(markerIndex + 1).join("/"),
   };
 }
 
@@ -88,8 +70,8 @@ async function listPageResponse(context, kind, url) {
   const title = kind === "recent" ? "Recently analyzed repositories | OctoCounts" : "Popular SLOC reports | OctoCounts";
   const description =
     kind === "recent"
-      ? "Recently analyzed public GitHub and GitLab repositories with source line count reports."
-      : "Popular OctoCounts source line count reports for public GitHub and GitLab repositories.";
+      ? "Recently analyzed public GitHub repositories with source line count reports."
+      : "Popular OctoCounts source line count reports for public GitHub repositories.";
   const body = payload.reports
     .map((report) => `<li><a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`)
     .join("");

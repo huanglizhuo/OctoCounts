@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OctoCounts API Docs | Public Repository SLOC API</title>
-    <meta name="description" content="OctoCounts API documentation for public GitHub and GitLab repository SLOC analysis, reports, jobs, badges, compare URLs, and diff URLs." />
+    <meta name="description" content="OctoCounts API documentation for public GitHub repository SLOC analysis, reports, jobs, badges, compare URLs, and diff URLs." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/docs/api.html" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="OctoCounts" />
     <meta property="og:title" content="OctoCounts API Docs" />
-    <meta property="og:description" content="Analyze public GitHub and GitLab repositories, poll jobs, fetch SLOC reports, and generate live badges through the OctoCounts API." />
+    <meta property="og:description" content="Analyze public GitHub repositories, poll jobs, fetch SLOC reports, and generate live badges through the OctoCounts API." />
     <meta property="og:url" content="https://octocounts.com/docs/api.html" />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -31,7 +31,7 @@
       "@context": "https://schema.org",
       "@type": "TechArticle",
       "headline": "OctoCounts API Docs",
-      "description": "API documentation for public GitHub and GitLab repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
+      "description": "API documentation for public GitHub repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
       "dateModified": "2026-07-04",
       "mainEntityOfPage": "https://octocounts.com/docs/api.html",
       "author": {
@@ -49,7 +49,7 @@
   </head>
   <body>
     <h1>OctoCounts API Docs</h1>
-    <p class="note">OctoCounts analyzes public GitHub and GitLab repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads.</p>
+    <p class="note">OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
 
     <h2>Analyze a Repository</h2>
     <pre><code>POST https://api.octocounts.com/api/analyze
@@ -68,7 +68,7 @@ Content-Type: application/json
     "includeGenerated": true
   }
 }</code></pre>
-    <p><code>repoUrl</code> supports public <code>github.com</code> repositories and public <code>gitlab.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch.</p>
+    <p><code>repoUrl</code> supports public <code>github.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch.</p>
 
     <h2>Job Status</h2>
     <pre><code>GET https://api.octocounts.com/api/jobs/:jobId</code></pre>
@@ -80,12 +80,10 @@ Content-Type: application/json
 
     <h2>SEO Data and OG Images</h2>
     <pre><code>GET https://api.octocounts.com/api/seo/report?provider=github&amp;owner=owner&amp;repo=repo
-GET https://api.octocounts.com/api/seo/report?provider=gitlab&amp;owner=group/subgroup&amp;repo=project
 GET https://api.octocounts.com/api/seo/recent
 GET https://api.octocounts.com/api/seo/popular
 GET https://api.octocounts.com/api/seo/sitemap
-GET https://api.octocounts.com/og/github/:owner/:repo
-GET https://api.octocounts.com/og/gitlab/:namespace/:repo</code></pre>
+GET https://api.octocounts.com/og/github/:owner/:repo</code></pre>
     <p>These endpoints power indexable report pages on <code>octocounts.com</code>. They return cached report metadata only; they do not start new analyses.</p>
 
     <h2>Badges</h2>
@@ -98,15 +96,11 @@ GET https://api.octocounts.com/badge/:owner/:repo/commit/:sha</code></pre>
       <li><code>type=code</code>, <code>lines</code>, <code>files</code>, <code>comments</code>, <code>languages</code>, <code>top-language</code>, or <code>ratio</code></li>
       <li><code>lang=Rust</code> for a single-language code-line badge</li>
     </ul>
-    <p>Badge routes are currently GitHub-only. Public GitLab projects are supported by the web app, API, and report pages, but not by README badges yet.</p>
 
     <h2>Shareable Web URLs</h2>
     <pre><code>https://octocounts.com/github/:owner/:repo
 https://octocounts.com/github/:owner/:repo/tree/:ref
 https://octocounts.com/github/:owner/:repo/commit/:sha
-https://octocounts.com/gitlab/:namespace/:repo
-https://octocounts.com/gitlab/:namespace/:repo/tree/:ref
-https://octocounts.com/gitlab/:namespace/:repo/commit/:sha
 https://octocounts.com/compare?left=...&amp;right=...&amp;leftRef=...&amp;rightRef=...
 https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
 

@@ -26,13 +26,10 @@ export function trackEvent(eventName: string, props?: AnalyticsProps) {
 
 export function providerFromRepoUrl(repoUrl: string) {
   try {
-    const normalized = repoUrl.trim().startsWith("git@gitlab.com:")
-      ? repoUrl.trim().replace("git@gitlab.com:", "https://gitlab.com/")
-      : repoUrl.trim().startsWith("git@github.com:")
-        ? repoUrl.trim().replace("git@github.com:", "https://github.com/")
-        : repoUrl.trim();
+    const normalized = repoUrl.trim().startsWith("git@github.com:")
+      ? repoUrl.trim().replace("git@github.com:", "https://github.com/")
+      : repoUrl.trim();
     const hostname = new URL(normalized).hostname;
-    if (hostname === "gitlab.com") return "gitlab";
     if (hostname === "github.com") return "github";
   } catch {
     return "unknown";

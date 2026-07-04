@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "OctoCounts – GitHub and GitLab SLOC Counter",
-    "description": "OctoCounts shows actual source line counts for public GitHub and GitLab repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
+    "title": "OctoCounts – GitHub SLOC Counter",
+    "description": "OctoCounts shows actual source line counts for public GitHub repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
   },
   "topbar": {
     "brandName": "OctoCounts",
@@ -11,7 +11,7 @@
   },
   "hero": {
     "title": "GitHub <1>SLOC counter</1>: the panel GitHub forgot.",
-    "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub/GitLab repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
+    "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
     "badgeOpenSource": "Open source on GitHub",
     "badgeFree": "Free · no sign-up",
     "badgeLanguages": "200+ languages",
@@ -230,7 +230,7 @@
     ]
   },
   "footer": {
-    "tagline": "OctoCounts // actual SLOC for public GitHub and GitLab repos",
+    "tagline": "OctoCounts // actual SLOC for public GitHub repos",
     "privacy": "Privacy",
     "contact": "Contact",
     "apiDocs": "API docs",
@@ -246,7 +246,7 @@
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",
-    "invalidUrl": "Enter a public github.com or gitlab.com repository URL.",
+    "invalidUrl": "Enter a public github.com repository URL.",
     "refNotFound": "The requested branch, tag, or commit was not found.",
     "rateLimited": "GitHub API rate limit was reached.",
     "tooLarge": "This repository is too large to analyze right now.",
@@ -257,8 +257,8 @@
     "failedCode": "failed"
   },
   "errorHelp": {
-    "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads.",
-    "invalid_url": "Use a URL like https://github.com/owner/repo or https://gitlab.com/group/project.",
+    "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.",
+    "invalid_url": "Use a URL like https://github.com/owner/repo.",
     "ref_not_found": "Check the ref field for typos, or leave it empty to use the repository default branch.",
     "rate_limited": "Wait a few minutes and retry. Cached reports continue to load instantly when available.",
     "too_large": "The analyzer has size and timeout limits. Try a smaller ref or retry later.",

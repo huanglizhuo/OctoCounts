@@ -3,18 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GitHub and GitLab SLOC Counter Guide | OctoCounts</title>
-    <meta name="description" content="Learn how OctoCounts counts source lines of code for public GitHub and GitLab repositories: files, code, comments, blanks, languages, badges, exports, and API usage." />
+    <title>GitHub SLOC Counter Guide | OctoCounts</title>
+    <meta name="description" content="Learn how OctoCounts counts source lines of code for public GitHub repositories: files, code, comments, blanks, languages, badges, exports, and API usage." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/docs/github-sloc-counter.html" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="OctoCounts" />
-    <meta property="og:title" content="GitHub and GitLab SLOC Counter Guide | OctoCounts" />
+    <meta property="og:title" content="GitHub SLOC Counter Guide | OctoCounts" />
     <meta property="og:description" content="Count source lines of code for public repositories without cloning. Understand SLOC, code lines, comments, blanks, language totals, badges, exports, and API usage." />
     <meta property="og:url" content="https://octocounts.com/docs/github-sloc-counter.html" />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="GitHub and GitLab SLOC Counter Guide | OctoCounts" />
+    <meta name="twitter:title" content="GitHub SLOC Counter Guide | OctoCounts" />
     <meta name="twitter:description" content="A practical guide to repository SLOC counts, language totals, badges, exports, and the OctoCounts API." />
     <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <style>
@@ -46,8 +46,8 @@
     {
       "@context": "https://schema.org",
       "@type": "TechArticle",
-      "headline": "GitHub and GitLab SLOC Counter Guide",
-      "description": "A practical guide to counting source lines of code in public GitHub and GitLab repositories with OctoCounts.",
+      "headline": "GitHub SLOC Counter Guide",
+      "description": "A practical guide to counting source lines of code in public GitHub repositories with OctoCounts.",
       "dateModified": "2026-06-11",
       "author": {
         "@type": "Person",
@@ -72,7 +72,7 @@
           "name": "What does OctoCounts count?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "OctoCounts counts files, total lines, code lines, comment lines, blank lines, and per-language totals for public GitHub and GitLab repositories."
+            "text": "OctoCounts counts files, total lines, code lines, comment lines, blank lines, and per-language totals for public GitHub repositories."
           }
         },
         {
@@ -99,7 +99,7 @@
     <nav><a href="/">OctoCounts</a> / <a href="/docs/api.html">API docs</a> / SLOC guide</nav>
     <main>
       <p class="meta">Updated June 11, 2026</p>
-      <h1>GitHub and GitLab SLOC Counter Guide</h1>
+      <h1>GitHub SLOC Counter Guide</h1>
       <p class="note">OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.</p>
 
       <h2>What OctoCounts Is Best For</h2>
@@ -118,7 +118,6 @@
         </thead>
         <tbody>
           <tr><td>GitHub public repositories</td><td>Web app, API, report pages, badges, Chrome extension, Firefox extension</td><td><code>https://github.com/owner/repo</code></td></tr>
-          <tr><td>GitLab public repositories</td><td>Web app, API, and report pages</td><td><code>https://gitlab.com/group/project</code></td></tr>
           <tr><td>Private repositories</td><td>Not supported</td><td>Run <code>tokei</code> locally instead</td></tr>
         </tbody>
       </table>
@@ -150,7 +149,6 @@
       <h2>Examples</h2>
       <pre><code>https://octocounts.com/?q=https://github.com/huanglizhuo/OctoCount
 https://octocounts.com/github/huanglizhuo/OctoCount
-https://octocounts.com/gitlab/gitlab-org/gitlab
 https://octocounts.com/github/huanglizhuo/OctoCount/tree/main
 https://octocounts.com/compare?left=https://github.com/huanglizhuo/OctoCount&amp;right=https://github.com/tokio-rs/axum
 https://octocounts.com/diff?repo=https://github.com/huanglizhuo/OctoCount&amp;base=main&amp;head=22c3647</code></pre>
@@ -160,13 +158,12 @@ https://octocounts.com/diff?repo=https://github.com/huanglizhuo/OctoCount&amp;ba
       <pre><code>[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
 [![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
 [![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)</code></pre>
-      <p>Badges and browser extension sidebar cards are GitHub-only in the current version. GitLab repositories use the web app, API, and report pages.</p>
 
       <h2>API</h2>
       <p>Programmatic users can start an analysis with <code>POST /api/analyze</code>, poll <code>GET /api/jobs/:jobId</code>, and fetch the result with <code>GET /api/reports/:reportId</code>. See the <a href="/docs/api.html">OctoCounts API docs</a> for request bodies, report fields, and badge routes.</p>
 
       <h2>Privacy and Scope</h2>
-      <p>OctoCounts analyzes public repositories only. It does not request GitHub or GitLab account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.</p>
+      <p>OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.</p>
     </main>
   </body>
 </html>

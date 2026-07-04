@@ -999,11 +999,9 @@ function parsePublicRepo(value: string) {
     const trimmed = value.trim();
     const normalized = trimmed.startsWith("git@github.com:")
       ? trimmed.replace("git@github.com:", "https://github.com/")
-      : trimmed.startsWith("git@gitlab.com:")
-        ? trimmed.replace("git@gitlab.com:", "https://gitlab.com/")
-        : trimmed;
+      : trimmed;
     const url = new URL(normalized);
-    if (url.hostname !== "github.com" && url.hostname !== "gitlab.com") return null;
+    if (url.hostname !== "github.com") return null;
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments.length < 2) return null;
     return {
@@ -1087,14 +1085,6 @@ function parsePublicReportPath(pathname: string) {
     const marker = segments[3];
     const refName = marker === "tree" || marker === "commit" ? segments.slice(4).join("/") : "";
     return { repoUrl: `https://github.com/${owner}/${repo}`, refName };
-  }
-  if (segments[0] === "gitlab" && segments.length >= 3) {
-    const rest = segments.slice(1);
-    const markerIndex = rest.findIndex((segment, index) => index >= 2 && (segment === "tree" || segment === "commit"));
-    const repoParts = markerIndex === -1 ? rest : rest.slice(0, markerIndex);
-    if (repoParts.length < 2) return null;
-    const refName = markerIndex === -1 ? "" : rest.slice(markerIndex + 1).join("/");
-    return { repoUrl: `https://gitlab.com/${repoParts.join("/")}`, refName };
   }
   return null;
 }

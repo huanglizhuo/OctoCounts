@@ -2,7 +2,7 @@
   <img src="images/favicon.png" alt="OctoCounts logo" width="64">
 </p>
 
-# OctoCounts – GitHub and GitLab SLOC Counter
+# OctoCounts – GitHub SLOC Counter
 
 > GitHub shows language bars. OctoCounts shows the actual line counts.
 
@@ -13,7 +13,7 @@
 
 GitHub's sidebar shows language percentages, but misses actual file and line counts. OctoCounts adds this missing SLOC (Source Lines of Code) view to public repos without cloning.
 
-Install the extension for instant stats directly on GitHub, or use the web app for public GitHub and GitLab repositories. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results—delivering a breakdown faster than `git clone`.
+Install the extension for instant stats directly on GitHub, or use the web app for public GitHub repositories. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results—delivering a breakdown faster than `git clone`.
 
 ## Preview
 
@@ -92,7 +92,6 @@ GET  /badge/:owner/:repo/commit/:sha
 
 All badge routes accept an optional `?lang=<language>` query parameter that switches the response from the full SLOC summary badge to a per-language shields.io-style badge.
 
-Badges are currently GitHub-only. GitLab projects are supported by the web app, API, and report pages.
 
 ## Running it
 

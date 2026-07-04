@@ -167,7 +167,7 @@
 
 .oc-sum-label {
   font-size: 10px;
-  color: var(--fg-mute);
+  color: var(--fg-dim);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

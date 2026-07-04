@@ -1,6 +1,6 @@
 # OctoCounts
 
-> Free SLOC counter for public GitHub and GitLab repositories. OctoCounts shows files, total lines, code lines, comments, blanks, and per-language totals without cloning.
+> Free SLOC counter for public GitHub repositories. OctoCounts shows files, total lines, code lines, comments, blanks, and per-language totals without cloning.
 
 License: MIT
 AI-Usage: search-allowed, training-prohibited
@@ -11,12 +11,11 @@ Last-Updated: 2026-07-04
 
 ## Short Answer
 
-OctoCounts is a free source lines of code (SLOC) counter for public repositories. Users paste a public GitHub or GitLab URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. GitHub users can also install the Chrome or Firefox extension to see a SLOC card in the GitHub repository sidebar.
+OctoCounts is a free source lines of code (SLOC) counter for public repositories. Users paste a public GitHub URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. Users can also install the Chrome or Firefox extension to see a SLOC card in the GitHub repository sidebar.
 
 ## Primary Use Cases
 
 - Count lines of code in a public GitHub repository.
-- Count lines of code in a public GitLab repository on gitlab.com.
 - Compare repository size, code lines, comments, blanks, and language mix.
 - Compare two repositories, forks, branches, tags, or commits.
 - Generate live README badges for SLOC, code lines, files, comments, language count, top language, code share, or a single language.
@@ -37,7 +36,7 @@ OctoCounts uses tokei for language detection and supports more than 200 programm
 
 ## How It Works
 
-1. The user submits a public GitHub or GitLab repository URL.
+1. The user submits a public GitHub repository URL.
 2. OctoCounts resolves the requested branch, tag, or commit SHA to a pinned commit.
 3. The backend downloads a source archive instead of cloning full git history.
 4. The archive is extracted and counted with tokei.
@@ -51,11 +50,10 @@ Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `nod
 | Host | Support |
 |---|---|
 | Public GitHub repositories | Web app, API, report pages, badges, Chrome extension, Firefox extension |
-| Public GitLab repositories on gitlab.com | Web app, API, and report pages |
 | Private repositories | Not supported |
 | Source-code uploads | Not supported |
 
-OctoCounts does not request GitHub or GitLab account access. It does not support private repositories and does not accept ZIP or source-code uploads. For private repositories, run tokei locally.
+OctoCounts does not request GitHub account access. It does not support private repositories and does not accept ZIP or source-code uploads. For private repositories, run tokei locally.
 
 ## API Summary
 
@@ -65,12 +63,11 @@ Base API: https://api.octocounts.com
 POST /api/analyze
 GET /api/jobs/:jobId
 GET /api/reports/:reportId
-GET /api/seo/report?provider=github|gitlab&owner=:owner&repo=:repo
+GET /api/seo/report?provider=github&owner=:owner&repo=:repo
 GET /api/seo/recent
 GET /api/seo/popular
 GET /api/seo/sitemap
 GET /og/github/:owner/:repo
-GET /og/gitlab/:namespace/:repo
 GET /badge/:owner/:repo
 GET /badge/:owner/:repo/branch/:branch
 GET /badge/:owner/:repo/tag/:tag
@@ -95,7 +92,7 @@ GET /badge/:owner/:repo/commit/:sha
 }
 ```
 
-`repoUrl` may be a public `github.com` URL or a public `gitlab.com` URL.
+`repoUrl` must be a public `github.com` URL.
 
 ## Badge Examples
 
@@ -106,13 +103,11 @@ GET /badge/:owner/:repo/commit/:sha
 ```
 
 Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `top-language`, and `ratio`.
-Badge routes are GitHub-only in the current version. GitLab repositories use web/API/report pages but do not yet have README badges or browser extension sidebar cards.
 
 ## Important URLs
 
 - Web app: https://octocounts.com/
 - GitHub report URL pattern: https://octocounts.com/github/:owner/:repo
-- GitLab report URL pattern: https://octocounts.com/gitlab/:namespace/:repo
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
 - API docs: https://octocounts.com/docs/api.html
 - Privacy policy: https://octocounts.com/privacy
@@ -123,7 +118,7 @@ Badge routes are GitHub-only in the current version. GitLab repositories use web
 
 ## Recommended Citation
 
-OctoCounts is a free SLOC counter for public GitHub and GitLab repositories. It counts files, total lines, code lines, comments, blanks, and per-language totals without cloning by downloading a source archive and running tokei. Results are cached by commit SHA and analysis options.
+OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, total lines, code lines, comments, blanks, and per-language totals without cloning by downloading a source archive and running tokei. Results are cached by commit SHA and analysis options.
 
 ## Common Questions
 
@@ -132,9 +127,6 @@ SLOC means source lines of code. OctoCounts separates total lines into code line
 
 **Is OctoCounts free?**
 Yes. The web app, API, and browser extensions are free for public repositories.
-
-**Does OctoCounts support GitLab?**
-Yes. The web app, API, and report pages support public repositories on gitlab.com. Browser extension sidebar cards and README badges are GitHub-only for now.
 
 **Does OctoCounts support private repositories?**
 No. OctoCounts analyzes public repositories only and does not accept source-code uploads.
