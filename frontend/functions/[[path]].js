@@ -4,9 +4,11 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/recent", lastmod: "2026-07-06", priority: "0.7" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-07-06", priority: "0.7" },
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-06", priority: "0.7" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter.html", lastmod: "2026-07-04", priority: "0.8" },
-  { loc: "https://octocounts.com/docs/api.html", lastmod: "2026-07-04", priority: "0.7" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-04", priority: "0.6" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter.html", lastmod: "2026-07-06", priority: "0.8" },
+  { loc: "https://octocounts.com/docs/api.html", lastmod: "2026-07-06", priority: "0.7" },
+  { loc: "https://octocounts.com/docs/methodology.html", lastmod: "2026-07-06", priority: "0.7" },
+  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-06", priority: "0.6" },
+  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-07-06", priority: "0.5" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-07-04", priority: "0.3" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-07-04", priority: "0.3" },
 ];
@@ -181,25 +183,133 @@ function injectReport(index, report, apiBaseUrl) {
       (language) => `<tr><td>${escapeHtml(language.name)}</td><td>${language.stats.files}</td><td>${language.stats.lines}</td><td>${language.stats.code}</td><td>${language.stats.comments}</td><td>${language.stats.blanks}</td></tr>`
     )
     .join("");
+  const faq = reportFaq(report);
+  const faqHtml = `<section><h2>Report FAQ</h2>${faq
+    .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+    .join("")}</section>`;
+  const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
+    <li><a href="/recent">Recently analyzed repositories</a></li>
+    <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/docs/github-sloc-counter.html">GitHub SLOC counter guide</a></li>
+    <li><a href="/docs/methodology.html">Counting methodology</a></li>
+    <li><a href="/docs/api.html">OctoCounts API docs</a></li>
+  </ul></nav>`;
   const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p><table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,
     description: report.description,
     canonical: report.canonicalUrl,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "Dataset",
-      name: `${report.repoFullName} source line count`,
-      description: report.description,
-      url: report.canonicalUrl,
-      dateModified: report.generatedAt,
-      measurementTechnique: "tokei via OctoCounts",
-      variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
-    },
-    noscript: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>`,
+    jsonLd: reportJsonLd(report, faq),
+    extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
+    noscript: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + internalLinks,
   });
+}
+
+function reportFaq(report) {
+  const shortSha = report.commitSha.slice(0, 12);
+  return [
+    {
+      question: `How many lines of code does ${report.repoFullName} have?`,
+      answer: `${report.repoFullName} has ${formatNumber(report.total.lines)} total lines, including ${formatNumber(report.total.code)} code lines, ${formatNumber(report.total.comments)} comment lines, and ${formatNumber(report.total.blanks)} blank lines.`,
+    },
+    {
+      question: `How was the ${report.repoFullName} line count measured?`,
+      answer: `OctoCounts resolved the public GitHub repository to commit ${shortSha}, downloaded the source archive, counted it with tokei, and cached the report by commit, tokei version, and analysis options.`,
+    },
+    {
+      question: `What commit was counted for ${report.repoFullName}?`,
+      answer: `This OctoCounts report was generated from ${report.refName} at commit ${shortSha} on ${report.generatedAt}.`,
+    },
+  ];
+}
+
+function reportSummaryJson(report) {
+  return {
+    product: "OctoCounts",
+    reportType: "source-line-count",
+    repository: {
+      provider: report.provider,
+      fullName: report.repoFullName,
+      owner: report.owner,
+      repo: report.repo,
+      htmlUrl: report.htmlUrl,
+    },
+    canonicalUrl: report.canonicalUrl,
+    generatedAt: report.generatedAt,
+    refName: report.refName,
+    commitSha: report.commitSha,
+    tokeiVersion: report.tokeiVersion,
+    durationMs: report.durationMs,
+    totals: report.total,
+    topLanguage: report.topLanguage,
+    languages: report.languages,
+    citation: report.citation,
+    methodology: "https://octocounts.com/docs/methodology.html",
+  };
+}
+
+function reportJsonLd(report, faq) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Dataset",
+        "@id": `${report.canonicalUrl}#dataset`,
+        name: `${report.repoFullName} source line count`,
+        description: report.description,
+        url: report.canonicalUrl,
+        dateModified: report.generatedAt,
+        measurementTechnique: "tokei via OctoCounts",
+        variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
+        creator: {
+          "@type": "Organization",
+          name: "OctoCounts",
+          url: "https://octocounts.com/",
+        },
+        isBasedOn: report.htmlUrl,
+        distribution: {
+          "@type": "DataDownload",
+          encodingFormat: "application/json",
+          contentUrl: `https://api.octocounts.com/api/seo/report?provider=${encodeURIComponent(report.provider)}&owner=${encodeURIComponent(report.owner)}&repo=${encodeURIComponent(report.repo)}`,
+        },
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": `${report.canonicalUrl}#source`,
+        name: report.repoFullName,
+        codeRepository: report.htmlUrl,
+        url: report.htmlUrl,
+        programmingLanguage: report.languages.map((language) => language.name),
+        version: report.commitSha,
+        dateModified: report.generatedAt,
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${report.canonicalUrl}#faq`,
+        mainEntity: faq.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: item.answer,
+          },
+        })),
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${report.canonicalUrl}#breadcrumbs`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "OctoCounts", item: "https://octocounts.com/" },
+          { "@type": "ListItem", position: 2, name: "GitHub reports", item: "https://octocounts.com/recent" },
+          { "@type": "ListItem", position: 3, name: report.repoFullName, item: report.canonicalUrl },
+        ],
+      },
+    ],
+  };
 }
 
 function injectFallback(index, route) {
@@ -231,6 +341,9 @@ function injectHeadAndNoscript(index, meta) {
   if (meta.jsonLd) {
     html = html.replace("</head>", `<script type="application/ld+json">${escapeScriptJson(meta.jsonLd)}</script>\n</head>`);
   }
+  if (meta.extraHead) {
+    html = html.replace("</head>", `${meta.extraHead}\n</head>`);
+  }
   html = html.replace('<div id="root"></div>', `<div id="root"></div><noscript>${meta.noscript}</noscript>`);
   return html;
 }
@@ -261,6 +374,10 @@ function escapeXml(value) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatNumber(value) {
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 function htmlResponse(html, cacheControl) {

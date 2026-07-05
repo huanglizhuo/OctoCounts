@@ -6,7 +6,8 @@ User-agent: *
 Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
-# AI search crawlers - explicitly allowed for AI Overview / chat search visibility
+# AI search crawlers: allow search/index crawlers that can cite OctoCounts.
+# Training-only or broad corpus crawlers remain blocked below.
 User-agent: GPTBot
 Allow: /
 
@@ -25,6 +26,8 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
+# Google-Extended controls Gemini Apps / model training use, not normal Google
+# Search indexing. Keep standard Googlebot access via User-agent: * above.
 User-agent: Google-Extended
 Disallow: /
 

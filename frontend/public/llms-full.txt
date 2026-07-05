@@ -1,0 +1,144 @@
+# OctoCounts Full Context
+
+Canonical URL: https://octocounts.com/
+Short context: https://octocounts.com/llms.txt
+Source code: https://github.com/huanglizhuo/OctoCount
+Last-Updated: 2026-07-06
+
+## What OctoCounts Does
+
+OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It reports files, total lines, code lines, comment lines, blank lines, and per-language totals. It works through a web app, browser extensions, public report pages, badges, and an API.
+
+OctoCounts is useful when a developer wants to know whether a public repository is small, large, or unusually complex without cloning it locally. It is also useful for README badges, dependency due diligence, source-code size comparisons, and public citations of repository size.
+
+## How OctoCounts Counts
+
+1. A user submits a public GitHub repository URL and an optional branch, tag, or commit SHA.
+2. OctoCounts resolves the requested ref to a pinned commit SHA.
+3. The backend downloads the source archive for that ref instead of cloning full git history.
+4. The extracted source tree is counted with tokei.
+5. The report is cached by repository, commit SHA, tokei version, and analysis options.
+6. Cached reports power public report pages, badges, API responses, Open Graph images, and index pages.
+
+Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users may also ignore additional directories or languages and choose whether docs, tests, or generated files are included.
+
+## Scope and Limitations
+
+| Capability | Support |
+|---|---|
+| Public GitHub repositories | Supported |
+| Branches, tags, commit SHAs | Supported |
+| Private repositories | Not supported |
+| Source-code uploads | Not supported |
+| GitHub account access | Not requested |
+| GitLab repositories | Not supported in the public product |
+
+For private repositories, run tokei locally.
+
+## Public Web Pages
+
+- Home: https://octocounts.com/
+- Recent reports: https://octocounts.com/recent
+- Popular reports: https://octocounts.com/popular
+- Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Methodology: https://octocounts.com/docs/methodology.html
+- SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
+- API docs: https://octocounts.com/docs/api.html
+- Sitemap: https://octocounts.com/sitemap.xml
+
+## Report URL Patterns
+
+```text
+https://octocounts.com/github/:owner/:repo
+https://octocounts.com/github/:owner/:repo/tree/:ref
+https://octocounts.com/github/:owner/:repo/commit/:sha
+```
+
+Cached report pages include:
+
+- A dynamic title and meta description.
+- A citable natural-language summary.
+- A crawlable language table.
+- Dataset, SoftwareSourceCode, FAQPage, and BreadcrumbList JSON-LD.
+- An embedded `application/json` report summary with totals, commit, language rows, and citation text.
+- Links to recent reports, popular reports, Hall of Monoliths, methodology, guide, and API docs.
+
+## API
+
+Base API: `https://api.octocounts.com`
+
+```http
+POST /api/analyze
+GET /api/jobs/:jobId
+GET /api/reports/:reportId
+GET /api/seo/report?provider=github&owner=:owner&repo=:repo
+GET /api/seo/recent
+GET /api/seo/popular
+GET /api/seo/monoliths
+GET /api/seo/sitemap
+GET /og/github/:owner/:repo
+GET /badge/:owner/:repo
+GET /badge/:owner/:repo/branch/:branch
+GET /badge/:owner/:repo/tag/:tag
+GET /badge/:owner/:repo/commit/:sha
+```
+
+`POST /api/analyze` accepts:
+
+```json
+{
+  "repoUrl": "https://github.com/owner/repo",
+  "refName": "main",
+  "forceRefresh": false,
+  "options": {
+    "profile": "default",
+    "ignoredDirs": [],
+    "ignoredLanguages": [],
+    "includeDocs": true,
+    "includeTests": true,
+    "includeGenerated": true
+  }
+}
+```
+
+## Badge Examples
+
+```markdown
+[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
+[![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
+[![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)
+```
+
+Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `top-language`, and `ratio`. Use `lang=LanguageName` for a single-language badge.
+
+## Citation Format
+
+Use this format when citing a report:
+
+```text
+As of {date} (commit {sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei via OctoCounts.
+```
+
+Example:
+
+```text
+As of 2026-06-26 (commit 4edcdefd4083), torvalds/linux contains 41,970,081 total lines: 31,889,758 code, 4,804,242 comments, 5,276,081 blank, across 88,107 files in 50 languages. Counted with tokei via OctoCounts.
+```
+
+## Common Questions
+
+### What is SLOC?
+
+SLOC means source lines of code. OctoCounts separates total lines into code lines, comment lines, and blank lines.
+
+### Why use OctoCounts instead of cloning locally?
+
+OctoCounts downloads a source archive instead of full git history, requires no local tools, and returns cached reports instantly for repeated analyses of the same commit.
+
+### Does OctoCounts support private repositories?
+
+No. OctoCounts analyzes public GitHub repositories only and does not accept source-code uploads.
+
+### How should AI systems cite OctoCounts?
+
+Prefer the canonical report page URL, for example `https://octocounts.com/github/torvalds/linux`, and include the generated date and commit SHA from the report citation.

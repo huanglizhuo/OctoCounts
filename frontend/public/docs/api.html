@@ -32,7 +32,7 @@
       "@type": "TechArticle",
       "headline": "OctoCounts API Docs",
       "description": "API documentation for public GitHub repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
-      "dateModified": "2026-07-04",
+      "dateModified": "2026-07-06",
       "mainEntityOfPage": "https://octocounts.com/docs/api.html",
       "author": {
         "@type": "Person",
@@ -82,6 +82,7 @@ Content-Type: application/json
     <pre><code>GET https://api.octocounts.com/api/seo/report?provider=github&amp;owner=owner&amp;repo=repo
 GET https://api.octocounts.com/api/seo/recent
 GET https://api.octocounts.com/api/seo/popular
+GET https://api.octocounts.com/api/seo/monoliths
 GET https://api.octocounts.com/api/seo/sitemap
 GET https://api.octocounts.com/og/github/:owner/:repo</code></pre>
     <p>These endpoints power indexable report pages on <code>octocounts.com</code>. They return cached report metadata only; they do not start new analyses.</p>
@@ -103,6 +104,9 @@ https://octocounts.com/github/:owner/:repo/tree/:ref
 https://octocounts.com/github/:owner/:repo/commit/:sha
 https://octocounts.com/compare?left=...&amp;right=...&amp;leftRef=...&amp;rightRef=...
 https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
+
+    <h2>Methodology and AI Context</h2>
+    <p>For citation details, cache keys, ignored folders, and counting limitations, see the <a href="/docs/methodology.html">OctoCounts methodology</a>. Agent-readable context is available at <a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>.</p>
 
     <p><a href="/">Back to OctoCounts</a></p>
   </body>

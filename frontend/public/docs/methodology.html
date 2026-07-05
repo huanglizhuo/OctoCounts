@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts Methodology | How Repository SLOC Is Counted</title>
+    <meta name="description" content="How OctoCounts counts public GitHub repository source lines of code: archive download, commit pinning, tokei, ignored folders, cache keys, and limitations." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/methodology.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts Methodology" />
+    <meta property="og:description" content="How OctoCounts counts public GitHub repository SLOC with archive downloads, commit pinning, tokei, and reproducible cache keys." />
+    <meta property="og:url" content="https://octocounts.com/docs/methodology.html" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts Methodology" />
+    <meta name="twitter:description" content="How OctoCounts counts public GitHub repository SLOC with tokei and commit-pinned archive downloads." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.1rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; }
+      pre { padding: 14px; overflow: auto; }
+      table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts Methodology",
+      "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
+      "dateModified": "2026-07-06",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/methodology.html"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How does OctoCounts count source lines of code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts resolves a public GitHub ref to a commit SHA, downloads the source archive, extracts it, runs tokei, and caches the resulting language statistics by repository, commit, tokei version, and analysis options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does OctoCounts use archive downloads instead of git clone?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Archive downloads fetch the source tree for one ref without transferring full git history. This is faster for quick repository inspection and keeps reports pinned to a reproducible commit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are OctoCounts reports exact?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts reports are exact for the downloaded source archive and selected analysis options. They are not a measure of git history, generated artifacts excluded by settings, private code, or files unavailable in the public archive."
+          }
+        }
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter.html">SLOC guide</a> / Methodology</nav>
+    <main>
+      <p class="meta">Updated July 6, 2026</p>
+      <h1>OctoCounts Methodology</h1>
+      <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
+
+      <h2>Counting Pipeline</h2>
+      <ol>
+        <li><strong>Validate:</strong> OctoCounts accepts public <code>github.com</code> repository URLs only.</li>
+        <li><strong>Resolve:</strong> The requested branch, tag, or commit SHA is resolved to a pinned commit SHA.</li>
+        <li><strong>Download:</strong> The backend downloads the GitHub source archive for that exact ref.</li>
+        <li><strong>Extract:</strong> The archive is unpacked into a temporary workspace.</li>
+        <li><strong>Count:</strong> <a href="https://github.com/XAMPPRocky/tokei">tokei</a> detects languages and counts files, total lines, code lines, comments, and blank lines.</li>
+        <li><strong>Cache:</strong> The report is stored by repository, commit SHA, tokei version, and analysis options.</li>
+      </ol>
+
+      <h2>Cache Key</h2>
+      <p>Reports are cached by repository provider, owner, repository name, commit SHA, tokei version, and active analysis options. Repeated requests for the same commit and options return the cached report instead of downloading and counting again.</p>
+
+      <h2>Default Exclusions</h2>
+      <p>OctoCounts skips heavy dependency and build folders by default so counts represent the source tree rather than installed dependencies or generated output.</p>
+      <pre><code>.cache
+.git
+.next
+build
+dist
+node_modules
+target
+vendor</code></pre>
+
+      <h2>Metrics</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Definition</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Files</td><td>Files detected by tokei as source or supported text formats.</td></tr>
+          <tr><td>Total lines</td><td>Code lines + comment lines + blank lines.</td></tr>
+          <tr><td>Code lines</td><td>Language-parser-recognized source code lines.</td></tr>
+          <tr><td>Comments</td><td>Line and block comments recognized by language rules.</td></tr>
+          <tr><td>Blanks</td><td>Whitespace-only lines.</td></tr>
+          <tr><td>Languages</td><td>Detected programming languages and file types, sorted by code lines.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Limitations</h2>
+      <ul>
+        <li>OctoCounts analyzes public GitHub repositories only.</li>
+        <li>Counts reflect the source archive at one commit, not the full repository history.</li>
+        <li>Generated files, dependency folders, docs, tests, and ignored languages may be included or excluded depending on analysis options.</li>
+        <li>Language classification follows tokei's rules and supported file types.</li>
+        <li>GitHub repositories that are empty, private, unavailable, or too large may fail analysis.</li>
+      </ul>
+
+      <h2>Recommended Citation</h2>
+      <pre><code>As of {date} (commit {sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei via OctoCounts.</code></pre>
+
+      <p>Every cached report page includes its own generated citation text. Prefer citing the canonical report URL, for example <code>https://octocounts.com/github/torvalds/linux</code>.</p>
+    </main>
+  </body>
+</html>

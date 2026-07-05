@@ -7,11 +7,12 @@ AI-Usage: search-allowed, training-prohibited
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCount
-Last-Updated: 2026-07-04
+Last-Updated: 2026-07-06
+Full Context: https://octocounts.com/llms-full.txt
 
 ## Short Answer
 
-OctoCounts is a free source lines of code (SLOC) counter for public repositories. Users paste a public GitHub URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. Users can also install the Chrome or Firefox extension to see a SLOC card in the GitHub repository sidebar.
+OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. Users paste a public GitHub URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. Users can also install the Chrome or Firefox extension to see a SLOC card in the GitHub repository sidebar.
 
 ## Primary Use Cases
 
@@ -22,38 +23,12 @@ OctoCounts is a free source lines of code (SLOC) counter for public repositories
 - Export reports as text, JSON, or a 1200x630 PNG share card.
 - Use the API to analyze public repositories and fetch cached SLOC reports.
 
-## What OctoCounts Counts
+## Report Pages
 
-- Files
-- Total lines
-- Code lines
-- Comment lines
-- Blank lines
-- Programming language rows
-- Aggregate repository totals
-
-OctoCounts uses tokei for language detection and supports more than 200 programming languages and file types. Examples include Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Erlang, Clojure, F#, Lua, R, Julia, Dart, Perl, Shell, Bash, PowerShell, HTML, CSS, SCSS, SQL, GraphQL, Dockerfile, YAML, JSON, TOML, XML, and Markdown.
-
-## How It Works
-
-1. The user submits a public GitHub repository URL.
-2. OctoCounts resolves the requested branch, tag, or commit SHA to a pinned commit.
-3. The backend downloads a source archive instead of cloning full git history.
-4. The archive is extracted and counted with tokei.
-5. The report is cached by repository, commit SHA, tokei version, and analysis options.
-6. The web app renders insights, tables, chart data, badges, share URLs, and exports.
-
-Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users can also ignore additional directories or languages and choose whether docs, tests, or generated files are included.
-
-## Repository Host Support
-
-| Host | Support |
-|---|---|
-| Public GitHub repositories | Web app, API, report pages, badges, Chrome extension, Firefox extension |
-| Private repositories | Not supported |
-| Source-code uploads | Not supported |
-
-OctoCounts does not request GitHub account access. It does not support private repositories and does not accept ZIP or source-code uploads. For private repositories, run tokei locally.
+- Pattern: `https://octocounts.com/github/:owner/:repo`
+- Branch/tag pattern: `https://octocounts.com/github/:owner/:repo/tree/:ref`
+- Commit pattern: `https://octocounts.com/github/:owner/:repo/commit/:sha`
+- Each cached report page includes a citable answer block, language table, JSON-LD, and an embedded machine-readable report summary.
 
 ## API Summary
 
@@ -66,6 +41,7 @@ GET /api/reports/:reportId
 GET /api/seo/report?provider=github&owner=:owner&repo=:repo
 GET /api/seo/recent
 GET /api/seo/popular
+GET /api/seo/monoliths
 GET /api/seo/sitemap
 GET /og/github/:owner/:repo
 GET /badge/:owner/:repo
@@ -74,62 +50,19 @@ GET /badge/:owner/:repo/tag/:tag
 GET /badge/:owner/:repo/commit/:sha
 ```
 
-`POST /api/analyze` accepts:
+`repoUrl` must be a public `github.com` URL. Private repositories and source-code uploads are not supported.
 
-```json
-{
-  "repoUrl": "https://github.com/owner/repo",
-  "refName": "main",
-  "forceRefresh": false,
-  "options": {
-    "profile": "default",
-    "ignoredDirs": [],
-    "ignoredLanguages": [],
-    "includeDocs": true,
-    "includeTests": true,
-    "includeGenerated": true
-  }
-}
-```
-
-`repoUrl` must be a public `github.com` URL.
-
-## Badge Examples
-
-```markdown
-[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
-[![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
-[![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)
-```
-
-Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `top-language`, and `ratio`.
-
-## Important URLs
+## Key URLs
 
 - Web app: https://octocounts.com/
-- GitHub report URL pattern: https://octocounts.com/github/:owner/:repo
+- Recent reports: https://octocounts.com/recent
+- Popular reports: https://octocounts.com/popular
+- Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Methodology: https://octocounts.com/docs/methodology.html
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
 - API docs: https://octocounts.com/docs/api.html
-- Privacy policy: https://octocounts.com/privacy
-- Contact: https://octocounts.com/contact
-- Source code: https://github.com/huanglizhuo/OctoCount
-- Chrome extension: https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj
-- Firefox extension: https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/
+- Sitemap: https://octocounts.com/sitemap.xml
 
 ## Recommended Citation
 
 OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, total lines, code lines, comments, blanks, and per-language totals without cloning by downloading a source archive and running tokei. Results are cached by commit SHA and analysis options.
-
-## Common Questions
-
-**What is SLOC?**
-SLOC means source lines of code. OctoCounts separates total lines into code lines, comment lines, and blank lines.
-
-**Is OctoCounts free?**
-Yes. The web app, API, and browser extensions are free for public repositories.
-
-**Does OctoCounts support private repositories?**
-No. OctoCounts analyzes public repositories only and does not accept source-code uploads.
-
-**Why use OctoCounts instead of cloning locally?**
-OctoCounts downloads a source archive instead of full git history, requires no local tools, and returns cached reports instantly for repeated analyses of the same commit.

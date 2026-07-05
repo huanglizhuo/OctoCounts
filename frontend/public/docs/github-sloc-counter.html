@@ -48,7 +48,7 @@
       "@type": "TechArticle",
       "headline": "GitHub SLOC Counter Guide",
       "description": "A practical guide to counting source lines of code in public GitHub repositories with OctoCounts.",
-      "dateModified": "2026-06-11",
+      "dateModified": "2026-07-06",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -98,7 +98,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/api.html">API docs</a> / SLOC guide</nav>
     <main>
-      <p class="meta">Updated June 11, 2026</p>
+      <p class="meta">Updated July 6, 2026</p>
       <h1>GitHub SLOC Counter Guide</h1>
       <p class="note">OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.</p>
 
@@ -130,6 +130,7 @@
         <li>Generated and heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default.</li>
         <li>The report is cached by repository, commit SHA, tokei version, and analysis options.</li>
       </ol>
+      <p>For the full counting policy, cache key, exclusions, limitations, and citation format, see the <a href="/docs/methodology.html">OctoCounts methodology</a>. Agent-readable context is also available in <a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>.</p>
 
       <h2>Metrics Explained</h2>
       <table>
