@@ -3,6 +3,9 @@ type AnalyticsProps = Record<string, string | number | boolean | undefined>;
 declare global {
   interface Window {
     plausible?: (eventName: string, options?: { props?: AnalyticsProps }) => void;
+    umami?: {
+      track: (eventName: string, eventData?: AnalyticsProps) => void;
+    };
   }
 }
 
@@ -22,6 +25,7 @@ export function initAnalytics() {
 
 export function trackEvent(eventName: string, props?: AnalyticsProps) {
   window.plausible?.(eventName, props ? { props } : undefined);
+  window.umami?.track(eventName, props);
 }
 
 export function providerFromRepoUrl(repoUrl: string) {

@@ -7,6 +7,7 @@ import { mountPanel, unmountPanel } from './panel.js';
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 4;
 const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_error']);
+const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
 
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
 const SKEL_DEFAULT = 4;
@@ -306,6 +307,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const { owner, repo, ref, shadow, replaceGhLanguages, cardTitle = '' } = ctx;
   const theme = getTheme();
   const total = report.total;
+  recordSuccessfulRender();
 
   const cachedBadge = report.cached
     ? `<span class="oc-badge" title="${cachedAt ? 'Cached ' + new Date(cachedAt).toLocaleString() : t('card.cached')}">${t('card.cached')}</span>`
@@ -387,6 +389,14 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   cardHost.addEventListener('keydown', onKey);
 
   if (replaceGhLanguages) hideGhLanguagesSection();
+}
+
+async function recordSuccessfulRender() {
+  try {
+    const state = await chrome.storage.local.get({ [STAR_SUCCESS_COUNT_KEY]: 0 });
+    const next = Math.min(Number(state[STAR_SUCCESS_COUNT_KEY] || 0) + 1, 1000);
+    await chrome.storage.local.set({ [STAR_SUCCESS_COUNT_KEY]: next });
+  } catch (_) {}
 }
 
 function buildStackedBarHTML(report, theme) {

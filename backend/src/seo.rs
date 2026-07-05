@@ -146,6 +146,31 @@ pub async fn popular(
     ))
 }
 
+pub async fn monoliths(
+    State(state): State<AppState>,
+    Query(query): Query<PageQuery>,
+) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
+    let (page, limit, offset) = pagination(query);
+    let reports = state
+        .coordinator
+        .store()
+        .monolith_reports(limit, offset)
+        .await
+        .map_err(ApiError::internal)?
+        .iter()
+        .map(seo_report)
+        .collect();
+
+    Ok((
+        cache_headers(),
+        Json(SeoList {
+            page,
+            limit,
+            reports,
+        }),
+    ))
+}
+
 pub async fn sitemap(
     State(state): State<AppState>,
 ) -> Result<(HeaderMap, Json<Vec<SitemapEntry>>), ApiError> {

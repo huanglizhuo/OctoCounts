@@ -418,6 +418,11 @@ impl Store {
             .await
     }
 
+    pub async fn monolith_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
+        self.distinct_reports("total_lines DESC", limit, offset)
+            .await
+    }
+
     pub async fn sitemap_reports(&self, limit: i64) -> anyhow::Result<Vec<Report>> {
         self.distinct_reports("created_at DESC", limit, 0).await
     }
@@ -452,6 +457,21 @@ impl Store {
                     ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
                 ) popular
                 ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
+                LIMIT $1 OFFSET $2
+                "#
+            }
+            "total_lines DESC" => {
+                r#"
+                SELECT body::text AS body
+                FROM (
+                    SELECT DISTINCT ON (provider, owner, repo)
+                        body,
+                        ((body->'total'->>'lines')::bigint) AS total_lines,
+                        created_at
+                    FROM reports
+                    ORDER BY provider, owner, repo, created_at DESC
+                ) monoliths
+                ORDER BY total_lines DESC, created_at DESC
                 LIMIT $1 OFFSET $2
                 "#
             }

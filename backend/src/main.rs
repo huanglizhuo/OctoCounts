@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/seo/report", get(seo::report))
         .route("/api/seo/recent", get(seo::recent))
         .route("/api/seo/popular", get(seo::popular))
+        .route("/api/seo/monoliths", get(seo::monoliths))
         .route("/api/seo/sitemap", get(seo::sitemap))
         .route("/og/github/{owner}/{repo}", get(og::github))
         .route("/og/gitlab/{*path}", get(og::gitlab))

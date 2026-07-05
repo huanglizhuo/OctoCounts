@@ -1,6 +1,9 @@
 const API_BASE = "https://api.octocounts.com";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: "2026-07-04", priority: "1.0" },
+  { loc: "https://octocounts.com/recent", lastmod: "2026-07-06", priority: "0.7" },
+  { loc: "https://octocounts.com/popular", lastmod: "2026-07-06", priority: "0.7" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-06", priority: "0.7" },
   { loc: "https://octocounts.com/docs/github-sloc-counter.html", lastmod: "2026-07-04", priority: "0.8" },
   { loc: "https://octocounts.com/docs/api.html", lastmod: "2026-07-04", priority: "0.7" },
   { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-04", priority: "0.6" },
@@ -23,6 +26,10 @@ export async function onRequest(context) {
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
     return listPageResponse(context, url.pathname.slice(1), url);
+  }
+
+  if (url.pathname === "/hall-of-monoliths") {
+    return listPageResponse(context, "monoliths", url);
   }
 
   return context.env.ASSETS.fetch(context.request);
@@ -57,7 +64,7 @@ async function reportResponse(context, route) {
   }
 
   const report = await response.json();
-  return htmlResponse(injectReport(index, report), "public, s-maxage=300, stale-while-revalidate=3600");
+  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=300, stale-while-revalidate=3600");
 }
 
 async function listPageResponse(context, kind, url) {
@@ -67,20 +74,21 @@ async function listPageResponse(context, kind, url) {
     headers: { accept: "application/json" },
   });
   const payload = response.ok ? await response.json() : { reports: [] };
-  const title = kind === "recent" ? "Recently analyzed repositories | OctoCounts" : "Popular SLOC reports | OctoCounts";
-  const description =
-    kind === "recent"
-      ? "Recently analyzed public GitHub repositories with source line count reports."
-      : "Popular OctoCounts source line count reports for public GitHub repositories.";
+  const pageMeta = listPageMeta(kind);
+  const title = pageMeta.title;
+  const description = pageMeta.description;
   const body = payload.reports
-    .map((report) => `<li><a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`)
+    .map(
+      (report, index) =>
+        `<li><span>${index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
+    )
     .join("");
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
       title,
       description,
-      canonical: `https://octocounts.com/${kind}`,
+      canonical: pageMeta.canonical,
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
       jsonLd: {
@@ -88,7 +96,16 @@ async function listPageResponse(context, kind, url) {
         "@type": "CollectionPage",
         name: title,
         description,
-        url: `https://octocounts.com/${kind}`,
+        url: pageMeta.canonical,
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: payload.reports.map((report, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: report.canonicalUrl,
+            name: report.repoFullName,
+          })),
+        },
       },
       noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul>${body}</ul></section>`,
     }),
@@ -132,10 +149,32 @@ async function indexHtml(context) {
 }
 
 function apiBase(context) {
-  return context.env.SEO_API_BASE || API_BASE;
+  return (context.env.SEO_API_BASE || API_BASE).replace(/\/+$/, "");
 }
 
-function injectReport(index, report) {
+function listPageMeta(kind) {
+  if (kind === "recent") {
+    return {
+      title: "Recently analyzed repositories | OctoCounts",
+      description: "Recently analyzed public GitHub repositories with source line count reports.",
+      canonical: "https://octocounts.com/recent",
+    };
+  }
+  if (kind === "monoliths") {
+    return {
+      title: "Hall of Monoliths: largest GitHub repositories by lines of code | OctoCounts",
+      description: "A live OctoCounts leaderboard of large public GitHub repositories ranked by total source lines of code.",
+      canonical: "https://octocounts.com/hall-of-monoliths",
+    };
+  }
+  return {
+    title: "Popular SLOC reports | OctoCounts",
+    description: "Popular OctoCounts source line count reports for public GitHub repositories.",
+    canonical: "https://octocounts.com/popular",
+  };
+}
+
+function injectReport(index, report, apiBaseUrl) {
   const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
   const rows = report.languages
     .map(
@@ -148,7 +187,7 @@ function injectReport(index, report) {
     description: report.description,
     canonical: report.canonicalUrl,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
-    ogImage: `${API_BASE}/og/${report.provider}/${report.owner}/${report.repo}`,
+    ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "Dataset",

@@ -10,6 +10,8 @@ let _prevFocus = null;
 // Dismissible star nudge shown in the panel footer. It stays until the user
 // interacts with it once (clicks the link or the × close).
 const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCount';
+const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
+const STAR_PROMPT_MIN_SUCCESSES = 4;
 
 export function unmountPanel() {
   if (_panelHost) {
@@ -75,11 +77,15 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
 async function maybeShowStarNudge(shadow) {
   let state;
   try {
-    state = await chrome.storage.local.get({ starPromptDismissed: false });
+    state = await chrome.storage.local.get({
+      starPromptDismissed: false,
+      [STAR_SUCCESS_COUNT_KEY]: 0,
+    });
   } catch (_) {
     return;
   }
   if (state.starPromptDismissed) return;
+  if (Number(state[STAR_SUCCESS_COUNT_KEY] || 0) < STAR_PROMPT_MIN_SUCCESSES) return;
 
   const panel = shadow.querySelector('.oc-panel');
   if (!panel || panel.querySelector('.oc-star-prompt')) return;
