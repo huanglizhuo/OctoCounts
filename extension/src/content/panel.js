@@ -156,6 +156,7 @@ function buildPanelHTML(report, theme) {
         </div>
         <div class="oc-pheader-right">
           <span class="oc-prepo">${escapeHtml(report.repository.owner)}/${escapeHtml(report.repository.name)} @ ${sha}</span>
+          <a class="oc-popen" href="https://octocounts.com/compare?left=${encodeURIComponent(report.repository.htmlUrl)}" target="_blank" rel="noopener noreferrer">${t('panel.compare')}</a>
           <a class="oc-popen" href="${webUrl}" target="_blank" rel="noopener noreferrer">${t('panel.open')}</a>
           <button class="oc-pclose" title="${t('panel.closeTitle')}" aria-label="${t('panel.closeTitle')}">×</button>
         </div>

@@ -24,6 +24,7 @@
   "panel": {
     "title": "OctoCounts",
     "open": "↗ 打开",
+    "compare": "⇄ 对比",
     "closeTitle": "关闭面板",
     "txt": "复制为文本",
     "json": "复制为 JSON",

@@ -326,7 +326,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
         <span class="oc-sg-val">${formatCompact(total.lines)}</span>
         <span class="oc-sg-label">${t('card.lines')}</span>
       </div>
-      <div class="oc-sg-cell">
+      <div class="oc-sg-cell" title="${t('card.comments')}: ${formatNumber(total.comments)} · ${formatPercent(total.comments, total.lines)}">
         <span class="oc-sg-val">${formatCompact(total.comments)}</span>
         <span class="oc-sg-label">${t('card.comments')}</span>
       </div>

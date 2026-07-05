@@ -59,7 +59,10 @@
       "cacheHit": "缓存命中已返回",
       "freshReport": "新报告已保存到缓存",
       "languageRows": "{{count}} 种语言行已渲染",
-      "counted": "已统计 {{lines}} 行，耗时 {{duration}}ms"
+      "counted": "已统计 {{lines}} 行，耗时 {{duration}}ms",
+      "stillQueued": "仍在排队：任务逐个执行，请稍候",
+      "archiveExtracting": "正在解压归档",
+      "stillCounting": "大型仓库：tokei 仍在统计"
     },
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "缓存命中",
@@ -227,7 +230,13 @@
         "text": "报告按所有者、仓库、提交 SHA 和 tokei 版本存储。当你重新分析同一提交时，缓存会立即命中，无需重新下载，无需重新计数。重新运行会强制进行全新分析并更新缓存。浏览器扩展还会将结果本地缓存，以便离线即时查看。",
         "code": "cache <1>commit + version</1>"
       }
-    ]
+    ],
+    "pipeline": {
+      "url": "github 链接",
+      "tarball": "tarball 归档",
+      "tokei": "tokei",
+      "report": "缓存报告"
+    }
   },
   "footer": {
     "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
@@ -242,7 +251,8 @@
     "matrix": "矩阵",
     "paper": "纸张",
     "amber": "琥珀",
-    "ariaLabel": "主题"
+    "ariaLabel": "主题",
+    "label": "主题"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",
@@ -339,5 +349,14 @@
     "comments": "注释",
     "blanks": "空行",
     "total": "总计"
+  },
+  "recent": {
+    "label": "最近",
+    "ariaLabel": "最近分析过的仓库"
+  },
+  "stickyBar": {
+    "ariaLabel": "报告摘要",
+    "lines": "{{lines}} 行",
+    "top": "顶部"
   }
 }

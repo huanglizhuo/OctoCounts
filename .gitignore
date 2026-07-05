@@ -30,6 +30,11 @@ yarn-error.log*
 
 # Local verification artifacts
 /screenshots/
+/frontend/test-results/
 
 # Local product planning/progress notes
 .octocounts-roadmap-progress.json
+
+# Local agent/tooling directories
+/.claude/
+/.impeccable/

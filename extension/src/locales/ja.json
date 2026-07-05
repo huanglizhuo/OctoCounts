@@ -24,6 +24,7 @@
   "panel": {
     "title": "OctoCounts",
     "open": "↗ 開く",
+    "compare": "⇄ 比較",
     "closeTitle": "パネルを閉じる",
     "txt": "テキストとしてコピー",
     "json": "JSONとしてコピー",
