@@ -30,6 +30,15 @@
   "samples": {
     "label": "sample"
   },
+  "recent": {
+    "label": "recent",
+    "ariaLabel": "Recently analyzed repositories"
+  },
+  "stickyBar": {
+    "ariaLabel": "Report summary",
+    "lines": "{{lines}} lines",
+    "top": "top"
+  },
   "runner": {
     "title": "Runner",
     "status": {
@@ -55,6 +64,9 @@
       "refResolved": "ref resolved",
       "archiveDownloading": "archive download in progress",
       "tokeiRunning": "tokei counter running",
+      "stillQueued": "still queued: jobs run one at a time, hang tight",
+      "archiveExtracting": "archive extracting",
+      "stillCounting": "large repository: tokei still counting",
       "resolvedRef": "resolved {{ref}} -> {{sha}}",
       "cacheHit": "cache hit returned",
       "freshReport": "fresh report saved to cache",
@@ -208,6 +220,12 @@
   "howItWorks": {
     "title": "How It Works",
     "subtitle": "archive in, tokei report out",
+    "pipeline": {
+      "url": "github url",
+      "tarball": "tarball",
+      "tokei": "tokei",
+      "report": "cached report"
+    },
     "steps": [
       {
         "num": "01",
@@ -242,6 +260,7 @@
     "matrix": "matrix",
     "paper": "paper",
     "amber": "amber",
+    "label": "theme",
     "ariaLabel": "Theme"
   },
   "error": {

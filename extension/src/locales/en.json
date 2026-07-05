@@ -24,6 +24,7 @@
   "panel": {
     "title": "OctoCounts",
     "open": "↗ open",
+    "compare": "⇄ compare",
     "closeTitle": "Close panel",
     "txt": "Copy as text",
     "json": "Copy as JSON",

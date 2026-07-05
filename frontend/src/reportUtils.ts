@@ -21,20 +21,27 @@ export function tickerRows(report: Report): TickerRow[] {
   }));
 }
 
-export function logLines(status: AppStatus, report: Report | null, error: string | null) {
+export function logLines(status: AppStatus, report: Report | null, error: string | null, elapsedSec = 0) {
   if (status === "failed") return [{ ts: "00:00", kind: "err", text: error ?? i18n.t("runner.status.failed") }];
   if (status === "idle") return [{ ts: "00:00", kind: "", text: i18n.t("runner.log.idle") }];
-  if (status === "queued")
-    return [
+  if (status === "queued") {
+    const lines = [
       { ts: "00:01", kind: "warn", text: i18n.t("runner.log.queuedWaiting") },
       { ts: "00:02", kind: "", text: i18n.t("runner.log.refAccepted") },
     ];
-  if (status === "running")
-    return [
+    if (elapsedSec >= 8) lines.push({ ts: logTs(elapsedSec), kind: "warn", text: i18n.t("runner.log.stillQueued") });
+    return lines;
+  }
+  if (status === "running") {
+    const lines = [
       { ts: "00:01", kind: "ok", text: i18n.t("runner.log.refResolved") },
       { ts: "00:02", kind: "", text: i18n.t("runner.log.archiveDownloading") },
-      { ts: "00:03", kind: "", text: i18n.t("runner.log.tokeiRunning") },
     ];
+    if (elapsedSec >= 5) lines.push({ ts: "00:05", kind: "", text: i18n.t("runner.log.archiveExtracting") });
+    lines.push({ ts: elapsedSec >= 5 ? "00:06" : "00:03", kind: "", text: i18n.t("runner.log.tokeiRunning") });
+    if (elapsedSec >= 20) lines.push({ ts: logTs(elapsedSec), kind: "warn", text: i18n.t("runner.log.stillCounting") });
+    return lines;
+  }
   if (report)
     return [
       {
@@ -59,6 +66,12 @@ export function logLines(status: AppStatus, report: Report | null, error: string
       },
     ];
   return [];
+}
+
+function logTs(elapsedSec: number) {
+  const mins = Math.floor(elapsedSec / 60);
+  const secs = elapsedSec % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 export function progressValue(status: AppStatus) {

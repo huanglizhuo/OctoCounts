@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { toPng } from "html-to-image";
-import { ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, Loader2, Play, RotateCcw } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
@@ -39,7 +39,34 @@ const samples = [
   { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
   { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
+  { label: "vscode", repoUrl: "https://github.com/microsoft/vscode", refName: "" },
 ];
+
+const RECENT_KEY = "octocounts.recentRepos";
+const RECENT_MAX = 5;
+
+type RecentEntry = { repoUrl: string; refName: string; label: string };
+
+function loadRecentRepos(): RecentEntry[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is RecentEntry => typeof entry?.repoUrl === "string" && typeof entry?.label === "string")
+      .map((entry) => ({ repoUrl: entry.repoUrl, refName: typeof entry.refName === "string" ? entry.refName : "", label: entry.label }))
+      .slice(0, RECENT_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentRepos(entries: RecentEntry[]) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(entries.slice(0, RECENT_MAX)));
+  } catch {
+    /* storage unavailable (private mode) — history is a nice-to-have */
+  }
+}
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
 const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
 const defaultAnalysisOptions: AnalysisOptions = {
@@ -85,6 +112,44 @@ function App() {
   useEffect(() => {
     initAnalytics();
   }, []);
+
+  const [recentRepos, setRecentRepos] = useState<RecentEntry[]>(() => loadRecentRepos());
+  useEffect(() => {
+    if (!report || report === seedReport) return;
+    if (report.repository.htmlUrl === defaultRepoUrl) return;
+    const entry: RecentEntry = {
+      repoUrl: report.repository.htmlUrl,
+      refName: "",
+      label: `${report.repository.owner}/${report.repository.name}`,
+    };
+    setRecentRepos((current) => {
+      const next = [entry, ...current.filter((item) => item.repoUrl !== entry.repoUrl)].slice(0, RECENT_MAX);
+      saveRecentRepos(next);
+      return next;
+    });
+  }, [report]);
+
+  useEffect(() => {
+    if (!report || report === seedReport) return;
+    const path = window.location.pathname;
+    if (path === "/compare" || path === "/diff") return;
+    if (normalizedProvider(report) !== "github") return;
+    const canonical = new URL(buildPublicReportUrl(report.repository.owner, report.repository.name, report.refName, "github"));
+    const params = new URLSearchParams(window.location.search);
+    params.delete("q");
+    params.delete("url");
+    params.delete("ref");
+    const query = params.toString();
+    window.history.replaceState(null, "", canonical.pathname + (query ? `?${query}` : ""));
+  }, [report]);
+
+  const playRecent = (entry: RecentEntry) => {
+    trackEvent("recent_chip_clicked", { provider: providerFromRepoUrl(entry.repoUrl) });
+    stopTyping();
+    setRepoUrl(entry.repoUrl);
+    setRefName(entry.refName);
+    void runAnalysis(false, { repoUrl: entry.repoUrl, refName: entry.refName });
+  };
 
   useEffect(() => {
     if (!autoRan.current && repoUrl) {
@@ -217,6 +282,22 @@ function App() {
                 </button>
               ))}
             </div>
+            {recentRepos.length > 0 ? (
+              <div className="quick-rows recent-rows" aria-label={t("recent.ariaLabel")}>
+                {recentRepos.map((entry) => (
+                  <button
+                    className="chip recent-chip"
+                    key={entry.repoUrl}
+                    type="button"
+                    title={entry.repoUrl}
+                    onClick={() => playRecent(entry)}
+                  >
+                    <History size={12} aria-hidden="true" />
+                    <span className="k">{t("recent.label")}</span>{entry.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -302,6 +383,7 @@ function App() {
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
+          <Pipeline />
           <div className="how">
             {(t("howItWorks.steps", { returnObjects: true }) as Array<{ num: string; title: string; text: string; code: string }>).map((step) => (
               <div className="step" key={step.num}>
@@ -387,8 +469,9 @@ function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: 
   return (
     <div className="top-actions">
       <div className="theme-switch" role="group" aria-label={t("theme.ariaLabel")}>
+        <span className="theme-label" aria-hidden="true">{t("theme.label")}</span>
         {(["matrix", "paper", "amber"] as const).map((item) => (
-          <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button">
+          <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button" aria-pressed={scheme === item}>
             <span className={`theme-sw ${item}`} />
             {t("theme." + item)}
           </button>
@@ -403,6 +486,30 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   const { t } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  const isWorking = status === "queued" || status === "running";
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!isWorking) {
+      setElapsedSec(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsedSec(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [isWorking]);
+
+  const headRef = useRef<HTMLDivElement>(null);
+  const [showSticky, setShowSticky] = useState(false);
+  useEffect(() => {
+    const head = headRef.current;
+    if (!head || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowSticky(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+    );
+    observer.observe(head);
+    return () => observer.disconnect();
+  }, []);
 
   const exportPng = async () => {
     if (!report || !shareCardRef.current) return;
@@ -424,18 +531,45 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
 
   return (
     <div className="runner">
-      <div className="runner-head">
+      {report && showSticky ? (
+        <div className="sticky-bar" role="region" aria-label={t("stickyBar.ariaLabel")}>
+          <span className="sticky-repo">{report.repository.owner}/{report.repository.name}</span>
+          <span className="sticky-stats">
+            {t("stickyBar.lines", { count: report.total.lines, lines: formatNumber(report.total.lines) })}
+            {" · "}
+            <span className={report.cached ? "ok" : ""}>{report.cached ? t("runner.cacheHit") : t("runner.freshRun")}</span>
+          </span>
+          <div className="sticky-actions">
+            <button className="copybtn" onClick={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report), placement: "sticky" }); }}><Clipboard size={13} /> {t("runner.exportText")}</button>
+            <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={13} /> {t("runner.exportPng")}</button>
+            <button className="copybtn" onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })} aria-label={t("stickyBar.top")}><ArrowUp size={13} /> {t("stickyBar.top")}</button>
+          </div>
+        </div>
+      ) : null}
+      <div className="runner-head" ref={headRef}>
         <div className="left">
           <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
           <code>$ {command}</code>
         </div>
         <div className="row-flex">
-          {report ? <span>{report.refName} / {report.commitSha.slice(0, 12)} / {report.cached ? t("runner.cacheHit") : t("runner.freshRun")} / <b className="speed-val">{report.durationMs}ms</b></span> : <span>{t("runner.status." + status)}</span>}
+          {report ? (
+            <span>
+              {report.refName} / {report.commitSha.slice(0, 12)} /{" "}
+              {report.cached
+                ? <b className="cache-flex">{t("runner.cacheHit")} — {report.durationMs}ms</b>
+                : <>{t("runner.freshRun")} / <b className="speed-val">{report.durationMs}ms</b></>}
+            </span>
+          ) : (
+            <span>
+              {t("runner.status." + status)}
+              {isWorking && elapsedSec > 0 ? <b className="speed-val"> · {elapsedSec}s</b> : null}
+            </span>
+          )}
         </div>
       </div>
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ transform: `scaleX(${progressValue(status) / 100})` }} /></div>
       <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
-      {!report ? <RunnerLog status={status} report={report} error={error} /> : null}
+      {!report ? <RunnerLog status={status} report={report} error={error} elapsedSec={elapsedSec} /> : null}
       {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
       {report ? (
         <>
@@ -516,10 +650,10 @@ function ErrorState({ code, message }: { code?: string; message: string | null }
   );
 }
 
-function RunnerLog({ status, report, error }: { status: AppStatus; report: Report | null; error: string | null }) {
+function RunnerLog({ status, report, error, elapsedSec = 0 }: { status: AppStatus; report: Report | null; error: string | null; elapsedSec?: number }) {
   return (
     <div className="log">
-      {logLines(status, report, error).map((line) => (
+      {logLines(status, report, error, elapsedSec).map((line) => (
         <div key={line.text}><span className="ts">{line.ts}</span><span className={line.kind}>{line.text}</span></div>
       ))}
     </div>
@@ -1231,6 +1365,21 @@ function setCanonical(href: string) {
   element.href = href;
 }
 
+function Pipeline() {
+  const { t } = useTranslation();
+  const stages = ["url", "tarball", "tokei", "report"] as const;
+  return (
+    <div className="pipeline" aria-hidden="true">
+      {stages.map((stage, index) => (
+        <React.Fragment key={stage}>
+          {index > 0 ? <span className="pipe-link"><i /></span> : null}
+          <span className={`pipe-node ${stage === "report" ? "accent" : ""}`}>{t("howItWorks.pipeline." + stage)}</span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 function Summary({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
@@ -1338,35 +1487,42 @@ function Charts({ report }: { report: Report }) {
   const { t } = useTranslation();
   const languageItems = useMemo(() => languagePieItems(report.languages), [report.languages]);
   const totalLines = report.total.lines;
+  const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
+  const otherLabel = t("charts.other");
+  const sliceLabels = useMemo(() => new Set(languageItems.map((item) => item.label)), [languageItems]);
+  const sliceForLanguage = (name: string) => (sliceLabels.has(name) ? name : sliceLabels.has(otherLabel) ? otherLabel : null);
 
   return (
     <div className="charts-grid">
       <div className="chart-card donut-card">
         <div className="chart-h"><span className="chart-tag">chart</span>{t("charts.languageShare")}</div>
-        <Donut items={languageItems} total={totalLines} report={report} />
+        <Donut items={languageItems} total={totalLines} hovered={hoveredSlice} onHover={setHoveredSlice} />
       </div>
       <div className="chart-card table-card">
         <div className="chart-h"><span className="chart-tag">table</span>{t("charts.report")}</div>
-        <ReportTable report={report} compact />
+        <ReportTable report={report} compact hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={(name) => setHoveredSlice(name === null ? null : sliceForLanguage(name))} />
       </div>
     </div>
   );
 }
 
-function Donut({ items, total, report }: { items: PieItem[]; total: number; report: Report }) {
+function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: number; hovered: string | null; onHover: (label: string | null) => void }) {
   const { t } = useTranslation();
   const exactTotal = formatNumber(total);
   const slices = pieSlices(items);
-  const breakdown = [
-    { label: t("summary.code"), value: report.total.code, color: "var(--accent)" },
-    { label: t("summary.comments"), value: report.total.comments, color: "var(--accent-2)" },
-    { label: t("summary.blanks"), value: report.total.blanks, color: "var(--fg-mute)" },
-  ];
   return (
     <>
       <div className="donut-wrap" role="img" aria-label={t("charts.languageShare")}>
-        <svg viewBox="-1 -1 2 2">
-          {slices.map((slice) => <path key={slice.label} d={slice.path} fill={slice.color} />)}
+        <svg viewBox="-1 -1 2 2" onMouseLeave={() => onHover(null)}>
+          {slices.map((slice) => (
+            <path
+              key={slice.label}
+              d={slice.path}
+              fill={slice.color}
+              className={hovered && hovered !== slice.label ? "dim" : undefined}
+              onMouseEnter={() => onHover(slice.label)}
+            />
+          ))}
           <circle r="0.58" fill="var(--bg-2)" />
         </svg>
         <div className="donut-center" title={t("charts.totalLinesTooltip", { count: exactTotal })}>
@@ -1374,9 +1530,18 @@ function Donut({ items, total, report }: { items: PieItem[]; total: number; repo
           <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
         </div>
       </div>
-      <div className="legend">
+      <ul className="visually-hidden">
         {items.map((item) => (
-          <div className="legend-row" key={item.label}>
+          <li key={item.label}>{item.label}: {formatPercent(item.value, total)}</li>
+        ))}
+      </ul>
+      <div className="legend" onMouseLeave={() => onHover(null)}>
+        {items.map((item) => (
+          <div
+            className={`legend-row ${hovered === item.label ? "hl" : ""}`}
+            key={item.label}
+            onMouseEnter={() => onHover(item.label)}
+          >
             <span className="key-sw" style={{ background: item.color }} />
             <span className="lname">{item.label}</span>
             <span>{formatPercent(item.value, total)}</span>
@@ -1387,20 +1552,50 @@ function Donut({ items, total, report }: { items: PieItem[]; total: number; repo
   );
 }
 
-function ReportTable({ report, compact }: { report: Report; compact?: boolean }) {
+const SORT_KEYS: SortKey[] = ["name", "files", "lines", "code", "comments", "blanks"];
+
+function initialSortFromLocation(): { key: SortKey; dir: "asc" | "desc" } {
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get("sort") as SortKey | null;
+  const dir = params.get("dir");
+  return {
+    key: key && SORT_KEYS.includes(key) ? key : "code",
+    dir: dir === "asc" || dir === "desc" ? dir : "desc",
+  };
+}
+
+function persistSortInLocation(key: SortKey, dir: "asc" | "desc") {
+  const params = new URLSearchParams(window.location.search);
+  if (key === "code" && dir === "desc") {
+    params.delete("sort");
+    params.delete("dir");
+  } else {
+    params.set("sort", key);
+    params.set("dir", dir);
+  }
+  const query = params.toString();
+  window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""));
+}
+
+function ReportTable({ report, compact, hoveredSlice, sliceForLanguage, onHoverLanguage }: { report: Report; compact?: boolean; hoveredSlice?: string | null; sliceForLanguage?: (name: string) => string | null; onHoverLanguage?: (name: string | null) => void }) {
   const { t } = useTranslation();
-  const [sortKey, setSortKey] = useState<SortKey>("code");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const initialSort = useMemo(() => initialSortFromLocation(), []);
+  const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(initialSort.dir);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const rows = useMemo(() => sortRows(report.languages, sortKey, sortDir), [report.languages, sortKey, sortDir]);
 
   const updateSort = (key: SortKey) => {
+    let nextDir: "asc" | "desc";
     if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
+      nextDir = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(nextDir);
     } else {
+      nextDir = key === "name" ? "asc" : "desc";
       setSortKey(key);
-      setSortDir(key === "name" ? "asc" : "desc");
+      setSortDir(nextDir);
     }
+    persistSortInLocation(key, nextDir);
   };
 
   const toggle = (name: string) => {
@@ -1420,10 +1615,16 @@ function ReportTable({ report, compact }: { report: Report; compact?: boolean })
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody onMouseLeave={() => onHoverLanguage?.(null)}>
           {rows.map((row) => (
             <React.Fragment key={row.name}>
-              <LanguageRow row={row} expanded={expanded.has(row.name)} onToggle={() => toggle(row.name)} />
+              <LanguageRow
+                row={row}
+                expanded={expanded.has(row.name)}
+                onToggle={() => toggle(row.name)}
+                highlighted={Boolean(hoveredSlice && sliceForLanguage?.(row.name) === hoveredSlice)}
+                onHover={onHoverLanguage}
+              />
               {expanded.has(row.name) && row.children.map((child) => <LanguageRow key={`${row.name}:${child.name}`} row={child} child />)}
             </React.Fragment>
           ))}
@@ -1455,14 +1656,27 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
   );
 }
 
-function LanguageRow({ row, expanded, child, onToggle }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void }) {
+function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
+  const { t } = useTranslation();
   const hasChildren = row.children.length > 0;
+  const ratioTotal = row.stats.code + row.stats.comments + row.stats.blanks;
+  const ratioTitle = `${formatPercent(row.stats.code, ratioTotal)} ${t("table.code")} · ${formatPercent(row.stats.comments, ratioTotal)} ${t("table.comments")} · ${formatPercent(row.stats.blanks, ratioTotal)} ${t("table.blanks")}`;
   return (
-    <tr className={`${child ? "file-row" : "lang-row"} ${expanded ? "expanded" : ""}`}>
+    <tr
+      className={`${child ? "file-row" : "lang-row"} ${expanded ? "expanded" : ""} ${highlighted ? "hl-row" : ""}`}
+      onMouseEnter={child ? undefined : () => onHover?.(row.name)}
+    >
       <td className="lang">
         {hasChildren ? <button className="expand" type="button" onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button> : <span className="expand-spacer" />}
         <span className="swatch" style={{ color: languageColor(row.name) }} />
         {row.name}
+        {!child && ratioTotal > 0 ? (
+          <span className="row-ratio" title={ratioTitle} aria-hidden="true">
+            <i style={{ width: `${(row.stats.code / ratioTotal) * 100}%` }} />
+            <i className="cm" style={{ width: `${(row.stats.comments / ratioTotal) * 100}%` }} />
+            <i className="bl" style={{ width: `${(row.stats.blanks / ratioTotal) * 100}%` }} />
+          </span>
+        ) : null}
       </td>
       <NumberCell value={row.stats.files} />
       <NumberCell value={row.stats.lines} />
