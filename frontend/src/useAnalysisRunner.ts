@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import i18n from "./i18n";
-import { providerFromRepoUrl, trackEvent } from "./analytics";
+import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { analyzeRepository, ApiRequestError, fetchJson } from "./api";
 import { commandText } from "./reportUtils";
 import type { AnalysisOptions, AppStatus, JobRecord, Report } from "./types";
@@ -57,7 +57,7 @@ export function useAnalysisRunner({
       .then((nextReport) => {
         if (cancelled) return;
         setReport(nextReport);
-        trackEvent("analyze_completed", {
+        trackEvent(AnalyticsEvents.analyzeCompleted, {
           provider: normalizedProvider(nextReport.repository.provider, nextReport.repository.htmlUrl),
           cached: nextReport.cached,
           code: nextReport.total.code,
@@ -98,7 +98,7 @@ export function useAnalysisRunner({
     setIsSubmitting(true);
     const command = commandText(effectiveRepoUrl, effectiveRefName, forceRefresh);
     setLastCommand(command);
-    trackEvent("analyze_submitted", {
+    trackEvent(AnalyticsEvents.analyzeSubmitted, {
       provider: providerFromRepoUrl(effectiveRepoUrl),
       forceRefresh,
     });
@@ -107,7 +107,7 @@ export function useAnalysisRunner({
       const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions });
       if (result.kind === "cached") {
         setReport(result.report);
-        trackEvent("analyze_completed", {
+        trackEvent(AnalyticsEvents.analyzeCompleted, {
           provider: normalizedProvider(result.report.repository.provider, effectiveRepoUrl),
           cached: true,
           code: result.report.total.code,

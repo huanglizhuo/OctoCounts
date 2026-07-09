@@ -28,6 +28,7 @@
     "closeTitle": "パネルを閉じる",
     "txt": "テキストとしてコピー",
     "json": "JSONとしてコピー",
+    "badge": "バッジをコピー",
     "copied": "コピーしました！",
     "refresh": "↺ 更新",
     "refreshing": "更新中…",
@@ -35,6 +36,8 @@
     "fresh": "最新",
     "starPrompt": "// clone を節約できた? リポジトリに star を →",
     "starDismiss": "閉じる",
+    "ratingPrompt": "// まだ便利ですか? Chrome で評価 →",
+    "ratingDismiss": "閉じる",
     "lines": "行数",
     "table": {
       "language": "言語",

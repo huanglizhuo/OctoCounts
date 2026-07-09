@@ -10,8 +10,10 @@ let _prevFocus = null;
 // Dismissible star nudge shown in the panel footer. It stays until the user
 // interacts with it once (clicks the link or the × close).
 const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCount';
+const CHROME_STORE_REVIEW_URL = 'https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj/reviews';
 const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
 const STAR_PROMPT_MIN_SUCCESSES = 4;
+const RATING_PROMPT_MIN_SUCCESSES = 8;
 
 export function unmountPanel() {
   if (_panelHost) {
@@ -58,6 +60,7 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   // Export with copy feedback
   bindCopyBtn(shadow.querySelector('.oc-btn-txt'), textReport(report), t('panel.txt'));
   bindCopyBtn(shadow.querySelector('.oc-btn-json'), JSON.stringify(report, null, 2), t('panel.json'));
+  bindCopyBtn(shadow.querySelector('.oc-btn-badge'), badgeMarkdown(report), t('panel.badge'));
 
   // Force refresh
   const refreshBtn = shadow.querySelector('.oc-btn-refresh');
@@ -70,46 +73,79 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   // Sortable table
   bindTableSort(shadow, report, theme, 'code', 'desc');
 
-  // One-time star nudge
-  maybeShowStarNudge(shadow);
+  // One-time growth nudge shown after repeated successful use.
+  maybeShowGrowthNudge(shadow);
 }
 
-async function maybeShowStarNudge(shadow) {
+function isFirefoxBuild() {
+  return Boolean(chrome.runtime.getManifest?.().browser_specific_settings?.gecko);
+}
+
+async function maybeShowGrowthNudge(shadow) {
   let state;
   try {
     state = await chrome.storage.local.get({
       starPromptDismissed: false,
+      ratingPromptDismissed: false,
       [STAR_SUCCESS_COUNT_KEY]: 0,
     });
   } catch (_) {
     return;
   }
-  if (state.starPromptDismissed) return;
-  if (Number(state[STAR_SUCCESS_COUNT_KEY] || 0) < STAR_PROMPT_MIN_SUCCESSES) return;
 
+  const successCount = Number(state[STAR_SUCCESS_COUNT_KEY] || 0);
   const panel = shadow.querySelector('.oc-panel');
-  if (!panel || panel.querySelector('.oc-star-prompt')) return;
+  if (!panel || panel.querySelector('.oc-growth-prompt')) return;
 
+  if (!state.starPromptDismissed && successCount >= STAR_PROMPT_MIN_SUCCESSES) {
+    appendGrowthPrompt(panel, {
+      className: 'oc-star-prompt',
+      linkClassName: 'oc-star-link',
+      closeClassName: 'oc-star-close',
+      href: STAR_REPO_URL,
+      text: t('panel.starPrompt'),
+      dismissLabel: t('panel.starDismiss'),
+      storageKey: 'starPromptDismissed',
+    });
+    return;
+  }
+
+  if (isFirefoxBuild()) return;
+  if (state.ratingPromptDismissed) return;
+  if (successCount < RATING_PROMPT_MIN_SUCCESSES) return;
+
+  appendGrowthPrompt(panel, {
+    className: 'oc-rating-prompt',
+    linkClassName: 'oc-rating-link',
+    closeClassName: 'oc-rating-close',
+    href: CHROME_STORE_REVIEW_URL,
+    text: t('panel.ratingPrompt'),
+    dismissLabel: t('panel.ratingDismiss'),
+    storageKey: 'ratingPromptDismissed',
+  });
+}
+
+function appendGrowthPrompt(panel, { className, linkClassName, closeClassName, href, text, dismissLabel, storageKey }) {
   const el = document.createElement('div');
-  el.className = 'oc-star-prompt';
+  el.className = `oc-growth-prompt ${className}`;
 
   const link = document.createElement('a');
-  link.className = 'oc-star-link';
-  link.href = STAR_REPO_URL;
+  link.className = `oc-growth-link ${linkClassName}`;
+  link.href = href;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.textContent = t('panel.starPrompt');
+  link.textContent = text;
   link.addEventListener('click', () => {
-    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
+    chrome.storage.local.set({ [storageKey]: true }).catch(() => {});
   });
 
   const close = document.createElement('button');
-  close.className = 'oc-star-close';
+  close.className = `oc-growth-close ${closeClassName}`;
   close.type = 'button';
-  close.setAttribute('aria-label', t('panel.starDismiss'));
+  close.setAttribute('aria-label', dismissLabel);
   close.textContent = '×';
   close.addEventListener('click', () => {
-    chrome.storage.local.set({ starPromptDismissed: true }).catch(() => {});
+    chrome.storage.local.set({ [storageKey]: true }).catch(() => {});
     el.remove();
   });
 
@@ -128,7 +164,7 @@ function escapeHtml(value) {
 }
 
 function bindCopyBtn(btn, data, origLabel) {
-  if (!btn) return;
+  if (!btn || !data) return;
   btn.addEventListener('click', () => {
     navigator.clipboard.writeText(data).then(() => {
       btn.textContent = t('panel.copied');
@@ -140,7 +176,7 @@ function bindCopyBtn(btn, data, origLabel) {
 function buildPanelHTML(report, theme) {
   const total   = report.total;
   const sha = report.commitSha.slice(0, 12);
-  const webUrl = `https://octocounts.com/?url=${encodeURIComponent(report.repository.htmlUrl)}`;
+  const webUrl = reportUrl(report);
 
   const summaryHTML = ['files', 'lines', 'code', 'comments', 'blanks'].map(k => `
     <div class="oc-sum-cell">
@@ -183,6 +219,7 @@ function buildPanelHTML(report, theme) {
         <div class="left">
           <button class="oc-export-btn oc-btn-txt">${t('panel.txt')}</button>
           <button class="oc-export-btn oc-btn-json">${t('panel.json')}</button>
+          ${isGitHubReport(report) ? `<button class="oc-export-btn oc-btn-badge">${t('panel.badge')}</button>` : ''}
           <button class="oc-export-btn oc-btn-refresh">${t('panel.refresh')}</button>
         </div>
         <div class="right">
@@ -191,6 +228,40 @@ function buildPanelHTML(report, theme) {
       </div>
     </div>
   </div>`;
+}
+
+function isGitHubReport(report) {
+  const provider = String(report.repository.provider || '').toLowerCase();
+  return provider === 'github' || report.repository.htmlUrl.includes('github.com/');
+}
+
+function reportUrl(report) {
+  if (!isGitHubReport(report)) {
+    return `https://octocounts.com/?url=${encodeURIComponent(report.repository.htmlUrl)}`;
+  }
+  const base = `https://octocounts.com/github/${encodeURIComponent(report.repository.owner)}/${encodeURIComponent(report.repository.name)}`;
+  const ref = String(report.refName || '').trim();
+  if (!ref) return base;
+  const marker = looksLikeCommit(ref) ? 'commit' : 'tree';
+  return `${base}/${marker}/${encodeRefPath(ref)}`;
+}
+
+function badgeMarkdown(report) {
+  if (!isGitHubReport(report)) return '';
+  const owner = encodeURIComponent(report.repository.owner);
+  const repo = encodeURIComponent(report.repository.name);
+  const ref = String(report.refName || '').trim();
+  const refPath = ref ? `/${looksLikeCommit(ref) ? 'commit' : 'branch'}/${encodeRefPath(ref)}` : '';
+  const badgeUrl = `https://api.octocounts.com/badge/${owner}/${repo}${refPath}`;
+  return `[![OctoCounts](${badgeUrl})](${reportUrl(report)})`;
+}
+
+function encodeRefPath(ref) {
+  return ref.trim().split('/').map(encodeURIComponent).join('/');
+}
+
+function looksLikeCommit(ref) {
+  return /^[a-f0-9]{7,40}$/i.test(ref.trim());
 }
 
 function buildDonutHTML(report, theme) {

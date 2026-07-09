@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, extensionInfo } from "./constants";
-import { trackEvent } from "./analytics";
+import { AnalyticsEvents, trackEvent } from "./analytics";
 
 export default function BrowserExtensionSection() {
   const { t } = useTranslation();
@@ -25,11 +25,11 @@ export default function BrowserExtensionSection() {
           {features.map((feature) => <li key={feature}>{feature}</li>)}
         </ul>
         <div className="extension-actions">
-          <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "chrome", placement: "extension_section" })}>
+          <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "extension_section" })}>
             <ChromeIcon size={15} />
             {t("extensionSection.installChrome")}
           </a>
-          <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "firefox", placement: "extension_section" })}>
+          <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "extension_section" })}>
             <FirefoxIcon size={14} />
             {t("extensionSection.installFirefox")}
           </a>

@@ -71,6 +71,7 @@
     "generated": "生成于 {{date}} / {{duration}}ms / {{version}}",
     "exportText": "文本",
     "exportJson": "JSON",
+    "copyReportUrl": "链接",
     "exportPng": "PNG",
     "exportGitHub": "GitHub",
     "reRun": "重新运行",
@@ -86,6 +87,17 @@
     "topLanguages": "主要语言行数",
     "percentCode": "{{percent}} 代码",
     "generatedBy": "由 OctoCounts 生成"
+  },
+  "reportCta": {
+    "ariaLabel": "分享报告操作",
+    "kicker": "下一步",
+    "title": "让这份报告继续传播",
+    "subtitle": "把徽章放进 README，复制报告链接，或导出分享卡。",
+    "copyBadge": "README 徽章",
+    "copyUrl": "报告链接",
+    "exportPng": "PNG 卡片",
+    "installChrome": "Chrome",
+    "copied": "已复制"
   },
   "summary": {
     "files": "文件",

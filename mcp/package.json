@@ -1,0 +1,13 @@
+{
+  "name": "octocounts-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for OctoCounts public GitHub SLOC reports.",
+  "type": "module",
+  "bin": {
+    "octocounts-mcp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "license": "MIT"
+}

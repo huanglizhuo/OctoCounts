@@ -9,7 +9,7 @@
 [![Available in the Chrome Web Store](https://img.shields.io/chrome-web-store/v/gkgjpjdnaklagijmekoolhcpebmoldbj?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj)
 [![Available in Firefox Add-ons](https://img.shields.io/amo/v/octocounts-github-sloc?label=Firefox%20Add-ons&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/)
 
-[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/?q=https://github.com/huanglizhuo/OctoCount)
+[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
 
 GitHub's sidebar shows language percentages, but misses actual file and line counts. OctoCounts adds this missing SLOC (Source Lines of Code) view to public repos without cloning.
 
@@ -50,24 +50,24 @@ Drop a live SLOC badge into any README:
 
 ```markdown
 <!-- Default branch — full SLOC summary -->
-[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](https://octocounts.com/github/:owner/:repo)
 
 <!-- Specific branch -->
-[![SLOC](https://api.octocounts.com/badge/:owner/:repo/branch/:branch)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/branch/:branch)](https://octocounts.com/github/:owner/:repo/tree/:branch)
 
 <!-- Specific tag (immutable, cached forever) -->
-[![SLOC](https://api.octocounts.com/badge/:owner/:repo/tag/:tag)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/tag/:tag)](https://octocounts.com/github/:owner/:repo/tree/:tag)
 
 <!-- Specific commit SHA (immutable, cached forever) -->
-[![SLOC](https://api.octocounts.com/badge/:owner/:repo/commit/:sha)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![SLOC](https://api.octocounts.com/badge/:owner/:repo/commit/:sha)](https://octocounts.com/github/:owner/:repo/commit/:sha)
 ```
 
 Add `?lang=<language>` to any of the above to get a per-language badge instead:
 
 ```markdown
 <!-- Lines of code for a single language -->
-[![Rust](https://api.octocounts.com/badge/:owner/:repo?lang=rust)](https://octocounts.com/?q=https://github.com/:owner/:repo)
-[![Rust](https://api.octocounts.com/badge/:owner/:repo/branch/:branch?lang=rust)](https://octocounts.com/?q=https://github.com/:owner/:repo)
+[![Rust](https://api.octocounts.com/badge/:owner/:repo?lang=rust)](https://octocounts.com/github/:owner/:repo)
+[![Rust](https://api.octocounts.com/badge/:owner/:repo/branch/:branch?lang=rust)](https://octocounts.com/github/:owner/:repo/tree/:branch)
 ```
 
 Language names are case-insensitive (`rust`, `Rust`, and `RUST` all work). If a language is not found in the report the badge shows `—`. While a fresh analysis is running the badge shows `···` — most badge CDNs will retry automatically.

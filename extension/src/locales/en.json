@@ -28,6 +28,7 @@
     "closeTitle": "Close panel",
     "txt": "Copy as text",
     "json": "Copy as JSON",
+    "badge": "Copy badge",
     "copied": "Copied!",
     "refresh": "↺ refresh",
     "refreshing": "refreshing…",
@@ -35,6 +36,8 @@
     "fresh": "fresh",
     "starPrompt": "// saved you a clone? star the repo →",
     "starDismiss": "Dismiss",
+    "ratingPrompt": "// still useful? rate OctoCounts on Chrome →",
+    "ratingDismiss": "Dismiss",
     "lines": "lines",
     "table": {
       "language": "Language",

@@ -1773,6 +1773,43 @@ table.report tr.totals td.lang {
   flex-wrap: wrap;
 }
 
+.report-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-top: 1px solid var(--rule);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 52%),
+    var(--panel);
+}
+
+.report-actions-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.report-actions-copy strong {
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.report-actions-copy span:last-child {
+  color: var(--fg-mute);
+  font-size: var(--text-xs);
+}
+
+.report-actions-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .trust-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -2473,6 +2510,15 @@ footer {
 
   .runner-head code {
     overflow-wrap: anywhere;
+  }
+
+  .report-actions {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .report-actions-buttons {
+    justify-content: flex-start;
   }
 }
 

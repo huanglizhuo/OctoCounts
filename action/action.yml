@@ -1,0 +1,30 @@
+name: OctoCounts SLOC Diff
+description: Comment on pull requests with source line count changes powered by OctoCounts.
+author: huanglizhuo
+
+inputs:
+  github-token:
+    description: GitHub token used to create or update the PR comment.
+    required: true
+    default: ${{ github.token }}
+  repo:
+    description: GitHub repository to analyze, in owner/name form. Defaults to the current repository.
+    required: false
+  base-ref:
+    description: Base ref, branch, tag, or SHA. Defaults to pull_request.base.sha.
+    required: false
+  head-ref:
+    description: Head ref, branch, tag, or SHA. Defaults to pull_request.head.sha.
+    required: false
+  api-base:
+    description: OctoCounts API base URL.
+    required: false
+    default: https://api.octocounts.com
+  comment:
+    description: Whether to create or update a pull request comment.
+    required: false
+    default: "true"
+
+runs:
+  using: node20
+  main: src/index.js

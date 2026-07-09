@@ -28,6 +28,7 @@
     "closeTitle": "关闭面板",
     "txt": "复制为文本",
     "json": "复制为 JSON",
+    "badge": "复制徽章",
     "copied": "已复制！",
     "refresh": "↺ 刷新",
     "refreshing": "刷新中…",
@@ -35,6 +36,8 @@
     "fresh": "全新",
     "starPrompt": "// 省了一次 clone?给个 star →",
     "starDismiss": "关闭",
+    "ratingPrompt": "// 还顺手吗?去 Chrome 商店评分 →",
+    "ratingDismiss": "关闭",
     "lines": "行数",
     "table": {
       "language": "语言",

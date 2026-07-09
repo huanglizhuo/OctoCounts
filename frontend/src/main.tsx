@@ -7,7 +7,7 @@ import i18n from "./i18n";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchJson } from "./api";
-import { initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
+import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
 import { createRoot } from "react-dom/client";
@@ -260,11 +260,11 @@ function App() {
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {report && <BadgeEmbed report={report} refName={refName} />}
             <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
-              <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "chrome" })}>
+              <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "hero" })}>
                 <ChromeIcon size={15} />
                 {t("hero.installChrome")}
               </a>
-              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent("extension_store_click", { store: "firefox" })}>
+              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "hero" })}>
                 <FirefoxIcon size={14} />
                 {t("hero.installFirefox")}
               </a>
@@ -448,11 +448,11 @@ function Topbar() {
         </div>
       </div>
       <div className="topbar-links">
-        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")} onClick={() => trackEvent("extension_store_click", { store: "chrome", placement: "topbar" })}>
+        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "topbar" })}>
           <ChromeIcon size={18} aria-hidden="true" />
           <span>{t("topbar.chrome")}</span>
         </a>
-        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")} onClick={() => trackEvent("extension_store_click", { store: "firefox", placement: "topbar" })}>
+        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "topbar" })}>
           <FirefoxIcon size={18} aria-hidden="true" />
           <span>{t("topbar.firefox")}</span>
         </a>
@@ -486,6 +486,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   const { t } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [copiedCta, setCopiedCta] = useState<"badge" | "url" | null>(null);
 
   const isWorking = status === "queued" || status === "running";
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -523,10 +524,15 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
         backgroundColor: "#050a06",
       });
       downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
-      trackEvent("png_exported", { provider: normalizedProvider(report) });
+      trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const showCopiedCta = (kind: "badge" | "url") => {
+    setCopiedCta(kind);
+    window.setTimeout(() => setCopiedCta((current) => current === kind ? null : current), 1800);
   };
 
   return (
@@ -573,6 +579,27 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
       {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
       {report ? (
         <>
+          <ReportGrowthActions
+            report={report}
+            copiedCta={copiedCta}
+            isExporting={isExporting}
+            onCopyBadge={() => {
+              const url = buildCanonicalReportUrl(report, report.refName);
+              const badgeUrl = normalizedProvider(report) === "github"
+                ? buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
+                : "";
+              if (!badgeUrl) return;
+              copyText(`[![OctoCounts](${badgeUrl})](${url})`);
+              trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_cta" });
+              showCopiedCta("badge");
+            }}
+            onCopyUrl={() => {
+              copyText(buildCanonicalReportUrl(report, report.refName));
+              trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "report_cta" });
+              showCopiedCta("url");
+            }}
+            onExportPng={() => void exportPng()}
+          />
           <Insights report={report} />
           <Summary stats={report.total} />
           <Charts report={report} />
@@ -581,6 +608,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <div className="actions">
               <button className="copybtn" onClick={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report) }); }}><Clipboard size={14} /> {t("runner.exportText")}</button>
               <button className="copybtn" onClick={() => { copyText(JSON.stringify(report, null, 2)); trackEvent("report_json_copied", { provider: normalizedProvider(report) }); }}><FileJson size={14} /> {t("runner.exportJson")}</button>
+              <button className="copybtn" onClick={() => { copyText(buildCanonicalReportUrl(report, report.refName)); trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "report_footer" }); }}><Clipboard size={14} /> {t("runner.copyReportUrl")}</button>
               <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> {t("runner.exportPng")}</button>
               <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
               <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
@@ -608,6 +636,55 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
           ) : null}
         </>
       ) : null}
+    </div>
+  );
+}
+
+function ReportGrowthActions({
+  report,
+  copiedCta,
+  isExporting,
+  onCopyBadge,
+  onCopyUrl,
+  onExportPng,
+}: {
+  report: Report;
+  copiedCta: "badge" | "url" | null;
+  isExporting: boolean;
+  onCopyBadge: () => void;
+  onCopyUrl: () => void;
+  onExportPng: () => void;
+}) {
+  const { t } = useTranslation();
+  const isGitHub = normalizedProvider(report) === "github";
+
+  return (
+    <div className="report-actions" aria-label={t("reportCta.ariaLabel")}>
+      <div className="report-actions-copy">
+        <span className="chart-tag">{t("reportCta.kicker")}</span>
+        <strong>{t("reportCta.title")}</strong>
+        <span>{t("reportCta.subtitle")}</span>
+      </div>
+      <div className="report-actions-buttons">
+        {isGitHub ? (
+          <button className="copybtn" type="button" onClick={onCopyBadge}>
+            <Clipboard size={14} />
+            {copiedCta === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
+          </button>
+        ) : null}
+        <button className="copybtn" type="button" onClick={onCopyUrl}>
+          <Clipboard size={14} />
+          {copiedCta === "url" ? t("reportCta.copied") : t("reportCta.copyUrl")}
+        </button>
+        <button className="copybtn" type="button" disabled={isExporting} onClick={onExportPng}>
+          <Download size={14} />
+          {t("reportCta.exportPng")}
+        </button>
+        <a className="copybtn install-btn secondary-install" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "report_cta" })}>
+          <ChromeIcon size={14} />
+          {t("reportCta.installChrome")}
+        </a>
+      </div>
     </div>
   );
 }
@@ -732,7 +809,7 @@ function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
 
   const handleCopy = () => {
     copyText(markdown);
-    trackEvent("badge_markdown_copied", { provider: "github", placement: "report" });
+    trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report" });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -833,7 +910,7 @@ function CompareRepos() {
       </form>
       <div className="compare-share-row">
         <code>{buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)}</code>
-        <button className="copybtn" type="button" onClick={() => copyText(buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef))}>
+        <button className="copybtn" type="button" onClick={() => { copyText(buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)); trackEvent(AnalyticsEvents.shareClicked, { share_type: "compare_url" }); }}>
           <Clipboard size={14} />
           {t("compare.copyUrl")}
         </button>
@@ -997,7 +1074,7 @@ function DiffRefs() {
       </form>
       <div className="compare-share-row">
         <code>{buildDiffUrl(repo, baseRef, headRef)}</code>
-        <button className="copybtn" type="button" onClick={() => copyText(buildDiffUrl(repo, baseRef, headRef))}>
+        <button className="copybtn" type="button" onClick={() => { copyText(buildDiffUrl(repo, baseRef, headRef)); trackEvent(AnalyticsEvents.shareClicked, { share_type: "diff_url" }); }}>
           <Clipboard size={14} />
           {t("compare.copyUrl")}
         </button>
@@ -1078,7 +1155,7 @@ function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: 
       </div>
       <div className="badge-builder-output">
         <code>{markdown || t("badgeBuilder.noRepo")}</code>
-        <button className="copybtn" type="button" disabled={!markdown} onClick={() => { copyText(markdown); trackEvent("badge_markdown_copied", { provider: "github", placement: "builder" }); }}>
+        <button className="copybtn" type="button" disabled={!markdown} onClick={() => { copyText(markdown); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "builder" }); }}>
           <Clipboard size={14} />
           {t("badgeBuilder.copyMarkdown")}
         </button>

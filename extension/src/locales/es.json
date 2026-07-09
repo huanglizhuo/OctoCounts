@@ -28,6 +28,7 @@
     "closeTitle": "Cerrar panel",
     "txt": "Copiar como texto",
     "json": "Copiar como JSON",
+    "badge": "Copiar badge",
     "copied": "¡Copiado!",
     "refresh": "↺ actualizar",
     "refreshing": "actualizando…",
@@ -35,6 +36,8 @@
     "fresh": "reciente",
     "starPrompt": "// ¿te ahorró un clone? dale una estrella →",
     "starDismiss": "Cerrar",
+    "ratingPrompt": "// ¿sigue siendo útil? valora OctoCounts en Chrome →",
+    "ratingDismiss": "Cerrar",
     "lines": "líneas",
     "table": {
       "language": "Lenguaje",

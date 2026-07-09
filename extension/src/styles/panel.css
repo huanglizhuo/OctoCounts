@@ -335,8 +335,8 @@
   border-color: var(--fg-dim);
 }
 
-/* ── One-time star nudge (value moment) ── */
-.oc-star-prompt {
+/* ── One-time growth nudge (value moment) ── */
+.oc-growth-prompt {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -345,7 +345,7 @@
   flex-shrink: 0;
 }
 
-.oc-star-link {
+.oc-growth-link {
   flex: 1;
   min-width: 0;
   color: var(--fg-dim);
@@ -354,12 +354,12 @@
   text-decoration: none;
 }
 
-.oc-star-link:hover {
+.oc-growth-link:hover {
   color: var(--accent);
   text-decoration: underline;
 }
 
-.oc-star-close {
+.oc-growth-close {
   flex-shrink: 0;
   background: none;
   border: none;
@@ -371,7 +371,7 @@
   font-family: inherit;
 }
 
-.oc-star-close:hover {
+.oc-growth-close:hover {
   color: var(--fg);
 }
 

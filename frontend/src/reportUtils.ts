@@ -167,7 +167,30 @@ export function commandText(repoUrl: string, refName: string, forceRefresh: bool
 }
 
 export function copyText(value: string) {
-  void navigator.clipboard?.writeText(value);
+  const write = navigator.clipboard?.writeText(value);
+  if (write) {
+    void write.catch(() => fallbackCopyText(value));
+    return;
+  }
+  fallbackCopyText(value);
+}
+
+function fallbackCopyText(value: string) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand("copy");
+  } catch {
+    /* Copy is best-effort; UI still keeps the user on the page. */
+  } finally {
+    textarea.remove();
+  }
 }
 
 export function downloadDataUrl(dataUrl: string, filename: string) {

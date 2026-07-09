@@ -12,6 +12,16 @@ declare global {
 const domain = import.meta.env.VITE_PLAUSIBLE_DOMAIN as string | undefined;
 const scriptSrc = (import.meta.env.VITE_PLAUSIBLE_SRC as string | undefined) ?? "https://plausible.io/js/script.js";
 
+export const AnalyticsEvents = {
+  analyzeSubmitted: "analyze_submitted",
+  analyzeCompleted: "analyze_completed",
+  badgeMarkdownCopied: "badge_markdown_copied",
+  pngExported: "png_exported",
+  extensionStoreClick: "extension_store_click",
+  reportUrlCopied: "report_url_copied",
+  shareClicked: "share_clicked",
+} as const;
+
 export function initAnalytics() {
   if (!domain || typeof document === "undefined" || document.querySelector("script[data-domain][src*='plausible']")) {
     return;

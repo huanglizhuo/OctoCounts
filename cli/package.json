@@ -1,0 +1,14 @@
+{
+  "name": "octocounts",
+  "version": "0.1.0",
+  "description": "Count source lines of code for public GitHub repositories with OctoCounts.",
+  "type": "module",
+  "bin": {
+    "octocounts": "src/index.js"
+  },
+  "scripts": {
+    "sample": "node src/index.js --sample",
+    "sample:json": "node src/index.js --sample --json"
+  },
+  "license": "MIT"
+}
