@@ -6,6 +6,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
+    cache::AppCaches,
     coordinator::AnalysisCoordinator,
     error::ApiError,
     models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord},
@@ -14,6 +15,7 @@ use crate::{
 #[derive(Clone)]
 pub struct AppState {
     pub coordinator: AnalysisCoordinator,
+    pub caches: AppCaches,
 }
 
 pub async fn analyze(
@@ -68,17 +70,27 @@ pub async fn report(
 pub async fn stats(
     State(state): State<AppState>,
 ) -> Result<(HeaderMap, Json<GrowthStats>), ApiError> {
+    let cache_key = "stats".to_string();
+    if let Some(stats) = state.caches.stats.get(&cache_key).await {
+        return Ok((stats_cache_headers(), Json(stats)));
+    }
+
     let stats = state
         .coordinator
         .store()
         .growth_stats()
         .await
         .map_err(ApiError::internal)?;
+    state.caches.stats.insert(cache_key, stats.clone()).await;
 
+    Ok((stats_cache_headers(), Json(stats)))
+}
+
+fn stats_cache_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("public, s-maxage=300, stale-while-revalidate=3600"),
+        HeaderValue::from_static("public, max-age=60, s-maxage=60, stale-while-revalidate=300"),
     );
-    Ok((headers, Json(stats)))
+    headers
 }

@@ -29,7 +29,7 @@ pub struct PageQuery {
     limit: Option<i64>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SeoReport {
     provider: String,
@@ -52,7 +52,7 @@ pub struct SeoReport {
     languages: Vec<LanguageReport>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TopLanguage {
     name: String,
@@ -60,7 +60,7 @@ pub struct TopLanguage {
     percent: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SeoList {
     page: i64,
@@ -68,7 +68,7 @@ pub struct SeoList {
     reports: Vec<SeoReport>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SitemapEntry {
     loc: String,
@@ -79,6 +79,11 @@ pub async fn report(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
 ) -> Result<(HeaderMap, Json<SeoReport>), ApiError> {
+    let cache_key = seo_report_cache_key(&query);
+    if let Some(report) = state.caches.seo_report.get(&cache_key).await {
+        return Ok((seo_report_cache_headers(), Json(report)));
+    }
+
     let provider = parse_provider(&query.provider)?;
     let Some(report) = state
         .coordinator
@@ -93,7 +98,14 @@ pub async fn report(
         ));
     };
 
-    Ok((cache_headers(), Json(seo_report(&report))))
+    let report = seo_report(&report);
+    state
+        .caches
+        .seo_report
+        .insert(cache_key, report.clone())
+        .await;
+
+    Ok((seo_report_cache_headers(), Json(report)))
 }
 
 pub async fn recent(
@@ -101,6 +113,11 @@ pub async fn recent(
     Query(query): Query<PageQuery>,
 ) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
     let (page, limit, offset) = pagination(query);
+    let cache_key = list_cache_key(page, limit);
+    if let Some(list) = state.caches.seo_recent.get(&cache_key).await {
+        return Ok((recent_cache_headers(), Json(list)));
+    }
+
     let reports = state
         .coordinator
         .store()
@@ -110,15 +127,18 @@ pub async fn recent(
         .iter()
         .map(seo_report)
         .collect();
+    let list = SeoList {
+        page,
+        limit,
+        reports,
+    };
+    state
+        .caches
+        .seo_recent
+        .insert(cache_key, list.clone())
+        .await;
 
-    Ok((
-        cache_headers(),
-        Json(SeoList {
-            page,
-            limit,
-            reports,
-        }),
-    ))
+    Ok((recent_cache_headers(), Json(list)))
 }
 
 pub async fn popular(
@@ -126,6 +146,11 @@ pub async fn popular(
     Query(query): Query<PageQuery>,
 ) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
     let (page, limit, offset) = pagination(query);
+    let cache_key = list_cache_key(page, limit);
+    if let Some(list) = state.caches.seo_popular.get(&cache_key).await {
+        return Ok((popular_cache_headers(), Json(list)));
+    }
+
     let reports = state
         .coordinator
         .store()
@@ -135,15 +160,18 @@ pub async fn popular(
         .iter()
         .map(seo_report)
         .collect();
+    let list = SeoList {
+        page,
+        limit,
+        reports,
+    };
+    state
+        .caches
+        .seo_popular
+        .insert(cache_key, list.clone())
+        .await;
 
-    Ok((
-        cache_headers(),
-        Json(SeoList {
-            page,
-            limit,
-            reports,
-        }),
-    ))
+    Ok((popular_cache_headers(), Json(list)))
 }
 
 pub async fn monoliths(
@@ -151,6 +179,11 @@ pub async fn monoliths(
     Query(query): Query<PageQuery>,
 ) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
     let (page, limit, offset) = pagination(query);
+    let cache_key = list_cache_key(page, limit);
+    if let Some(list) = state.caches.seo_monoliths.get(&cache_key).await {
+        return Ok((monoliths_cache_headers(), Json(list)));
+    }
+
     let reports = state
         .coordinator
         .store()
@@ -160,21 +193,29 @@ pub async fn monoliths(
         .iter()
         .map(seo_report)
         .collect();
+    let list = SeoList {
+        page,
+        limit,
+        reports,
+    };
+    state
+        .caches
+        .seo_monoliths
+        .insert(cache_key, list.clone())
+        .await;
 
-    Ok((
-        cache_headers(),
-        Json(SeoList {
-            page,
-            limit,
-            reports,
-        }),
-    ))
+    Ok((monoliths_cache_headers(), Json(list)))
 }
 
 pub async fn sitemap(
     State(state): State<AppState>,
 ) -> Result<(HeaderMap, Json<Vec<SitemapEntry>>), ApiError> {
-    let entries = state
+    let cache_key = "sitemap".to_string();
+    if let Some(entries) = state.caches.seo_sitemap.get(&cache_key).await {
+        return Ok((sitemap_cache_headers(), Json(entries)));
+    }
+
+    let entries: Vec<SitemapEntry> = state
         .coordinator
         .store()
         .sitemap_reports(45_000)
@@ -186,8 +227,13 @@ pub async fn sitemap(
             lastmod: report.generated_at.date_naive().to_string(),
         })
         .collect();
+    state
+        .caches
+        .seo_sitemap
+        .insert(cache_key, entries.clone())
+        .await;
 
-    Ok((cache_headers(), Json(entries)))
+    Ok((sitemap_cache_headers(), Json(entries)))
 }
 
 fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError> {
@@ -207,11 +253,45 @@ fn pagination(query: PageQuery) -> (i64, i64, i64) {
     (page, limit, offset)
 }
 
-fn cache_headers() -> HeaderMap {
+fn seo_report_cache_key(query: &SeoReportQuery) -> String {
+    format!(
+        "{}:{}:{}:{}",
+        query.provider.to_ascii_lowercase(),
+        query.owner.to_ascii_lowercase(),
+        query.repo.to_ascii_lowercase(),
+        query.ref_name.as_deref().unwrap_or_default()
+    )
+}
+
+fn list_cache_key(page: i64, limit: i64) -> String {
+    format!("page={page}:limit={limit}")
+}
+
+fn recent_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=60, s-maxage=60, stale-while-revalidate=120")
+}
+
+fn popular_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=300, s-maxage=300, stale-while-revalidate=1800")
+}
+
+fn monoliths_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=900, s-maxage=900, stale-while-revalidate=3600")
+}
+
+fn sitemap_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=900, s-maxage=900, stale-while-revalidate=3600")
+}
+
+fn seo_report_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
+}
+
+fn cache_headers(cache_control: &'static str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("public, s-maxage=300, stale-while-revalidate=3600"),
+        HeaderValue::from_static(cache_control),
     );
     headers
 }

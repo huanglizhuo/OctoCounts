@@ -1,6 +1,7 @@
 mod analyzer;
 mod api;
 mod badge;
+mod cache;
 mod config;
 mod coordinator;
 mod error;
@@ -23,6 +24,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     api::AppState,
+    cache::AppCaches,
     config::Config,
     coordinator::AnalysisCoordinator,
     github::GitHubClient,
@@ -60,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
             GitHubClient::new()?,
             config.analysis_concurrency,
         ),
+        caches: AppCaches::new(),
     };
 
     let app = Router::new()
