@@ -42,6 +42,13 @@ const samples = [
   { label: "vscode", repoUrl: "https://github.com/microsoft/vscode", refName: "" },
 ];
 
+const publicReportLinks = [
+  { href: "/stats", key: "stats", command: "stats" },
+  { href: "/recent", key: "recent", command: "tail -f" },
+  { href: "/popular", key: "popular", command: "sort --hits" },
+  { href: "/hall-of-monoliths", key: "hall", command: "top --lines" },
+];
+
 const RECENT_KEY = "octocounts.recentRepos";
 const RECENT_MAX = 5;
 
@@ -315,6 +322,8 @@ function App() {
           </div>
         </section>
 
+        <PublicReportIndex />
+
         <section>
           <div className="section-h">
             <h2>{t("runner.title")}</h2>
@@ -418,9 +427,9 @@ function App() {
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
             <a href="/docs/api.html">{t("footer.apiDocs")}</a> &middot;
             <a href="/docs/github-sloc-counter.html">{t("footer.slocGuide")}</a> &middot;
-            <a href="/stats">Stats</a> &middot;
-            <a href="/popular">Popular</a> &middot;
-            <a href="/launch-kit.html">Launch kit</a> &middot;
+            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
+            <a href="/popular">{t("growth.nav.popular.label")}</a> &middot;
+            <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot;
             <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
             {" "}{t("footer.copyright")}
           </span>
@@ -451,9 +460,28 @@ type SeoListResponse = {
 };
 
 function MarketingShell({ children }: { children: React.ReactNode }) {
+  const { t, i18n } = useTranslation();
+  const [scheme, setScheme] = useState<Scheme>(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
+  );
+
   useEffect(() => {
     initAnalytics();
-    document.documentElement.dataset.scheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper";
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.scheme = scheme;
+  }, [scheme]);
+
+  useEffect(() => {
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setScheme(e.matches ? "matrix" : "paper");
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
   return (
@@ -462,11 +490,14 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
       <div className="crt flicker" />
       <main id="main" className="page growth-page">
         <Topbar />
+        <div className="marketing-controls">
+          <ThemeSwitch scheme={scheme} setScheme={setScheme} />
+        </div>
         {children}
         <footer>
-          <span>OctoCounts growth loops are built from aggregate public report activity.</span>
+          <span>{t("growth.footerTagline")}</span>
           <span>
-            <a href="/stats">Stats</a> &middot; <a href="/recent">Recent</a> &middot; <a href="/popular">Popular</a> &middot; <a href="/hall-of-monoliths">Hall of Monoliths</a> &middot; <a href="/launch-kit.html">Launch kit</a> &middot; <a href="/privacy">Privacy</a>
+            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
           </span>
           <LanguageSwitcher />
         </footer>
@@ -476,20 +507,21 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
 }
 
 function StatsPage() {
+  const { t } = useTranslation();
   const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats });
   const stats = query.data;
 
   return (
     <MarketingShell>
-      <section className="growth-hero" aria-label="OctoCounts stats">
-        <span className="chart-tag">public stats</span>
-        <h1>OctoCounts growth dashboard</h1>
-        <p>Aggregate activity from public repository reports. No extension user identifiers, no DAU tracking, no browser history collection.</p>
+      <section className="growth-hero" aria-label={t("growth.stats.ariaLabel")}>
+        <span className="chart-tag">{t("growth.stats.kicker")}</span>
+        <h1>{t("growth.stats.title")}</h1>
+        <p>{t("growth.stats.subtitle")}</p>
         <div className="growth-nav">
-          <a className="copybtn" href="/">Analyze repo</a>
-          <a className="copybtn" href="/recent">Recent reports</a>
-          <a className="copybtn" href="/popular">Popular reports</a>
-          <a className="copybtn" href="/hall-of-monoliths">Largest repos</a>
+          <a className="copybtn" href="/">{t("growth.actions.analyze")}</a>
+          <a className="copybtn" href="/recent">{t("growth.actions.recent")}</a>
+          <a className="copybtn" href="/popular">{t("growth.actions.popular")}</a>
+          <a className="copybtn" href="/hall-of-monoliths">{t("growth.actions.largest")}</a>
         </div>
       </section>
 
@@ -501,46 +533,47 @@ function StatsPage() {
 }
 
 function StatsDashboard({ stats }: { stats: GrowthStats }) {
+  const { t } = useTranslation();
   const totals = [
-    { label: "reports generated", value: stats.totals.reportsGenerated },
-    { label: "repositories analyzed", value: stats.totals.repositoriesAnalyzed },
-    { label: "lines counted", value: stats.totals.linesCounted },
-    { label: "languages detected", value: stats.totals.languagesDetected },
+    { label: t("growth.metrics.reportsGenerated"), value: stats.totals.reportsGenerated },
+    { label: t("growth.metrics.repositoriesAnalyzed"), value: stats.totals.repositoriesAnalyzed },
+    { label: t("growth.metrics.linesCounted"), value: stats.totals.linesCounted },
+    { label: t("growth.metrics.languagesDetected"), value: stats.totals.languagesDetected },
   ];
   const windows = [
-    { label: "reports today", value: stats.windows.reportsToday },
-    { label: "reports 7d", value: stats.windows.reports7d },
-    { label: "reports 30d", value: stats.windows.reports30d },
-    { label: "new repos 30d", value: stats.windows.repositories30d },
+    { label: t("growth.metrics.reportsToday"), value: stats.windows.reportsToday },
+    { label: t("growth.metrics.reports7d"), value: stats.windows.reports7d },
+    { label: t("growth.metrics.reports30d"), value: stats.windows.reports30d },
+    { label: t("growth.metrics.newRepos30d"), value: stats.windows.repositories30d },
   ];
 
   return (
     <>
-      <section className="growth-metrics" aria-label="Totals">
+      <section className="growth-metrics" aria-label={t("growth.metrics.totalsAria")}>
         {totals.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
       </section>
-      <section className="growth-metrics compact" aria-label="Recent windows">
+      <section className="growth-metrics compact" aria-label={t("growth.metrics.windowsAria")}>
         {windows.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
       </section>
       <section className="growth-grid">
-        <GrowthPanel title="Source breakdown" subtitle="analysis requests that generated reports">
+        <GrowthPanel title={t("growth.panels.sources.title")} subtitle={t("growth.panels.sources.subtitle")}>
           <RankedBars rows={stats.sources.map((row) => ({ label: sourceLabel(row.source), value: row.reports }))} />
         </GrowthPanel>
-        <GrowthPanel title="Language SLOC" subtitle="top languages across generated reports">
+        <GrowthPanel title={t("growth.panels.languages.title")} subtitle={t("growth.panels.languages.subtitle")}>
           <RankedBars rows={stats.languages.map((row) => ({ label: row.language, value: row.code }))} />
         </GrowthPanel>
       </section>
       <section>
         <div className="section-h">
-          <h2>Largest public repositories</h2>
-          <span className="sub">ranked by latest counted lines</span>
+          <h2>{t("growth.sections.largest.title")}</h2>
+          <span className="sub">{t("growth.sections.largest.subtitle")}</span>
         </div>
         <GrowthRepoGrid reports={stats.topRepositories} />
       </section>
       <section>
         <div className="section-h">
-          <h2>Recent public reports</h2>
-          <span className="sub">fresh report inventory for search and sharing</span>
+          <h2>{t("growth.sections.recent.title")}</h2>
+          <span className="sub">{t("growth.sections.recent.subtitle")}</span>
         </div>
         <GrowthRepoGrid reports={stats.recentRepositories} />
       </section>
@@ -549,12 +582,13 @@ function StatsDashboard({ stats }: { stats: GrowthStats }) {
 }
 
 function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) {
+  const { t } = useTranslation();
   const endpoint = kind === "monoliths" ? "/api/seo/monoliths" : `/api/seo/${kind}`;
   const query = useQuery({
     queryKey: ["seo-list", kind],
     queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36`),
   });
-  const copy = listPageCopy(kind);
+  const copy = listPageCopy(kind, t);
 
   return (
     <MarketingShell>
@@ -563,9 +597,9 @@ function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) 
         <h1>{copy.title}</h1>
         <p>{copy.subtitle}</p>
         <div className="growth-nav">
-          <a className="copybtn" href="/">Analyze repo</a>
-          <a className="copybtn" href="/stats">Stats dashboard</a>
-          <a className="copybtn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">Chrome extension</a>
+          <a className="copybtn" href="/">{t("growth.actions.analyze")}</a>
+          <a className="copybtn" href="/stats">{t("growth.actions.stats")}</a>
+          <a className="copybtn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">{t("growth.actions.chrome")}</a>
         </div>
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
@@ -642,12 +676,45 @@ function SeoReportGrid({ reports }: { reports: SeoReportSummary[] }) {
   );
 }
 
+function PublicReportIndex() {
+  const { t } = useTranslation();
+  const query = useQuery({ queryKey: ["growth-stats", "home-index"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000 });
+  const totals = query.data?.totals;
+  const statsCopy = totals
+    ? t("growth.index.stats", {
+      reports: formatCompactNumber(totals.reportsGenerated),
+      repos: formatCompactNumber(totals.repositoriesAnalyzed),
+      lines: formatCompactNumber(totals.codeLinesCounted),
+    })
+    : t("growth.index.fallback");
+
+  return (
+    <section className="report-index" aria-label={t("growth.index.ariaLabel")}>
+      <div className="report-index-head">
+        <span className="terminal-label">{t("growth.index.label")}</span>
+        <p>{statsCopy}</p>
+      </div>
+      <nav className="report-index-grid" aria-label={t("growth.index.navAria")}>
+        {publicReportLinks.map((item) => (
+          <a key={item.href} href={item.href} className={item.href === "/stats" ? "report-index-link primary" : "report-index-link"}>
+            <span>{item.command}</span>
+            <strong>{t(`growth.nav.${item.key}.label`)}</strong>
+            <em>{t(`growth.nav.${item.key}.detail`)}</em>
+          </a>
+        ))}
+      </nav>
+    </section>
+  );
+}
+
 function GrowthLoading() {
-  return <section className="growth-state"><Loader2 className="spin" size={18} /> Loading public report stats...</section>;
+  const { t } = useTranslation();
+  return <section className="growth-state"><Loader2 className="spin" size={18} /> {t("growth.loading")}</section>;
 }
 
 function GrowthError() {
-  return <section className="growth-state">Stats are temporarily unavailable.</section>;
+  const { t } = useTranslation();
+  return <section className="growth-state">{t("growth.error")}</section>;
 }
 
 function sourceLabel(source: string) {
@@ -664,25 +731,25 @@ function sourceLabel(source: string) {
   return labels[source] ?? source;
 }
 
-function listPageCopy(kind: "recent" | "popular" | "monoliths") {
+function listPageCopy(kind: "recent" | "popular" | "monoliths", t: (key: string) => string) {
   if (kind === "popular") {
     return {
-      kicker: "popular",
-      title: "Popular codebase reports",
-      subtitle: "Frequently accessed public repository SLOC reports, ready to cite and share.",
+      kicker: t("growth.pages.popular.kicker"),
+      title: t("growth.pages.popular.title"),
+      subtitle: t("growth.pages.popular.subtitle"),
     };
   }
   if (kind === "monoliths") {
     return {
-      kicker: "leaderboard",
-      title: "Hall of Monoliths",
-      subtitle: "Largest public repositories OctoCounts has measured, ranked by counted lines.",
+      kicker: t("growth.pages.hall.kicker"),
+      title: t("growth.pages.hall.title"),
+      subtitle: t("growth.pages.hall.subtitle"),
     };
   }
   return {
-    kicker: "recent",
-    title: "Recent codebase reports",
-    subtitle: "Fresh public repository SLOC reports generated by OctoCounts.",
+    kicker: t("growth.pages.recent.kicker"),
+    title: t("growth.pages.recent.title"),
+    subtitle: t("growth.pages.recent.subtitle"),
   };
 }
 
@@ -764,6 +831,9 @@ function LanguageSwitcher() {
 
 function Topbar() {
   const { t } = useTranslation();
+  const path = window.location.pathname;
+  const isActive = (href: string) => path === href || (href === "/stats" && path.startsWith("/stats"));
+  const reportsActive = publicReportLinks.slice(1).some((item) => isActive(item.href));
   return (
     <header className="topbar">
       <div className="brand">
@@ -773,6 +843,18 @@ function Topbar() {
         </div>
       </div>
       <div className="topbar-links">
+        <a className={`github-link signal-link ${isActive("/stats") ? "active" : ""}`} href="/stats" aria-current={isActive("/stats") ? "page" : undefined}>
+          <span className="signal-dot" aria-hidden="true" />
+          <span>{t("growth.nav.stats.label")}</span>
+        </a>
+        <nav className={`report-rail ${reportsActive ? "active" : ""}`} aria-label={t("growth.navAria")}>
+          <span className="report-rail-label">{t("growth.reportsLabel")}</span>
+          {publicReportLinks.slice(1).map((item) => (
+            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
+              {t(`growth.nav.${item.key}.label`)}
+            </a>
+          ))}
+        </nav>
         <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "topbar" })}>
           <ChromeIcon size={18} aria-hidden="true" />
           <span>{t("topbar.chrome")}</span>
@@ -793,16 +875,23 @@ function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: 
   const { t } = useTranslation();
   return (
     <div className="top-actions">
-      <div className="theme-switch" role="group" aria-label={t("theme.ariaLabel")}>
-        <span className="theme-label" aria-hidden="true">{t("theme.label")}</span>
-        {(["matrix", "paper", "amber"] as const).map((item) => (
-          <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button" aria-pressed={scheme === item}>
-            <span className={`theme-sw ${item}`} />
-            {t("theme." + item)}
-          </button>
-        ))}
-      </div>
+      <ThemeSwitch scheme={scheme} setScheme={setScheme} />
       <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
+    </div>
+  );
+}
+
+function ThemeSwitch({ scheme, setScheme }: { scheme: Scheme; setScheme: (scheme: Scheme) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="theme-switch" role="group" aria-label={t("theme.ariaLabel")}>
+      <span className="theme-label" aria-hidden="true">{t("theme.label")}</span>
+      {(["matrix", "paper", "amber"] as const).map((item) => (
+        <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button" aria-pressed={scheme === item}>
+          <span className={`theme-sw ${item}`} />
+          {t("theme." + item)}
+        </button>
+      ))}
     </div>
   );
 }

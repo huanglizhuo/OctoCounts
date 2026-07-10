@@ -349,6 +349,102 @@
     "head": "目标引用",
     "run": "对比差异"
   },
+  "growth": {
+    "reportsLabel": "报告",
+    "navAria": "公开报告页面",
+    "footerTagline": "OctoCounts 的增长入口只使用公开报告的聚合数据。",
+    "launchKit": "发布素材",
+    "loading": "正在加载公开报告统计...",
+    "error": "统计暂时不可用。",
+    "nav": {
+      "stats": {
+        "label": "统计",
+        "detail": "总体用量"
+      },
+      "recent": {
+        "label": "最新",
+        "detail": "刚生成的报告"
+      },
+      "popular": {
+        "label": "热门",
+        "detail": "最多人查看"
+      },
+      "hall": {
+        "label": "巨型榜",
+        "detail": "最大仓库"
+      }
+    },
+    "index": {
+      "ariaLabel": "OctoCounts 公开报告索引",
+      "navAria": "浏览公开报告",
+      "label": "公开索引",
+      "fallback": "仅展示公开报告的聚合活动",
+      "stats": "{{reports}} 份报告 / {{repos}} 个仓库 / {{lines}} 行代码"
+    },
+    "actions": {
+      "analyze": "分析仓库",
+      "stats": "统计面板",
+      "recent": "最新报告",
+      "popular": "热门报告",
+      "largest": "最大仓库",
+      "chrome": "Chrome 插件"
+    },
+    "stats": {
+      "ariaLabel": "OctoCounts 统计",
+      "kicker": "公开统计",
+      "title": "OctoCounts 增长面板",
+      "subtitle": "基于公开仓库报告的聚合数据。不记录插件用户 ID，不做 DAU 跟踪，也不收集浏览器历史。"
+    },
+    "metrics": {
+      "totalsAria": "总计",
+      "windowsAria": "近期窗口",
+      "reportsGenerated": "已生成报告",
+      "repositoriesAnalyzed": "已分析仓库",
+      "linesCounted": "已统计行数",
+      "languagesDetected": "识别语言",
+      "reportsToday": "今日报告",
+      "reports7d": "近 7 天报告",
+      "reports30d": "近 30 天报告",
+      "newRepos30d": "近 30 天新仓库"
+    },
+    "panels": {
+      "sources": {
+        "title": "来源分布",
+        "subtitle": "产生报告的分析请求"
+      },
+      "languages": {
+        "title": "语言 SLOC",
+        "subtitle": "所有报告里的高频语言"
+      }
+    },
+    "sections": {
+      "largest": {
+        "title": "最大公开仓库",
+        "subtitle": "按最近一次统计的代码行数排序"
+      },
+      "recent": {
+        "title": "最新公开报告",
+        "subtitle": "可搜索、可分享的最新报告库存"
+      }
+    },
+    "pages": {
+      "recent": {
+        "kicker": "最新",
+        "title": "最新代码库报告",
+        "subtitle": "OctoCounts 刚生成的公开仓库 SLOC 报告。"
+      },
+      "popular": {
+        "kicker": "热门",
+        "title": "热门代码库报告",
+        "subtitle": "被频繁打开的公开仓库报告，适合引用和分享。"
+      },
+      "hall": {
+        "kicker": "排行榜",
+        "title": "巨型仓库榜",
+        "subtitle": "OctoCounts 已统计过的最大公开仓库，按代码行数排序。"
+      }
+    }
+  },
   "sharePreview": {
     "debug": "调试",
     "pngExportPreview": "PNG 导出预览"
