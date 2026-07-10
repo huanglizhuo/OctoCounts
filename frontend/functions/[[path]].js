@@ -1,9 +1,11 @@
 const API_BASE = "https://api.octocounts.com";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: "2026-07-04", priority: "1.0" },
-  { loc: "https://octocounts.com/recent", lastmod: "2026-07-06", priority: "0.7" },
-  { loc: "https://octocounts.com/popular", lastmod: "2026-07-06", priority: "0.7" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-06", priority: "0.7" },
+  { loc: "https://octocounts.com/stats", lastmod: "2026-07-10", priority: "0.8" },
+  { loc: "https://octocounts.com/recent", lastmod: "2026-07-10", priority: "0.7" },
+  { loc: "https://octocounts.com/popular", lastmod: "2026-07-10", priority: "0.7" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-10", priority: "0.7" },
+  { loc: "https://octocounts.com/launch-kit.html", lastmod: "2026-07-10", priority: "0.5" },
   { loc: "https://octocounts.com/docs/github-sloc-counter.html", lastmod: "2026-07-06", priority: "0.8" },
   { loc: "https://octocounts.com/docs/api.html", lastmod: "2026-07-06", priority: "0.7" },
   { loc: "https://octocounts.com/docs/methodology.html", lastmod: "2026-07-06", priority: "0.7" },
@@ -28,6 +30,10 @@ export async function onRequest(context) {
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
     return listPageResponse(context, url.pathname.slice(1), url);
+  }
+
+  if (url.pathname === "/stats") {
+    return statsPageResponse(context);
   }
 
   if (url.pathname === "/hall-of-monoliths") {
@@ -110,6 +116,45 @@ async function listPageResponse(context, kind, url) {
         },
       },
       noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul>${body}</ul></section>`,
+    }),
+    "public, s-maxage=300, stale-while-revalidate=3600"
+  );
+}
+
+async function statsPageResponse(context) {
+  const index = await indexHtml(context);
+  const response = await fetch(`${apiBase(context)}/api/stats`, {
+    headers: { accept: "application/json" },
+  });
+  const stats = response.ok ? await response.json() : null;
+  const title = "OctoCounts public growth stats";
+  const description = "Aggregate OctoCounts report totals, repository coverage, source breakdown, language totals, and largest public repositories.";
+  const totals = stats?.totals
+    ? `<ul>
+      <li>${formatNumber(stats.totals.reportsGenerated)} reports generated</li>
+      <li>${formatNumber(stats.totals.repositoriesAnalyzed)} public repositories analyzed</li>
+      <li>${formatNumber(stats.totals.linesCounted)} total lines counted</li>
+      <li>${formatNumber(stats.totals.languagesDetected)} languages detected</li>
+    </ul>`
+    : "<p>Stats are temporarily unavailable.</p>";
+
+  return htmlResponse(
+    injectHeadAndNoscript(index, {
+      title,
+      description,
+      canonical: "https://octocounts.com/stats",
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        name: title,
+        description,
+        url: "https://octocounts.com/stats",
+        measurementTechnique: "Aggregate public OctoCounts report activity",
+        variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
+      },
+      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=3600"
   );
