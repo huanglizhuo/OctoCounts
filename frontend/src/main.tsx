@@ -527,12 +527,6 @@ function StatsPage() {
         <span className="chart-tag">{t("growth.stats.kicker")}</span>
         <h1>{t("growth.stats.title")}</h1>
         <p>{t("growth.stats.subtitle")}</p>
-        <div className="growth-nav">
-          <a className="copybtn" href="/">{t("growth.actions.analyze")}</a>
-          <a className="copybtn" href="/recent">{t("growth.actions.recent")}</a>
-          <a className="copybtn" href="/popular">{t("growth.actions.popular")}</a>
-          <a className="copybtn" href="/hall-of-monoliths">{t("growth.actions.largest")}</a>
-        </div>
       </section>
 
       {query.isLoading ? <GrowthLoading /> : null}
@@ -854,11 +848,9 @@ function Topbar() {
       </a>
       <div className="topbar-links">
         <a className={`github-link signal-link ${isActive("/stats") ? "active" : ""}`} href="/stats" aria-current={isActive("/stats") ? "page" : undefined}>
-          <span className="signal-dot" aria-hidden="true" />
           <span>{t("growth.nav.stats.label")}</span>
         </a>
         <nav className={`report-rail ${reportsActive ? "active" : ""}`} aria-label={t("growth.navAria")}>
-          <a className="report-rail-label" href="/recent">{t("growth.reportsLabel")}</a>
           {publicReportLinks.slice(1).map((item) => (
             <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
               {t(`growth.nav.${item.key}.label`)}

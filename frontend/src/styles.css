@@ -400,23 +400,13 @@ body {
   min-height: 44px;
   padding-inline: 12px;
   color: var(--fg);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
-    color-mix(in srgb, var(--panel) 88%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--rule));
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
 }
 
 .github-link.signal-link.active,
 .github-link.signal-link[aria-current="page"] {
   color: var(--accent);
   box-shadow: var(--active-shadow);
-}
-
-.signal-dot {
-  width: 7px;
-  height: 7px;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
 }
 
 .report-rail {
@@ -428,7 +418,6 @@ body {
   background: color-mix(in srgb, var(--panel) 78%, transparent);
 }
 
-.report-rail-label,
 .report-rail a {
   min-height: 42px;
   display: inline-flex;
@@ -439,13 +428,6 @@ body {
   text-transform: uppercase;
 }
 
-.report-rail-label {
-  color: var(--fg-mute);
-  background: color-mix(in srgb, var(--bg) 42%, transparent);
-  border-right: 1px solid var(--rule);
-  text-decoration: none;
-}
-
 .report-rail a {
   color: var(--fg-dim);
   text-decoration: none;
@@ -454,8 +436,7 @@ body {
 }
 
 .report-rail a:hover,
-.report-rail a[aria-current="page"],
-.report-rail.active .report-rail-label {
+.report-rail a[aria-current="page"] {
   color: var(--accent);
 }
 
@@ -2599,10 +2580,9 @@ footer {
     grid-column: 1 / -1;
     width: 100%;
     display: grid;
-    grid-template-columns: .9fr repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .report-rail-label,
   .report-rail a {
     justify-content: center;
     padding-inline: 6px;
@@ -2784,22 +2764,11 @@ footer {
   }
 
   .report-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .report-rail-label,
   .report-rail a {
     min-height: 38px;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .report-rail-label,
-  .report-rail a:nth-child(3) {
-    border-right: 1px solid var(--rule);
-  }
-
-  .report-rail a:nth-last-child(-n + 2) {
-    border-bottom: 0;
   }
 
   .report-index-grid {
