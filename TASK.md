@@ -61,6 +61,74 @@ Existing repo notes:
 
 ## Task List
 
+### T12. Privacy-preserving growth dashboard
+
+Status: completed
+
+Updated user direction:
+
+- Do not use Chrome Web Store weekly user count.
+- Do not depend on Chrome CSV exports.
+- Add backend growth dashboard metrics based on OctoCounts-owned aggregate product activity.
+- Keep privacy boundary clear: no extension user IDs, no IP hashing, no DAU/WAU, no browser history, no user-level event stream.
+- Verify each implemented frontend page with browser MCP/in-app browser.
+
+Implementation plan:
+
+1. Add source-aware backend stats:
+   - Accept optional analyze request source: `web`, `extension`, `github_action`, `cli`, `mcp`, `api`, `seed`, `unknown`.
+   - Persist source on new reports/jobs.
+   - Aggregate from report rows only: total reports, unique public repos, total lines/code, reports today/7d/30d, new repos today/7d/30d, source breakdown, language SLOC, top repos, recent repos.
+2. Add public API:
+   - `GET /api/stats`
+3. Add frontend pages:
+   - `/stats` public growth dashboard.
+   - `/recent` real recent report list.
+   - `/popular` real popular report list.
+   - `/hall-of-monoliths` real largest repo list.
+4. Add source markers:
+   - Web app requests send `source: "web"`.
+   - Extension sends `source: "extension"`.
+   - CLI sends `source: "cli"`.
+   - GitHub Action sends `source: "github_action"`.
+   - MCP sends `source: "mcp"`.
+   - Seed script sends `source: "seed"`.
+5. Update privacy policy and homepage/README discoverability:
+   - Explain aggregate operational metrics.
+   - Expose Stats, Action, CLI, MCP, Badge, API from main surfaces.
+6. Verification:
+   - Backend tests/check where feasible.
+   - Frontend build.
+   - Extension build if extension source changes.
+   - Browser verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`.
+
+Completed implementation:
+
+- Added privacy-preserving `source` to analyze requests and persisted it on jobs/reports.
+- Added `GET /api/stats` with aggregate totals, windows, source breakdown, language totals, largest repositories, and recent repositories.
+- Added Rust test coverage for the stats aggregation query.
+- Added frontend `/stats`, `/recent`, `/popular`, and `/hall-of-monoliths` views.
+- Added homepage developer tools section for Stats, GitHub Action, CLI, MCP, README badges, and API.
+- Updated extension, CLI, GitHub Action, MCP, seed script, badge API, and web app request sources.
+- Updated privacy policy, API docs, and README to reflect aggregate dashboard metrics and developer distribution surfaces.
+- Added scheduled/manual GitHub Actions workflow to seed popular public repository report inventory.
+- Added `/launch-kit.html` with launch copy, links, screenshot, and badge snippet.
+- Added stats, list pages, and launch kit to the static sitemap.
+
+Verification completed:
+
+- `cargo test` in `backend`: passed, 31 tests.
+- `cargo fmt --check` in `backend`: passed.
+- `npm run build` in `frontend`: passed.
+- `npm run build` in `extension`: passed.
+- CLI sample JSON smoke test: passed.
+- GitHub Action sample comment smoke test: passed.
+- Seed dry-run smoke test: passed.
+- Browser MCP/in-app browser desktop verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`: passed, content rendered and no horizontal overflow.
+- Browser MCP/in-app browser 390px mobile verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`: passed, content rendered and no horizontal overflow.
+- Browser MCP/in-app browser desktop and 390px mobile verification for `/launch-kit.html`: passed, content and images rendered and no horizontal overflow.
+- `seed-popular-repos.yml` parsed successfully with Ruby YAML.
+
 ### T1. Extension rating prompt
 
 Status: completed

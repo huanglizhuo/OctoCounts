@@ -42,7 +42,7 @@ if (shouldComment) {
 }
 
 async function analyzeAndWait({ apiBase, repoUrl, refName }) {
-  const result = await postJson(apiBase, "/api/analyze", { repoUrl, refName, forceRefresh: false });
+  const result = await postJson(apiBase, "/api/analyze", { repoUrl, refName, forceRefresh: false, source: "github_action" });
   if (result.kind === "cached") return result.report;
   if (!result.jobId) throw new Error(`Unexpected analyze response: ${JSON.stringify(result)}`);
 

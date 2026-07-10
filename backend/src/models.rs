@@ -11,6 +11,8 @@ pub struct AnalyzeRequest {
     pub force_refresh: bool,
     #[serde(default)]
     pub options: AnalysisOptions,
+    #[serde(default)]
+    pub source: AnalysisSource,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -133,6 +135,82 @@ pub struct LanguageStats {
     pub code: usize,
     pub comments: usize,
     pub blanks: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisSource {
+    Web,
+    Extension,
+    GitHubAction,
+    Cli,
+    Mcp,
+    Api,
+    Seed,
+    #[default]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthStats {
+    pub totals: GrowthTotals,
+    pub windows: GrowthWindows,
+    pub sources: Vec<GrowthSourceStat>,
+    pub languages: Vec<GrowthLanguageStat>,
+    pub top_repositories: Vec<GrowthRepositoryStat>,
+    pub recent_repositories: Vec<GrowthRepositoryStat>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthTotals {
+    pub reports_generated: i64,
+    pub repositories_analyzed: i64,
+    pub lines_counted: i64,
+    pub code_lines_counted: i64,
+    pub languages_detected: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthWindows {
+    pub reports_today: i64,
+    pub reports_7d: i64,
+    pub reports_30d: i64,
+    pub repositories_today: i64,
+    pub repositories_7d: i64,
+    pub repositories_30d: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthSourceStat {
+    pub source: AnalysisSource,
+    pub reports: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthLanguageStat {
+    pub language: String,
+    pub code: i64,
+    pub lines: i64,
+    pub reports: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthRepositoryStat {
+    pub provider: RepositoryProvider,
+    pub owner: String,
+    pub repo: String,
+    pub public_path: String,
+    pub html_url: String,
+    pub ref_name: String,
+    pub generated_at: DateTime<Utc>,
+    pub total: LanguageStats,
+    pub top_language: Option<String>,
 }
 
 #[derive(Debug, Clone)]

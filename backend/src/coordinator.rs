@@ -7,7 +7,7 @@ use crate::{
     analyzer::{self, AnalysisInput},
     error::ApiError,
     github::GitHubClient,
-    models::{AnalyzeRequest, AnalyzeResponse, ApiErrorBody, RepoRef},
+    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, ApiErrorBody, RepoRef},
     store::{JobKey, Store},
 };
 
@@ -33,6 +33,7 @@ impl AnalysisCoordinator {
 
     pub async fn submit(&self, request: AnalyzeRequest) -> Result<AnalyzeResponse, ApiError> {
         let options = request.options.clone();
+        let source = request.source;
         let analysis_key = analyzer::analysis_key(&options);
         let repo_ref = self
             .github
@@ -68,11 +69,12 @@ impl AnalysisCoordinator {
                 repo: &repo_ref.repo,
                 commit_sha: &repo_ref.commit_sha,
                 tokei_version: &analysis_key,
+                source,
             })
             .await
             .map_err(ApiError::internal)?;
         if created {
-            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key);
+            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key, source);
         }
 
         Ok(AnalyzeResponse::Job {
@@ -87,6 +89,7 @@ impl AnalysisCoordinator {
         repo_ref: RepoRef,
         options: crate::models::AnalysisOptions,
         analysis_key: String,
+        source: AnalysisSource,
     ) {
         let coordinator = self.clone();
         tokio::spawn(async move {
@@ -139,7 +142,7 @@ impl AnalysisCoordinator {
             })
             .await
             {
-                Ok(report) => complete_job(&coordinator.store, job_id, report).await,
+                Ok(report) => complete_job(&coordinator.store, job_id, report, source).await,
                 Err(error) => {
                     tracing::warn!(%error, "analysis failed");
                     mark_job_failed(
@@ -155,9 +158,14 @@ impl AnalysisCoordinator {
     }
 }
 
-async fn complete_job(store: &Store, job_id: Uuid, report: crate::models::Report) {
+async fn complete_job(
+    store: &Store,
+    job_id: Uuid,
+    report: crate::models::Report,
+    source: AnalysisSource,
+) {
     let report_id = report.id.clone();
-    if let Err(error) = store.save_report(&report).await {
+    if let Err(error) = store.save_report(&report, source).await {
         tracing::error!(%error, "failed to save report");
         mark_job_failed(store, job_id, "internal", "failed to save report").await;
         return;

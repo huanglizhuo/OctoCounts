@@ -15,10 +15,23 @@ GitHub's sidebar shows language percentages, but misses actual file and line cou
 
 Install the extension for instant stats directly on GitHub, or use the web app for public GitHub repositories. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results—delivering a breakdown faster than `git clone`.
 
+## Use OctoCounts
+
+| Surface | Use it for |
+|---|---|
+| [Web app](https://octocounts.com/) | Analyze any public GitHub repository and share a permanent report. |
+| [Browser extension](extension/README.md) | Show SLOC directly inside GitHub's repository sidebar. |
+| [Public stats](https://octocounts.com/stats) | See aggregate report totals, largest repos, language coverage, and source breakdown. |
+| [GitHub Action](action/README.md) | Comment SLOC changes on pull requests. |
+| [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |
+| [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
+| [README badges](#badges) | Add a live SLOC badge that links to a permanent report page. |
+| [Launch kit](https://octocounts.com/launch-kit.html) | Copy product descriptions, launch posts, links, screenshots, and badges. |
+
 ## Preview
 
 <p align="center">
-  <img src="images/preview.png" alt="OctoCounts extentionpreview">
+  <img src="images/preview.png" alt="OctoCounts extension preview">
 </p>
 
 ## Why?
@@ -83,6 +96,7 @@ Language names are case-insensitive (`rust`, `Rust`, and `RUST` all work). If a 
 POST /api/analyze          { "repoUrl": "...", "refName": "main" }
 GET  /api/jobs/:id
 GET  /api/reports/:id
+GET  /api/stats
 
 GET  /badge/:owner/:repo
 GET  /badge/:owner/:repo/branch/:branch
@@ -96,6 +110,10 @@ All badge routes accept an optional `?lang=<language>` query parameter that swit
 ## Running it
 
 See **[how-to-run-and-deploy.md](how-to-run-and-deploy.md)** for local development setup, host-native instructions, GitHub token configuration, and production deployment.
+
+## Growth report inventory
+
+Popular public repositories are listed in [`data/popular-repos.txt`](data/popular-repos.txt). The scheduled workflow [`seed-popular-repos.yml`](.github/workflows/seed-popular-repos.yml) runs the seed script weekly so `/popular`, `/recent`, `/hall-of-monoliths`, and `/stats` keep getting fresh public report inventory.
 
 ## License
 

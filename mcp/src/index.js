@@ -130,7 +130,7 @@ function toolDefinitions() {
 }
 
 async function analyzeAndWait({ repoUrl, refName }) {
-  const result = await postJson("/api/analyze", { repoUrl, refName, forceRefresh: false });
+  const result = await postJson("/api/analyze", { repoUrl, refName, forceRefresh: false, source: "mcp" });
   if (result.kind === "cached") return result.report;
   if (!result.jobId) throw new Error(`Unexpected analyze response: ${JSON.stringify(result)}`);
 

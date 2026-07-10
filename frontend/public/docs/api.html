@@ -59,6 +59,7 @@ Content-Type: application/json
   "repoUrl": "https://github.com/owner/repo",
   "refName": "main",
   "forceRefresh": false,
+  "source": "api",
   "options": {
     "profile": "default",
     "ignoredDirs": [],
@@ -68,7 +69,7 @@ Content-Type: application/json
     "includeGenerated": true
   }
 }</code></pre>
-    <p><code>repoUrl</code> supports public <code>github.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch.</p>
+    <p><code>repoUrl</code> supports public <code>github.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch. <code>source</code> is optional and may be <code>web</code>, <code>extension</code>, <code>github_action</code>, <code>cli</code>, <code>mcp</code>, <code>api</code>, <code>seed</code>, or <code>unknown</code>; it is used only for aggregate source breakdowns.</p>
 
     <h2>Job Status</h2>
     <pre><code>GET https://api.octocounts.com/api/jobs/:jobId</code></pre>
@@ -77,6 +78,10 @@ Content-Type: application/json
     <h2>Report</h2>
     <pre><code>GET https://api.octocounts.com/api/reports/:reportId</code></pre>
     <p>Reports include repository metadata, pinned commit SHA, tokei version, analysis key, active analysis options, language rows, and totals for files, lines, code, comments, and blanks.</p>
+
+    <h2>Public Stats</h2>
+    <pre><code>GET https://api.octocounts.com/api/stats</code></pre>
+    <p>Returns aggregate operational stats: total reports generated, unique public repositories analyzed, total lines counted, source breakdown, language totals, recent reports, and largest public repositories. This endpoint does not expose user-level analytics.</p>
 
     <h2>SEO Data and OG Images</h2>
     <pre><code>GET https://api.octocounts.com/api/seo/report?provider=github&amp;owner=owner&amp;repo=repo

@@ -1,0 +1,43 @@
+name: Seed popular OctoCounts reports
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum repositories to seed"
+        required: false
+        default: "50"
+      force_refresh:
+        description: "Force refresh cached reports"
+        required: false
+        default: "false"
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Seed report inventory
+        env:
+          LIMIT: ${{ github.event.inputs.limit || '50' }}
+          FORCE_REFRESH: ${{ github.event.inputs.force_refresh || 'false' }}
+        run: |
+          FLAGS=""
+          if [ "$FORCE_REFRESH" = "true" ]; then
+            FLAGS="$FLAGS --force-refresh"
+          fi
+          node scripts/seed-popular-repos.mjs \
+            --limit "$LIMIT" \
+            --concurrency 2 \
+            --delay-ms 750 \
+            --max-polls 180 \
+            $FLAGS

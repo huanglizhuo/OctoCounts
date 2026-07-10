@@ -2932,3 +2932,234 @@ table.report td.lang {
     gap: 10px;
   }
 }
+
+.growth-page {
+  gap: var(--space-7);
+}
+
+.growth-hero {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 980px;
+  padding-top: var(--space-6);
+}
+
+.growth-hero h1 {
+  margin: 0;
+  max-width: 860px;
+  color: var(--fg);
+  font-size: clamp(2rem, 7vw, 5.5rem);
+  line-height: .94;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.growth-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: var(--text-lg);
+}
+
+.growth-nav {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.growth-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.growth-metrics.compact .growth-metric strong {
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+}
+
+.growth-metric,
+.growth-panel,
+.growth-repo-card,
+.growth-state {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  box-shadow: var(--terminal-shadow);
+}
+
+.growth-metric {
+  display: grid;
+  gap: var(--space-1);
+  min-height: 128px;
+  padding: var(--space-4);
+}
+
+.growth-metric span,
+.growth-metric em,
+.growth-repo-card span,
+.growth-repo-card em {
+  color: var(--fg-mute);
+  font-size: var(--text-xs);
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.growth-metric strong {
+  color: var(--accent);
+  font-size: clamp(1.9rem, 5vw, 3.8rem);
+  line-height: 1;
+}
+
+.growth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.growth-panel {
+  padding: var(--space-4);
+}
+
+.ranked-bars {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ranked-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) 1fr minmax(64px, auto);
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.ranked-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranked-row i {
+  height: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+.ranked-row b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.ranked-row em {
+  color: var(--fg);
+  font-style: normal;
+  text-align: right;
+}
+
+.growth-repo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.growth-repo-card {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 142px;
+  padding: var(--space-4);
+  color: inherit;
+  text-decoration: none;
+  transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+.growth-repo-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--rule));
+}
+
+.growth-repo-card strong {
+  overflow-wrap: anywhere;
+  color: var(--fg);
+  font-size: var(--text-lg);
+  line-height: 1.25;
+}
+
+.growth-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--fg-dim);
+}
+
+.growth-empty {
+  margin: 0;
+  color: var(--fg-mute);
+}
+
+.developer-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.developer-tool {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 180px;
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--terminal-shadow);
+}
+
+.developer-tool:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--rule));
+}
+
+.developer-tool p {
+  margin: 0;
+  color: var(--fg-dim);
+}
+
+.developer-tool code {
+  align-self: end;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 900px) {
+  .growth-metrics,
+  .growth-grid,
+  .growth-repo-grid,
+  .developer-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .growth-metrics,
+  .growth-grid,
+  .growth-repo-grid,
+  .developer-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .ranked-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .ranked-row em {
+    text-align: left;
+  }
+}

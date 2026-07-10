@@ -1,5 +1,5 @@
 import i18n from "./i18n";
-import type { AnalysisOptions, AnalyzeResponse } from "./types";
+import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
 
@@ -20,6 +20,7 @@ export async function analyzeRepository(request: {
   refName: string;
   forceRefresh: boolean;
   options?: AnalysisOptions;
+  source?: AnalysisSource;
 }): Promise<AnalyzeResponse> {
   return fetchJson<AnalyzeResponse>("/api/analyze", {
     method: "POST",
@@ -29,8 +30,13 @@ export async function analyzeRepository(request: {
       refName: request.refName || undefined,
       forceRefresh: request.forceRefresh,
       options: request.options,
+      source: request.source ?? "web",
     }),
   });
+}
+
+export function fetchGrowthStats() {
+  return fetchJson<GrowthStats>("/api/stats");
 }
 
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {

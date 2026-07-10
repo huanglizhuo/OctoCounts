@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { toPng } from "html-to-image";
 import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -6,7 +6,7 @@ import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
 import { ChromeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
-import { analyzeRepository, fetchJson } from "./api";
+import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
@@ -28,7 +28,7 @@ import {
   textReport,
   tickerRows,
 } from "./reportUtils";
-import type { AnalysisOptions, AppStatus, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
+import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
 import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 
@@ -82,6 +82,12 @@ const seedReport = normalizeReport(initialReportData as unknown as Report);
 
 function App() {
   const { t, i18n } = useTranslation();
+  const routePath = window.location.pathname;
+  if (routePath === "/stats") return <StatsPage />;
+  if (routePath === "/recent") return <ReportListPage kind="recent" />;
+  if (routePath === "/popular") return <ReportListPage kind="popular" />;
+  if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
+
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [scheme, setScheme] = useState<Scheme>(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
@@ -339,6 +345,14 @@ function App() {
 
         <section>
           <div className="section-h">
+            <h2>Developer tools</h2>
+            <span className="sub">make SLOC reports show up where developers already work</span>
+          </div>
+          <DeveloperTools />
+        </section>
+
+        <section>
+          <div className="section-h">
             <h2>{t("compare.title")}</h2>
             <span className="sub">{t("compare.subtitle")}</span>
           </div>
@@ -404,6 +418,9 @@ function App() {
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
             <a href="/docs/api.html">{t("footer.apiDocs")}</a> &middot;
             <a href="/docs/github-sloc-counter.html">{t("footer.slocGuide")}</a> &middot;
+            <a href="/stats">Stats</a> &middot;
+            <a href="/popular">Popular</a> &middot;
+            <a href="/launch-kit.html">Launch kit</a> &middot;
             <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
             {" "}{t("footer.copyright")}
           </span>
@@ -411,6 +428,314 @@ function App() {
         </footer>
       </main>
     </>
+  );
+}
+
+type SeoReportSummary = {
+  provider: "github" | "gitlab";
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  htmlUrl: string;
+  publicPath: string;
+  generatedAt: string;
+  refName: string;
+  total: Stats;
+  topLanguage?: { name: string; code: number; percent: number };
+};
+
+type SeoListResponse = {
+  page: number;
+  limit: number;
+  reports: SeoReportSummary[];
+};
+
+function MarketingShell({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    initAnalytics();
+    document.documentElement.dataset.scheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper";
+  }, []);
+
+  return (
+    <>
+      <a className="skip-link" href="#main">Skip to content</a>
+      <div className="crt flicker" />
+      <main id="main" className="page growth-page">
+        <Topbar />
+        {children}
+        <footer>
+          <span>OctoCounts growth loops are built from aggregate public report activity.</span>
+          <span>
+            <a href="/stats">Stats</a> &middot; <a href="/recent">Recent</a> &middot; <a href="/popular">Popular</a> &middot; <a href="/hall-of-monoliths">Hall of Monoliths</a> &middot; <a href="/launch-kit.html">Launch kit</a> &middot; <a href="/privacy">Privacy</a>
+          </span>
+          <LanguageSwitcher />
+        </footer>
+      </main>
+    </>
+  );
+}
+
+function StatsPage() {
+  const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats });
+  const stats = query.data;
+
+  return (
+    <MarketingShell>
+      <section className="growth-hero" aria-label="OctoCounts stats">
+        <span className="chart-tag">public stats</span>
+        <h1>OctoCounts growth dashboard</h1>
+        <p>Aggregate activity from public repository reports. No extension user identifiers, no DAU tracking, no browser history collection.</p>
+        <div className="growth-nav">
+          <a className="copybtn" href="/">Analyze repo</a>
+          <a className="copybtn" href="/recent">Recent reports</a>
+          <a className="copybtn" href="/popular">Popular reports</a>
+          <a className="copybtn" href="/hall-of-monoliths">Largest repos</a>
+        </div>
+      </section>
+
+      {query.isLoading ? <GrowthLoading /> : null}
+      {query.isError ? <GrowthError /> : null}
+      {stats ? <StatsDashboard stats={stats} /> : null}
+    </MarketingShell>
+  );
+}
+
+function StatsDashboard({ stats }: { stats: GrowthStats }) {
+  const totals = [
+    { label: "reports generated", value: stats.totals.reportsGenerated },
+    { label: "repositories analyzed", value: stats.totals.repositoriesAnalyzed },
+    { label: "lines counted", value: stats.totals.linesCounted },
+    { label: "languages detected", value: stats.totals.languagesDetected },
+  ];
+  const windows = [
+    { label: "reports today", value: stats.windows.reportsToday },
+    { label: "reports 7d", value: stats.windows.reports7d },
+    { label: "reports 30d", value: stats.windows.reports30d },
+    { label: "new repos 30d", value: stats.windows.repositories30d },
+  ];
+
+  return (
+    <>
+      <section className="growth-metrics" aria-label="Totals">
+        {totals.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
+      </section>
+      <section className="growth-metrics compact" aria-label="Recent windows">
+        {windows.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
+      </section>
+      <section className="growth-grid">
+        <GrowthPanel title="Source breakdown" subtitle="analysis requests that generated reports">
+          <RankedBars rows={stats.sources.map((row) => ({ label: sourceLabel(row.source), value: row.reports }))} />
+        </GrowthPanel>
+        <GrowthPanel title="Language SLOC" subtitle="top languages across generated reports">
+          <RankedBars rows={stats.languages.map((row) => ({ label: row.language, value: row.code }))} />
+        </GrowthPanel>
+      </section>
+      <section>
+        <div className="section-h">
+          <h2>Largest public repositories</h2>
+          <span className="sub">ranked by latest counted lines</span>
+        </div>
+        <GrowthRepoGrid reports={stats.topRepositories} />
+      </section>
+      <section>
+        <div className="section-h">
+          <h2>Recent public reports</h2>
+          <span className="sub">fresh report inventory for search and sharing</span>
+        </div>
+        <GrowthRepoGrid reports={stats.recentRepositories} />
+      </section>
+    </>
+  );
+}
+
+function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) {
+  const endpoint = kind === "monoliths" ? "/api/seo/monoliths" : `/api/seo/${kind}`;
+  const query = useQuery({
+    queryKey: ["seo-list", kind],
+    queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36`),
+  });
+  const copy = listPageCopy(kind);
+
+  return (
+    <MarketingShell>
+      <section className="growth-hero" aria-label={copy.title}>
+        <span className="chart-tag">{copy.kicker}</span>
+        <h1>{copy.title}</h1>
+        <p>{copy.subtitle}</p>
+        <div className="growth-nav">
+          <a className="copybtn" href="/">Analyze repo</a>
+          <a className="copybtn" href="/stats">Stats dashboard</a>
+          <a className="copybtn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">Chrome extension</a>
+        </div>
+      </section>
+      {query.isLoading ? <GrowthLoading /> : null}
+      {query.isError ? <GrowthError /> : null}
+      {query.data ? <SeoReportGrid reports={query.data.reports} /> : null}
+    </MarketingShell>
+  );
+}
+
+function GrowthMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="growth-metric">
+      <span>{label}</span>
+      <strong>{formatCompactNumber(value)}</strong>
+      <em>{formatNumber(value)}</em>
+    </div>
+  );
+}
+
+function GrowthPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="growth-panel">
+      <div className="section-h">
+        <h2>{title}</h2>
+        <span className="sub">{subtitle}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return (
+    <div className="ranked-bars">
+      {rows.length ? rows.map((row) => (
+        <div className="ranked-row" key={row.label}>
+          <span>{row.label}</span>
+          <i><b style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} /></i>
+          <em>{formatCompactNumber(row.value)}</em>
+        </div>
+      )) : <p className="growth-empty">No reports yet.</p>}
+    </div>
+  );
+}
+
+function GrowthRepoGrid({ reports }: { reports: GrowthRepositoryStat[] }) {
+  return (
+    <div className="growth-repo-grid">
+      {reports.map((report) => (
+        <a className="growth-repo-card" href={report.publicPath} key={`${report.provider}:${report.owner}/${report.repo}`}>
+          <span className="chart-tag">{String(report.provider)}</span>
+          <strong>{report.owner}/{report.repo}</strong>
+          <span>{report.topLanguage ?? "mixed"} · {formatNumber(report.total.code)} code</span>
+          <em>{new Date(report.generatedAt).toLocaleDateString()}</em>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function SeoReportGrid({ reports }: { reports: SeoReportSummary[] }) {
+  return (
+    <div className="growth-repo-grid">
+      {reports.map((report) => (
+        <a className="growth-repo-card" href={report.publicPath} key={`${report.provider}:${report.owner}/${report.repo}`}>
+          <span className="chart-tag">{report.provider}</span>
+          <strong>{report.repoFullName}</strong>
+          <span>{report.topLanguage?.name ?? "mixed"} · {formatNumber(report.total.code)} code</span>
+          <em>{new Date(report.generatedAt).toLocaleDateString()}</em>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function GrowthLoading() {
+  return <section className="growth-state"><Loader2 className="spin" size={18} /> Loading public report stats...</section>;
+}
+
+function GrowthError() {
+  return <section className="growth-state">Stats are temporarily unavailable.</section>;
+}
+
+function sourceLabel(source: string) {
+  const labels: Record<string, string> = {
+    github_action: "GitHub Action",
+    cli: "CLI",
+    mcp: "MCP",
+    api: "API",
+    extension: "Extension",
+    seed: "Seed",
+    web: "Web",
+    unknown: "Unknown",
+  };
+  return labels[source] ?? source;
+}
+
+function listPageCopy(kind: "recent" | "popular" | "monoliths") {
+  if (kind === "popular") {
+    return {
+      kicker: "popular",
+      title: "Popular codebase reports",
+      subtitle: "Frequently accessed public repository SLOC reports, ready to cite and share.",
+    };
+  }
+  if (kind === "monoliths") {
+    return {
+      kicker: "leaderboard",
+      title: "Hall of Monoliths",
+      subtitle: "Largest public repositories OctoCounts has measured, ranked by counted lines.",
+    };
+  }
+  return {
+    kicker: "recent",
+    title: "Recent codebase reports",
+    subtitle: "Fresh public repository SLOC reports generated by OctoCounts.",
+  };
+}
+
+function DeveloperTools() {
+  const tools = [
+    {
+      title: "Public stats",
+      text: "Aggregate report totals, language coverage, largest repos, and source breakdown without user-level tracking.",
+      command: "open https://octocounts.com/stats",
+      href: "/stats",
+    },
+    {
+      title: "GitHub Action",
+      text: "Comment SLOC changes on pull requests so reports travel through review workflows.",
+      command: "uses: huanglizhuo/OctoCount/action@main",
+      href: "https://github.com/huanglizhuo/OctoCount/tree/main/action",
+    },
+    {
+      title: "CLI",
+      text: "Run OctoCounts from a terminal or CI script and print text or JSON summaries.",
+      command: "npx octocounts https://github.com/owner/repo --json",
+      href: "https://github.com/huanglizhuo/OctoCount/tree/main/cli",
+    },
+    {
+      title: "MCP server",
+      text: "Expose SLOC reports to agent workflows and developer assistants through MCP tools.",
+      command: "npx octocounts-mcp",
+      href: "https://github.com/huanglizhuo/OctoCount/tree/main/mcp",
+    },
+    {
+      title: "README badge",
+      text: "Add a live SLOC badge that links back to a permanent report page.",
+      command: "[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](...)",
+      href: "#badges",
+    },
+    {
+      title: "API",
+      text: "Use analyze, jobs, reports, badge, SEO, and stats endpoints directly.",
+      command: "GET https://api.octocounts.com/api/stats",
+      href: "/docs/api.html",
+    },
+  ];
+
+  return (
+    <div className="developer-tools">
+      {tools.map((tool) => (
+        <a className="developer-tool" href={tool.href} key={tool.title}>
+          <span className="chart-tag">{tool.title}</span>
+          <p>{tool.text}</p>
+          <code>{tool.command}</code>
+        </a>
+      ))}
+    </div>
   );
 }
 

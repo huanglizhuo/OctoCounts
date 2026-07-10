@@ -29,6 +29,7 @@ export function analyze(owner, repo, ref, forceRefresh = false) {
       repoUrl: `https://github.com/${owner}/${repo}`,
       refName: ref,
       forceRefresh,
+      source: 'extension',
     }),
   });
 }

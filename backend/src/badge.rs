@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     api::AppState,
-    models::{AnalyzeRequest, AnalyzeResponse, JobStatus, Report},
+    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report},
     store::Store,
 };
 
@@ -65,6 +65,7 @@ async fn serve_badge(
         ref_name,
         force_refresh: false,
         options: Default::default(),
+        source: AnalysisSource::Api,
     };
 
     let cache = if is_immutable {

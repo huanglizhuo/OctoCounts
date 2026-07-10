@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     coordinator::AnalysisCoordinator,
     error::ApiError,
-    models::{AnalyzeRequest, AnalyzeResponse, JobRecord},
+    models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord},
 };
 
 #[derive(Clone)]
@@ -63,4 +63,22 @@ pub async fn report(
         HeaderValue::from_static("public, max-age=31536000, immutable"),
     );
     Ok((headers, Json(report)))
+}
+
+pub async fn stats(
+    State(state): State<AppState>,
+) -> Result<(HeaderMap, Json<GrowthStats>), ApiError> {
+    let stats = state
+        .coordinator
+        .store()
+        .growth_stats()
+        .await
+        .map_err(ApiError::internal)?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, s-maxage=300, stale-while-revalidate=3600"),
+    );
+    Ok((headers, Json(stats)))
 }

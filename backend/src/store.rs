@@ -2,7 +2,10 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
-use crate::models::{ApiErrorBody, JobRecord, JobStatus, Report, RepositoryProvider};
+use crate::models::{
+    AnalysisSource, ApiErrorBody, GrowthLanguageStat, GrowthRepositoryStat, GrowthSourceStat,
+    GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus, Report, RepositoryProvider,
+};
 
 #[derive(Clone)]
 pub struct Store {
@@ -29,7 +32,9 @@ impl Store {
                 last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 access_count BIGINT NOT NULL DEFAULT 0,
                 body_bytes BIGINT NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT 'unknown',
                 CONSTRAINT reports_provider_valid CHECK (provider IN ('github', 'gitlab')),
+                CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown')),
                 CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0),
                 CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0),
                 UNIQUE(provider, owner, repo, commit_sha, tokei_version)
@@ -47,9 +52,11 @@ impl Store {
                 provider TEXT,
                 report_id TEXT,
                 error JSONB,
+                source TEXT NOT NULL DEFAULT 'unknown',
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab')),
+                CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown')),
                 CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
             );
             "#,
@@ -123,6 +130,9 @@ impl Store {
         sqlx::query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS provider TEXT")
             .execute(&self.pool)
             .await?;
+        sqlx::query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS source TEXT")
+            .execute(&self.pool)
+            .await?;
         sqlx::query(
             r#"
             UPDATE reports
@@ -136,6 +146,15 @@ impl Store {
             .execute(&self.pool)
             .await?;
         sqlx::query("ALTER TABLE reports ALTER COLUMN provider SET NOT NULL")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("UPDATE reports SET source = 'unknown' WHERE source IS NULL")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN source SET DEFAULT 'unknown'")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE reports ALTER COLUMN source SET NOT NULL")
             .execute(&self.pool)
             .await?;
         sqlx::query("ALTER TABLE jobs ALTER COLUMN created_at SET DEFAULT NOW()")
@@ -157,6 +176,18 @@ impl Store {
             .execute(&self.pool)
             .await?;
         sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tokei_version TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source TEXT")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("UPDATE jobs SET source = 'unknown' WHERE source IS NULL")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ALTER COLUMN source SET DEFAULT 'unknown'")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE jobs ALTER COLUMN source SET NOT NULL")
             .execute(&self.pool)
             .await?;
         sqlx::query(
@@ -196,6 +227,26 @@ impl Store {
                 ) THEN
                     ALTER TABLE jobs
                     ADD CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab'));
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'reports_source_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE reports
+                    ADD CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown'));
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'jobs_source_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE jobs
+                    ADD CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown'));
                 END IF;
 
                 IF NOT EXISTS (
@@ -258,6 +309,11 @@ impl Store {
             .await?;
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_reports_popular ON reports (access_count DESC, last_accessed_at DESC)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_source_created ON reports (source, created_at DESC)",
         )
         .execute(&self.pool)
         .await?;
@@ -339,7 +395,7 @@ impl Store {
             .transpose()
     }
 
-    pub async fn save_report(&self, report: &Report) -> anyhow::Result<()> {
+    pub async fn save_report(&self, report: &Report, source: AnalysisSource) -> anyhow::Result<()> {
         let body = serde_json::to_string(report)?;
         let body_bytes = body.len() as i64;
         let provider = provider_to_str(&report.repository.provider);
@@ -347,9 +403,9 @@ impl Store {
             r#"
             INSERT INTO reports (
                 id, provider, owner, repo, commit_sha, tokei_version, body, created_at,
-                last_accessed_at, access_count, body_bytes
+                last_accessed_at, access_count, body_bytes, source
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $8, 0, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $8, 0, $9, $10)
             ON CONFLICT (provider, owner, repo, commit_sha, tokei_version)
             DO UPDATE SET
                 id = EXCLUDED.id,
@@ -357,7 +413,8 @@ impl Store {
                 created_at = EXCLUDED.created_at,
                 last_accessed_at = EXCLUDED.last_accessed_at,
                 access_count = 0,
-                body_bytes = EXCLUDED.body_bytes
+                body_bytes = EXCLUDED.body_bytes,
+                source = EXCLUDED.source
             "#,
         )
         .bind(&report.id)
@@ -369,6 +426,7 @@ impl Store {
         .bind(body)
         .bind(report.generated_at)
         .bind(body_bytes)
+        .bind(source_to_str(&source))
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -425,6 +483,137 @@ impl Store {
 
     pub async fn sitemap_reports(&self, limit: i64) -> anyhow::Result<Vec<Report>> {
         self.distinct_reports("created_at DESC", limit, 0).await
+    }
+
+    pub async fn growth_stats(&self) -> anyhow::Result<GrowthStats> {
+        let totals = self.growth_totals().await?;
+        let windows = self.growth_windows().await?;
+        let sources = self.growth_sources().await?;
+        let languages = self.growth_languages().await?;
+        let top_repositories = self.growth_repository_list("total_lines DESC", 12).await?;
+        let recent_repositories = self.growth_repository_list("created_at DESC", 12).await?;
+
+        Ok(GrowthStats {
+            totals,
+            windows,
+            sources,
+            languages,
+            top_repositories,
+            recent_repositories,
+        })
+    }
+
+    async fn growth_totals(&self) -> anyhow::Result<GrowthTotals> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                COUNT(*)::bigint AS reports_generated,
+                COUNT(DISTINCT (provider, owner, repo))::bigint AS repositories_analyzed,
+                COALESCE(SUM((body->'total'->>'lines')::bigint), 0)::bigint AS lines_counted,
+                COALESCE(SUM((body->'total'->>'code')::bigint), 0)::bigint AS code_lines_counted,
+                COALESCE(COUNT(DISTINCT language.value->>'name'), 0)::bigint AS languages_detected
+            FROM reports
+            LEFT JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value) ON TRUE
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(GrowthTotals {
+            reports_generated: row.try_get("reports_generated")?,
+            repositories_analyzed: row.try_get("repositories_analyzed")?,
+            lines_counted: row.try_get("lines_counted")?,
+            code_lines_counted: row.try_get("code_lines_counted")?,
+            languages_detected: row.try_get("languages_detected")?,
+        })
+    }
+
+    async fn growth_windows(&self) -> anyhow::Result<GrowthWindows> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                COUNT(*) FILTER (WHERE created_at >= date_trunc('day', NOW()))::bigint AS reports_today,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::bigint AS reports_7d,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::bigint AS reports_30d,
+                COUNT(DISTINCT (provider, owner, repo)) FILTER (WHERE created_at >= date_trunc('day', NOW()))::bigint AS repositories_today,
+                COUNT(DISTINCT (provider, owner, repo)) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::bigint AS repositories_7d,
+                COUNT(DISTINCT (provider, owner, repo)) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::bigint AS repositories_30d
+            FROM reports
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(GrowthWindows {
+            reports_today: row.try_get("reports_today")?,
+            reports_7d: row.try_get("reports_7d")?,
+            reports_30d: row.try_get("reports_30d")?,
+            repositories_today: row.try_get("repositories_today")?,
+            repositories_7d: row.try_get("repositories_7d")?,
+            repositories_30d: row.try_get("repositories_30d")?,
+        })
+    }
+
+    async fn growth_sources(&self) -> anyhow::Result<Vec<GrowthSourceStat>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT source, COUNT(*)::bigint AS reports
+            FROM reports
+            GROUP BY source
+            ORDER BY reports DESC, source ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let source: String = row.try_get("source")?;
+                Ok(GrowthSourceStat {
+                    source: source_from_str(&source),
+                    reports: row.try_get("reports")?,
+                })
+            })
+            .collect()
+    }
+
+    async fn growth_languages(&self) -> anyhow::Result<Vec<GrowthLanguageStat>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                language.value->>'name' AS language,
+                COALESCE(SUM((language.value->'stats'->>'code')::bigint), 0)::bigint AS code,
+                COALESCE(SUM((language.value->'stats'->>'lines')::bigint), 0)::bigint AS lines,
+                COUNT(*)::bigint AS reports
+            FROM reports
+            CROSS JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value)
+            GROUP BY language.value->>'name'
+            ORDER BY code DESC, language ASC
+            LIMIT 16
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(GrowthLanguageStat {
+                    language: row.try_get("language")?,
+                    code: row.try_get("code")?,
+                    lines: row.try_get("lines")?,
+                    reports: row.try_get("reports")?,
+                })
+            })
+            .collect()
+    }
+
+    async fn growth_repository_list(
+        &self,
+        order: &'static str,
+        limit: i64,
+    ) -> anyhow::Result<Vec<GrowthRepositoryStat>> {
+        let reports = self.distinct_reports(order, limit.clamp(1, 50), 0).await?;
+        Ok(reports.iter().map(growth_repository_stat).collect())
     }
 
     async fn distinct_reports(
@@ -776,9 +965,9 @@ impl Store {
         let row = sqlx::query(
             r#"
             INSERT INTO jobs (
-                id, status, provider, owner, repo, commit_sha, tokei_version, created_at, updated_at
+                id, status, provider, owner, repo, commit_sha, tokei_version, source, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
             RETURNING id, status, report_id, error::text AS error, created_at, updated_at
             "#,
         )
@@ -789,6 +978,7 @@ impl Store {
         .bind(key.repo)
         .bind(key.commit_sha)
         .bind(key.tokei_version)
+        .bind(source_to_str(&key.source))
         .bind(now)
         .fetch_one(&self.pool)
         .await?;
@@ -889,6 +1079,7 @@ pub struct JobKey<'a> {
     pub repo: &'a str,
     pub commit_sha: &'a str,
     pub tokei_version: &'a str,
+    pub source: AnalysisSource,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -974,6 +1165,74 @@ pub fn provider_from_str(provider: &str) -> Option<RepositoryProvider> {
     }
 }
 
+pub fn source_to_str(source: &AnalysisSource) -> &'static str {
+    match source {
+        AnalysisSource::Web => "web",
+        AnalysisSource::Extension => "extension",
+        AnalysisSource::GitHubAction => "github_action",
+        AnalysisSource::Cli => "cli",
+        AnalysisSource::Mcp => "mcp",
+        AnalysisSource::Api => "api",
+        AnalysisSource::Seed => "seed",
+        AnalysisSource::Unknown => "unknown",
+    }
+}
+
+fn source_from_str(source: &str) -> AnalysisSource {
+    match source {
+        "web" => AnalysisSource::Web,
+        "extension" => AnalysisSource::Extension,
+        "github_action" => AnalysisSource::GitHubAction,
+        "cli" => AnalysisSource::Cli,
+        "mcp" => AnalysisSource::Mcp,
+        "api" => AnalysisSource::Api,
+        "seed" => AnalysisSource::Seed,
+        _ => AnalysisSource::Unknown,
+    }
+}
+
+fn growth_repository_stat(report: &Report) -> GrowthRepositoryStat {
+    GrowthRepositoryStat {
+        provider: report.repository.provider,
+        owner: report.repository.owner.clone(),
+        repo: report.repository.name.clone(),
+        public_path: report_public_path(report),
+        html_url: report.repository.html_url.clone(),
+        ref_name: report.ref_name.clone(),
+        generated_at: report.generated_at,
+        total: report.total.clone(),
+        top_language: report
+            .languages
+            .first()
+            .map(|language| language.name.clone()),
+    }
+}
+
+fn report_public_path(report: &Report) -> String {
+    match report.repository.provider {
+        RepositoryProvider::GitHub => format!(
+            "/github/{}/{}",
+            encode_segment(&report.repository.owner),
+            encode_segment(&report.repository.name)
+        ),
+        RepositoryProvider::GitLab => format!(
+            "/gitlab/{}/{}",
+            report
+                .repository
+                .owner
+                .split('/')
+                .map(encode_segment)
+                .collect::<Vec<_>>()
+                .join("/"),
+            encode_segment(&report.repository.name)
+        ),
+    }
+}
+
+fn encode_segment(value: &str) -> String {
+    urlencoding::encode(value).replace("%2F", "/")
+}
+
 fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
     let Some(sqlx::Error::Database(database_error)) = error.downcast_ref::<sqlx::Error>() else {
         return false;
@@ -987,8 +1246,8 @@ fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
 mod tests {
     use super::{CleanupConfig, JobKey, Store};
     use crate::models::{
-        AnalysisOptions, JobStatus, LanguageReport, LanguageStats, Report, Repository,
-        RepositoryProvider,
+        AnalysisOptions, AnalysisSource, JobStatus, LanguageReport, LanguageStats, Report,
+        Repository, RepositoryProvider,
     };
     use chrono::{Duration, Utc};
     use sqlx::postgres::PgPoolOptions;
@@ -1003,7 +1262,10 @@ mod tests {
         let owner = unique_name("octo");
         let mut report = test_report("report-cached", &owner, 100);
         report.cached = false;
-        store.save_report(&report).await.unwrap();
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
 
         let cached = store
             .cached_report(&owner, "count", "abc123", "tokei-test:default")
@@ -1023,11 +1285,17 @@ mod tests {
         };
         let owner = unique_name("octo");
         store
-            .save_report(&test_report("report-upsert-1", &owner, 100))
+            .save_report(
+                &test_report("report-upsert-1", &owner, 100),
+                AnalysisSource::Unknown,
+            )
             .await
             .unwrap();
         store
-            .save_report(&test_report("report-upsert-2", &owner, 250))
+            .save_report(
+                &test_report("report-upsert-2", &owner, 250),
+                AnalysisSource::Unknown,
+            )
             .await
             .unwrap();
 
@@ -1049,7 +1317,10 @@ mod tests {
         };
         let owner = unique_name("octo");
         let report = test_report("report-by-id", &owner, 100);
-        store.save_report(&report).await.unwrap();
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
         store
             .force_report_access_metadata(&report.id, Utc::now() - Duration::hours(2), 3)
             .await
@@ -1060,6 +1331,36 @@ mod tests {
 
         assert_eq!(loaded.id, report.id);
         assert_eq!(access_count, 4);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn growth_stats_aggregate_public_reports() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let first = test_report("report-growth-1", &owner, 100);
+        let mut second = test_report("report-growth-2", &owner, 250);
+        second.commit_sha = "def456".to_string();
+        store
+            .save_report(&first, AnalysisSource::Web)
+            .await
+            .unwrap();
+        store
+            .save_report(&second, AnalysisSource::Extension)
+            .await
+            .unwrap();
+
+        let stats = store.growth_stats().await.unwrap();
+
+        assert_eq!(stats.totals.reports_generated, 2);
+        assert_eq!(stats.totals.repositories_analyzed, 1);
+        assert_eq!(stats.totals.code_lines_counted, 350);
+        assert_eq!(stats.windows.reports_30d, 2);
+        assert_eq!(stats.sources.iter().map(|row| row.reports).sum::<i64>(), 2);
+        assert!(stats.languages.iter().any(|row| row.language == "Rust"));
+        assert_eq!(stats.top_repositories.len(), 1);
         store.drop_schema().await;
     }
 
@@ -1192,7 +1493,10 @@ mod tests {
         };
         let owner = unique_name("octo");
         let report = test_report("report-young", &owner, 100);
-        store.save_report(&report).await.unwrap();
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
 
         let stats = cleanup(&store, CleanupConfig::default()).await;
 
@@ -1211,7 +1515,10 @@ mod tests {
             let id = format!("report-cold-{index}");
             let mut report = test_report(&id, &owner, 100 + index);
             report.commit_sha = format!("abc123-{index}");
-            store.save_report(&report).await.unwrap();
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
             store
                 .force_report_timestamps(
                     &id,
@@ -1350,6 +1657,7 @@ mod tests {
             repo: "count",
             commit_sha: "abc123",
             tokei_version: "tokei-test:default",
+            source: AnalysisSource::Unknown,
         }
     }
 

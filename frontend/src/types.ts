@@ -30,6 +30,7 @@ export type LanguageReport = {
 };
 
 export type RepositoryProvider = "github" | "gitlab" | "gitHub" | "gitLab";
+export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mcp" | "api" | "seed" | "unknown";
 
 export type Report = {
   id: string;
@@ -55,4 +56,38 @@ export type JobRecord = {
   status: JobStatus;
   reportId?: string;
   error?: { code: string; message: string };
+};
+
+export type GrowthStats = {
+  totals: {
+    reportsGenerated: number;
+    repositoriesAnalyzed: number;
+    linesCounted: number;
+    codeLinesCounted: number;
+    languagesDetected: number;
+  };
+  windows: {
+    reportsToday: number;
+    reports7d: number;
+    reports30d: number;
+    repositoriesToday: number;
+    repositories7d: number;
+    repositories30d: number;
+  };
+  sources: Array<{ source: AnalysisSource; reports: number }>;
+  languages: Array<{ language: string; code: number; lines: number; reports: number }>;
+  topRepositories: GrowthRepositoryStat[];
+  recentRepositories: GrowthRepositoryStat[];
+};
+
+export type GrowthRepositoryStat = {
+  provider: RepositoryProvider;
+  owner: string;
+  repo: string;
+  publicPath: string;
+  htmlUrl: string;
+  refName: string;
+  generatedAt: string;
+  total: Stats;
+  topLanguage?: string;
 };

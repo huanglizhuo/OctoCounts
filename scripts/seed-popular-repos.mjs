@@ -64,6 +64,7 @@ async function seedRepo(repo) {
       repoUrl,
       refName: repo.refName,
       forceRefresh,
+      source: "seed",
     });
 
     if (analyze.kind === "cached") {
