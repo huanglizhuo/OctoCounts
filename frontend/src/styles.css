@@ -303,6 +303,18 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.brand:hover .brand-name,
+.brand:focus-visible .brand-name {
+  color: var(--accent);
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .brand .logo {
@@ -431,6 +443,7 @@ body {
   color: var(--fg-mute);
   background: color-mix(in srgb, var(--bg) 42%, transparent);
   border-right: 1px solid var(--rule);
+  text-decoration: none;
 }
 
 .report-rail a {

@@ -51,8 +51,34 @@ const publicReportLinks = [
 
 const RECENT_KEY = "octocounts.recentRepos";
 const RECENT_MAX = 5;
+const THEME_KEY = "octocounts.theme";
 
 type RecentEntry = { repoUrl: string; refName: string; label: string };
+
+function systemScheme(): Scheme {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper";
+}
+
+function readStoredScheme(): Scheme | null {
+  try {
+    const value = localStorage.getItem(THEME_KEY);
+    return value === "matrix" || value === "paper" || value === "amber" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function preferredScheme(): Scheme {
+  return readStoredScheme() ?? systemScheme();
+}
+
+function persistScheme(scheme: Scheme) {
+  try {
+    localStorage.setItem(THEME_KEY, scheme);
+  } catch {
+    /* storage unavailable — theme still applies for the current page */
+  }
+}
 
 function loadRecentRepos(): RecentEntry[] {
   try {
@@ -96,9 +122,7 @@ function App() {
   if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
-  const [scheme, setScheme] = useState<Scheme>(() =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
-  );
+  const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
   const [refName, setRefName] = useState(() => initialRequest.refName);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => defaultAnalysisOptions);
@@ -209,6 +233,7 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
+    persistScheme(scheme);
   }, [scheme]);
 
   useEffect(() => {
@@ -218,13 +243,6 @@ function App() {
   useEffect(() => {
     syncPageMetadata({ report, repoUrl, refName, defaultTitle: t("app.title"), defaultDescription: t("app.description") });
   }, [report, repoUrl, refName, t, i18n.language]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => setScheme(e.matches ? "matrix" : "paper");
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -461,9 +479,7 @@ type SeoListResponse = {
 
 function MarketingShell({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
-  const [scheme, setScheme] = useState<Scheme>(() =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper"
-  );
+  const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
 
   useEffect(() => {
     initAnalytics();
@@ -471,18 +487,12 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.scheme = scheme;
+    persistScheme(scheme);
   }, [scheme]);
 
   useEffect(() => {
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => setScheme(e.matches ? "matrix" : "paper");
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   return (
     <>
@@ -836,19 +846,19 @@ function Topbar() {
   const reportsActive = publicReportLinks.slice(1).some((item) => isActive(item.href));
   return (
     <header className="topbar">
-      <div className="brand">
+      <a className="brand" href="/" aria-label={t("topbar.brandName")}>
         <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt={t("topbar.brandName") + " logo"} /></div>
         <div>
           <span className="brand-name">{t("topbar.brandName")}</span>
         </div>
-      </div>
+      </a>
       <div className="topbar-links">
         <a className={`github-link signal-link ${isActive("/stats") ? "active" : ""}`} href="/stats" aria-current={isActive("/stats") ? "page" : undefined}>
           <span className="signal-dot" aria-hidden="true" />
           <span>{t("growth.nav.stats.label")}</span>
         </a>
         <nav className={`report-rail ${reportsActive ? "active" : ""}`} aria-label={t("growth.navAria")}>
-          <span className="report-rail-label">{t("growth.reportsLabel")}</span>
+          <a className="report-rail-label" href="/recent">{t("growth.reportsLabel")}</a>
           {publicReportLinks.slice(1).map((item) => (
             <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
               {t(`growth.nav.${item.key}.label`)}
