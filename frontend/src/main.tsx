@@ -120,6 +120,8 @@ function App() {
   if (routePath === "/recent") return <ReportListPage kind="recent" />;
   if (routePath === "/popular") return <ReportListPage kind="popular" />;
   if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
+  if (routePath === "/compare") return <ComparePage />;
+  if (routePath === "/diff") return <DiffPage />;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
@@ -340,8 +342,6 @@ function App() {
           </div>
         </section>
 
-        <PublicReportIndex />
-
         <section>
           <div className="section-h">
             <h2>{t("runner.title")}</h2>
@@ -360,6 +360,8 @@ function App() {
             onRerun={() => void runAnalysis(true)}
           />
         </section>
+
+        <PublicReportIndex />
 
         <section>
           <div className="section-h">
@@ -596,19 +598,42 @@ function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) 
 
   return (
     <MarketingShell>
-      <section className="growth-hero" aria-label={copy.title}>
+      <section className="growth-hero list-hero" aria-label={copy.title}>
         <span className="chart-tag">{copy.kicker}</span>
         <h1>{copy.title}</h1>
         <p>{copy.subtitle}</p>
-        <div className="growth-nav">
-          <a className="copybtn" href="/">{t("growth.actions.analyze")}</a>
-          <a className="copybtn" href="/stats">{t("growth.actions.stats")}</a>
-          <a className="copybtn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer">{t("growth.actions.chrome")}</a>
-        </div>
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError /> : null}
       {query.data ? <SeoReportGrid reports={query.data.reports} /> : null}
+    </MarketingShell>
+  );
+}
+
+function ComparePage() {
+  const { t } = useTranslation();
+  return (
+    <MarketingShell>
+      <section className="growth-hero tool-hero" aria-label={t("compare.title")}>
+        <span className="chart-tag">{t("compare.subtitle")}</span>
+        <h1>{t("compare.title")}</h1>
+        <p>{t("compare.help")}</p>
+      </section>
+      <CompareRepos showHelp={false} />
+    </MarketingShell>
+  );
+}
+
+function DiffPage() {
+  const { t } = useTranslation();
+  return (
+    <MarketingShell>
+      <section className="growth-hero tool-hero" aria-label={t("diff.title")}>
+        <span className="chart-tag">{t("diff.subtitle")}</span>
+        <h1>{t("diff.title")}</h1>
+        <p>{t("diff.help")}</p>
+      </section>
+      <DiffRefs showHelp={false} />
     </MarketingShell>
   );
 }
@@ -1280,7 +1305,7 @@ function csvList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-function CompareRepos() {
+function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
   const { t } = useTranslation();
   const initialCompare = useMemo(() => initialCompareFromLocation(), []);
   const [leftRepo, setLeftRepo] = useState(initialCompare.leftRepo);
@@ -1315,7 +1340,7 @@ function CompareRepos() {
 
   return (
     <div className="compare-panel">
-      <p className="compare-help">{t("compare.help")}</p>
+      {showHelp ? <p className="compare-help">{t("compare.help")}</p> : null}
       <form className="compare-form" onSubmit={(event) => void runCompare(event)}>
         <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
         <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
@@ -1429,7 +1454,7 @@ function CompareResults({ left, right }: { left: Report; right: Report }) {
   );
 }
 
-function DiffRefs() {
+function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
   const { t } = useTranslation();
   const initialDiff = useMemo(() => initialDiffFromLocation(), []);
   const [repo, setRepo] = useState(initialDiff.repo);
@@ -1463,7 +1488,7 @@ function DiffRefs() {
 
   return (
     <div className="compare-panel diff-panel">
-      <p className="compare-help">{t("diff.help")}</p>
+      {showHelp ? <p className="compare-help">{t("diff.help")}</p> : null}
       <form className="compare-form diff-form" onSubmit={(event) => void runDiff(event)}>
         <fieldset className="compare-field">
           <legend>{t("diff.repo")}</legend>

@@ -19,16 +19,18 @@
     <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <style>
       :root { color-scheme: light dark; }
-      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
       nav, .meta, .note { color: #57606a; }
       h1, h2, h3 { line-height: 1.2; color: #111827; }
       h1 { font-size: clamp(2rem, 5vw, 3.1rem); letter-spacing: 0; margin: 0 0 16px; }
       h2 { font-size: 1.45rem; margin: 36px 0 12px; }
       a { color: #0969da; }
       code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
-      code { padding: 1px 5px; }
-      pre { padding: 14px; overflow: auto; }
-      table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
       th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
       th { background: #f6f8fa; }
       .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
