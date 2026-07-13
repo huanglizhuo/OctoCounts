@@ -8,6 +8,7 @@
     "prebuild": "npm run copy-fonts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
+    "test:seo": "npm run build && node --test tests/seo.test.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

@@ -28,7 +28,7 @@ npx hyperframes render --output renders/octocounts-intro.mp4
 
 The composition declares these variables:
 
-- `repoName`: default `huanglizhuo/OctoCount`
+- `repoName`: default `huanglizhuo/OctoCounts`
 - `headline`: default `The SLOC panel GitHub forgot`
 - `cta`: default `Install the extension or paste a repo URL`
 - `theme`: `matrix`, `paper`, or `amber`

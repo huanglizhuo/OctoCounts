@@ -2,8 +2,8 @@
 
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
-Source code: https://github.com/huanglizhuo/OctoCount
-Last-Updated: 2026-07-06
+Source code: https://github.com/huanglizhuo/OctoCounts
+Last-Updated: 2026-07-13
 
 ## What OctoCounts Does
 
@@ -41,9 +41,9 @@ For private repositories, run tokei locally.
 - Recent reports: https://octocounts.com/recent
 - Popular reports: https://octocounts.com/popular
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
-- Methodology: https://octocounts.com/docs/methodology.html
-- SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
-- API docs: https://octocounts.com/docs/api.html
+- Methodology: https://octocounts.com/docs/methodology
+- SLOC guide: https://octocounts.com/docs/github-sloc-counter
+- API docs: https://octocounts.com/docs/api
 - Sitemap: https://octocounts.com/sitemap.xml
 
 ## Report URL Patterns
@@ -104,9 +104,9 @@ GET /badge/:owner/:repo/commit/:sha
 ## Badge Examples
 
 ```markdown
-[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCount)](https://octocounts.com/github/huanglizhuo/OctoCount)
-[![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?type=code)](https://octocounts.com/github/huanglizhuo/OctoCount)
-[![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCount?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCount)
+[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCounts)](https://octocounts.com/github/huanglizhuo/OctoCounts)
+[![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCounts?type=code)](https://octocounts.com/github/huanglizhuo/OctoCounts)
+[![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCounts?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCounts)
 ```
 
 Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `top-language`, and `ratio`. Use `lang=LanguageName` for a single-language badge.

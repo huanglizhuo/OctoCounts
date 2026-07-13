@@ -16,7 +16,7 @@ jobs:
   sloc:
     runs-on: ubuntu-latest
     steps:
-      - uses: huanglizhuo/OctoCount/action@main
+      - uses: huanglizhuo/OctoCounts/action@main
         with:
           github-token: ${{ github.token }}
 ```

@@ -6,11 +6,11 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/popular", lastmod: "2026-07-10", priority: "0.7" },
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-10", priority: "0.7" },
   { loc: "https://octocounts.com/launch-kit.html", lastmod: "2026-07-10", priority: "0.5" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter.html", lastmod: "2026-07-06", priority: "0.8" },
-  { loc: "https://octocounts.com/docs/api.html", lastmod: "2026-07-06", priority: "0.7" },
-  { loc: "https://octocounts.com/docs/methodology.html", lastmod: "2026-07-06", priority: "0.7" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-06", priority: "0.6" },
-  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-07-06", priority: "0.5" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-07-13", priority: "0.8" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-07-13", priority: "0.7" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-07-13", priority: "0.7" },
+  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-13", priority: "0.6" },
+  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-07-13", priority: "0.5" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-07-04", priority: "0.3" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-07-04", priority: "0.3" },
 ];
@@ -18,6 +18,11 @@ const STATIC_SITEMAP_ENTRIES = [
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+
+  const legacyDoc = LEGACY_DOC_REDIRECTS[url.pathname];
+  if (legacyDoc) {
+    return Response.redirect(new URL(legacyDoc, url.origin), 308);
+  }
 
   if (url.pathname === "/sitemap.xml") {
     return sitemapResponse(context);
@@ -42,6 +47,12 @@ export async function onRequest(context) {
 
   return context.env.ASSETS.fetch(context.request);
 }
+
+const LEGACY_DOC_REDIRECTS = {
+  "/docs/github-sloc-counter.html": "/docs/github-sloc-counter",
+  "/docs/methodology.html": "/docs/methodology",
+  "/docs/api.html": "/docs/api",
+};
 
 function parseGitHubRoute(parts) {
   const marker = parts[3];
@@ -236,9 +247,9 @@ function injectReport(index, report, apiBaseUrl) {
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
-    <li><a href="/docs/github-sloc-counter.html">GitHub SLOC counter guide</a></li>
-    <li><a href="/docs/methodology.html">Counting methodology</a></li>
-    <li><a href="/docs/api.html">OctoCounts API docs</a></li>
+    <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+    <li><a href="/docs/methodology">Counting methodology</a></li>
+    <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p><table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   const jsonSummary = reportSummaryJson(report);
@@ -293,7 +304,7 @@ function reportSummaryJson(report) {
     topLanguage: report.topLanguage,
     languages: report.languages,
     citation: report.citation,
-    methodology: "https://octocounts.com/docs/methodology.html",
+    methodology: "https://octocounts.com/docs/methodology",
   };
 }
 

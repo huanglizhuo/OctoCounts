@@ -14,19 +14,19 @@
 | # | 项目 | 类型 | 优先级 | 状态 |
 |---|------|------|--------|------|
 | 0.x | 落地页 badge builder / compare / diff / 分享卡 / 打字微演示 / 速度展示 / badge wall | 产品 | — | ✅ 已完成 |
-| 1 | Programmatic SEO(报告页可索引) | 增长 | P0 | ⬜ |
-| 2 | 动态 OG 图(每个报告链接一张卡) | 增长 | P0 | ⬜ |
-| 3 | GEO / AI 搜索优化(llms.txt 等) | 增长 | P0 | ⬜ |
-| 4 | 隐私友好 Analytics(增长前提) | 基建 | P0 | ⬜ |
+| 1 | Programmatic SEO(报告页可索引) | 增长 | P0 | ✅ 已完成 |
+| 2 | 动态 OG 图(每个报告链接一张卡) | 增长 | P0 | ✅ 已完成 |
+| 3 | GEO / AI 搜索优化(llms.txt 等) | 增长 | P0 | ✅ 已完成 |
+| 4 | 隐私友好 Analytics(增长前提) | 基建 | P0 | ✅ 已完成 |
 | 5 | README 改造(GIF、主题展示、对比表) | 转化 | P1 | ⬜ |
-| 6 | 插件内 GitHub Star 请求 | 增长 | P1 | ⬜ |
+| 6 | 插件内 GitHub Star 请求 | 增长 | P1 | ✅ 已完成 |
 | 7 | Edge Add-ons 上架 | 渠道 | P1 | ⬜ |
 | 8 | Launch 计划(Show HN / PH / 中文社区) | 渠道 | P1 | ⬜(非代码) |
 | 9 | GitLab 支持一致性 | 产品 | P1 | ✅ 已决策:放弃 GitLab,收窄为 GitHub-only(方案 B) |
-| 10 | GitHub Action(PR SLOC diff 评论) | 渠道 | P2 | ⬜ |
-| 11 | npx CLI(`octocounts`) | 渠道 | P2 | ⬜ |
-| 12 | MCP server(`octocounts-mcp`) | 渠道 | P2 | ⬜ |
-| 13 | Hall of Monoliths 排行榜页 | 内容 | P3 | ⬜ |
+| 10 | GitHub Action(PR SLOC diff 评论) | 渠道 | P2 | ✅ 已完成 |
+| 11 | npx CLI(`octocounts`) | 渠道 | P2 | ✅ 已完成 |
+| 12 | MCP server(`octocounts-mcp`) | 渠道 | P2 | ✅ 已完成 |
+| 13 | Hall of Monoliths 排行榜页 | 内容 | P3 | ✅ 已完成 |
 | 14 | 大版本发布追踪内容 | 内容 | P3 | ⬜(半自动) |
 | 15 | 商店 listing 优化 | 转化 | P3 | ⬜ |
 
@@ -120,7 +120,7 @@ meta 注入路由必须部署在用户实际命中的那一层。
    "As of {date} (commit {sha}), {owner}/{repo} contains {lines} total lines: {code} code, {comments} comments,
    {blanks} blank, across {files} files in {n} languages (top: {lang} {pct}%). Counted with tokei via OctoCounts."
    ——AI 引擎最容易摘取这种 passage。
-4. API 文档页(已有 `/docs/api.html`)顶部加同样的方法论说明,鼓励引用。
+4. API 文档页(已有 `/docs/api`)顶部加同样的方法论说明,鼓励引用。
 
 **验收**:llms.txt 可访问;用 Perplexity 问 3 个已收录仓库的行数,观察是否引用 octocounts.com(需 P0-1 收录后数周)。
 
@@ -183,13 +183,13 @@ README 缺少动图与"为什么不用 X"的回答。
 **实现方案**:
 
 1. **Footer 常驻链接(必做)**:`extension/src/popup/index.html:147` 的 footer(现有 `v0.4.x · privacy · report issue`)
-   增加 `★ star` 链接 → `https://github.com/huanglizhuo/OctoCount`。i18n 键加进 `extension/src/i18n` 的 en/zh。
+   增加 `★ star` 链接 → `https://github.com/huanglizhuo/OctoCounts`。i18n 键加进 `extension/src/i18n` 的 en/zh。
 2. **价值时刻一次性提示(转化主力)**:
    - 触发:content script 第 N 次(建议 N=4)成功渲染 SLOC 卡片后,在卡片底部插入一行可关闭提示;
    - 文案:en `// saved you a clone? star the repo →`,zh `// 省了一次 clone?给个 star →`;
    - 状态:`chrome.storage.local` 记 `successCount` 与 `starPromptDismissed`,关闭或点击后永不再显示;
    - 样式:复用卡片现有 CSS 变量,一行文字 + × 关闭钮,不做弹窗/动画。
-3. **可选加分项**:footer star 链接旁显示 star 数(GitHub 匿名 API `GET /repos/huanglizhuo/OctoCount`,
+3. **可选加分项**:footer star 链接旁显示 star 数(GitHub 匿名 API `GET /repos/huanglizhuo/OctoCounts`,
    `stargazers_count`,结果缓存 `chrome.storage` 24h,失败静默隐藏)。
 4. **商店评分分流**:提示出现第二次机会留给商店评分——若用户点了 star 提示的关闭而非链接,
    在第 10 次成功后展示一次 `enjoying octocounts? rate it on the web store →`(同样一次性)。
@@ -274,7 +274,7 @@ GitLab 返回 401,被 `resolve_gitlab_ref` 的 `_ => NotFound` 兜底吞掉,用�
 3. 注意:API 需确认对 CI 来源的限流策略(按 IP 的限流对 GitHub runner 不友好,考虑给 action 一个共享 App token
    或放宽 SHA 精确命中缓存时的限流)。
 
-**验收**:在 OctoCount 仓库自 dogfood:开 PR 自动出现 SLOC diff 评论且后续 push 更新同一条评论。
+**验收**:在 OctoCounts 仓库自 dogfood:开 PR 自动出现 SLOC diff 评论且后续 push 更新同一条评论。
 **工作量**:2–3 天。
 
 ---

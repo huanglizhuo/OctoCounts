@@ -52,7 +52,8 @@ services:
 
   web:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_BASE: http://127.0.0.1:8080
     ports:

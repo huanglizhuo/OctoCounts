@@ -336,7 +336,7 @@ function App() {
 
         <section className="trust-strip" aria-label={t("hero.ariaTrust")}>
           <div className="social-proof">
-            <a href="https://github.com/huanglizhuo/OctoCount" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
+            <a href="https://github.com/huanglizhuo/OctoCounts" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
             <span className="proof-badge">{t("hero.badgeFree")}</span>
             <span className="proof-badge">{t("hero.badgeLanguages")}</span>
           </div>
@@ -445,8 +445,8 @@ function App() {
           <span>{t("footer.tagline")}</span>
           <span>
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
-            <a href="/docs/api.html">{t("footer.apiDocs")}</a> &middot;
-            <a href="/docs/github-sloc-counter.html">{t("footer.slocGuide")}</a> &middot;
+            <a href="/docs/api">{t("footer.apiDocs")}</a> &middot;
+            <a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a> &middot;
             <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
             <a href="/popular">{t("growth.nav.popular.label")}</a> &middot;
             <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot;
@@ -793,20 +793,20 @@ function DeveloperTools() {
     {
       title: "GitHub Action",
       text: "Comment SLOC changes on pull requests so reports travel through review workflows.",
-      command: "uses: huanglizhuo/OctoCount/action@main",
-      href: "https://github.com/huanglizhuo/OctoCount/tree/main/action",
+      command: "uses: huanglizhuo/OctoCounts/action@main",
+      href: "https://github.com/huanglizhuo/OctoCounts/tree/main/action",
     },
     {
       title: "CLI",
       text: "Run OctoCounts from a terminal or CI script and print text or JSON summaries.",
       command: "npx octocounts https://github.com/owner/repo --json",
-      href: "https://github.com/huanglizhuo/OctoCount/tree/main/cli",
+      href: "https://github.com/huanglizhuo/OctoCounts/tree/main/cli",
     },
     {
       title: "MCP server",
       text: "Expose SLOC reports to agent workflows and developer assistants through MCP tools.",
       command: "npx octocounts-mcp",
-      href: "https://github.com/huanglizhuo/OctoCount/tree/main/mcp",
+      href: "https://github.com/huanglizhuo/OctoCounts/tree/main/mcp",
     },
     {
       title: "README badge",
@@ -818,7 +818,7 @@ function DeveloperTools() {
       title: "API",
       text: "Use analyze, jobs, reports, badge, SEO, and stats endpoints directly.",
       command: "GET https://api.octocounts.com/api/stats",
-      href: "/docs/api.html",
+      href: "/docs/api",
     },
   ];
 
@@ -1606,7 +1606,7 @@ function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: 
 }
 
 const badgeWallEntries: Array<{ owner: string; repo: string; type: (typeof badgeTypes)[number] }> = [
-  { owner: "huanglizhuo", repo: "OctoCount", type: "summary" },
+  { owner: "huanglizhuo", repo: "OctoCounts", type: "summary" },
   { owner: "tokio-rs", repo: "axum", type: "code" },
   { owner: "vitejs", repo: "vite", type: "top-language" },
 ];

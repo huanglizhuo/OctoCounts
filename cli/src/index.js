@@ -149,7 +149,7 @@ function sampleReport() {
   return {
     commitSha: "0123456789abcdef",
     refName: "main",
-    repository: { owner: "huanglizhuo", name: "OctoCount" },
+    repository: { owner: "huanglizhuo", name: "OctoCounts" },
     total: { files: 88, lines: 24567, code: 18120, comments: 3021, blanks: 3426 },
     languages: [
       { name: "TypeScript", stats: { files: 42, lines: 12600, code: 9400, comments: 1300 } },

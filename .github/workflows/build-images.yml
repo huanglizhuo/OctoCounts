@@ -38,10 +38,12 @@ jobs:
         include:
           - name: api
             context: ./backend
+            dockerfile: ./backend/Dockerfile
             image_var: IMAGE_API
             build_args: ""
           - name: web
-            context: ./frontend
+            context: .
+            dockerfile: ./frontend/Dockerfile
             image_var: IMAGE_WEB
             build_args: |
               VITE_API_BASE=${{ github.event.inputs.vite_api_base || '/api' }}
@@ -73,6 +75,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

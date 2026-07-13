@@ -14,7 +14,7 @@ Claude/Cursor-style config:
   "mcpServers": {
     "octocounts": {
       "command": "node",
-      "args": ["/absolute/path/to/OctoCount/mcp/src/index.js"],
+      "args": ["/absolute/path/to/OctoCounts/mcp/src/index.js"],
       "env": {
         "OCTOCOUNTS_API_BASE": "https://api.octocounts.com"
       }

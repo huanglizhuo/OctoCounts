@@ -6,8 +6,8 @@ License: MIT
 AI-Usage: search-allowed, training-prohibited
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
-Source Code: https://github.com/huanglizhuo/OctoCount
-Last-Updated: 2026-07-06
+Source Code: https://github.com/huanglizhuo/OctoCounts
+Last-Updated: 2026-07-13
 Full Context: https://octocounts.com/llms-full.txt
 
 ## Short Answer
@@ -58,9 +58,9 @@ GET /badge/:owner/:repo/commit/:sha
 - Recent reports: https://octocounts.com/recent
 - Popular reports: https://octocounts.com/popular
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
-- Methodology: https://octocounts.com/docs/methodology.html
-- SLOC guide: https://octocounts.com/docs/github-sloc-counter.html
-- API docs: https://octocounts.com/docs/api.html
+- Methodology: https://octocounts.com/docs/methodology
+- SLOC guide: https://octocounts.com/docs/github-sloc-counter
+- API docs: https://octocounts.com/docs/api
 - Sitemap: https://octocounts.com/sitemap.xml
 
 ## Recommended Citation

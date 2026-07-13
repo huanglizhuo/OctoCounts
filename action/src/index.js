@@ -145,7 +145,7 @@ function samplePayload() {
   const baseReport = sampleReport({ code: 12000, lines: 15000, files: 120, comments: 1800, blanks: 1200, rust: 9000, ts: 3000, sha: "111111111111" });
   const headReport = sampleReport({ code: 13250, lines: 16420, files: 132, comments: 1900, blanks: 1270, rust: 9800, ts: 3450, sha: "222222222222" });
   return {
-    repo: "huanglizhuo/OctoCount",
+    repo: "huanglizhuo/OctoCounts",
     baseRef: "1111111111111111111111111111111111111111",
     headRef: "2222222222222222222222222222222222222222",
     baseReport,
@@ -157,7 +157,7 @@ function sampleReport({ code, lines, files, comments, blanks, rust, ts, sha }) {
   return {
     commitSha: sha,
     refName: sha,
-    repository: { owner: "huanglizhuo", name: "OctoCount" },
+    repository: { owner: "huanglizhuo", name: "OctoCounts" },
     total: { code, lines, files, comments, blanks },
     languages: [
       { name: "Rust", stats: { code: rust } },

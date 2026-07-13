@@ -1,4 +1,4 @@
-export const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCount";
+export const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCounts";
 export const defaultRefName = "e92153946164";
 export const extensionInfo = {
   name: "OctoCounts – GitHub SLOC & Code Statistics",
