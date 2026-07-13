@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Chrome and Firefox extensions
+    name: Build Chrome, Edge, and Firefox extensions
     runs-on: ubuntu-latest
 
     defaults:
@@ -38,7 +38,10 @@ jobs:
         run: npm ci
 
       - name: Build extensions
-        run: npm run build
+        env:
+          EDGE_STORE_URL: ${{ secrets.EDGE_STORE_URL }}
+          EDGE_STORE_REVIEW_URL: ${{ secrets.EDGE_STORE_REVIEW_URL }}
+        run: npm run build:all
 
       - name: Compute package names
         id: package
@@ -56,13 +59,15 @@ jobs:
           echo "firefox_zip=octocounts-firefox-v${version}-${short_sha}.zip" >> "$GITHUB_OUTPUT"
 
       - name: Package extensions
+        env:
+          EDGE_STORE_URL: ${{ secrets.EDGE_STORE_URL }}
+          EDGE_STORE_REVIEW_URL: ${{ secrets.EDGE_STORE_REVIEW_URL }}
         run: |
-          mkdir -p packages
-          # Edge is Chromium — the Chrome MV3 build is uploaded to the Edge
-          # Add-ons store as-is, just packaged under an Edge-labelled name.
-          (cd dist/chrome && zip -r "../../packages/${{ steps.package.outputs.chrome_zip }}" .)
-          (cd dist/chrome && zip -r "../../packages/${{ steps.package.outputs.edge_zip }}" .)
-          (cd dist/firefox && zip -r "../../packages/${{ steps.package.outputs.firefox_zip }}" .)
+          if [[ "$GITHUB_REF" == refs/tags/extension-v* ]]; then
+            node scripts/package-artifacts.mjs --release
+          else
+            node scripts/package-artifacts.mjs
+          fi
 
       - name: Upload Chrome extension artifact
         uses: actions/upload-artifact@v4

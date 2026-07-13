@@ -36,7 +36,7 @@
     "fresh": "fresh",
     "starPrompt": "// saved you a clone? star the repo →",
     "starDismiss": "Dismiss",
-    "ratingPrompt": "// still useful? rate OctoCounts on Chrome →",
+    "ratingPrompt": "// still useful? rate OctoCounts on {{storeName}} →",
     "ratingDismiss": "Dismiss",
     "lines": "lines",
     "table": {

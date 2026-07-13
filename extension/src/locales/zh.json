@@ -36,7 +36,7 @@
     "fresh": "全新",
     "starPrompt": "// 省了一次 clone?给个 star →",
     "starDismiss": "关闭",
-    "ratingPrompt": "// 还顺手吗?去 Chrome 商店评分 →",
+    "ratingPrompt": "// 还顺手吗？去 {{storeName}} 评分 →",
     "ratingDismiss": "关闭",
     "lines": "行数",
     "table": {

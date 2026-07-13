@@ -4,11 +4,22 @@
 
 Versions are defined in one place: `package.json`. The build injects the version everywhere else automatically — you never edit the manifest files or the popup HTML directly.
 
-At build time (`npm run build`), `vite.config.js` reads the version from `package.json` and:
-- Writes it into `dist/chrome/manifest.json` and `dist/firefox/manifest.json`
+At build time (`npm run build:all`), `vite.config.js` reads the version from `package.json` and:
+- Writes it into `dist/chrome/manifest.json`, `dist/edge/manifest.json`, and `dist/firefox/manifest.json`
 - Replaces the `v__VERSION__` placeholder in the popup footer with the real version
+- Writes target-specific store metadata to each artifact's `build-info.json`
 
-The manifest source files (`manifests/manifest.chrome.json`, `manifests/manifest.firefox.json`) and `src/popup/index.html` intentionally hold placeholder values — editing them has no effect on built output.
+The manifest source files under `manifests/` and `src/popup/index.html` intentionally hold placeholder versions — the build injects the package version.
+
+The Edge listing is still pending. A normal `npm run build:edge` uses an explicit Microsoft Edge Add-ons placeholder and disables the rating prompt. Release packaging is intentionally blocked until both approved URLs are configured:
+
+```bash
+EDGE_STORE_URL=https://microsoftedge.microsoft.com/addons/detail/... \
+EDGE_STORE_REVIEW_URL=https://microsoftedge.microsoft.com/addons/detail/.../reviews \
+npm run package:release
+```
+
+`npm run package:artifacts` creates versioned Chrome, Edge, and Firefox archives for local/CI verification. It never re-labels the Chrome directory as an Edge build.
 
 ## How to release
 
@@ -27,4 +38,4 @@ npm run release 0.2.3   # explicit version
 3. Create a git tag: `extension-v<version>`
 4. Push the commit and tag to origin
 
-The `extension-v*` tag triggers the GitHub Actions workflow (`.github/workflows/extension-release.yml`), which builds both the Chrome and Firefox extensions and publishes them as a GitHub release with the zip files attached.
+The `extension-v*` tag triggers the GitHub Actions workflow (`.github/workflows/extension-release.yml`), which builds Chrome, Edge, and Firefox independently and publishes target-named zip files. The tag build fails clearly if the approved Edge store URLs have not been configured as repository secrets.

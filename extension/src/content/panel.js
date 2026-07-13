@@ -3,14 +3,14 @@ import { t } from '../i18n/index.js';
 import { formatNumber, formatCompact, formatPercent, textReport } from '../shared/format.js';
 import { languageColor } from '../shared/chart.js';
 import { sortRows } from '../shared/sort.js';
+import { BUILD_INFO } from '../shared/buildInfo.js';
 
 let _panelHost = null;
 let _prevFocus = null;
 
 // Dismissible star nudge shown in the panel footer. It stays until the user
 // interacts with it once (clicks the link or the × close).
-const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCount';
-const CHROME_STORE_REVIEW_URL = 'https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj/reviews';
+const STAR_REPO_URL = 'https://github.com/huanglizhuo/OctoCounts';
 const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
 const STAR_PROMPT_MIN_SUCCESSES = 4;
 const RATING_PROMPT_MIN_SUCCESSES = 8;
@@ -77,10 +77,6 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
   maybeShowGrowthNudge(shadow);
 }
 
-function isFirefoxBuild() {
-  return Boolean(chrome.runtime.getManifest?.().browser_specific_settings?.gecko);
-}
-
 async function maybeShowGrowthNudge(shadow) {
   let state;
   try {
@@ -110,7 +106,7 @@ async function maybeShowGrowthNudge(shadow) {
     return;
   }
 
-  if (isFirefoxBuild()) return;
+  if (!BUILD_INFO.ratingPromptEnabled) return;
   if (state.ratingPromptDismissed) return;
   if (successCount < RATING_PROMPT_MIN_SUCCESSES) return;
 
@@ -118,8 +114,8 @@ async function maybeShowGrowthNudge(shadow) {
     className: 'oc-rating-prompt',
     linkClassName: 'oc-rating-link',
     closeClassName: 'oc-rating-close',
-    href: CHROME_STORE_REVIEW_URL,
-    text: t('panel.ratingPrompt'),
+    href: BUILD_INFO.reviewUrl,
+    text: t('panel.ratingPrompt', { storeName: BUILD_INFO.storeName }),
     dismissLabel: t('panel.ratingDismiss'),
     storageKey: 'ratingPromptDismissed',
   });

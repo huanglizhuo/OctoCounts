@@ -36,7 +36,7 @@
     "fresh": "récent",
     "starPrompt": "// un clone évité ? mettez une étoile →",
     "starDismiss": "Fermer",
-    "ratingPrompt": "// toujours utile ? notez OctoCounts sur Chrome →",
+    "ratingPrompt": "// toujours utile ? notez OctoCounts sur {{storeName}} →",
     "ratingDismiss": "Fermer",
     "lines": "lignes",
     "table": {

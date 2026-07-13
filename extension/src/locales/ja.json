@@ -36,7 +36,7 @@
     "fresh": "最新",
     "starPrompt": "// clone を節約できた? リポジトリに star を →",
     "starDismiss": "閉じる",
-    "ratingPrompt": "// まだ便利ですか? Chrome で評価 →",
+    "ratingPrompt": "// まだ便利ですか？{{storeName}} で評価 →",
     "ratingDismiss": "閉じる",
     "lines": "行数",
     "table": {

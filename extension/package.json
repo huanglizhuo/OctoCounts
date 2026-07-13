@@ -4,8 +4,13 @@
   "private": true,
   "scripts": {
     "build:chrome": "vite build --config vite.config.js --mode chrome",
+    "build:edge": "vite build --config vite.config.js --mode edge",
     "build:firefox": "vite build --config vite.config.js --mode firefox",
-    "build": "npm run build:chrome && npm run build:firefox",
+    "build:all": "npm run build:chrome && npm run build:edge && npm run build:firefox",
+    "build": "npm run build:all",
+    "test": "npm run build:all && node --test tests/build-artifacts.test.mjs",
+    "package:artifacts": "npm run build:all && node scripts/package-artifacts.mjs",
+    "package:release": "npm run build:all && node scripts/package-artifacts.mjs --release",
     "dev": "vite build --config vite.config.js --mode chrome --watch",
     "release": "node scripts/release.js"
   },

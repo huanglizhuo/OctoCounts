@@ -1,5 +1,6 @@
 import { t } from '../i18n/index.js';
 import { DEFAULT_SETTINGS } from '../shared/settings.js';
+import { BUILD_INFO } from '../shared/buildInfo.js';
 
 const $ = id => document.getElementById(id);
 
@@ -76,8 +77,7 @@ initClearCache();
 setFooterVersion();
 
 function setFooterVersion() {
-  const manifest = chrome.runtime.getManifest();
-  $('footerVersion').textContent = `v${manifest.version}`;
+  $('footerVersion').textContent = `v${BUILD_INFO.version}`;
 }
 
 async function checkPageStatus() {
