@@ -1,376 +1,1040 @@
-# OctoCounts Growth Implementation Task Log
+# OctoCounts — Code Growth & Extension Execution Plan
 
-## Context
+> Implementation handoff for GPT-5.6 Terra.
+>
+> This is the active, self-contained backlog and implementation handoff. It replaces the previous completed-task log because the workspace filesystem treats `task.md` and `TASK.md` as the same path.
 
-OctoCounts is a GitHub SLOC tool with:
+## 1. Objective
 
-- Web app: https://octocounts.com/
-- Chrome/Firefox browser extension that injects SLOC stats into GitHub repo pages.
-- Backend using Rust/Axum/SQLx/Postgres/tokei.
-- Frontend using React/TypeScript/Vite/TanStack Query.
-- Extension using MV3 native JavaScript.
+Grow OctoCounts through two reinforcing loops:
 
-Product purpose:
+1. **Extension loop:** install → first successful GitHub report → repeat repository visits → compare/share/rate.
+2. **Data loop:** repository analysis → useful canonical data page → search/AI discovery → extension install or README badge → new referral traffic.
 
-- GitHub shows language percentages but does not show actual file and line counts.
-- OctoCounts fills that gap without cloning by downloading public GitHub archives, running tokei, caching by commit, and showing files/lines/code/comments/blanks per language.
-- Users can export reports as text/JSON/PNG and generate README badges.
+The implementation must improve activation, retention, reliability, and discoverability without weakening the current privacy promise or turning the extension into a second copy of the web app.
 
-Important user-provided correction:
+## 2. Mandatory Working Rules
 
-- The Chrome extension already has about 6,800 weekly users.
-- Growth work should treat this as an existing-traction product, not a cold start.
-- Edge Add-ons submission is already in review, so Edge listing work is excluded from this task list.
+- Read `PRODUCT.md`, `README.md`, this task file, `GROWTH.md`, and the project memory before implementation.
+- Use codebase-memory-mcp graph tools first for code discovery: `search_graph`, `trace_path`, then `get_code_snippet`.
+- Work in the numbered order unless a dependency explicitly permits safe parallel work.
+- Make one focused commit per task or coherent subtask. Do not mix unrelated cleanup.
+- Preserve all unrelated user changes in the worktree.
+- Use additive database/schema changes. Do not destructively rewrite production data.
+- Keep Chrome and Firefox builds passing; add Edge as an explicit build target rather than treating it as an alias silently.
+- All new user-facing extension strings must be added to every existing locale or have an intentional English fallback verified in tests.
+- All new indexable pages must have server-rendered/crawlable content, a single canonical URL, useful unique content, and internal links.
+- Do not add new extension permissions unless the task explicitly requires one and the implementation documents the reason.
+- After completing a task, update its status in this file from `pending` to `completed` and append verification evidence.
 
-Existing repo notes:
+## 3. Existing Baseline — Do Not Reimplement
 
-- `GROWTH.md` already records a broad roadmap.
-- Existing implemented assets include SEO pages, sitemap, `robots.txt`, `llms.txt`, recent/popular pages, OG/report routes, badge builder, compare/diff, PNG export, and plugin star nudge.
-- The current task should focus only on work that can be implemented in this codebase now.
+The following already exists and should be reused:
 
-## Current Priority Order
+- Public GitHub repository analysis with commit-level caching.
+- Chrome/Firefox MV3 extension with automatic GitHub sidebar card injection.
+- Extension local cache, request deduplication, settings sync, fork skipping, placement, GitHub-language replacement, error persistence, TXT/JSON export, README badge copy, Compare link, Star prompt, and Chrome rating prompt.
+- Permanent report URLs, server-injected report HTML, JSON-LD, citable answer blocks, dynamic OG images, sitemap, robots.txt, `llms.txt`, `llms-full.txt`, methodology/API/SLOC docs.
+- `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`, Badge Builder, `/compare`, `/diff`, PNG sharing, and web analytics events.
+- GitHub Action, CLI, MCP server, popular-repository seed script, and launch kit.
+- Privacy-preserving aggregate request `source` reporting. Do not replace it with user-level telemetry.
 
-1. Existing-user conversion:
-   - Add Chrome Web Store rating prompt in extension.
-   - Ensure prompt is respectful, one-time, and only after repeated successful value.
-   - Improve analytics events for web funnel.
+## 4. Explicit Non-Goals
 
-2. GitHub propagation:
-   - Make badge links default to permanent report pages.
-   - Add stronger report completion CTAs.
-   - Add extension-side copy README badge action.
+These are stored in project memory and must not be implemented without explicit product-owner approval:
 
-3. Search/content growth:
-   - Add repo seed script for popular repositories.
-   - Improve list/report pages and citable content where needed.
-   - Add comparison/SEO docs if they fit cleanly.
+- Private repository support or GitHub OAuth/token handling.
+- Heavy/user-level extension analytics, installation IDs, browsing history, repository-history telemetry, IP hashing, or user event streams.
+- Large onboarding tours, modal walkthroughs, or multi-step tutorials.
+- Default browser notifications or background alerts.
+- Rebuilding all web-app functionality inside the extension.
+- Restoring GitLab support.
+- Unjustified permission expansion.
 
-4. Developer distribution:
-   - GitHub Action MVP.
-   - `npx` CLI.
-   - MCP server.
+## 5. Priority and Impact Model
 
-## Execution Rules
+- **P0:** correctness, imminent Edge readiness, activation, or high-confidence retention/indexing work. Complete first.
+- **P1:** high-impact product differentiation, reliability, and original-data acquisition surfaces.
+- **P2:** compounding content/data surfaces with larger implementation scope.
+- **P3:** valuable enhancements that should follow measured evidence from P0–P2.
+- **Impact 5:** directly affects most users or creates a durable growth loop.
+- **Impact 4:** affects a major funnel stage or protects product reputation.
+- **Impact 3:** useful differentiator or conversion improvement with narrower reach.
 
-- Work through tasks in priority order.
-- Update this file after each completed task.
-- Prefer codebase-memory-mcp graph tools for code discovery.
-- Use `apply_patch` for manual edits.
-- Do not revert unrelated user changes.
-- Run relevant builds/checks after each area and full checks at the end when feasible.
+## 6. Ranked Backlog
 
-## Task List
+| Rank | ID | Priority | Impact | Effort | Task | Status |
+|---:|---|:---:|:---:|:---:|---|---|
+| 1 | T01 | P0 | 5 | S | Canonical, entity, repository URL, and version consistency | completed |
+| 2 | T02 | P0 | 5 | S | Explicit Chrome/Edge/Firefox build targets and store routing | completed |
+| 3 | T03 | P0 | 5 | M | Extension “since last visit” repository delta | pending |
+| 4 | T04 | P0 | 4 | S | Contextual first-value activation flow | pending |
+| 5 | T05 | P0 | 4 | S | IndexNow submission for new/updated canonical data pages | pending |
+| 6 | T06 | P0 | 4 | M | Sitemap/indexability quality gate | pending |
+| 7 | T07 | P1 | 5 | M | GitHub-native fork, branch, tag, and commit comparison actions | pending |
+| 8 | T11 | P1 | 5 | M | GitHub DOM compatibility tests and resilient insertion fallback | pending |
+| 9 | T12 | P1 | 5 | L | Release-to-release SLOC pages and automated release watcher | pending |
+| 10 | T13 | P1 | 5 | L | Repository history snapshots, trends, and RSS | pending |
+| 11 | T08 | P1 | 4 | S | Current-tab SLOC in the extension action badge | pending |
+| 12 | T09 | P1 | 4 | M | Popup current-repository dashboard and card quick actions | pending |
+| 13 | T10 | P1 | 4 | S | Value-signal-based Star/rating prompts | pending |
+| 14 | T14 | P1 | 4 | M | Language data hubs and leaderboards | pending |
+| 15 | T15 | P1 | 4 | M | Curated framework/tool comparison landing pages | pending |
+| 16 | T16 | P2 | 4 | M | Localized SEO entry pages with stable locale URLs and hreflang | pending |
+| 17 | T17 | P2 | 4 | S | Extension-specific Chrome/Edge/Firefox landing pages | pending |
+| 18 | T18 | P2 | 3 | M | README badge adopter discovery and showcase | pending |
+| 19 | T19 | P3 | 3 | L | Explicit analysis profiles and exclusions | pending |
+| 20 | T20 | P3 | 3 | S | Deeper GitHub language filtering and code-search actions | pending |
 
-### T12. Privacy-preserving growth dashboard
+---
 
-Status: completed
+## T01 — Canonical, Entity, Repository URL, and Version Consistency
 
-Updated user direction:
+**Priority:** P0
+**Impact:** 5/5
+**Effort:** Small
+**Status:** completed
 
-- Do not use Chrome Web Store weekly user count.
-- Do not depend on Chrome CSV exports.
-- Add backend growth dashboard metrics based on OctoCounts-owned aggregate product activity.
-- Keep privacy boundary clear: no extension user IDs, no IP hashing, no DAU/WAU, no browser history, no user-level event stream.
-- Verify each implemented frontend page with browser MCP/in-app browser.
+### Why
 
-Implementation plan:
+Production currently mixes the renamed GitHub repository `huanglizhuo/OctoCounts` with the old `huanglizhuo/OctoCount`. Static documentation URLs also redirect from `.html` to extensionless URLs while canonical tags and sitemap entries still point to `.html`. The home-page software schema contains a stale extension version.
 
-1. Add source-aware backend stats:
-   - Accept optional analyze request source: `web`, `extension`, `github_action`, `cli`, `mcp`, `api`, `seed`, `unknown`.
-   - Persist source on new reports/jobs.
-   - Aggregate from report rows only: total reports, unique public repos, total lines/code, reports today/7d/30d, new repos today/7d/30d, source breakdown, language SLOC, top repos, recent repos.
-2. Add public API:
-   - `GET /api/stats`
-3. Add frontend pages:
-   - `/stats` public growth dashboard.
-   - `/recent` real recent report list.
-   - `/popular` real popular report list.
-   - `/hall-of-monoliths` real largest repo list.
-4. Add source markers:
-   - Web app requests send `source: "web"`.
-   - Extension sends `source: "extension"`.
-   - CLI sends `source: "cli"`.
-   - GitHub Action sends `source: "github_action"`.
-   - MCP sends `source: "mcp"`.
-   - Seed script sends `source: "seed"`.
-5. Update privacy policy and homepage/README discoverability:
-   - Explain aggregate operational metrics.
-   - Expose Stats, Action, CLI, MCP, Badge, API from main surfaces.
-6. Verification:
-   - Backend tests/check where feasible.
-   - Frontend build.
-   - Extension build if extension source changes.
-   - Browser verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`.
+These inconsistencies fragment SEO signals, confuse AI/entity extraction, and cause extension support/Star links to depend on GitHub’s old-repository redirect behavior.
 
-Completed implementation:
+### Implementation
 
-- Added privacy-preserving `source` to analyze requests and persisted it on jobs/reports.
-- Added `GET /api/stats` with aggregate totals, windows, source breakdown, language totals, largest repositories, and recent repositories.
-- Added Rust test coverage for the stats aggregation query.
-- Added frontend `/stats`, `/recent`, `/popular`, and `/hall-of-monoliths` views.
-- Added homepage developer tools section for Stats, GitHub Action, CLI, MCP, README badges, and API.
-- Updated extension, CLI, GitHub Action, MCP, seed script, badge API, and web app request sources.
-- Updated privacy policy, API docs, and README to reflect aggregate dashboard metrics and developer distribution surfaces.
-- Added scheduled/manual GitHub Actions workflow to seed popular public repository report inventory.
-- Added `/launch-kit.html` with launch copy, links, screenshot, and badge snippet.
-- Added stats, list pages, and launch kit to the static sitemap.
+1. Replace old repository URLs with `https://github.com/huanglizhuo/OctoCounts` in user-facing source, examples, schema, docs, badge samples, extension footer, Star prompt, CLI/Action/MCP links, and initial sample report.
+2. Select extensionless documentation URLs as canonical because production currently redirects `.html` to extensionless paths:
+   - `/docs/github-sloc-counter`
+   - `/docs/methodology`
+   - `/docs/api`
+3. Update canonical, OG URL, JSON-LD `mainEntityOfPage`, sitemap entries, internal links, `llms.txt`, `llms-full.txt`, and generated sitemap route constants to use the same extensionless URLs.
+4. Keep 308 redirects from legacy `.html` URLs.
+5. Remove hard-coded `softwareVersion` drift:
+   - Prefer build-time injection from `extension/package.json` or a root product-version source.
+   - Add a build/test assertion that page schema version matches the packaged Chrome extension version.
+6. Update `GROWTH.md` status summary so already deployed SEO/GEO/analytics/Action/CLI/MCP work is not shown as pending.
 
-Verification completed:
+### Likely Files
 
-- `cargo test` in `backend`: passed, 31 tests.
-- `cargo fmt --check` in `backend`: passed.
-- `npm run build` in `frontend`: passed.
-- `npm run build` in `extension`: passed.
-- CLI sample JSON smoke test: passed.
-- GitHub Action sample comment smoke test: passed.
-- Seed dry-run smoke test: passed.
-- Browser MCP/in-app browser desktop verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`: passed, content rendered and no horizontal overflow.
-- Browser MCP/in-app browser 390px mobile verification for `/stats`, `/recent`, `/popular`, `/hall-of-monoliths`: passed, content rendered and no horizontal overflow.
-- Browser MCP/in-app browser desktop and 390px mobile verification for `/launch-kit.html`: passed, content and images rendered and no horizontal overflow.
-- `seed-popular-repos.yml` parsed successfully with Ruby YAML.
+- `frontend/index.html`
+- `frontend/functions/[[path]].js`
+- `frontend/src/constants.ts`
+- `frontend/src/main.tsx`
+- `frontend/src/initialReport.json`
+- `frontend/public/sitemap.xml`
+- `frontend/public/llms.txt`
+- `frontend/public/llms-full.txt`
+- `frontend/public/docs/*.html`
+- `frontend/public/privacy.html`
+- `frontend/public/contact.html`
+- `frontend/public/launch-kit.html`
+- `extension/src/content/panel.js`
+- `extension/src/popup/index.html`
+- `README.md`, `GROWTH.md`
 
-### T1. Extension rating prompt
+### Acceptance Criteria
 
-Status: completed
+- Repository-wide search finds no user-facing `huanglizhuo/OctoCount` URL that is not intentionally documented as a legacy redirect.
+- Every canonical URL returns 200 directly and self-canonicals to itself.
+- Legacy `.html` URLs return 308 to the canonical extensionless URL.
+- Sitemap, canonical, OG URL, JSON-LD, and internal links agree.
+- Homepage schema version matches `extension/package.json` after a production build.
+- Frontend and extension builds pass.
 
-Goal:
+### Verification
 
-- Convert a fraction of 6,800 weekly Chrome users into Chrome Web Store ratings/reviews.
+```bash
+rg 'huanglizhuo/OctoCount([^s]|$)' .
+curl -I https://octocounts.com/docs/methodology
+curl -I https://octocounts.com/docs/methodology.html
+curl -s https://octocounts.com/docs/methodology | rg 'canonical|og:url'
+```
 
-Behavior:
+### Verification Evidence — 2026-07-13
 
-- Trigger after repeated successful repo SLOC renders.
-- Should not show on first use.
-- Should be dismissible.
-- Should persist dismissal in `chrome.storage.local`.
-- Should not replace the GitHub star prompt; it can appear after or alongside current one-time nudges without stacking multiple prompts in the same panel.
-- Chrome-specific store link should open in a new tab.
+- `cd frontend && npm run test:seo`: passed 7/7, including Cloudflare and Nginx legacy redirects, direct canonical routes, canonical/OG/JSON-LD agreement, static/dynamic sitemap agreement, production-image version-source availability, and built schema version `0.4.1` matching `extension/package.json`.
+- `cd frontend && npx playwright test`: passed 8/8 desktop/mobile browser QA tests.
+- `cd backend && cargo fmt --check && cargo test`: passed; 31/31 backend tests.
+- `cd action && npm run sample` and `cd cli && npm run sample:json`: passed with `huanglizhuo/OctoCounts` report identities and URLs.
+- Repository/source and generated-artifact searches find no old `OctoCount` identity outside this task's intentional legacy description/assertion.
+- Docker-equivalent isolated-context verification passed: a clean temporary `/app` received only the Dockerfile's frontend COPY inputs, adjacent `/extension/package.json`, a fresh `npm ci`, and `npm run build`; generated schema contained `"softwareVersion": "0.4.1"`. The focused test also locks Compose/CI/Dockerfile context wiring.
 
-Likely files:
+---
 
+## T02 — Explicit Chrome/Edge/Firefox Build Targets and Store Routing
+
+**Priority:** P0
+**Impact:** 5/5
+**Effort:** Small
+**Status:** completed
+
+### Why
+
+Edge Add-ons is in review, but the extension build currently distinguishes only Firefox from “Chrome”. Store and review URLs are hard-coded, so an Edge user may be sent to the Chrome listing/review page.
+
+### Implementation
+
+1. Introduce an explicit build target: `chrome`, `edge`, or `firefox`.
+2. Generate separate output directories:
+   - `dist/chrome`
+   - `dist/edge`
+   - `dist/firefox`
+3. Create a shared runtime build-info module containing:
+   - browser/store identifier
+   - install/listing URL
+   - review URL
+   - store display name
+   - version
+4. Replace `isFirefoxBuild()` and Chrome-specific constants with target-aware helpers.
+5. Ensure Edge uses the final Microsoft Edge Add-ons URLs once approved. Until then, support an environment/build-time placeholder that fails the Edge release build clearly rather than silently falling back to Chrome.
+6. Add `npm` scripts for all targets and a `build:all` command.
+7. Update release packaging to emit clearly named archives with version and target.
+8. Add tests or build assertions that no Edge artifact contains a Chrome review URL and no Firefox artifact renders a Chromium rating prompt.
+
+### Likely Files
+
+- `extension/vite.config.js`
+- `extension/package.json`
+- `extension/scripts/release.js`
+- `extension/manifests/manifest.chrome.json`
+- optional new `extension/manifests/manifest.edge.json`
+- `extension/src/shared/buildInfo.js`
+- `extension/src/content/panel.js`
+- `extension/src/popup/index.js`
+
+### Acceptance Criteria
+
+- `npm run build:all` produces three valid artifacts.
+- Each artifact reports the correct version and store URLs.
+- Chrome, Edge, and Firefox do not show rating prompts for another store.
+- No additional runtime permission is introduced.
+
+### Verification Evidence — 2026-07-13
+
+- `cd extension && npm test`: passed 5/5 after independently building `dist/chrome`, `dist/edge`, and `dist/firefox`.
+- Artifact assertions verified target/store identity, version `0.4.1`, target-specific listing/review origins, identical permission/host-permission baselines, and absence of cross-store URLs.
+- `cd extension && npm run package:artifacts`: emitted `octocounts-{chrome,edge,firefox}-v0.4.1-274d1153.zip` from three independent build directories.
+- Pending Edge builds use an explicit Microsoft Edge Add-ons placeholder, set `storeConfigured: false`, and disable the rating prompt. The release-packaging test confirms a clear failure requiring `EDGE_STORE_URL` and `EDGE_STORE_REVIEW_URL`.
+- `.github/workflows/extension-release.yml` parsed successfully and packages the independent target directories; tag packaging invokes the Edge configuration guard.
+- `git diff --check`: passed.
+
+---
+
+## T03 — Extension “Since Last Visit” Repository Delta
+
+**Priority:** P0
+**Impact:** 5/5
+**Effort:** Medium
+**Status:** pending
+
+### Why
+
+The current extension delivers excellent first-use value but offers nearly the same result on repeat visits. A local “since last visit” delta turns a one-shot counter into a retention feature without accounts, tracking, or a new permission.
+
+### Data Model
+
+Store a bounded local snapshot after a successful user-visible render:
+
+```js
+lastSeen::<owner>/<repo> = {
+  commitSha,
+  refName,
+  seenAt,
+  total: { files, lines, code, comments, blanks },
+  languages: [{ name, files, lines, code, comments, blanks }]
+}
+```
+
+### Implementation
+
+1. Add a small snapshot module separate from API response cache.
+2. Compare the latest completed report with the prior snapshot for the same repository/ref.
+3. Present only meaningful changes:
+   - code line delta
+   - file delta
+   - changed/new/removed language count
+   - time since prior observation
+4. Add a compact card/panel message such as `+1,842 code lines since your last visit`.
+5. Provide `View full diff` linking to the existing web `/diff` route with base previous SHA and head current SHA.
+6. Do not overwrite the previous snapshot before calculating/rendering the delta.
+7. Update the snapshot after the result has been shown successfully.
+8. Bound storage by LRU count and age; integrate pruning with existing extension cache maintenance without conflating cache TTL with last-seen history.
+9. Do not transmit last-seen history to the backend.
+
+### Edge Cases
+
+- First visit: no delta UI.
+- Same SHA: optionally show `No code change since last visit`, but keep visually quiet.
+- Different ref: do not compare unless both snapshots represent the same ref or the UI labels the comparison explicitly.
+- Force refresh with unchanged SHA: do not create a false visit delta.
+- Missing old language data: degrade to total-only delta.
+
+### Likely Files
+
+- new `extension/src/background/history.js` or `extension/src/shared/history.js`
+- `extension/src/background/index.js`
 - `extension/src/content/card.js`
 - `extension/src/content/panel.js`
-- `extension/src/styles/panel.css`
-- `extension/src/locales/en.json`
-- `extension/src/locales/zh.json`
-- Other locale files if required by existing i18n pattern.
-
-Acceptance:
-
-- Prompt appears only after the configured success count.
-- Closing or clicking permanently suppresses it.
-- Build succeeds for Chrome and Firefox.
-- Firefox build does not break even if prompt points to Chrome only or is guarded.
-
-### T2. Web analytics event normalization
-
-Status: completed
-
-Goal:
-
-- Make the web funnel measurable for growth decisions.
-
-Events to verify/add:
-
-- `analyze_submitted`
-- `analyze_completed`
-- `badge_markdown_copied`
-- `png_exported`
-- `extension_store_click`
-- `report_url_copied`
-- `share_clicked` if share actions exist.
-
-Likely files:
-
-- `frontend/src/analytics.ts`
-- `frontend/src/main.tsx`
-- `frontend/src/BrowserExtensionSection.tsx`
-- `frontend/src/useAnalysisRunner.ts`
-
-Acceptance:
-
-- Events are emitted through existing Umami/Plausible helper.
-- Event names are consistent and documented in code where helpful.
-- Frontend build succeeds.
-
-### T3. Badge links default to permanent report pages
-
-Status: completed
-
-Goal:
-
-- Turn README badges into long-term SEO/report-page referral loops.
-
-Behavior:
-
-- Badge markdown should link to `/github/:owner/:repo` when possible instead of `/?q=...`.
-- Branch/tag/commit badge links should link to matching permanent report path if available.
-- Fallback remains valid for arbitrary input.
-
-Likely files:
-
-- `frontend/src/main.tsx`
-- `frontend/src/reportUtils.ts` if helper belongs there.
-- `README.md` examples.
-
-Acceptance:
-
-- Badge builder copied markdown points to permanent report URL.
-- README examples use report URLs.
-- Existing badge image URLs are unchanged.
-
-### T4. Stronger report completion CTAs
-
-Status: completed
-
-Goal:
-
-- After a successful analysis, make the next action a propagation action.
-
-Behavior:
-
-- Prioritize actions such as:
-  - Add/copy README badge.
-  - Copy report URL.
-  - Export/share PNG.
-  - Install extension.
-- Keep visual style aligned with terminal-native product voice.
-
-Likely files:
-
-- `frontend/src/main.tsx`
-- `frontend/src/styles.css`
-- `frontend/src/locales/en.json`
-- `frontend/src/locales/zh.json`
-
-Acceptance:
-
-- Successful report view exposes clear propagation CTAs.
-- Mobile and desktop layout remain stable.
-- Frontend build succeeds.
-
-### T5. Extension-side copy README badge action
-
-Status: completed
-
-Goal:
-
-- Let GitHub users copy a README badge directly from the injected stats panel.
-
-Behavior:
-
-- In detailed panel or card after successful render, provide copy badge markdown for current repo/ref where possible.
-- Track or otherwise label the copied action if extension analytics is not added.
-- Keep browser-store privacy risk low; no extension analytics unless intentionally added later.
-
-Likely files:
-
-- `extension/src/content/panel.js`
-- `extension/src/content/card.js`
+- `extension/src/styles/card.css`
 - `extension/src/styles/panel.css`
 - `extension/src/locales/*.json`
 
-Acceptance:
+### Acceptance Criteria
 
-- Copy button copies valid markdown.
-- Markdown image URL points to API badge.
-- Markdown link points to permanent report page.
-- Extension build succeeds.
+- Two reports for the same repo/ref with different SHAs show an accurate signed delta.
+- First visits and same-SHA visits do not show misleading changes.
+- History remains local, bounded, and clearable.
+- Existing API cache behavior is unchanged.
+- Unit tests cover additions, removals, new languages, removed languages, same SHA, and ref mismatch.
+- Chrome/Edge/Firefox builds pass.
 
-### T6. Popular repo seed script
+---
 
-Status: completed
+## T04 — Contextual First-Value Activation Flow
 
-Goal:
+**Priority:** P0
+**Impact:** 4/5
+**Effort:** Small
+**Status:** pending
 
-- Generate indexed report inventory for common high-intent searches.
+### Why
 
-Behavior:
+The current welcome banner is visible only if the user opens the popup. The extension’s real activation moment occurs on the first public GitHub repository where a report succeeds.
 
-- Add a script that reads a curated list of GitHub repos and calls the public/local analyze API.
-- Poll jobs until complete or failed.
-- Rate-limit requests.
-- Support dry-run and API base options.
+### Implementation
 
-Likely files:
+1. Define activation as:
+   - first successful report rendered, then
+   - user opens the detailed panel or uses a report action.
+2. After the first successful card render, show one dismissible contextual hint attached to the card:
+   - no modal
+   - no page-blocking overlay
+   - one sentence and one action
+3. Suggested copy: `OctoCounts is ready — click for language details →`.
+4. Persist `firstValueHintDismissed` or activation completion in `chrome.storage.local`.
+5. In the popup welcome state on non-repository pages, add a `Try on microsoft/vscode` sample button that opens a public repository.
+6. The hint must disappear permanently after panel open, explicit dismissal, or first report action.
+7. Do not combine the first-value hint with Star/rating prompts.
 
-- `scripts/seed-popular-repos.mjs` or similar.
-- `data/popular-repos.txt` or similar.
-- README/docs note if useful.
+### Likely Files
 
-Acceptance:
+- `extension/src/content/card.js`
+- `extension/src/content/panel.js`
+- `extension/src/popup/index.html`
+- `extension/src/popup/index.js`
+- `extension/src/styles/card.css`
+- `extension/src/locales/*.json`
 
-- Script can run against local or production API.
-- Dry run prints planned repos without network calls.
-- Failures are summarized.
+### Acceptance Criteria
 
-### T7. GitHub Action MVP
+- A new profile can install the extension and reach a real report without opening settings.
+- The hint appears once, never blocks GitHub controls, and is keyboard accessible.
+- Returning users never see the onboarding hint again.
+- No additional permission or analytics identifier is added.
 
-Status: completed
+---
 
-Goal:
+## T05 — IndexNow Submission for New/Updated Canonical Data Pages
 
-- Create a distributable channel where PRs show OctoCounts SLOC diff comments.
+**Priority:** P0
+**Impact:** 4/5
+**Effort:** Small
+**Status:** pending
 
-Scope:
+### Why
 
-- May be a new `action/` package in this repo.
-- Analyze base/head refs through existing API.
-- Generate markdown comment body.
-- Include hidden marker for upsert behavior.
+OctoCounts creates and updates canonical report pages continuously. Search engines should learn about high-quality report, release-diff, trend, language, and comparison pages without waiting for a full sitemap recrawl.
 
-Acceptance:
+### Implementation
 
-- Action files exist with clear README usage.
-- Local unit-level command or dry-run can generate a comment body.
+1. Add configuration for `INDEXNOW_KEY`, host, key-location URL, enable flag, batch size, and retry limits.
+2. Serve the IndexNow key file at the documented public location.
+3. Create an asynchronous URL submission service with:
+   - deduplication
+   - batching
+   - bounded retries with backoff
+   - timeout
+   - failure logging without failing report creation
+4. Trigger only after a canonical/indexable URL is newly created or materially updated.
+5. Submit canonical URLs only; never submit query-parameter variants or noindex pages.
+6. Support a dry-run/test mode and mock HTTP endpoint.
+7. Do not send every cache hit.
 
-### T8. CLI MVP
+### Likely Files
 
-Status: completed
+- `backend/src/config.rs`
+- `backend/src/store.rs`
+- `backend/src/seo.rs`
+- new `backend/src/indexnow.rs`
+- `backend/src/main.rs`
+- deployment env examples/config
 
-Goal:
+### Acceptance Criteria
 
-- Add npm-discoverable `npx octocounts owner/repo` style interface.
+- A newly indexable report queues exactly one canonical URL submission.
+- Cache hits do not trigger submissions.
+- Network failure does not fail analysis or report persistence.
+- Tests verify batching, deduplication, URL filtering, and retry behavior.
 
-Scope:
+---
 
-- May be a new `cli/` package.
-- Uses existing API.
-- Outputs terminal table and report URL.
+## T06 — Sitemap/Indexability Quality Gate
 
-Acceptance:
+**Priority:** P0
+**Impact:** 4/5
+**Effort:** Medium
+**Status:** pending
 
-- CLI can be run locally.
-- JSON mode exists.
+### Why
 
-### T9. MCP server MVP
+Not every analyzed repository deserves immediate inclusion in the sitemap. Low-information or disposable repositories can dilute crawl attention. Reports should remain shareable while indexation focuses on useful, original pages.
 
-Status: completed
+### Implementation
 
-Goal:
+1. Add an explainable indexability decision, not a black-box score.
+2. Candidate signals:
+   - curated seed status
+   - successful complete report
+   - non-empty description
+   - non-archived status
+   - fork status
+   - stars/watchers threshold bands
+   - report access count
+   - repeated independent analysis
+   - minimum meaningful source-file/code count
+3. Fetch/cache only required public GitHub metadata; avoid increasing analysis latency by placing enrichment off the critical path where possible.
+4. Store indexability state and reason codes so behavior is auditable.
+5. Include only indexable reports in sitemap/list-data intended for search.
+6. Serve low-score report pages normally but add `noindex,follow` and exclude them from sitemap.
+7. Curated popular seed repositories always qualify after a valid report.
+8. Add a re-evaluation job so a previously low-score page can become indexable after gaining access/popularity.
+9. Do not use stars as the only criterion.
 
-- Make OctoCounts usable from AI coding tools.
+### Likely Files
 
-Scope:
+- `backend/src/store.rs`
+- `backend/src/github.rs`
+- `backend/src/models.rs`
+- `backend/src/seo.rs`
+- `frontend/functions/[[path]].js`
+- `scripts/seed-popular-repos.mjs`
 
-- May be a new `mcp/` package.
-- Tools: `analyze_repo`, `compare_repos`.
-- Uses existing public API.
+### Acceptance Criteria
 
-Acceptance:
+- Sitemap contains only reports that pass the documented rule.
+- Low-score pages remain functional, canonical, and `noindex,follow`.
+- The indexability reason is testable and visible in internal logs/admin output.
+- Existing popular/recent/stats pages remain functional.
 
-- MCP server can run locally over stdio.
-- README gives Claude/Cursor-style config example.
+---
 
-## Progress Log
+## T07 — GitHub-Native Fork, Branch, Tag, and Commit Comparison Actions
 
-- 2026-07-09: Completed T9. Added `mcp/` package with no-dependency stdio MCP server exposing `analyze_repo` and `compare_repos`, README configuration example, and Content-Length framed JSON-RPC handling. Verified `initialize` and `tools/list` responses via a local framed-message smoke test, plus `node -c` syntax checks for new Node scripts.
-- 2026-07-09: Completed T8. Added `cli/` npm-style package with `octocounts` bin, no-dependency Node CLI, `--ref`, `--json`, `--api-base`, and `--sample` support. Verified with `node cli/src/index.js --sample` and `node cli/src/index.js --sample --json`.
-- 2026-07-09: Completed T7. Added `action/` GitHub Action MVP with `action.yml`, README, no-dependency Node 20 implementation, OctoCounts API polling, PR comment upsert via hidden marker, and local `--sample-comment` output. Verified with `node action/src/index.js --sample-comment`.
-- 2026-07-09: Completed T6. Added `data/popular-repos.txt` with 50 curated repos and `scripts/seed-popular-repos.mjs` with dry-run, API base, file, limit, concurrency, delay, polling, and force-refresh options. Verified with `node scripts/seed-popular-repos.mjs --dry-run --limit 5`.
-- 2026-07-09: Completed T5. Added a GitHub-only `Copy badge` action to the extension detail panel. It copies API badge markdown linked to the permanent OctoCounts report page, updates the panel `open` link to the same permanent URL, adds locale strings, and `npm run build` passes in `extension/`.
-- 2026-07-09: Completed T4. Added a report completion CTA strip with README badge copy, report URL copy, PNG card export, and Chrome install actions. Added responsive CSS, i18n strings, and tracking for badge/report/store actions. `npm run build` passes in `frontend/`.
-- 2026-07-09: Completed T3. Frontend badge embed/builder already linked to permanent report URLs. Updated README badge examples so badge clicks return to `/github/:owner/:repo`, `/tree/:ref`, or `/commit/:sha` report pages instead of query-parameter URLs.
-- 2026-07-09: Completed T2. Added `AnalyticsEvents`, normalized key web events, added `report_url_copied` via a report footer URL copy button, added `share_clicked` for compare/diff URL copies, standardized extension store click placements, and `npm run build` passes in `frontend/`.
-- 2026-07-09: Completed T1. Added a Chrome-only Web Store rating prompt after repeated successful extension use. It reuses the existing success counter, avoids stacking with the GitHub star prompt, persists dismissal/clicks, adds locale strings, and `npm run build` passes in `extension/` for Chrome and Firefox.
-- 2026-07-09: Created this task log from the current conversation and agreed priority order.
+**Priority:** P1
+**Impact:** 5/5
+**Effort:** Medium
+**Status:** pending
+
+### Why
+
+Showing SLOC is useful; explaining how the current GitHub context differs is differentiating. Reuse the existing web `/compare` and `/diff` capabilities rather than rebuilding the complete comparison UI in the extension.
+
+### Implementation Order
+
+1. Non-default branch → `Compare with default branch`.
+2. Fork → `Compare with upstream`.
+3. Tag → `Compare with previous release` when a prior tag can be resolved reliably.
+4. Commit → `Compare with parent` when a parent SHA is available.
+
+### Implementation
+
+1. Extend page-context parsing to return context type, current ref, default branch, upstream repository, prior tag, and parent SHA when available.
+2. Prefer data already embedded in GitHub’s rendered page; use GitHub public API only when required and cache metadata.
+3. Add one context-aware action in the detailed panel; do not crowd the base card.
+4. Build the existing canonical `/compare` or `/diff` URL with both sides prefilled.
+5. Label exactly what will be compared.
+6. If context is ambiguous, omit the action rather than guessing.
+
+### Likely Files
+
+- `extension/src/content/detect.js`
+- `extension/src/content/panel.js`
+- `extension/src/content/card.js`
+- `extension/src/shared/api.js`
+- `extension/src/locales/*.json`
+
+### Acceptance Criteria
+
+- Default-branch repo pages do not show a redundant branch comparison.
+- Fork pages correctly target upstream.
+- Refs containing `/` are encoded correctly.
+- Generated URLs load valid prefilled web comparisons.
+- No private-repo data or credentials are requested.
+
+---
+
+## T08 — Current-Tab SLOC in the Extension Action Badge
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Small
+**Status:** pending
+
+### Implementation
+
+1. After successful analysis, send the total code/line count and tab context to the background worker.
+2. Set a compact action badge per tab: `984`, `12k`, `1.2m`.
+3. Set a stable accessible badge color consistent with the product theme.
+4. Clear badge text when leaving a supported public repository.
+5. Show a short `!` only for actionable failures, then clear it; do not make error badges persistent.
+6. Avoid stale results across GitHub SPA navigation and tab reuse.
+
+### Likely Files
+
+- `extension/src/content/card.js`
+- `extension/src/content/index.js`
+- `extension/src/background/index.js`
+- shared formatting helper
+
+### Acceptance Criteria
+
+- The badge reflects the current tab only.
+- SPA navigation updates or clears it correctly.
+- Unsupported/private pages show no LOC badge.
+- No new permission is required.
+
+---
+
+## T09 — Popup Repository Dashboard and Card Quick Actions
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Medium
+**Status:** pending
+
+### Why
+
+The popup is currently settings-led. On a repository page, users are more likely to want current status and actions than cache configuration.
+
+### Implementation
+
+1. Add a top current-repository summary:
+   - owner/repository
+   - code/total lines
+   - ref and short SHA
+   - cached/fresh state
+   - last-seen delta when available
+2. Primary actions:
+   - Open details
+   - Compare
+   - Copy report URL
+   - Copy README badge
+3. Move settings into a visually secondary/collapsible region without hiding error recovery.
+4. Add a compact `···` action menu to the injected card with:
+   - Copy report URL
+   - Copy README badge
+   - Open full report
+   - Disable for this repository
+5. Do not add a permanent row of buttons to the base card.
+6. Reuse existing URL/badge helpers to prevent drift.
+
+### Acceptance Criteria
+
+- Current repository data appears without a redundant API analysis.
+- Quick actions work for branch/tag/commit refs.
+- Popup remains useful on non-repository and error pages.
+- Keyboard and screen-reader operation works.
+
+---
+
+## T10 — Value-Signal-Based Star/Rating Prompts
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Small
+**Status:** pending
+
+### Why
+
+The current prompts are based mainly on successful render counts. Automatic renders do not necessarily indicate satisfaction. Prompting after meaningful voluntary actions should improve review quality and reduce annoyance.
+
+### Implementation
+
+1. Keep existing one-time dismissal/click persistence.
+2. Record local-only positive-value flags/counts:
+   - panel opened repeatedly
+   - badge copied
+   - report URL copied
+   - TXT/JSON exported
+   - Compare/Diff opened
+3. Trigger Star/rating only when minimum success count **and** at least one positive-value signal are present.
+4. Suppress rating prompts when:
+   - a recent analysis error exists
+   - the current analysis was slow/failed/retried excessively
+   - onboarding hint is active
+   - another growth prompt is visible
+5. Use target-specific store URLs from T02.
+6. Do not add telemetry; all prompt eligibility remains local.
+
+### Acceptance Criteria
+
+- Passive automatic renders alone never produce a rating prompt.
+- Positive voluntary actions make an eligible prompt possible.
+- Each prompt remains one-time and dismissible.
+- Firefox and Edge never receive the Chrome review URL.
+
+---
+
+## T11 — GitHub DOM Compatibility Tests and Resilient Insertion Fallback
+
+**Priority:** P1
+**Impact:** 5/5
+**Effort:** Medium
+**Status:** pending
+
+### Why
+
+The extension depends on GitHub DOM structures such as `.BorderGrid`. A GitHub markup change can break the core experience for every user and generate store removals/negative reviews.
+
+### Implementation
+
+1. Add deterministic DOM fixtures for:
+   - standard public repository
+   - fork
+   - branch/tree
+   - tag
+   - commit
+   - private repository
+   - non-repository GitHub page
+2. Test repository detection, ref parsing, card insertion, re-insertion after mutation, SPA navigation cleanup, and fallback placement.
+3. Add a second insertion strategy when the primary language/sidebar container is unavailable.
+4. Make insertion selectors centralized and named, not scattered literals.
+5. Add a scheduled smoke workflow using Playwright against one or more real public GitHub repositories. It should detect markup breakage without mutating GitHub.
+6. Add diagnostic logging behind an explicit local debug flag.
+7. Optional remote configuration may disable a broken placement strategy, but it must:
+   - contain no user identity
+   - be cached
+   - fail open to a safe local default
+   - never become a remote-code mechanism
+
+### Acceptance Criteria
+
+- Fixture tests cover all listed page types.
+- A missing primary selector uses the fallback or fails visibly/diagnosably.
+- SPA route changes do not duplicate cards or leak observers/listeners.
+- Scheduled smoke test produces an actionable failure message.
+
+---
+
+## T12 — Release-to-Release SLOC Pages and Automated Release Watcher
+
+**Priority:** P1
+**Impact:** 5/5
+**Effort:** Large
+**Status:** pending
+
+### Why
+
+Release changes create recurring, timely, original data. They are more shareable and citable than a one-time repository total and reuse the existing immutable ref analysis.
+
+### Implementation
+
+1. Add a curated repository watch list, initially reusing high-interest seed repositories.
+2. Poll GitHub Releases/tags on a scheduled workflow with ETag/rate-limit handling.
+3. For each newly observed release:
+   - identify previous comparable release
+   - analyze both immutable refs
+   - store or derive totals and per-language delta
+   - generate a permanent canonical page
+4. Canonical route recommendation:
+   - `/github/:owner/:repo/releases/:from...:to`
+5. Server-render:
+   - direct summary answer
+   - totals table
+   - per-language changes
+   - methodology/ref/SHA/date
+   - links to both underlying reports
+6. Generate release-specific dynamic OG imagery.
+7. Add pages to sitemap only when both analyses are complete and the repository passes the indexability gate.
+8. Submit new canonical pages through IndexNow.
+9. Do not auto-publish arbitrary release prose; use deterministic data summaries.
+
+### Acceptance Criteria
+
+- A new release creates at most one comparison page.
+- Reruns are idempotent.
+- Pre-release/draft release behavior is explicitly configured.
+- Ref/SHA identity is reproducible.
+- Pages remain valid if GitHub later changes the default branch.
+
+---
+
+## T13 — Repository History Snapshots, Trends, and RSS
+
+**Priority:** P1
+**Impact:** 5/5
+**Effort:** Large
+**Status:** pending
+
+### Why
+
+Historical trends create return usage and a unique original dataset. They should build on release tracking, not snapshot every GitHub repository indiscriminately.
+
+### Implementation
+
+1. Start with curated/watchlisted repositories only.
+2. Store compact immutable snapshot summaries keyed by repository/ref/SHA/date; avoid duplicating full report bodies unnecessarily.
+3. Add a repository trends route:
+   - `/github/:owner/:repo/trends`
+4. Show:
+   - code/total line history
+   - files
+   - language mix changes
+   - comment ratio
+   - release annotations
+5. Render a crawlable textual summary/table in addition to charts.
+6. Add RSS/Atom feed per tracked repository for new release/change entries.
+7. Link trends from report pages and extension `since last visit` full-diff actions where appropriate.
+8. Enforce retention/downsampling policy so storage does not grow without bound.
+
+### Acceptance Criteria
+
+- Snapshot ingestion is idempotent by SHA and analysis profile.
+- Charts and tables show the same numbers.
+- RSS validates and contains canonical links.
+- No background tracking is enabled for arbitrary repositories by default.
+
+---
+
+## T14 — Language Data Hubs and Leaderboards
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Medium
+**Status:** pending
+
+### Initial Routes
+
+- `/languages/rust`
+- `/languages/python`
+- `/languages/typescript`
+- `/languages/javascript`
+- `/languages/go`
+
+### Implementation
+
+1. Derive language aggregates from indexable, quality-gated reports only.
+2. Each hub should include original useful data:
+   - largest repositories by code lines in that language
+   - repository count and total measured code
+   - median/percentile repository size where statistically valid
+   - language share and comment ratio
+   - methodology and sample timestamp
+3. Prevent one giant monorepo from making all aggregate copy meaningless; display sample size and use robust statistics.
+4. Server-render unique titles, descriptions, answer blocks, tables, canonical, JSON-LD Dataset/CollectionPage, and internal links.
+5. Add pagination only when enough qualified data exists; do not create empty thin pages.
+6. Add language hubs to sitemap and IndexNow when materially updated.
+
+### Acceptance Criteria
+
+- No language page is published below a documented minimum sample size.
+- Values are derived from canonical reports and reproducible queries.
+- Pages link to underlying evidence reports.
+- Mobile tables and charts remain usable.
+
+---
+
+## T15 — Curated Framework/Tool Comparison Landing Pages
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Medium
+**Status:** pending
+
+### Why
+
+Existing `/compare` query pages are interactive but not a curated indexable content set. A limited set of high-intent comparisons can produce useful, citable pages without generating combinatorial thin content.
+
+### Implementation
+
+1. Add a checked-in curated comparison registry, initially 10–20 pairs, for example React/Vue, Vite/Webpack, npm/pnpm, Fastify/Express.
+2. Generate stable routes such as `/compare/react-vs-vue`.
+3. Store exact repository identities and default/selected refs in the registry.
+4. Server-render:
+   - balanced direct summary
+   - totals comparison
+   - language overlap/differences
+   - methodology/ref/SHA/date
+   - links to both reports and interactive Compare UI
+5. Avoid subjective “better” claims based on SLOC.
+6. Rebuild/update only after source reports materially change.
+7. Do not create arbitrary pair permutations.
+
+### Acceptance Criteria
+
+- Only registry-approved comparisons are indexable.
+- Each page has current, reproducible source reports.
+- Copy clearly states that code size is not code quality.
+- Pages validate on mobile and expose useful non-JS HTML.
+
+---
+
+## T16 — Localized SEO Entry Pages with Stable Locale URLs and Hreflang
+
+**Priority:** P2
+**Impact:** 4/5
+**Effort:** Medium
+**Status:** pending
+
+### Initial Scope
+
+Start with English, Simplified Chinese, and Japanese entry content, not all report pages:
+
+- `/en/github-sloc-counter`
+- `/zh/github-sloc-counter`
+- `/ja/github-sloc-counter`
+- matching extension landing pages from T17
+
+### Implementation
+
+1. Use stable locale-prefixed URLs with fully localized visible content, titles, descriptions, FAQ, schema text, and CTAs.
+2. Add reciprocal `hreflang` links including self and `x-default`.
+3. Self-canonical each locale page; never canonical Chinese/Japanese pages to English.
+4. Add locale alternates to sitemap consistently.
+5. Keep the client-side language preference for the app, but do not use it as the SEO localization mechanism.
+6. Translate search intent and terminology naturally; do not ship raw literal translations.
+7. Do not multiply all programmatic report pages into every locale during this task.
+
+### Acceptance Criteria
+
+- Every locale URL returns 200 with the correct `<html lang>` and server-rendered language.
+- Canonical and hreflang clusters are reciprocal and valid.
+- Locale pages contain genuinely translated main content.
+
+---
+
+## T17 — Extension-Specific Chrome/Edge/Firefox Landing Pages
+
+**Priority:** P2
+**Impact:** 4/5
+**Effort:** Small
+**Status:** pending
+
+### Implementation
+
+1. Create distinct useful pages, not doorway-page copies:
+   - `/github-sloc-chrome-extension`
+   - `/github-sloc-edge-extension`
+   - `/github-sloc-firefox-extension`
+2. Include browser-specific installation CTA, screenshots, actual permissions, privacy explanation, supported GitHub contexts, troubleshooting, version, and store reviews link.
+3. Use browser-specific store URLs from the same source used by T02.
+4. Add WebApplication/SoftwareApplication schema only where accurate.
+5. Server-render and internally link from homepage/docs/report CTAs.
+6. Edge page may exist before approval but must clearly say `Under review` and must not expose a dead install CTA; switch through configuration after approval.
+
+### Acceptance Criteria
+
+- Each page materially differs by browser support/install/troubleshooting information.
+- Store links never cross browsers.
+- Version and permissions are generated from build sources rather than manually duplicated.
+
+---
+
+## T18 — README Badge Adopter Discovery and Showcase
+
+**Priority:** P2
+**Impact:** 3/5
+**Effort:** Medium
+**Status:** pending
+
+### Implementation
+
+1. Build a scheduled script that searches public GitHub code for `api.octocounts.com/badge` using an approved authenticated GitHub API workflow token.
+2. Store only public repository identity and discovered badge URL; no user profiling.
+3. Verify the badge still exists in the default-branch README before publishing.
+4. Add a `/showcase` page with repository links, visible badge, and report link.
+5. Respect GitHub API limits and remove stale adopters.
+6. Do not automatically open PRs, issues, or contact repository owners.
+7. Track aggregate adopter count for social proof when the count is meaningful.
+
+### Acceptance Criteria
+
+- Discovery is idempotent and rate-limit aware.
+- Showcase contains only verified public badge adopters.
+- Stale entries are removed after repeated failed verification.
+- No external repository is modified.
+
+---
+
+## T19 — Explicit Analysis Profiles and Exclusions
+
+**Priority:** P3
+**Impact:** 3/5
+**Effort:** Large
+**Status:** pending
+
+### Scope
+
+Provide a small set of reproducible profiles rather than an unrestricted ignore-pattern editor:
+
+- `full_repository`
+- `source_only`
+- `exclude_tests_and_docs`
+
+### Implementation
+
+1. Specify exact exclusions and semantics for each profile.
+2. Add profile to analyze request, cache key, report model, canonical/report display, badge/report citations, Action/CLI/MCP inputs, and methodology.
+3. Keep current behavior as the default profile for backward compatibility.
+4. Ensure two profiles for the same SHA do not collide in cache/storage.
+5. Expose profile selection in the web app and extension settings/panel only after backend support is complete.
+6. Clearly label every number with its profile.
+
+### Acceptance Criteria
+
+- Same SHA/profile is reproducible and cacheable.
+- Different profiles cannot share a report ID/cache record accidentally.
+- Existing callers without a profile continue to work.
+- Documentation lists exact exclusions and limitations.
+
+---
+
+## T20 — Deeper GitHub Language Filtering and Code-Search Actions
+
+**Priority:** P3
+**Impact:** 3/5
+**Effort:** Small
+**Status:** pending
+
+### Implementation
+
+1. Preserve the current language-row click behavior.
+2. Add an explicit secondary action for supported languages:
+   - open GitHub code search scoped to the repository/language
+3. Do not rely on undocumented modifier-key behavior alone; provide accessible labels/menu actions.
+4. Preserve selected sort/filter state within the detailed panel while it remains open.
+5. Correctly encode repository names and GitHub search qualifiers.
+
+### Acceptance Criteria
+
+- Language filter and code-search URLs work for representative languages.
+- Keyboard users can invoke every action.
+- Unsupported/ambiguous languages omit the code-search action rather than generating broken queries.
+
+---
+
+## 7. Cross-Cutting Test Matrix
+
+Every affected task must run the relevant subset; release candidates run all applicable checks.
+
+### Backend
+
+```bash
+cd backend
+cargo fmt --check
+cargo test
+```
+
+Add focused tests for:
+
+- schema/data migration safety
+- indexability decisions
+- IndexNow dedupe/batching/failure isolation
+- release comparison idempotency
+- history snapshot uniqueness
+- language aggregate correctness
+
+### Frontend
+
+```bash
+cd frontend
+npm run build
+npx playwright test
+```
+
+Verify desktop and 390px mobile layouts for every new public page. Check canonical, robots, hreflang, JSON-LD, OG, and crawlable HTML with direct HTTP requests.
+
+### Extension
+
+```bash
+cd extension
+npm run build:all
+```
+
+Test at minimum:
+
+- Chrome, Edge, Firefox artifact contents
+- standard repo, fork, branch, tag, commit, private repo, non-repo page
+- first run and returning run
+- same-SHA and changed-SHA last-seen delta
+- SPA navigation and tab switching
+- cache/error/offline fallback
+- keyboard navigation and reduced motion
+- store/review URLs per target
+
+### Privacy and Permissions
+
+For every extension change:
+
+- compare generated manifests before/after
+- document every new outbound request
+- verify no install ID/user ID/history telemetry was added
+- update privacy text only when actual collection behavior changes
+
+## 8. Suggested Delivery Batches
+
+### Batch A — Correctness and Edge readiness
+
+- T01
+- T02
+
+Release immediately after verification because these fix current inconsistencies and prepare the Edge review outcome.
+
+### Batch B — Activation and retention
+
+- T03
+- T04
+- T08
+- T10
+
+Measure with existing aggregate request-source data and store metrics; do not add user-level analytics.
+
+### Batch C — Extension differentiation and resilience
+
+- T07
+- T09
+- T11
+
+### Batch D — Search discovery quality
+
+- T05
+- T06
+- T14
+- T15
+- T17
+
+### Batch E — Recurring original data
+
+- T12
+- T13
+
+### Batch F — Expansion after evidence
+
+- T16
+- T18
+- T19
+- T20
+
+## 9. Completion Definition
+
+This plan is complete when:
+
+- all P0 and P1 tasks are implemented or explicitly rejected with recorded reasoning;
+- Chrome, Edge, and Firefox artifacts are independently correct;
+- repeat GitHub visits expose meaningful local change information;
+- GitHub context offers reliable comparison actions;
+- DOM compatibility has automated protection;
+- new report discovery is submitted quickly but sitemap inclusion is quality-gated;
+- release/history/language/comparison pages provide original, reproducible, crawlable data;
+- privacy and non-goal boundaries remain intact.
