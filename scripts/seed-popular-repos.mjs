@@ -15,6 +15,7 @@ const concurrency = numberArg(args.concurrency, 2);
 const delayMs = numberArg(args["delay-ms"], 500);
 const pollMs = numberArg(args["poll-ms"], 2500);
 const maxPolls = numberArg(args["max-polls"], 120);
+const requestRetries = numberArg(args["request-retries"], 3);
 const forceRefresh = Boolean(args["force-refresh"]);
 const source = String(args.source ?? "seed");
 
@@ -39,7 +40,7 @@ if (dryRun) {
 }
 
 console.log(`Seeding ${repos.length} repositories against ${apiBase}`);
-console.log(`concurrency=${concurrency} delayMs=${delayMs} pollMs=${pollMs} maxPolls=${maxPolls} forceRefresh=${forceRefresh} source=${source}`);
+console.log(`concurrency=${concurrency} delayMs=${delayMs} pollMs=${pollMs} maxPolls=${maxPolls} requestRetries=${requestRetries} forceRefresh=${forceRefresh} source=${source}`);
 
 const results = await runPool(repos, Math.max(1, concurrency), async (repo, index) => {
   if (delayMs > 0 && index > 0) await sleep(delayMs);
@@ -101,17 +102,36 @@ async function waitForJob(jobId) {
 }
 
 async function postJson(path, body) {
-  const response = await fetch(`${apiBase}${path}`, {
+  return requestJson(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return readJsonResponse(response);
 }
 
 async function getJson(path) {
-  const response = await fetch(`${apiBase}${path}`);
-  return readJsonResponse(response);
+  return requestJson(path);
+}
+
+async function requestJson(path, init) {
+  let lastError;
+  for (let attempt = 0; attempt <= requestRetries; attempt += 1) {
+    try {
+      const response = await fetch(`${apiBase}${path}`, init);
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === requestRetries) return readJsonResponse(response);
+      await response.text();
+      lastError = new Error(`${response.status} ${response.statusText}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === requestRetries) throw error;
+    }
+
+    const backoffMs = Math.min(1_000 * (2 ** attempt), 8_000);
+    console.log(`retry ${attempt + 1}/${requestRetries} for ${path} after ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+    await sleep(backoffMs);
+  }
+  throw lastError;
 }
 
 async function readJsonResponse(response) {
@@ -123,7 +143,8 @@ async function readJsonResponse(response) {
     /* handled below */
   }
   if (!response.ok) {
-    const message = json?.message ?? json?.error?.message ?? (text || `${response.status} ${response.statusText}`);
+    const rawMessage = json?.message ?? json?.error?.message ?? (text || `${response.status} ${response.statusText}`);
+    const message = String(rawMessage).replace(/\s+/g, " ").slice(0, 500);
     throw new Error(message);
   }
   return json;
@@ -220,6 +241,7 @@ Options:
   --delay-ms <n>            Delay before each started repo after the first (default: 500)
   --poll-ms <n>             Job polling interval (default: 2500)
   --max-polls <n>           Max polls per job (default: 120)
+  --request-retries <n>     Retries for network, 429, and 5xx errors (default: 3)
   --force-refresh           Bypass cached report lookup
   --source <name>           Analysis source label (default: seed)
 `);
