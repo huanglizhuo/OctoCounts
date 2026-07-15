@@ -1,13 +1,5 @@
 const API_BASE = "https://api.octocounts.com";
-const SECURITY_HEADERS = {
-  "x-content-type-options": "nosniff",
-  "x-frame-options": "DENY",
-  "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "camera=(), microphone=(), geolocation=()",
-  "strict-transport-security": "max-age=63072000; includeSubDomains",
-  "cross-origin-opener-policy": "same-origin",
-  "content-security-policy": "default-src 'self'; script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
-};
+const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/" },
   { loc: "https://octocounts.com/stats" },
@@ -69,7 +61,7 @@ export async function onRequest(context) {
     return listPageResponse(context, "monoliths", url);
   }
 
-  return withHtmlNoTransform(await context.env.ASSETS.fetch(context.request));
+  return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
 }
 
 const LEGACY_DOC_REDIRECTS = {
@@ -291,7 +283,7 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
     headers: {
       "content-type": "application/xml; charset=utf-8",
       "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
-      ...SECURITY_HEADERS,
+      ...securityHeaders(),
     },
   });
 }
@@ -552,18 +544,32 @@ function htmlResponse(html, cacheControl) {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "cache-control": `${cacheControl}, no-transform`,
-      ...SECURITY_HEADERS,
+      "cache-control": cacheControl,
+      ...securityHeaders(randomNonce()),
     },
   });
 }
 
-function withHtmlNoTransform(response) {
+function withHtmlSecurity(response) {
   if (!response.headers.get("content-type")?.includes("text/html")) return response;
   const headers = new Headers(response.headers);
-  const cacheControl = headers.get("cache-control");
-  if (!cacheControl?.split(",").some((directive) => directive.trim() === "no-transform")) {
-    headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
-  }
+  for (const [name, value] of Object.entries(securityHeaders(randomNonce()))) headers.set(name, value);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function randomNonce() {
+  return crypto.randomUUID().replaceAll("-", "");
+}
+
+function securityHeaders(nonce = "") {
+  const nonceSource = nonce ? ` 'nonce-${nonce}'` : "";
+  return {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()",
+    "strict-transport-security": "max-age=63072000; includeSubDomains",
+    "cross-origin-opener-policy": "same-origin",
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH}${nonceSource} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`,
+  };
 }

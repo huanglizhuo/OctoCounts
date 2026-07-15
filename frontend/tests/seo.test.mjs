@@ -112,7 +112,8 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
 
   assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
   assert.match(html, /preload" as="font" href="\/fonts\/jetbrains-mono-800-latin\.woff2"/);
-  assert.match(html, /<script src="\/boot\.js"><\/script>/);
+  assert.match(html, /<script>document\.documentElement\.dataset\.scheme=/);
+  assert.doesNotMatch(html, /\/boot\.js/);
   assert.doesNotMatch(html, /octocounts-(?:light|dark)-card\.webp" as="image"/);
   assert.doesNotMatch(styles, /data:font/);
   assert.doesNotMatch(styles, /@keyframes pipe-packet\s*{[\s\S]*?\bleft:/);
@@ -123,6 +124,8 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(main, /width="180" height="20"/);
   assert.match(main, /path\.startsWith\("\/github\/"\) \|\| path\.startsWith\("\/gitlab\/"\)/);
   assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?setCanonical\(canonical\);[\s\S]*?return;/);
+  assert.match(main, /DeferredContent minHeight=\{820\} rootMargin="100px"><Charts/);
+  assert.match(main, /DeferredContent minHeight=\{420\}><CompareRepos/);
 });
 
 test("static and Pages Function responses apply production security headers", async () => {
@@ -139,14 +142,36 @@ test("static and Pages Function responses apply production security headers", as
     "/octocounts-*-768.webp\n  Cache-Control: public, max-age=31536000, immutable",
     "Strict-Transport-Security: max-age=63072000; includeSubDomains",
     "Cross-Origin-Opener-Policy: same-origin",
-    "script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com",
-    "connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com",
   ]) assert.ok(headers.includes(value));
-  assert.doesNotMatch(headers, /script-src[^;\n]*'unsafe-inline'/);
   assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains");
   assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
-  assert.match(response.headers.get("content-security-policy"), /cloud\.umami\.is/);
-  assert.match(response.headers.get("cache-control"), /no-transform/);
+  const csp = response.headers.get("content-security-policy");
+  assert.match(csp, /'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='/);
+  assert.match(csp, /'nonce-[a-f0-9]{32}'/);
+  assert.match(csp, /cloud\.umami\.is/);
+  assert.match(csp, /gateway\.umami\.is/);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+  assert.doesNotMatch(response.headers.get("cache-control"), /no-transform/);
+});
+
+test("Pages static HTML uses a nonce CSP without disabling compression transforms", async () => {
+  const response = await onRequest({
+    request: new Request("https://octocounts.com/"),
+    env: {
+      ASSETS: {
+        fetch: async () => new Response("<!doctype html><title>OctoCounts</title>", {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "public, max-age=0, must-revalidate",
+          },
+        }),
+      },
+    },
+  });
+
+  assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+  assert.match(response.headers.get("content-security-policy"), /'nonce-[a-f0-9]{32}'/);
+  assert.doesNotMatch(response.headers.get("content-security-policy"), /script-src[^;]*'unsafe-inline'/);
 });
 
 test("homepage and launch kit link to the released Edge add-on", async () => {
@@ -255,7 +280,7 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.match(html, /1,234 stars today/);
   assert.match(html, /"@type":"CollectionPage"/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400, no-transform");
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
 });
 
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {

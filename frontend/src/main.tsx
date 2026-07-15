@@ -126,9 +126,9 @@ function useNearViewport<T extends HTMLElement>(rootMargin = "600px") {
   return { ref, isNear };
 }
 
-function DeferredContent({ children }: { children: ReactNode }) {
-  const { ref, isNear } = useNearViewport<HTMLDivElement>();
-  return <div className="deferred-slot" ref={ref}>{isNear ? children : null}</div>;
+function DeferredContent({ children, minHeight = 1, rootMargin = "300px" }: { children: ReactNode; minHeight?: number; rootMargin?: string }) {
+  const { ref, isNear } = useNearViewport<HTMLDivElement>(rootMargin);
+  return <div className="deferred-slot" ref={ref} style={{ minHeight }}>{isNear ? children : null}</div>;
 }
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
 const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
@@ -396,15 +396,17 @@ function App() {
           />
         </section>
 
-        <PublicReportIndex />
+        <DeferredContent minHeight={260}><PublicReportIndex /></DeferredContent>
 
         <section>
           <div className="section-h">
             <h2>{t("badgeBuilder.title")}</h2>
             <span className="sub">{t("badgeBuilder.subtitle")}</span>
           </div>
-          <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
-          <BadgeWall />
+          <DeferredContent minHeight={420}>
+            <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
+            <BadgeWall />
+          </DeferredContent>
         </section>
 
         <section>
@@ -412,7 +414,7 @@ function App() {
             <h2>Developer tools</h2>
             <span className="sub">make SLOC reports show up where developers already work</span>
           </div>
-          <DeveloperTools />
+          <DeferredContent minHeight={320}><DeveloperTools /></DeferredContent>
         </section>
 
         <section>
@@ -420,7 +422,7 @@ function App() {
             <h2>{t("compare.title")}</h2>
             <span className="sub">{t("compare.subtitle")}</span>
           </div>
-          <CompareRepos />
+          <DeferredContent minHeight={420}><CompareRepos /></DeferredContent>
         </section>
 
         <section>
@@ -428,7 +430,7 @@ function App() {
             <h2>{t("diff.title")}</h2>
             <span className="sub">{t("diff.subtitle")}</span>
           </div>
-          <DiffRefs />
+          <DeferredContent minHeight={420}><DiffRefs /></DeferredContent>
         </section>
 
         <section>
@@ -437,7 +439,7 @@ function App() {
             <span className="sub">{t("extensionSection.subtitle")}</span>
           </div>
           <Suspense fallback={null}>
-            <DeferredContent><BrowserExtensionSection /></DeferredContent>
+            <DeferredContent minHeight={560}><BrowserExtensionSection /></DeferredContent>
           </Suspense>
         </section>
 
@@ -446,14 +448,16 @@ function App() {
             <h2>{t("useCases.title")}</h2>
             <span className="sub">{t("useCases.subtitle")}</span>
           </div>
-          <div className="how">
-            {(t("useCases.cases", { returnObjects: true }) as Array<{ title: string; text: string }>).map((item, idx) => (
-              <div className="step" key={idx}>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </div>
-            ))}
-          </div>
+          <DeferredContent minHeight={320}>
+            <div className="how">
+              {(t("useCases.cases", { returnObjects: true }) as Array<{ title: string; text: string }>).map((item, idx) => (
+                <div className="step" key={idx}>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </DeferredContent>
         </section>
 
         <section>
@@ -461,19 +465,21 @@ function App() {
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
-          <Pipeline />
-          <div className="how">
-            {(t("howItWorks.steps", { returnObjects: true }) as Array<{ num: string; title: string; text: string; code: string }>).map((step) => (
-              <div className="step" key={step.num}>
-                <span className="n">{step.num}</span>
-                <h3>{step.title}</h3>
-                <p>{step.text}</p>
-                <div className="codeline">
-                  <Trans i18nKey={`howItWorks.steps.${Number(step.num) - 1}.code`} components={{ 1: <span className="c" /> }} />
+          <DeferredContent minHeight={520}>
+            <Pipeline />
+            <div className="how">
+              {(t("howItWorks.steps", { returnObjects: true }) as Array<{ num: string; title: string; text: string; code: string }>).map((step) => (
+                <div className="step" key={step.num}>
+                  <span className="n">{step.num}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                  <div className="codeline">
+                    <Trans i18nKey={`howItWorks.steps.${Number(step.num) - 1}.code`} components={{ 1: <span className="c" /> }} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </DeferredContent>
         </section>
 
         <footer>
@@ -1148,7 +1154,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
           />
           <Insights report={report} />
           <Summary stats={report.total} />
-          <Charts report={report} />
+          <DeferredContent minHeight={820} rootMargin="100px"><Charts report={report} /></DeferredContent>
           <div className="runner-foot">
             <span>{t("runner.generated", { date: new Date(report.generatedAt).toLocaleString(), duration: report.durationMs, version: report.tokeiVersion })}</span>
             <div className="actions">

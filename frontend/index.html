@@ -19,7 +19,7 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://api.octocounts.com" crossorigin />
     <link rel="preload" as="font" href="/fonts/jetbrains-mono-800-latin.woff2" type="font/woff2" crossorigin />
-    <script src="/boot.js"></script>
+    <script>document.documentElement.dataset.scheme=matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper";try{const p=new URLSearchParams(location.search),l=p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l&&l!=="en")document.documentElement.lang=l}catch{}</script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4f3a87a4-fd4c-4dc5-8959-8fcf93e858c7"></script>
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
