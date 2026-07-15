@@ -194,7 +194,9 @@
     "code": "code",
     "comments": "comments",
     "blanks": "blanks",
-    "total": "Total"
+    "total": "Total",
+    "expandLanguage": "Expand {{language}} file details",
+    "collapseLanguage": "Collapse {{language}} file details"
   },
   "extensionSection": {
     "title": "Browser Extension",

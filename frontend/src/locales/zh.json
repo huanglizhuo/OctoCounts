@@ -185,7 +185,9 @@
     "code": "代码",
     "comments": "注释",
     "blanks": "空行",
-    "total": "总计"
+    "total": "总计",
+    "expandLanguage": "展开 {{language}} 文件明细",
+    "collapseLanguage": "收起 {{language}} 文件明细"
   },
   "extensionSection": {
     "title": "浏览器扩展",

@@ -1,4 +1,13 @@
 const API_BASE = "https://api.octocounts.com";
+const SECURITY_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "strict-transport-security": "max-age=63072000; includeSubDomains",
+  "cross-origin-opener-policy": "same-origin",
+  "content-security-policy": "default-src 'self'; script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+};
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/" },
   { loc: "https://octocounts.com/stats" },
@@ -282,6 +291,7 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
     headers: {
       "content-type": "application/xml; charset=utf-8",
       "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      ...SECURITY_HEADERS,
     },
   });
 }
@@ -543,6 +553,7 @@ function htmlResponse(html, cacheControl) {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": cacheControl,
+      ...SECURITY_HEADERS,
     },
   });
 }

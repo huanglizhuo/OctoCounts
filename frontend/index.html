@@ -17,20 +17,10 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preload" as="image" href="/octocounts-light-card.webp" media="(prefers-color-scheme: light)" />
-    <link rel="preload" as="image" href="/octocounts-dark-card.webp" media="(prefers-color-scheme: dark)" />
-    <link rel="preload" as="font" href="/fonts/jetbrains-mono-400-latin.woff2" type="font/woff2" crossorigin />
-    <script>document.documentElement.dataset.scheme=window.matchMedia('(prefers-color-scheme: dark)').matches?'matrix':'paper'</script>
+    <link rel="preconnect" href="https://api.octocounts.com" crossorigin />
+    <link rel="preload" as="font" href="/fonts/jetbrains-mono-800-latin.woff2" type="font/woff2" crossorigin />
+    <script src="/boot.js"></script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4f3a87a4-fd4c-4dc5-8959-8fcf93e858c7"></script>
-    <script>
-      (function() {
-        try {
-          const params = new URLSearchParams(location.search);
-          const lng = params.get('lng') || localStorage.getItem('i18nextLng') || navigator.language.split('-')[0];
-          if (lng && lng !== 'en') document.documentElement.lang = lng;
-        } catch (_) {}
-      })();
-    </script>
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://octocounts.com/" />

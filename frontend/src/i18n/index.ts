@@ -22,10 +22,4 @@ i18n
     },
   });
 
-export async function loadLocale(lng: string) {
-  if (lng === "en" || i18n.hasResourceBundle(lng, "translation")) return;
-  const mod = await import(`../locales/${lng}.json`);
-  i18n.addResourceBundle(lng, "translation", mod.default, true, true);
-}
-
 export default i18n;

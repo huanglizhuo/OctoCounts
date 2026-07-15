@@ -12,9 +12,9 @@ export default function BrowserExtensionSection() {
     <div className="extension-panel">
       <div className="extension-preview">
         <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card.webp" />
-          <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card.webp" />
-          <img src="/octocounts-light-card.webp" alt={t("extensionSection.previewAlt")} loading="lazy" />
+          <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card-768.webp 768w, /octocounts-dark-card.webp 1280w" sizes="(max-width: 900px) 100vw, 50vw" />
+          <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card-768.webp 768w, /octocounts-light-card.webp 1280w" sizes="(max-width: 900px) 100vw, 50vw" />
+          <img src="/octocounts-light-card-768.webp" alt={t("extensionSection.previewAlt")} loading="lazy" width="1280" height="800" />
         </picture>
       </div>
       <div className="extension-copy">

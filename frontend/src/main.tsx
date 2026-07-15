@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { toPng } from "html-to-image";
 import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
-import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
@@ -100,6 +99,36 @@ function saveRecentRepos(entries: RecentEntry[]) {
   } catch {
     /* storage unavailable (private mode) — history is a nice-to-have */
   }
+}
+
+function useNearViewport<T extends HTMLElement>(rootMargin = "600px") {
+  const ref = useRef<T>(null);
+  const [isNear, setIsNear] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setIsNear(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setIsNear(true);
+        observer.disconnect();
+      },
+      { rootMargin },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rootMargin]);
+
+  return { ref, isNear };
+}
+
+function DeferredContent({ children }: { children: ReactNode }) {
+  const { ref, isNear } = useNearViewport<HTMLDivElement>();
+  return <div className="deferred-slot" ref={ref}>{isNear ? children : null}</div>;
 }
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
 const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
@@ -408,7 +437,7 @@ function App() {
             <span className="sub">{t("extensionSection.subtitle")}</span>
           </div>
           <Suspense fallback={null}>
-            <BrowserExtensionSection />
+            <DeferredContent><BrowserExtensionSection /></DeferredContent>
           </Suspense>
         </section>
 
@@ -776,7 +805,8 @@ function SeoReportGrid({ reports }: { reports: SeoReportSummary[] }) {
 
 function PublicReportIndex() {
   const { t } = useTranslation();
-  const query = useQuery({ queryKey: ["growth-stats", "home-index"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000 });
+  const { ref, isNear } = useNearViewport<HTMLElement>();
+  const query = useQuery({ queryKey: ["growth-stats", "home-index"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000, enabled: isNear });
   const totals = query.data?.totals;
   const statsCopy = totals
     ? t("growth.index.stats", {
@@ -787,7 +817,7 @@ function PublicReportIndex() {
     : t("growth.index.fallback");
 
   return (
-    <section className="report-index" aria-label={t("growth.index.ariaLabel")}>
+    <section className="report-index" aria-label={t("growth.index.ariaLabel")} ref={ref}>
       <div className="report-index-head">
         <span className="terminal-label">{t("growth.index.label")}</span>
         <p>{statsCopy}</p>
@@ -936,7 +966,7 @@ function Topbar() {
   return (
     <header className="topbar">
       <a className="brand" href="/" aria-label={t("topbar.brandName")}>
-        <div className="logo"><img src="/favicons/web-app-manifest-192x192.png" alt={t("topbar.brandName") + " logo"} /></div>
+        <div className="logo"><img src="/octocounts-logo-96.webp" alt={t("topbar.brandName") + " logo"} width="96" height="96" /></div>
         <div>
           <span className="brand-name">{t("topbar.brandName")}</span>
         </div>
@@ -1031,6 +1061,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
     if (!report || !shareCardRef.current) return;
     setIsExporting(true);
     try {
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(shareCardRef.current, {
         cacheBust: true,
         pixelRatio: 2,
@@ -1670,7 +1701,7 @@ function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: 
         </label>
       </div>
       <div className="badge-builder-preview">
-        {badgeUrl ? <img src={badgeUrl} alt={t("badgeBuilder.previewAlt")} /> : <span>{t("badgeBuilder.noRepo")}</span>}
+        {badgeUrl ? <img src={badgeUrl} alt={t("badgeBuilder.previewAlt")} width="180" height="20" /> : <span>{t("badgeBuilder.noRepo")}</span>}
       </div>
       <div className="badge-builder-output">
         <code>{markdown || t("badgeBuilder.noRepo")}</code>
@@ -1700,7 +1731,7 @@ function BadgeWall() {
       <div className="badge-wall-row">
         {badgeWallEntries.map((entry) => (
           <a key={`${entry.owner}/${entry.repo}`} href={buildPublicReportUrl(entry.owner, entry.repo, "")} target="_blank" rel="noreferrer">
-            <img src={buildBadgeUrl(entry.owner, entry.repo, "", entry.type, "")} alt={t("badgeWall.alt", { repo: `${entry.owner}/${entry.repo}` })} loading="lazy" />
+            <img src={buildBadgeUrl(entry.owner, entry.repo, "", entry.type, "")} alt={t("badgeWall.alt", { repo: `${entry.owner}/${entry.repo}` })} loading="lazy" width="180" height="20" />
             <code>{entry.owner}/{entry.repo}</code>
           </a>
         ))}
@@ -1889,6 +1920,23 @@ function syncPageMetadata({
     setMeta("name", "twitter:description", description);
     setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
     setCanonical(`${window.location.origin}${path}`);
+    return;
+  }
+
+  const isPublicReportPath = path.startsWith("/github/") || path.startsWith("/gitlab/");
+  if (!isPublicReportPath) {
+    const canonical = `${window.location.origin}/`;
+    document.title = defaultTitle;
+    setMeta("name", "description", defaultDescription);
+    setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1");
+    setMeta("property", "og:title", defaultTitle);
+    setMeta("property", "og:description", defaultDescription);
+    setMeta("property", "og:url", canonical);
+    setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
+    setMeta("name", "twitter:title", defaultTitle);
+    setMeta("name", "twitter:description", defaultDescription);
+    setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
+    setCanonical(canonical);
     return;
   }
 
@@ -2263,7 +2311,7 @@ function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: {
       onMouseEnter={child ? undefined : () => onHover?.(row.name)}
     >
       <td className="lang">
-        {hasChildren ? <button className="expand" type="button" onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button> : <span className="expand-spacer" />}
+        {hasChildren ? <button className="expand" type="button" aria-label={t(expanded ? "table.collapseLanguage" : "table.expandLanguage", { language: row.name })} aria-expanded={Boolean(expanded)} onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button> : <span className="expand-spacer" />}
         <span className="swatch" style={{ color: languageColor(row.name) }} />
         {row.name}
         {!child && ratioTotal > 0 ? (

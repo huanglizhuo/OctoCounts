@@ -104,6 +104,48 @@ test("built homepage schema uses the packaged extension version", async () => {
   assert.doesNotMatch(html, /__EXTENSION_VERSION__/);
 });
 
+test("performance assets avoid blocked inline fonts and oversized previews", async () => {
+  const html = await readFile(new URL("index.html", ROOT), "utf8");
+  const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
+  const extensionSection = await readFile(new URL("src/BrowserExtensionSection.tsx", ROOT), "utf8");
+  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+
+  assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
+  assert.match(html, /preload" as="font" href="\/fonts\/jetbrains-mono-800-latin\.woff2"/);
+  assert.match(html, /<script src="\/boot\.js"><\/script>/);
+  assert.doesNotMatch(html, /octocounts-(?:light|dark)-card\.webp" as="image"/);
+  assert.doesNotMatch(styles, /data:font/);
+  assert.doesNotMatch(styles, /@keyframes pipe-packet\s*{[\s\S]*?\bleft:/);
+  assert.match(styles, /@keyframes pipe-packet\s*{[\s\S]*?transform:/);
+  assert.match(extensionSection, /card-768\.webp 768w/);
+  assert.match(extensionSection, /loading="lazy" width="1280" height="800"/);
+  assert.match(main, /octocounts-logo-96\.webp/);
+  assert.match(main, /width="180" height="20"/);
+  assert.match(main, /path\.startsWith\("\/github\/"\) \|\| path\.startsWith\("\/gitlab\/"\)/);
+  assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?setCanonical\(canonical\);[\s\S]*?return;/);
+});
+
+test("static and Pages Function responses apply production security headers", async () => {
+  const headers = await readFile(new URL("public/_headers", ROOT), "utf8");
+  const response = await onRequest(await renderedContext("/trending", {
+    source: "https://github.com/trending",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [],
+  }));
+
+  for (const value of [
+    "Strict-Transport-Security: max-age=63072000; includeSubDomains",
+    "Cross-Origin-Opener-Policy: same-origin",
+    "script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com",
+    "connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://cloudflareinsights.com",
+  ]) assert.ok(headers.includes(value));
+  assert.doesNotMatch(headers, /script-src[^;\n]*'unsafe-inline'/);
+  assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains");
+  assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
+  assert.match(response.headers.get("content-security-policy"), /cloud\.umami\.is/);
+});
+
 test("homepage and launch kit link to the released Edge add-on", async () => {
   const homepage = await readFile(new URL("index.html", ROOT), "utf8");
   const launchKit = await readFile(new URL("public/launch-kit.html", ROOT), "utf8");

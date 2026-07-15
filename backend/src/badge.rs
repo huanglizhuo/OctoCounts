@@ -71,7 +71,7 @@ async fn serve_badge(
     let cache = if is_immutable {
         "public, max-age=31536000, immutable"
     } else {
-        "public, s-maxage=3600, stale-while-revalidate=86400"
+        "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
     };
 
     match state.coordinator.submit(request).await {

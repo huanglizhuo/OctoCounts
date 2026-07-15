@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "copy-fonts": "cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 public/fonts/jetbrains-mono-400-latin.woff2",
+    "copy-fonts": "cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 public/fonts/jetbrains-mono-400-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2 public/fonts/jetbrains-mono-700-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-800-normal.woff2 public/fonts/jetbrains-mono-800-latin.woff2",
     "prebuild": "npm run copy-fonts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
