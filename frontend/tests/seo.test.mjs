@@ -135,6 +135,8 @@ test("static and Pages Function responses apply production security headers", as
   }));
 
   for (const value of [
+    "/fonts/*\n  Cache-Control: public, max-age=31536000, immutable",
+    "/octocounts-*-768.webp\n  Cache-Control: public, max-age=31536000, immutable",
     "Strict-Transport-Security: max-age=63072000; includeSubDomains",
     "Cross-Origin-Opener-Policy: same-origin",
     "script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com",
