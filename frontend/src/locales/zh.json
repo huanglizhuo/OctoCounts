@@ -373,6 +373,10 @@
         "label": "热门",
         "detail": "最多人查看"
       },
+      "trending": {
+        "label": "趋势",
+        "detail": "GitHub 每日"
+      },
       "hall": {
         "label": "巨型榜",
         "detail": "最大仓库"
@@ -441,6 +445,12 @@
         "kicker": "热门",
         "title": "热门代码库报告",
         "subtitle": "被频繁打开的公开仓库报告，适合引用和分享。"
+      },
+      "trending": {
+        "kicker": "GitHub 每日趋势",
+        "title": "今日 GitHub Trending 仓库",
+        "subtitle": "每日 GitHub Trending 项目，以及对应的稳定 OctoCounts 代码行数报告链接。",
+        "updated": "快照更新于 {{date}}"
       },
       "hall": {
         "kicker": "排行榜",

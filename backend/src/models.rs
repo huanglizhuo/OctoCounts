@@ -147,6 +147,8 @@ pub enum AnalysisSource {
     Mcp,
     Api,
     Seed,
+    #[serde(rename = "github_trending")]
+    GitHubTrending,
     #[default]
     Unknown,
 }
@@ -233,7 +235,7 @@ fn default_provider() -> RepositoryProvider {
 
 #[cfg(test)]
 mod tests {
-    use super::{AnalyzeRequest, AnalyzeResponse, JobStatus, RepositoryProvider};
+    use super::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, RepositoryProvider};
     use uuid::Uuid;
 
     #[test]
@@ -281,6 +283,18 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<RepositoryProvider>(r#""gitLab""#).unwrap(),
             RepositoryProvider::GitLab
+        );
+    }
+
+    #[test]
+    fn github_trending_source_uses_the_public_api_label() {
+        assert_eq!(
+            serde_json::to_value(AnalysisSource::GitHubTrending).unwrap(),
+            "github_trending"
+        );
+        assert_eq!(
+            serde_json::from_str::<AnalysisSource>(r#""github_trending""#).unwrap(),
+            AnalysisSource::GitHubTrending
         );
     }
 }

@@ -30,7 +30,7 @@ export type LanguageReport = {
 };
 
 export type RepositoryProvider = "github" | "gitlab" | "gitHub" | "gitLab";
-export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mcp" | "api" | "seed" | "unknown";
+export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mcp" | "api" | "seed" | "github_trending" | "unknown";
 
 export type Report = {
   id: string;

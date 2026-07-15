@@ -16,6 +16,7 @@ const delayMs = numberArg(args["delay-ms"], 500);
 const pollMs = numberArg(args["poll-ms"], 2500);
 const maxPolls = numberArg(args["max-polls"], 120);
 const forceRefresh = Boolean(args["force-refresh"]);
+const source = String(args.source ?? "seed");
 
 if (args.help || args.h) {
   printHelp();
@@ -38,7 +39,7 @@ if (dryRun) {
 }
 
 console.log(`Seeding ${repos.length} repositories against ${apiBase}`);
-console.log(`concurrency=${concurrency} delayMs=${delayMs} pollMs=${pollMs} maxPolls=${maxPolls} forceRefresh=${forceRefresh}`);
+console.log(`concurrency=${concurrency} delayMs=${delayMs} pollMs=${pollMs} maxPolls=${maxPolls} forceRefresh=${forceRefresh} source=${source}`);
 
 const results = await runPool(repos, Math.max(1, concurrency), async (repo, index) => {
   if (delayMs > 0 && index > 0) await sleep(delayMs);
@@ -64,7 +65,7 @@ async function seedRepo(repo) {
       repoUrl,
       refName: repo.refName,
       forceRefresh,
-      source: "seed",
+      source,
     });
 
     if (analyze.kind === "cached") {
@@ -220,5 +221,6 @@ Options:
   --poll-ms <n>             Job polling interval (default: 2500)
   --max-polls <n>           Max polls per job (default: 120)
   --force-refresh           Bypass cached report lookup
+  --source <name>           Analysis source label (default: seed)
 `);
 }

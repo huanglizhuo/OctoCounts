@@ -382,6 +382,10 @@
         "label": "Popular",
         "detail": "most viewed"
       },
+      "trending": {
+        "label": "Trending",
+        "detail": "GitHub daily"
+      },
       "hall": {
         "label": "Hall",
         "detail": "largest repos"
@@ -450,6 +454,12 @@
         "kicker": "popular",
         "title": "Popular codebase reports",
         "subtitle": "Frequently opened public repository reports, ready to cite and share."
+      },
+      "trending": {
+        "kicker": "GitHub daily",
+        "title": "Trending GitHub repositories today",
+        "subtitle": "Daily GitHub Trending projects with stable OctoCounts source line count report links.",
+        "updated": "Snapshot updated {{date}}"
       },
       "hall": {
         "kicker": "leaderboard",

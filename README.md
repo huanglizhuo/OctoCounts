@@ -114,7 +114,9 @@ See **[how-to-run-and-deploy.md](how-to-run-and-deploy.md)** for local developme
 
 ## Growth report inventory
 
-Popular public repositories are listed in [`data/popular-repos.txt`](data/popular-repos.txt). The scheduled workflow [`seed-popular-repos.yml`](.github/workflows/seed-popular-repos.yml) runs the seed script weekly so `/popular`, `/recent`, `/hall-of-monoliths`, and `/stats` keep getting fresh public report inventory.
+Popular public repositories are listed in [`data/popular-repos.txt`](data/popular-repos.txt). The scheduled workflow [`seed-popular-repos.yml`](.github/workflows/seed-popular-repos.yml) refreshes that curated inventory weekly.
+
+[`refresh-github-trending.yml`](.github/workflows/refresh-github-trending.yml) discovers GitHub's daily Trending repositories, validates and publishes the current snapshot to `/trending`, and pre-generates their stable `/github/:owner/:repo` SLOC reports. Trending provenance stays separate from real `/popular` access counts; no date-stamped archive pages are generated.
 
 ## License
 

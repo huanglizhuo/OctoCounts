@@ -25,6 +25,23 @@ function requestContext(pathname) {
   };
 }
 
+async function renderedContext(pathname, snapshot = null) {
+  const index = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  return {
+    request: new Request(`https://octocounts.com${pathname}`),
+    env: {
+      SEO_API_BASE: "https://api.test",
+      ASSETS: {
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          if (path === "/github-trending.json" && snapshot) return Response.json(snapshot);
+          return new Response(index, { status: 200, headers: { "content-type": "text/html" } });
+        },
+      },
+    },
+  };
+}
+
 test("legacy documentation .html URLs permanently redirect to extensionless canonicals", async () => {
   for (const [slug, canonical] of docs) {
     const response = await onRequest(requestContext(`/docs/${slug}.html`));
@@ -102,5 +119,96 @@ test("static and generated sitemaps use extensionless documentation URLs", async
     assert.match(generatedXml, new RegExp(`<loc>${canonical}</loc>`));
     assert.doesNotMatch(staticSitemap, new RegExp(`/docs/${slug}\\.html`));
     assert.doesNotMatch(generatedXml, new RegExp(`/docs/${slug}\\.html`));
+  }
+  assert.doesNotMatch(staticSitemap, /<changefreq>|<priority>/);
+  assert.doesNotMatch(generatedXml, /<changefreq>|<priority>/);
+});
+
+test("report SSR replaces homepage schema and fallback content", async () => {
+  const report = {
+    provider: "github",
+    owner: "octo-org",
+    repo: "octo-repo",
+    repoFullName: "octo-org/octo-repo",
+    htmlUrl: "https://github.com/octo-org/octo-repo",
+    publicPath: "/github/octo-org/octo-repo",
+    canonicalUrl: "https://octocounts.com/github/octo-org/octo-repo",
+    title: "octo-org/octo-repo: 20,000 lines of code | OctoCounts",
+    description: "Source line count for octo-org/octo-repo.",
+    citation: "Counted at commit abcdef123456.",
+    generatedAt: "2026-07-15T00:00:00Z",
+    refName: "main",
+    commitSha: "abcdef1234567890abcdef1234567890abcdef12",
+    tokeiVersion: "13.0.0",
+    durationMs: 100,
+    total: { files: 100, lines: 20000, code: 15000, comments: 3000, blanks: 2000 },
+    topLanguage: { name: "Rust", code: 12000, percent: 80 },
+    languages: [{ name: "Rust", stats: { files: 80, lines: 16000, code: 12000, comments: 2500, blanks: 1500 } }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(report);
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    const html = await response.text();
+    assert.equal((html.match(/<noscript>/g) ?? []).length, 1);
+    assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
+    assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, 1);
+    assert.match(html, /Repository size insights/);
+    assert.match(html, /"@type":"Dataset"/);
+    assert.match(html, /"@type":"BreadcrumbList"/);
+    assert.doesNotMatch(html, /"@type":"FAQPage"|"@type":"WebApplication"/);
+    assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("trending SSR publishes a stable canonical collection from the daily snapshot", async () => {
+  const snapshot = {
+    source: "https://github.com/trending",
+    period: "daily",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [{
+      rank: 1,
+      owner: "octo-org",
+      name: "octo-repo",
+      fullName: "octo-org/octo-repo",
+      description: "A useful repository.",
+      language: "Rust",
+      starsToday: 1234,
+      totalStars: 12345,
+      htmlUrl: "https://github.com/octo-org/octo-repo",
+      publicPath: "/github/octo-org/octo-repo",
+    }],
+  };
+  const response = await onRequest(await renderedContext("/trending", snapshot));
+  const html = await response.text();
+  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts.com\/trending"/);
+  assert.match(html, /octo-org\/octo-repo/);
+  assert.match(html, /1,234 stars today/);
+  assert.match(html, /"@type":"CollectionPage"/);
+  assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+});
+
+test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
+  const snapshot = {
+    source: "https://github.com/trending",
+    period: "daily",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json([{ loc: "https://octocounts.com/github/octo/repo", lastmod: "2026-07-14" }]);
+  try {
+    const response = await onRequest(await renderedContext("/sitemap.xml", snapshot));
+    const xml = await response.text();
+    assert.match(xml, /<loc>https:\/\/octocounts.com\/trending<\/loc>\s*<lastmod>2026-07-15<\/lastmod>/);
+    assert.match(xml, /<loc>https:\/\/octocounts.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
+    assert.doesNotMatch(xml, /<changefreq>|<priority>/);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

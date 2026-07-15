@@ -1,18 +1,19 @@
 const API_BASE = "https://api.octocounts.com";
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-07-04", priority: "1.0" },
-  { loc: "https://octocounts.com/stats", lastmod: "2026-07-10", priority: "0.8" },
-  { loc: "https://octocounts.com/recent", lastmod: "2026-07-10", priority: "0.7" },
-  { loc: "https://octocounts.com/popular", lastmod: "2026-07-10", priority: "0.7" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-07-10", priority: "0.7" },
-  { loc: "https://octocounts.com/launch-kit.html", lastmod: "2026-07-10", priority: "0.5" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-07-13", priority: "0.8" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-07-13", priority: "0.7" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-07-13", priority: "0.7" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-07-13", priority: "0.6" },
-  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-07-13", priority: "0.5" },
-  { loc: "https://octocounts.com/privacy", lastmod: "2026-07-04", priority: "0.3" },
-  { loc: "https://octocounts.com/contact", lastmod: "2026-07-04", priority: "0.3" },
+  { loc: "https://octocounts.com/" },
+  { loc: "https://octocounts.com/stats" },
+  { loc: "https://octocounts.com/recent" },
+  { loc: "https://octocounts.com/popular" },
+  { loc: "https://octocounts.com/trending" },
+  { loc: "https://octocounts.com/hall-of-monoliths" },
+  { loc: "https://octocounts.com/launch-kit.html" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter" },
+  { loc: "https://octocounts.com/docs/api" },
+  { loc: "https://octocounts.com/docs/methodology" },
+  { loc: "https://octocounts.com/llms.txt" },
+  { loc: "https://octocounts.com/llms-full.txt" },
+  { loc: "https://octocounts.com/privacy" },
+  { loc: "https://octocounts.com/contact" },
 ];
 
 export async function onRequest(context) {
@@ -35,6 +36,10 @@ export async function onRequest(context) {
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
     return listPageResponse(context, url.pathname.slice(1), url);
+  }
+
+  if (url.pathname === "/trending") {
+    return trendingPageResponse(context);
   }
 
   if (url.pathname === "/stats") {
@@ -108,7 +113,7 @@ async function listPageResponse(context, kind, url) {
       title,
       description,
       canonical: pageMeta.canonical,
-      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      robots: page === "1" ? "index,follow,max-image-preview:large,max-snippet:-1" : "noindex,follow,max-image-preview:large",
       ogImage: "https://octocounts.com/og-image.jpg",
       jsonLd: {
         "@context": "https://schema.org",
@@ -129,6 +134,46 @@ async function listPageResponse(context, kind, url) {
       noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul>${body}</ul></section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=3600"
+  );
+}
+
+async function trendingPageResponse(context) {
+  const index = await indexHtml(context);
+  const snapshot = await trendingSnapshot(context);
+  const title = "Trending GitHub repositories today | OctoCounts";
+  const description = `Daily GitHub Trending repositories discovered on ${snapshot.date || "the latest snapshot"}, with stable OctoCounts source line count report links.`;
+  const body = snapshot.repositories
+    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
+    .join("");
+
+  return htmlResponse(
+    injectHeadAndNoscript(index, {
+      title,
+      description,
+      canonical: "https://octocounts.com/trending",
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: title,
+        description,
+        url: "https://octocounts.com/trending",
+        dateModified: snapshot.generatedAt,
+        isBasedOn: snapshot.source,
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: snapshot.repositories.map((repo) => ({
+            "@type": "ListItem",
+            position: repo.rank,
+            url: `https://octocounts.com${repo.publicPath}`,
+            name: repo.fullName,
+          })),
+        },
+      },
+      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
+    }),
+    "public, s-maxage=3600, stale-while-revalidate=86400"
   );
 }
 
@@ -176,18 +221,14 @@ async function sitemapResponse(context) {
     headers: { accept: "application/json" },
   });
   const dynamicEntries = response.ok ? await response.json() : [];
-  const entries = [
-    ...STATIC_SITEMAP_ENTRIES,
-    ...dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod, priority: "0.6" })),
-  ];
+  const snapshot = await trendingSnapshot(context);
+  const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
+    .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
   const urls = entries
     .map(
       (entry) => `  <url>
     <loc>${escapeXml(entry.loc)}</loc>
-    <lastmod>${escapeXml(entry.lastmod)}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>${entry.priority}</priority>
-  </url>`
+${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  </url>`
     )
     .join("\n");
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, {
@@ -196,6 +237,18 @@ async function sitemapResponse(context) {
       "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
     },
   });
+}
+
+async function trendingSnapshot(context) {
+  const url = new URL(context.request.url);
+  url.pathname = "/github-trending.json";
+  url.search = "";
+  const response = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
+  if (!response.ok) return { source: "https://github.com/trending", generatedAt: "", date: "", repositories: [] };
+  const snapshot = await response.json().catch(() => null);
+  return snapshot && Array.isArray(snapshot.repositories)
+    ? snapshot
+    : { source: "https://github.com/trending", generatedAt: "", date: "", repositories: [] };
 }
 
 async function indexHtml(context) {
@@ -246,12 +299,13 @@ function injectReport(index, report, apiBaseUrl) {
   const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/trending">Trending GitHub repositories</a></li>
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
-  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p><table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p>${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,
@@ -259,10 +313,21 @@ function injectReport(index, report, apiBaseUrl) {
     canonical: report.canonicalUrl,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
-    jsonLd: reportJsonLd(report, faq),
+    jsonLd: reportJsonLd(report),
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
     noscript: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + internalLinks,
   });
+}
+
+function reportInsights(report) {
+  const lines = Math.max(Number(report.total.lines) || 0, 1);
+  const files = Math.max(Number(report.total.files) || 0, 1);
+  const codeRatio = ((Number(report.total.code) || 0) / lines) * 100;
+  const commentRatio = ((Number(report.total.comments) || 0) / lines) * 100;
+  const codePerFile = (Number(report.total.code) || 0) / files;
+  const scale = report.total.code >= 1_000_000 ? "very large" : report.total.code >= 100_000 ? "large" : report.total.code >= 10_000 ? "medium-sized" : "small";
+  const concentration = report.topLanguage ? `${report.topLanguage.name} accounts for ${report.topLanguage.percent.toFixed(1)}% of counted code` : "No single top language was identified";
+  return `<section><h2>Repository size insights</h2><p>This is a ${scale} codebase by counted code lines. Code represents ${codeRatio.toFixed(1)}% of all lines, comments represent ${commentRatio.toFixed(1)}%, and the repository averages ${formatNumber(Math.round(codePerFile))} code lines per file. ${escapeHtml(concentration)}.</p></section>`;
 }
 
 function reportFaq(report) {
@@ -308,7 +373,7 @@ function reportSummaryJson(report) {
   };
 }
 
-function reportJsonLd(report, faq) {
+function reportJsonLd(report) {
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -344,18 +409,6 @@ function reportJsonLd(report, faq) {
         dateModified: report.generatedAt,
       },
       {
-        "@type": "FAQPage",
-        "@id": `${report.canonicalUrl}#faq`,
-        mainEntity: faq.map((item) => ({
-          "@type": "Question",
-          name: item.question,
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: item.answer,
-          },
-        })),
-      },
-      {
         "@type": "BreadcrumbList",
         "@id": `${report.canonicalUrl}#breadcrumbs`,
         itemListElement: [
@@ -382,7 +435,9 @@ function injectFallback(index, route) {
 }
 
 function injectHeadAndNoscript(index, meta) {
-  let html = index;
+  let html = index
+    .replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi, "")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>\s*/gi, "");
   html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(meta.title)}</title>`);
   html = setMeta(html, "name", "description", meta.description);
   html = setMeta(html, "name", "robots", meta.robots);

@@ -46,6 +46,7 @@ For private repositories, run tokei locally.
 - Home: https://octocounts.com/
 - Recent reports: https://octocounts.com/recent
 - Popular reports: https://octocounts.com/popular
+- Daily GitHub Trending reports: https://octocounts.com/trending
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
 - Methodology: https://octocounts.com/docs/methodology
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter

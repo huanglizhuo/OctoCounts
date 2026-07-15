@@ -34,7 +34,7 @@ impl Store {
                 body_bytes BIGINT NOT NULL DEFAULT 0,
                 source TEXT NOT NULL DEFAULT 'unknown',
                 CONSTRAINT reports_provider_valid CHECK (provider IN ('github', 'gitlab')),
-                CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown')),
+                CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown')),
                 CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0),
                 CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0),
                 UNIQUE(provider, owner, repo, commit_sha, tokei_version)
@@ -56,7 +56,7 @@ impl Store {
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab')),
-                CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown')),
+                CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown')),
                 CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
             );
             "#,
@@ -229,24 +229,28 @@ impl Store {
                     ADD CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab'));
                 END IF;
 
-                IF NOT EXISTS (
+                IF EXISTS (
                     SELECT 1
                     FROM pg_constraint
                     WHERE conname = 'reports_source_valid'
                     AND connamespace = current_schema()::regnamespace
+                    AND pg_get_constraintdef(oid) NOT LIKE '%github_trending%'
                 ) THEN
+                    ALTER TABLE reports DROP CONSTRAINT reports_source_valid;
                     ALTER TABLE reports
-                    ADD CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown'));
+                    ADD CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown'));
                 END IF;
 
-                IF NOT EXISTS (
+                IF EXISTS (
                     SELECT 1
                     FROM pg_constraint
                     WHERE conname = 'jobs_source_valid'
                     AND connamespace = current_schema()::regnamespace
+                    AND pg_get_constraintdef(oid) NOT LIKE '%github_trending%'
                 ) THEN
+                    ALTER TABLE jobs DROP CONSTRAINT jobs_source_valid;
                     ALTER TABLE jobs
-                    ADD CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'unknown'));
+                    ADD CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown'));
                 END IF;
 
                 IF NOT EXISTS (
@@ -1174,6 +1178,7 @@ pub fn source_to_str(source: &AnalysisSource) -> &'static str {
         AnalysisSource::Mcp => "mcp",
         AnalysisSource::Api => "api",
         AnalysisSource::Seed => "seed",
+        AnalysisSource::GitHubTrending => "github_trending",
         AnalysisSource::Unknown => "unknown",
     }
 }
@@ -1187,6 +1192,7 @@ fn source_from_str(source: &str) -> AnalysisSource {
         "mcp" => AnalysisSource::Mcp,
         "api" => AnalysisSource::Api,
         "seed" => AnalysisSource::Seed,
+        "github_trending" => AnalysisSource::GitHubTrending,
         _ => AnalysisSource::Unknown,
     }
 }

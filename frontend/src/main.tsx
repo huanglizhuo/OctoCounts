@@ -46,6 +46,7 @@ const publicReportLinks = [
   { href: "/stats", key: "stats", command: "stats" },
   { href: "/recent", key: "recent", command: "tail -f" },
   { href: "/popular", key: "popular", command: "sort --hits" },
+  { href: "/trending", key: "trending", command: "watch --daily" },
   { href: "/hall-of-monoliths", key: "hall", command: "top --lines" },
 ];
 
@@ -119,6 +120,7 @@ function App() {
   if (routePath === "/stats") return <StatsPage />;
   if (routePath === "/recent") return <ReportListPage kind="recent" />;
   if (routePath === "/popular") return <ReportListPage kind="popular" />;
+  if (routePath === "/trending") return <TrendingPage />;
   if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
   if (routePath === "/compare") return <ComparePage />;
   if (routePath === "/diff") return <DiffPage />;
@@ -452,7 +454,7 @@ function App() {
             <a href="/docs/api">{t("footer.apiDocs")}</a> &middot;
             <a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a> &middot;
             <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
-            <a href="/popular">{t("growth.nav.popular.label")}</a> &middot;
+            <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot;
             <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot;
             <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
             {" "}{t("footer.copyright")}
@@ -481,6 +483,27 @@ type SeoListResponse = {
   page: number;
   limit: number;
   reports: SeoReportSummary[];
+};
+
+type TrendingRepository = {
+  rank: number;
+  owner: string;
+  name: string;
+  fullName: string;
+  description: string;
+  language: string | null;
+  starsToday: number;
+  totalStars: number;
+  htmlUrl: string;
+  publicPath: string;
+};
+
+type TrendingSnapshot = {
+  source: string;
+  period: "daily";
+  generatedAt: string;
+  date: string;
+  repositories: TrendingRepository[];
 };
 
 function MarketingShell({ children }: { children: React.ReactNode }) {
@@ -513,7 +536,7 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
         <footer>
           <span>{t("growth.footerTagline")}</span>
           <span>
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
+            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
           </span>
           <LanguageSwitcher />
         </footer>
@@ -611,6 +634,48 @@ function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) 
       {query.isError ? <GrowthError /> : null}
       {query.data ? <SeoReportGrid reports={query.data.reports} /> : null}
     </MarketingShell>
+  );
+}
+
+function TrendingPage() {
+  const { t } = useTranslation();
+  const query = useQuery({
+    queryKey: ["github-trending", "daily"],
+    queryFn: async () => {
+      const response = await fetch("/github-trending.json");
+      if (!response.ok) throw new Error(`Trending snapshot returned ${response.status}`);
+      return response.json() as Promise<TrendingSnapshot>;
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  return (
+    <MarketingShell>
+      <section className="growth-hero list-hero" aria-label={t("growth.pages.trending.title")}>
+        <span className="chart-tag">{t("growth.pages.trending.kicker")}</span>
+        <h1>{t("growth.pages.trending.title")}</h1>
+        <p>{t("growth.pages.trending.subtitle")}</p>
+        {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
+      </section>
+      {query.isLoading ? <GrowthLoading /> : null}
+      {query.isError ? <GrowthError /> : null}
+      {query.data ? <TrendingRepoGrid repositories={query.data.repositories} /> : null}
+    </MarketingShell>
+  );
+}
+
+function TrendingRepoGrid({ repositories }: { repositories: TrendingRepository[] }) {
+  return (
+    <div className="growth-repo-grid">
+      {repositories.map((repo) => (
+        <a className="growth-repo-card" href={repo.publicPath} key={repo.fullName}>
+          <span className="chart-tag">#{repo.rank} · {repo.language ?? "mixed"}</span>
+          <strong>{repo.fullName}</strong>
+          <span>{repo.description || "GitHub Trending repository"}</span>
+          <em>+{formatNumber(repo.starsToday)} stars today · {formatNumber(repo.totalStars)} total</em>
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -758,6 +823,7 @@ function sourceLabel(source: string) {
     api: "API",
     extension: "Extension",
     seed: "Seed",
+    github_trending: "GitHub Trending",
     web: "Web",
     unknown: "Unknown",
   };

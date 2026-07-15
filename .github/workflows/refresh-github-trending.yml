@@ -1,0 +1,61 @@
+name: Refresh GitHub Trending reports
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum Trending repositories to cache"
+        required: false
+        default: "20"
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-github-trending
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch and validate GitHub Trending
+        env:
+          LIMIT: ${{ github.event.inputs.limit || '20' }}
+        run: |
+          node --test scripts/refresh-github-trending.test.mjs
+          node scripts/refresh-github-trending.mjs --limit "$LIMIT"
+
+      - name: Publish daily snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/github-trending.json data/github-trending-repos.txt
+          if git diff --cached --quiet; then
+            echo "Trending snapshot is unchanged"
+          else
+            git commit -m "chore: refresh GitHub Trending snapshot"
+            git push origin HEAD:main
+          fi
+
+      - name: Cache Trending SLOC reports
+        env:
+          LIMIT: ${{ github.event.inputs.limit || '20' }}
+        run: |
+          node scripts/seed-popular-repos.mjs \
+            --file data/github-trending-repos.txt \
+            --source github_trending \
+            --limit "$LIMIT" \
+            --concurrency 2 \
+            --delay-ms 750 \
+            --max-polls 180
