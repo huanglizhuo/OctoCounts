@@ -6,7 +6,7 @@ const SECURITY_HEADERS = {
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
   "strict-transport-security": "max-age=63072000; includeSubDomains",
   "cross-origin-opener-policy": "same-origin",
-  "content-security-policy": "default-src 'self'; script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+  "content-security-policy": "default-src 'self'; script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
 };
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/" },
@@ -69,7 +69,7 @@ export async function onRequest(context) {
     return listPageResponse(context, "monoliths", url);
   }
 
-  return context.env.ASSETS.fetch(context.request);
+  return withHtmlNoTransform(await context.env.ASSETS.fetch(context.request));
 }
 
 const LEGACY_DOC_REDIRECTS = {
@@ -552,8 +552,16 @@ function htmlResponse(html, cacheControl) {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "cache-control": cacheControl,
+      "cache-control": `${cacheControl}, no-transform`,
       ...SECURITY_HEADERS,
     },
   });
+}
+
+function withHtmlNoTransform(response) {
+  if (!response.headers.get("content-type")?.includes("text/html")) return response;
+  const headers = new Headers(response.headers);
+  const cacheControl = headers.get("cache-control");
+  headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }

@@ -140,12 +140,13 @@ test("static and Pages Function responses apply production security headers", as
     "Strict-Transport-Security: max-age=63072000; includeSubDomains",
     "Cross-Origin-Opener-Policy: same-origin",
     "script-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com",
-    "connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://cloudflareinsights.com",
+    "connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com",
   ]) assert.ok(headers.includes(value));
   assert.doesNotMatch(headers, /script-src[^;\n]*'unsafe-inline'/);
   assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains");
   assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
   assert.match(response.headers.get("content-security-policy"), /cloud\.umami\.is/);
+  assert.match(response.headers.get("cache-control"), /no-transform/);
 });
 
 test("homepage and launch kit link to the released Edge add-on", async () => {
@@ -254,7 +255,7 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.match(html, /1,234 stars today/);
   assert.match(html, /"@type":"CollectionPage"/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400, no-transform");
 });
 
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
