@@ -11,7 +11,7 @@ At build time (`npm run build:all`), `vite.config.js` reads the version from `pa
 
 The manifest source files under `manifests/` and `src/popup/index.html` intentionally hold placeholder versions — the build injects the package version.
 
-The Edge listing is still pending. A normal `npm run build:edge` uses an explicit Microsoft Edge Add-ons placeholder and disables the rating prompt. Release packaging is intentionally blocked until both approved URLs are configured:
+The Edge build defaults to the released [Microsoft Edge Add-ons listing](https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim). You can override its listing and review destinations for release testing:
 
 ```bash
 EDGE_STORE_URL=https://microsoftedge.microsoft.com/addons/detail/... \
@@ -38,4 +38,4 @@ npm run release 0.2.3   # explicit version
 3. Create a git tag: `extension-v<version>`
 4. Push the commit and tag to origin
 
-The `extension-v*` tag triggers the GitHub Actions workflow (`.github/workflows/extension-release.yml`), which builds Chrome, Edge, and Firefox independently and publishes target-named zip files. The tag build fails clearly if the approved Edge store URLs have not been configured as repository secrets.
+The `extension-v*` tag triggers the GitHub Actions workflow (`.github/workflows/extension-release.yml`), which builds Chrome, Edge, and Firefox independently and publishes target-named zip files. The Edge artifact uses the released Microsoft Edge Add-ons listing by default; repository secrets can override the URLs when needed.

@@ -6,6 +6,14 @@ export function ChromeIcon({ size }: { size: number }) {
   );
 }
 
+export function EdgeIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.86 13.34c0-5.2-4.16-9.42-9.3-9.42-4.63 0-8.48 3.43-9.18 7.91.96-1.72 2.91-3.3 5.87-3.3 3.54 0 5.85 2.05 5.85 4.8H7.56c.24 2.65 2.43 4.42 5.47 4.42 2.12 0 4.05-.73 5.54-2.13-.89 2.88-3.57 4.46-6.85 4.46C5.64 20.08 1 16.12 1 10.45 1 4.68 5.77 0 11.65 0 18.38 0 23 4.77 23 11.35c0 .69-.06 1.35-.18 1.99h-.96Z" />
+    </svg>
+  );
+}
+
 export function FirefoxIcon({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

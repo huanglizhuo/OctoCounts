@@ -37,7 +37,7 @@
     <meta property="og:site_name" content="OctoCounts" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="OctoCounts – GitHub SLOC Counter" />
-    <meta property="og:description" content="Install the Chrome or Firefox extension for GitHub repo sidebar SLOC, or paste a public GitHub URL into the web app for a full report." />
+    <meta property="og:description" content="Install the Chrome, Edge, or Firefox extension for GitHub repo sidebar SLOC, or paste a public GitHub URL into the web app for a full report." />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta property="og:image:alt" content="OctoCounts source line count report preview" />
     <meta property="og:image:width" content="1200" />
@@ -58,7 +58,7 @@
       "description": "OctoCounts shows actual source line counts for public GitHub repositories in browser extension sidebars or the web app: files, code lines, comments, blanks, and per-language totals. No cloning required.",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Any",
-      "browserRequirements": "Requires Chrome or Firefox",
+      "browserRequirements": "Requires Chrome, Edge, or Firefox",
       "softwareVersion": "__EXTENSION_VERSION__",
       "screenshot": "https://octocounts.com/og-image.jpg",
       "downloadUrl": "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
@@ -69,7 +69,7 @@
       },
       "featureList": [
         "SLOC counting by language",
-        "Chrome and Firefox extensions add a SLOC card to GitHub repository sidebars",
+        "Chrome, Edge, and Firefox extensions add a SLOC card to GitHub repository sidebars",
         "Public GitHub repository analysis",
         "No git clone required",
         "Results cached by commit SHA",
@@ -85,6 +85,7 @@
       "sameAs": [
         "https://github.com/huanglizhuo/OctoCounts",
         "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
         "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/"
       ]
     }
@@ -115,7 +116,7 @@
           "name": "Does OctoCounts have a browser extension?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. OctoCounts has browser extensions for Chrome and Firefox, both named OctoCounts – GitHub SLOC & Code Statistics. Install from the Chrome Web Store or Firefox Add-ons to add a compact SLOC card directly to GitHub repository sidebars. The card appears automatically on any public repository page and shows the total line count and analysis status. Clicking the card opens the full panel, which displays files, total lines, code lines, comment lines, and blank lines per language, the same breakdown as the web app. The extension includes a local cache so results load instantly on repeat visits to the same repository and ref. You can configure the auto-analyze setting to fetch counts immediately on page load, or trigger analysis manually. The placement setting controls where the card appears in the GitHub sidebar. No GitHub account or API token is required. The extension source code is publicly available on GitHub."
+            "text": "Yes. OctoCounts has browser extensions for Chrome, Edge, and Firefox, all named OctoCounts – GitHub SLOC & Code Statistics. Install from the Chrome Web Store, Microsoft Edge Add-ons, or Firefox Add-ons to add a compact SLOC card directly to GitHub repository sidebars. The card appears automatically on any public repository page and shows the total line count and analysis status. Clicking the card opens the full panel, which displays files, total lines, code lines, comment lines, and blank lines per language, the same breakdown as the web app. The extension includes a local cache so results load instantly on repeat visits to the same repository and ref. You can configure the auto-analyze setting to fetch counts immediately on page load, or trigger analysis manually. The placement setting controls where the card appears in the GitHub sidebar. No GitHub account or API token is required. The extension source code is publicly available on GitHub."
           }
         },
         {
@@ -176,7 +177,7 @@
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "OctoCounts – GitHub SLOC & Code Statistics",
-      "operatingSystem": "Chrome, Firefox",
+      "operatingSystem": "Chrome, Edge, Firefox",
       "applicationCategory": "BrowserApplication",
       "offers": {
         "@type": "Offer",
@@ -201,7 +202,7 @@
     <noscript>
       <main>
         <h1>OctoCounts – GitHub SLOC Counter</h1>
-        <p><time datetime="2026-06-11">Updated June 2026.</time> GitHub shows language bars, but it does not show actual files, code lines, comments, blanks, or per-language totals. OctoCounts is a free SLOC counter for public GitHub repositories. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a> or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning.</p>
+        <p><time datetime="2026-07-15">Updated July 2026.</time> GitHub shows language bars, but it does not show actual files, code lines, comments, blanks, or per-language totals. OctoCounts is a free SLOC counter for public GitHub repositories. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning.</p>
 
         <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
         <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA, tokei version, and analysis options, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install. Paste a public GitHub URL and get results in seconds.</p>
@@ -225,7 +226,7 @@
         <p>OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, Ruby, Swift, Kotlin, and many more.</p>
 
         <h3>Does OctoCounts have a browser extension?</h3>
-        <p>Yes. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts – GitHub SLOC & Code Statistics from the Chrome Web Store</a> or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts – GitHub SLOC & Code Statistics from Firefox Add-ons</a> to add a SLOC card directly to GitHub repository sidebars. The card shows repository line-count status and opens the full extension panel.</p>
+        <p>Yes. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts – GitHub SLOC & Code Statistics from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts – GitHub SLOC & Code Statistics from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts – GitHub SLOC & Code Statistics from Firefox Add-ons</a> to add a SLOC card directly to GitHub repository sidebars. The card shows repository line-count status and opens the full extension panel.</p>
 
         <h3>Is OctoCounts free to use?</h3>
         <p>Yes. OctoCounts is completely free to use for public GitHub repositories. No account or authentication is required.</p>

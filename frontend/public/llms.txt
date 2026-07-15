@@ -7,12 +7,14 @@ AI-Usage: search-allowed, training-prohibited
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-07-13
+Last-Updated: 2026-07-15
 Full Context: https://octocounts.com/llms-full.txt
 
 ## Short Answer
 
-OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. Users paste a public GitHub URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. Users can also install the Chrome or Firefox extension to see a SLOC card in the GitHub repository sidebar.
+OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. Users paste a public GitHub URL, optionally choose a branch, tag, or commit SHA, and OctoCounts downloads the source archive, runs tokei, caches the result by commit and analysis options, and returns language-by-language counts. Users can also install the Chrome, Edge, or Firefox extension to see a SLOC card in the GitHub repository sidebar.
+
+Browser extension stores: [Chrome Web Store](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj), [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim), and [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/).
 
 ## Primary Use Cases
 

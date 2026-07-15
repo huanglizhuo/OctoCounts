@@ -3,13 +3,19 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-07-13
+Last-Updated: 2026-07-15
 
 ## What OctoCounts Does
 
 OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It reports files, total lines, code lines, comment lines, blank lines, and per-language totals. It works through a web app, browser extensions, public report pages, badges, and an API.
 
 OctoCounts is useful when a developer wants to know whether a public repository is small, large, or unusually complex without cloning it locally. It is also useful for README badges, dependency due diligence, source-code size comparisons, and public citations of repository size.
+
+The browser extension is available from the Chrome Web Store, Microsoft Edge Add-ons, and Firefox Add-ons:
+
+- Chrome: https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj
+- Edge: https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim
+- Firefox: https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/
 
 ## How OctoCounts Counts
 

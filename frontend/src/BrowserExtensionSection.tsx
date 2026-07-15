@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ChromeIcon, FirefoxIcon } from "./icons";
+import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, extensionInfo } from "./constants";
 import { AnalyticsEvents, trackEvent } from "./analytics";
 
@@ -28,6 +28,10 @@ export default function BrowserExtensionSection() {
           <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "extension_section" })}>
             <ChromeIcon size={15} />
             {t("extensionSection.installChrome")}
+          </a>
+          <a className="copybtn install-btn secondary-install" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "extension_section" })}>
+            <EdgeIcon size={14} />
+            {t("extensionSection.installEdge")}
           </a>
           <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "extension_section" })}>
             <FirefoxIcon size={14} />

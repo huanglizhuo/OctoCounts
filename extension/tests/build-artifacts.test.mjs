@@ -64,13 +64,11 @@ test("artifacts never contain another browser store URL", async () => {
   assert.doesNotMatch(firefox, /chromewebstore\.google\.com|microsoftedge\.microsoft\.com/);
 });
 
-test("Edge placeholder is explicit and disables rating until configured", async () => {
+test("Edge build uses the released listing and enables its rating prompt", async () => {
   const info = JSON.parse(await artifact("edge", "build-info.json"));
-  if (!process.env.EDGE_STORE_URL || !process.env.EDGE_STORE_REVIEW_URL) {
-    assert.equal(info.storeConfigured, false);
-    assert.match(info.listingUrl, /PENDING_EDGE_LISTING/);
-    assert.equal(info.ratingPromptEnabled, false);
-  }
+  assert.equal(info.storeConfigured, true);
+  assert.equal(info.listingUrl, "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim");
+  assert.equal(info.ratingPromptEnabled, true);
 });
 
 test("configured Edge rating prompt names and links to Microsoft Edge Add-ons", async () => {
@@ -94,7 +92,7 @@ test("configured Edge rating prompt names and links to Microsoft Edge Add-ons", 
   assert.doesNotMatch(content, /rate OctoCounts on Chrome|valora OctoCounts en Chrome|notez OctoCounts sur Chrome|Chrome 商店评分|Chrome で評価/);
 });
 
-test("release packaging fails clearly while the Edge listing is pending", () => {
+test("release packaging succeeds with the default Edge listing", () => {
   const env = { ...process.env };
   delete env.EDGE_STORE_URL;
   delete env.EDGE_STORE_REVIEW_URL;
@@ -109,7 +107,5 @@ test("release packaging fails clearly while the Edge listing is pending", () => 
     env,
     encoding: "utf8",
   });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Edge release packaging is blocked/);
-  assert.match(result.stderr, /EDGE_STORE_URL and EDGE_STORE_REVIEW_URL/);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });

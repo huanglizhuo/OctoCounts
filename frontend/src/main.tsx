@@ -4,7 +4,7 @@ import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, 
 import React, { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
-import { ChromeIcon, FirefoxIcon } from "./icons";
+import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
@@ -296,6 +296,10 @@ function App() {
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "hero" })}>
                 <ChromeIcon size={15} />
                 {t("hero.installChrome")}
+              </a>
+              <a className="copybtn install-btn secondary-install" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "hero" })}>
+                <EdgeIcon size={14} />
+                {t("hero.installEdge")}
               </a>
               <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "hero" })}>
                 <FirefoxIcon size={14} />
@@ -886,6 +890,10 @@ function Topbar() {
           <ChromeIcon size={18} aria-hidden="true" />
           <span>{t("topbar.chrome")}</span>
         </a>
+        <a className="github-link install-link" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.edge")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "topbar" })}>
+          <EdgeIcon size={18} />
+          <span>{t("topbar.edge")}</span>
+        </a>
         <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "topbar" })}>
           <FirefoxIcon size={18} aria-hidden="true" />
           <span>{t("topbar.firefox")}</span>
@@ -1124,6 +1132,10 @@ function ReportGrowthActions({
         <a className="copybtn install-btn secondary-install" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "report_cta" })}>
           <ChromeIcon size={14} />
           {t("reportCta.installChrome")}
+        </a>
+        <a className="copybtn install-btn secondary-install" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "report_cta" })}>
+          <EdgeIcon size={14} />
+          {t("reportCta.installEdge")}
         </a>
       </div>
     </div>

@@ -6,6 +6,7 @@
   "topbar": {
     "brandName": "OctoCounts",
     "chrome": "Chrome",
+    "edge": "Edge",
     "firefox": "Firefox",
     "githubAria": "View OctoCounts on GitHub"
   },
@@ -24,6 +25,7 @@
     "ariaTrust": "Trust badges",
     "analyze": "Analyze",
     "installChrome": "Chrome Web Store",
+    "installEdge": "Microsoft Edge Add-ons",
     "installFirefox": "Firefox Add-ons",
     "sidebarHint": "See SLOC directly in GitHub's repo sidebar."
   },
@@ -106,6 +108,7 @@
     "copyUrl": "report URL",
     "exportPng": "PNG card",
     "installChrome": "Chrome",
+    "installEdge": "Edge",
     "copied": "copied"
   },
   "summary": {
@@ -207,6 +210,7 @@
       "Placement setting"
     ],
     "installChrome": "Install from Chrome Web Store",
+    "installEdge": "Install from Microsoft Edge Add-ons",
     "installFirefox": "Install from Firefox Add-ons",
     "viewSource": "View source",
     "previewAlt": "OctoCounts browser extension showing SLOC results on a GitHub repository"

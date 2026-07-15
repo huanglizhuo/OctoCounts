@@ -6,6 +6,7 @@ import { onRequest } from "../functions/[[path]].js";
 
 const ROOT = new URL("../", import.meta.url);
 const EXTENSION_PACKAGE = new URL("../../extension/package.json", import.meta.url);
+const EDGE_ADD_ON_URL = "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim";
 
 const docs = [
   ["github-sloc-counter", "https://octocounts.com/docs/github-sloc-counter"],
@@ -63,6 +64,13 @@ test("built homepage schema uses the packaged extension version", async () => {
   const html = await readFile(new URL("dist/index.html", ROOT), "utf8");
   assert.match(html, new RegExp(`"softwareVersion"\\s*:\\s*"${extensionPackage.version.replaceAll(".", "\\.")}"`));
   assert.doesNotMatch(html, /__EXTENSION_VERSION__/);
+});
+
+test("homepage and launch kit link to the released Edge add-on", async () => {
+  const homepage = await readFile(new URL("index.html", ROOT), "utf8");
+  const launchKit = await readFile(new URL("public/launch-kit.html", ROOT), "utf8");
+  assert.ok(homepage.includes(EDGE_ADD_ON_URL));
+  assert.ok(launchKit.includes(EDGE_ADD_ON_URL));
 });
 
 test("production frontend image includes the extension version source", async () => {

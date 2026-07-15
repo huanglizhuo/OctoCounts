@@ -7,6 +7,7 @@
 > GitHub shows language bars. OctoCounts shows the actual line counts.
 
 [![Available in the Chrome Web Store](https://img.shields.io/chrome-web-store/v/gkgjpjdnaklagijmekoolhcpebmoldbj?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj)
+[![Available in Microsoft Edge Add-ons](https://img.shields.io/badge/Microsoft%20Edge-Add--ons-0C59A4?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim)
 [![Available in Firefox Add-ons](https://img.shields.io/amo/v/octocounts-github-sloc?label=Firefox%20Add-ons&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/)
 
 [![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCounts)](https://octocounts.com/github/huanglizhuo/OctoCounts)
@@ -20,7 +21,7 @@ Install the extension for instant stats directly on GitHub, or use the web app f
 | Surface | Use it for |
 |---|---|
 | [Web app](https://octocounts.com/) | Analyze any public GitHub repository and share a permanent report. |
-| [Browser extension](extension/README.md) | Show SLOC directly inside GitHub's repository sidebar. |
+| [Browser extension](extension/README.md) | Show SLOC directly inside GitHub's repository sidebar in Chrome, Edge, or Firefox. |
 | [Public stats](https://octocounts.com/stats) | See aggregate report totals, largest repos, language coverage, and source breakdown. |
 | [GitHub Action](action/README.md) | Comment SLOC changes on pull requests. |
 | [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |

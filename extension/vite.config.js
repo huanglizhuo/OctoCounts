@@ -3,8 +3,8 @@ import { resolve, join } from 'path';
 import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 
 const TARGETS = new Set(['chrome', 'edge', 'firefox']);
-const EDGE_LISTING_PLACEHOLDER = 'https://microsoftedge.microsoft.com/addons/detail/PENDING_EDGE_LISTING';
-const EDGE_REVIEW_PLACEHOLDER = 'https://microsoftedge.microsoft.com/addons/detail/PENDING_EDGE_LISTING/reviews';
+const EDGE_LISTING_URL = 'https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim';
+const EDGE_REVIEW_URL = EDGE_LISTING_URL;
 
 const STORES = {
   chrome: {
@@ -26,18 +26,17 @@ const STORES = {
 };
 
 function edgeStore() {
-  const listingUrl = process.env.EDGE_STORE_URL || EDGE_LISTING_PLACEHOLDER;
-  const reviewUrl = process.env.EDGE_STORE_REVIEW_URL || EDGE_REVIEW_PLACEHOLDER;
+  const listingUrl = process.env.EDGE_STORE_URL || EDGE_LISTING_URL;
+  const reviewUrl = process.env.EDGE_STORE_REVIEW_URL || EDGE_REVIEW_URL;
   validateEdgeUrl('EDGE_STORE_URL', listingUrl);
   validateEdgeUrl('EDGE_STORE_REVIEW_URL', reviewUrl);
-  const storeConfigured = Boolean(process.env.EDGE_STORE_URL && process.env.EDGE_STORE_REVIEW_URL);
   return {
     store: 'edge',
     storeName: 'Microsoft Edge Add-ons',
     listingUrl,
     reviewUrl,
-    storeConfigured,
-    ratingPromptEnabled: storeConfigured,
+    storeConfigured: true,
+    ratingPromptEnabled: true,
   };
 }
 

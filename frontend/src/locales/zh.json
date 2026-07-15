@@ -6,6 +6,7 @@
   "topbar": {
     "brandName": "OctoCounts",
     "chrome": "Chrome",
+    "edge": "Edge",
     "firefox": "Firefox",
     "githubAria": "在 GitHub 上查看 OctoCounts"
   },
@@ -24,6 +25,7 @@
     "ariaTrust": "信任徽章",
     "analyze": "分析",
     "installChrome": "Chrome 应用商店",
+    "installEdge": "Microsoft Edge 加载项",
     "installFirefox": "Firefox 附加组件",
     "sidebarHint": "直接在 GitHub 仓库侧边栏查看 SLOC。"
   },
@@ -97,6 +99,7 @@
     "copyUrl": "报告链接",
     "exportPng": "PNG 卡片",
     "installChrome": "Chrome",
+    "installEdge": "Edge",
     "copied": "已复制"
   },
   "summary": {
@@ -198,6 +201,7 @@
       "位置设置"
     ],
     "installChrome": "从 Chrome 应用商店安装",
+    "installEdge": "从 Microsoft Edge 加载项安装",
     "installFirefox": "从 Firefox 附加组件安装",
     "viewSource": "查看源码",
     "previewAlt": "OctoCounts 浏览器扩展在 GitHub 仓库上显示 SLOC 结果"
