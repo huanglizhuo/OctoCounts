@@ -562,6 +562,8 @@ function withHtmlNoTransform(response) {
   if (!response.headers.get("content-type")?.includes("text/html")) return response;
   const headers = new Headers(response.headers);
   const cacheControl = headers.get("cache-control");
-  headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
+  if (!cacheControl?.split(",").some((directive) => directive.trim() === "no-transform")) {
+    headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
+  }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
