@@ -25,6 +25,16 @@ export async function onRequest(context) {
     return Response.redirect(new URL(legacyDoc, url.origin), 308);
   }
 
+  const legacyQueryReport = legacyQueryReportPath(url);
+  if (legacyQueryReport) {
+    return Response.redirect(new URL(legacyQueryReport, url.origin), 308);
+  }
+
+  const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
+  if (legacyReport) {
+    return Response.redirect(new URL(legacyReport, url.origin), 308);
+  }
+
   if (url.pathname === "/sitemap.xml") {
     return sitemapResponse(context);
   }
@@ -58,6 +68,43 @@ const LEGACY_DOC_REDIRECTS = {
   "/docs/methodology.html": "/docs/methodology",
   "/docs/api.html": "/docs/api",
 };
+
+const LEGACY_REPORT_REDIRECTS = {
+  "github/huanglizhuo/octocount": "/github/huanglizhuo/OctoCounts",
+};
+
+function legacyQueryReportPath(url) {
+  if (url.pathname !== "/") return "";
+  const rawRepository = url.searchParams.get("q") ?? url.searchParams.get("url");
+  if (!rawRepository) return "";
+
+  try {
+    const normalized = rawRepository.startsWith("git@github.com:")
+      ? rawRepository.replace("git@github.com:", "https://github.com/")
+      : rawRepository;
+    const repository = new URL(normalized);
+    if (repository.hostname.toLowerCase() !== "github.com") return "";
+
+    const segments = repository.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    if (segments.length < 2 || !isGitHubPathPart(segments[0]) || !isGitHubPathPart(segments[1])) return "";
+
+    const owner = encodeURIComponent(segments[0]);
+    const repo = encodeURIComponent(segments[1].replace(/\.git$/i, ""));
+    const embeddedRef = segments[2] === "tree" || segments[2] === "commit" ? segments.slice(3).join("/") : "";
+    const refName = (url.searchParams.get("ref") ?? embeddedRef).trim();
+    if (!refName) return `/github/${owner}/${repo}`;
+
+    const marker = /^[a-f0-9]{7,40}$/i.test(refName) ? "commit" : "tree";
+    const encodedRef = refName.split("/").map(encodeURIComponent).join("/");
+    return `/github/${owner}/${repo}/${marker}/${encodedRef}`;
+  } catch {
+    return "";
+  }
+}
+
+function isGitHubPathPart(value) {
+  return /^[a-z0-9_.-]+$/i.test(value);
+}
 
 function parseGitHubRoute(parts) {
   const marker = parts[3];

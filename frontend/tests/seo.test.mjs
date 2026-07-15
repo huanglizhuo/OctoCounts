@@ -50,6 +50,27 @@ test("legacy documentation .html URLs permanently redirect to extensionless cano
   }
 });
 
+test("renamed repository URLs permanently redirect to the current canonical report", async () => {
+  for (const path of [
+    "/github/huanglizhuo/OctoCount",
+    "/github/huanglizhuo/OctoCount/tree/main",
+  ]) {
+    const response = await onRequest(requestContext(path));
+    assert.equal(response.status, 308);
+    assert.equal(response.headers.get("location"), "https://octocounts.com/github/huanglizhuo/OctoCounts");
+  }
+});
+
+test("legacy query report URLs permanently redirect to clean public report paths", async () => {
+  const response = await onRequest(requestContext("/?q=https%3A%2F%2Fgithub.com%2Fhuanglizhuo%2FQwenASR&ref=main"));
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://octocounts.com/github/huanglizhuo/QwenASR/tree/main");
+
+  const commitResponse = await onRequest(requestContext("/?url=https%3A%2F%2Fgithub.com%2Focto-org%2Frepo.git&ref=abcdef1"));
+  assert.equal(commitResponse.status, 308);
+  assert.equal(commitResponse.headers.get("location"), "https://octocounts.com/github/octo-org/repo/commit/abcdef1");
+});
+
 test("extensionless documentation URLs are served directly", async () => {
   for (const [slug] of docs) {
     const response = await onRequest(requestContext(`/docs/${slug}`));
