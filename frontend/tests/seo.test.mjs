@@ -128,6 +128,15 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(main, /DeferredContent minHeight=\{420\}><CompareRepos/);
 });
 
+test("paper panels stay flat and advanced option checkboxes use the theme UI", async () => {
+  const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
+
+  assert.match(styles, /html\[data-scheme="paper"\]\s*\{[\s\S]*?--terminal-shadow:\s*0 0 0 1px[\s\S]*?inset;/);
+  assert.match(styles, /\.analysis-options-grid input:not\(\[type="checkbox"\]\)/);
+  assert.match(styles, /\.analysis-toggles input\[type="checkbox"\]\s*\{[\s\S]*?appearance:\s*none;/);
+  assert.match(styles, /\.analysis-toggles input\[type="checkbox"\]:checked\s*\{[\s\S]*?background:\s*var\(--accent\);/);
+});
+
 test("static and Pages Function responses apply production security headers", async () => {
   const headers = await readFile(new URL("public/_headers", ROOT), "utf8");
   const response = await onRequest(await renderedContext("/trending", {

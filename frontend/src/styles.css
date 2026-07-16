@@ -109,6 +109,9 @@ html[data-scheme="paper"] {
   --rule: oklch(84% 0.013 90);
   --rule-2: oklch(88% 0.013 90);
   --selection: oklch(90% 0.045 148);
+  /* Paper is flat printed output: keep the keyline, drop the clipped CRT bloom. */
+  --terminal-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
+  --active-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 html[data-scheme="paper"] .glow {
@@ -872,7 +875,7 @@ html[data-scheme="paper"] .btn {
 }
 
 .analysis-options-grid select,
-.analysis-options-grid input {
+.analysis-options-grid input:not([type="checkbox"]) {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--rule);
@@ -882,7 +885,7 @@ html[data-scheme="paper"] .btn {
 }
 
 .analysis-options-grid select:focus,
-.analysis-options-grid input:focus,
+.analysis-options-grid input:not([type="checkbox"]):focus,
 .badge-builder select:focus,
 .badge-builder input:focus,
 .compare-field input:focus {
@@ -903,9 +906,64 @@ html[data-scheme="paper"] .btn {
   display: inline-flex;
   grid-auto-flow: column;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  cursor: pointer;
   text-transform: none;
   letter-spacing: 0;
+  transition: color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.analysis-toggles label:hover {
+  color: var(--fg);
+  border-color: var(--rule);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.analysis-toggles input[type="checkbox"] {
+  appearance: none;
+  flex: 0 0 18px;
+  display: grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--fg-mute);
+  background: var(--bg);
+  color: var(--bg);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.analysis-toggles input[type="checkbox"]::before {
+  content: "";
+  width: 11px;
+  height: 8px;
+  background: currentColor;
+  clip-path: polygon(0 42%, 38% 72%, 100% 0, 100% 34%, 40% 100%, 0 68%);
+  transform: scale(0);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.analysis-toggles input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.analysis-toggles input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.analysis-toggles input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .badge-builder {
