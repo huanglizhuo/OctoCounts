@@ -275,11 +275,8 @@
     "copyright": "(c) 2026"
   },
   "theme": {
-    "matrix": "matrix",
-    "paper": "paper",
-    "amber": "amber",
-    "label": "theme",
-    "ariaLabel": "Theme"
+    "switchToDay": "Switch to day mode",
+    "switchToNight": "Switch to night mode"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",

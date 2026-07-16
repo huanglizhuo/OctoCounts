@@ -42,8 +42,6 @@ html[data-scheme="matrix"] {
   --rule: oklch(24% 0.038 148);
   --rule-2: oklch(17% 0.032 148);
   --selection: oklch(23% 0.045 148);
-  --sw-paper: oklch(42% 0.100 148);
-  --sw-amber: oklch(79% 0.175 82);
   --panel: color-mix(in srgb, var(--bg-2) 90%, var(--bg));
   --panel-hi: color-mix(in srgb, var(--bg-2) 86%, var(--accent) 7%);
   --grid-line: color-mix(in srgb, var(--accent) 9%, transparent);
@@ -73,24 +71,6 @@ html[data-scheme="matrix"] {
   --duration-base: 180ms;
   --duration-slow: 300ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-html[data-scheme="amber"] {
-  --bg: oklch(8% 0.020 62);
-  --bg-2: oklch(11% 0.025 62);
-  --bg-3: oklch(14% 0.028 62);
-  --fg: oklch(93% 0.075 85);
-  --fg-dim: oklch(74% 0.118 70);
-  --fg-mute: oklch(61% 0.070 68);
-  --accent: oklch(79% 0.175 82);
-  --accent-2: oklch(68% 0.175 32);
-  --warn: oklch(89% 0.118 88);
-  --err: oklch(65% 0.210 15);
-  --blue: oklch(79% 0.118 228);
-  --violet: oklch(74% 0.165 292);
-  --rule: oklch(28% 0.058 66);
-  --rule-2: oklch(18% 0.040 66);
-  --selection: oklch(20% 0.050 66);
 }
 
 html[data-scheme="paper"] {
@@ -368,6 +348,11 @@ body {
   align-items: center;
 }
 
+.topbar-links {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
 .hero-left>.top-actions {
   margin-bottom: var(--space-2);
 }
@@ -512,58 +497,37 @@ body {
   }
 }
 
-.theme-switch {
+.theme-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   border: 1px solid var(--rule);
-  padding: 2px;
-  background: var(--panel);
-}
-
-.theme-btn {
-  background: transparent;
-  border: 0;
-  color: var(--fg-mute);
-  font-size: var(--text-xs);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  min-height: 32px;
-  padding: 6px 10px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
-}
-
-.theme-btn:hover {
+  padding: 0;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
   color: var(--fg-dim);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
-.theme-btn.active {
+.theme-toggle:hover {
   color: var(--accent);
-  background: var(--bg-3);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
-.theme-btn:focus-visible {
+.theme-toggle:active {
+  transform: translateY(1px);
+}
+
+.theme-toggle:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.theme-sw {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  background: var(--accent);
-}
-
-.theme-sw.paper {
-  background: var(--sw-paper);
-}
-
-.theme-sw.amber {
-  background: var(--sw-amber);
+  outline-offset: 2px;
 }
 
 section {
@@ -1359,13 +1323,14 @@ html[data-scheme="paper"] .btn {
 }
 
 .report-index-grid {
-  display: grid;
-  grid-template-columns: 1.35fr repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   background: var(--rule);
 }
 
 .report-index-link {
+  flex: 1 1 180px;
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2585,12 +2550,46 @@ footer a {
     grid-template-columns: 1fr;
   }
 
+  .report-index-link {
+    flex-basis: 240px;
+  }
+
   .extension-panel {
     grid-template-columns: 1fr;
   }
 
   .extension-copy {
     order: -1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-3);
+    max-height: none;
+  }
+
+  .brand {
+    width: fit-content;
+  }
+
+  .topbar-links {
+    width: 100%;
+    padding-bottom: var(--space-1);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .report-rail,
+  .github-link.install-link,
+  .github-link.signal-link,
+  .github-link.icon-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 }
 
@@ -2653,25 +2652,6 @@ footer a {
     inset-inline: -14px;
     opacity: .22;
     mask-image: linear-gradient(to bottom, black, transparent 62%);
-  }
-
-  .topbar {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 10px;
-    max-height: none;
-  }
-
-  .topbar-links {
-    gap: 8px;
-    display: flex;
-    flex-wrap: nowrap;
-    width: calc(100vw - 28px);
-    padding-bottom: 4px;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: thin;
   }
 
   .report-rail {
@@ -2770,16 +2750,6 @@ footer a {
     width: 100%;
   }
 
-  .theme-switch {
-    width: 100%;
-  }
-
-  .theme-btn {
-    flex: 1;
-    justify-content: center;
-    min-height: 44px;
-  }
-
   .hero-left h1.title {
     font-size: clamp(31px, 10.5vw, 42px);
     line-height: 1.02;
@@ -2839,11 +2809,8 @@ footer a {
     text-align: left;
   }
 
-  .report-index-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .report-index-link {
+    flex-basis: 180px;
     grid-template-columns: 1fr;
     min-height: 112px;
   }
@@ -2893,8 +2860,8 @@ footer a {
     min-height: 38px;
   }
 
-  .report-index-grid {
-    grid-template-columns: 1fr;
+  .report-index-link {
+    flex-basis: 100%;
   }
 
   .extension-copy,
@@ -2935,11 +2902,6 @@ footer a {
     min-height: 44px;
   }
 
-  .theme-btn {
-    padding: 10px 12px;
-    min-height: 44px;
-  }
-
   .expand,
   .expand-spacer {
     width: 44px;
@@ -2975,8 +2937,10 @@ footer a {
     color: var(--fg-dim);
   }
 
-  .theme-btn:hover {
-    color: var(--fg-mute);
+  .theme-toggle:hover {
+    color: var(--fg-dim);
+    border-color: var(--rule);
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
   }
 
   table.report th:hover {
@@ -3176,16 +3140,6 @@ table.report td.lang {
 
 .row-ratio i.bl {
   background: var(--fg-mute);
-}
-
-/* Theme switcher label */
-.theme-label {
-  color: var(--fg-mute);
-  font-size: var(--text-xs);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-right: 4px;
-  align-self: center;
 }
 
 /* How-it-works pipeline */

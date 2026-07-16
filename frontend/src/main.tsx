@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Moon, Play, RotateCcw, Sun } from "lucide-react";
 import React, { FormEvent, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n from "./i18n";
@@ -62,7 +62,7 @@ function systemScheme(): Scheme {
 function readStoredScheme(): Scheme | null {
   try {
     const value = localStorage.getItem(THEME_KEY);
-    return value === "matrix" || value === "paper" || value === "amber" ? value : null;
+    return value === "matrix" || value === "paper" ? value : null;
   } catch {
     return null;
   }
@@ -1020,16 +1020,20 @@ function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: 
 
 function ThemeSwitch({ scheme, setScheme }: { scheme: Scheme; setScheme: (scheme: Scheme) => void }) {
   const { t } = useTranslation();
+  const isNight = scheme === "matrix";
+  const label = t(isNight ? "theme.switchToDay" : "theme.switchToNight");
   return (
-    <div className="theme-switch" role="group" aria-label={t("theme.ariaLabel")}>
-      <span className="theme-label" aria-hidden="true">{t("theme.label")}</span>
-      {(["matrix", "paper", "amber"] as const).map((item) => (
-        <button className={`theme-btn ${scheme === item ? "active" : ""}`} key={item} onClick={() => setScheme(item)} type="button" aria-pressed={scheme === item}>
-          <span className={`theme-sw ${item}`} />
-          {t("theme." + item)}
-        </button>
-      ))}
-    </div>
+    <button
+      className="theme-toggle"
+      type="button"
+      onClick={() => setScheme(isNight ? "paper" : "matrix")}
+      aria-label={label}
+      aria-pressed={isNight}
+      title={label}
+    >
+      {isNight ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+      <span className="visually-hidden">{label}</span>
+    </button>
   );
 }
 

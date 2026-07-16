@@ -137,6 +137,22 @@ test("paper panels stay flat and advanced option checkboxes use the theme UI", a
   assert.match(styles, /\.analysis-toggles input\[type="checkbox"\]:checked\s*\{[\s\S]*?background:\s*var\(--accent\);/);
 });
 
+test("responsive navigation and the two-mode theme control avoid orphaned UI", async () => {
+  const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
+  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const types = await readFile(new URL("src/types.ts", ROOT), "utf8");
+  const english = await readFile(new URL("src/locales/en.json", ROOT), "utf8");
+  const chinese = await readFile(new URL("src/locales/zh.json", ROOT), "utf8");
+
+  assert.match(types, /type Scheme = "matrix" \| "paper"/);
+  assert.doesNotMatch(`${styles}\n${main}\n${types}\n${english}\n${chinese}`, /amber/i);
+  assert.match(main, /onClick=\{\(\) => setScheme\(isNight \? "paper" : "matrix"\)\}/);
+  assert.match(main, /aria-pressed=\{isNight\}/);
+  assert.match(styles, /@media \(max-width: 1180px\)\s*\{[\s\S]*?\.topbar\s*\{[\s\S]*?max-height: none;/);
+  assert.match(styles, /\.report-index-grid\s*\{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;/);
+  assert.match(styles, /\.report-index-link\s*\{[\s\S]*?flex: 1 1 180px;/);
+});
+
 test("static and Pages Function responses apply production security headers", async () => {
   const headers = await readFile(new URL("public/_headers", ROOT), "utf8");
   const response = await onRequest(await renderedContext("/trending", {

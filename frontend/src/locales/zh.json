@@ -266,11 +266,8 @@
     "copyright": "(c) 2026"
   },
   "theme": {
-    "matrix": "矩阵",
-    "paper": "纸张",
-    "amber": "琥珀",
-    "ariaLabel": "主题",
-    "label": "主题"
+    "switchToDay": "切换到日间模式",
+    "switchToNight": "切换到夜间模式"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",
