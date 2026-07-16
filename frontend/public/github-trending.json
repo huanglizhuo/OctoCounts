@@ -1,8 +1,8 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-07-15T14:45:39.061Z",
-  "date": "2026-07-15",
+  "generatedAt": "2026-07-16T05:19:18.739Z",
+  "date": "2026-07-16",
   "repositories": [
     {
       "rank": 1,
@@ -11,8 +11,8 @@
       "fullName": "OpenCut-app/OpenCut",
       "description": "The open-source CapCut alternative",
       "language": "TypeScript",
-      "starsToday": 1505,
-      "totalStars": 70477,
+      "starsToday": 1664,
+      "totalStars": 72401,
       "htmlUrl": "https://github.com/OpenCut-app/OpenCut",
       "publicPath": "/github/OpenCut-app/OpenCut"
     },
@@ -23,8 +23,8 @@
       "fullName": "Nutlope/hallmark",
       "description": "Anti-AI-slop design skill for Claude Code, Cursor, and Codex.",
       "language": "CSS",
-      "starsToday": 1119,
-      "totalStars": 7201,
+      "starsToday": 1277,
+      "totalStars": 9120,
       "htmlUrl": "https://github.com/Nutlope/hallmark",
       "publicPath": "/github/Nutlope/hallmark"
     },
@@ -35,8 +35,8 @@
       "fullName": "mattpocock/skills",
       "description": "Skills for Real Engineers. Straight from my .claude directory.",
       "language": "Shell",
-      "starsToday": 2160,
-      "totalStars": 171709,
+      "starsToday": 2130,
+      "totalStars": 172677,
       "htmlUrl": "https://github.com/mattpocock/skills",
       "publicPath": "/github/mattpocock/skills"
     },
@@ -47,8 +47,8 @@
       "fullName": "moeru-ai/airi",
       "description": "💖🧸 Self hosted, you-owned Grok Companion, a container of souls of waifu, cyber livings to bring them into our worlds, wishing to achieve Neuro-sama's altitude. Capable of realtime voice chat, Minecraft, Factorio playing. Web / macOS / Windows supported.",
       "language": "TypeScript",
-      "starsToday": 537,
-      "totalStars": 42368,
+      "starsToday": 110,
+      "totalStars": 42613,
       "htmlUrl": "https://github.com/moeru-ai/airi",
       "publicPath": "/github/moeru-ai/airi"
     },
@@ -59,8 +59,8 @@
       "fullName": "Dicklesworthstone/destructive_command_guard",
       "description": "The Destructive Command Guard (dcg) is for blocking dangerous git and shell commands from being executed by agents.",
       "language": "Rust",
-      "starsToday": 497,
-      "totalStars": 4613,
+      "starsToday": 471,
+      "totalStars": 4840,
       "htmlUrl": "https://github.com/Dicklesworthstone/destructive_command_guard",
       "publicPath": "/github/Dicklesworthstone/destructive_command_guard"
     },
@@ -71,8 +71,8 @@
       "fullName": "HKUDS/Vibe-Trading",
       "description": "\"Vibe-Trading: Your Personal Trading Agent\"",
       "language": "Python",
-      "starsToday": 924,
-      "totalStars": 23426,
+      "starsToday": 915,
+      "totalStars": 23851,
       "htmlUrl": "https://github.com/HKUDS/Vibe-Trading",
       "publicPath": "/github/HKUDS/Vibe-Trading"
     },
@@ -83,8 +83,8 @@
       "fullName": "openinterpreter/openinterpreter",
       "description": "A coding agent for low-cost models",
       "language": "Rust",
-      "starsToday": 607,
-      "totalStars": 65224,
+      "starsToday": 299,
+      "totalStars": 65601,
       "htmlUrl": "https://github.com/openinterpreter/openinterpreter",
       "publicPath": "/github/openinterpreter/openinterpreter"
     },
@@ -95,8 +95,8 @@
       "fullName": "HKUDS/DeepTutor",
       "description": "DeepTutor: Lifelong Personalized Tutoring. https://deeptutor.info/ .",
       "language": "Python",
-      "starsToday": 128,
-      "totalStars": 26076,
+      "starsToday": 172,
+      "totalStars": 26433,
       "htmlUrl": "https://github.com/HKUDS/DeepTutor",
       "publicPath": "/github/HKUDS/DeepTutor"
     },
@@ -107,8 +107,8 @@
       "fullName": "HenryNdubuaku/maths-cs-ai-compendium",
       "description": "Become a cracked AI/ML Research Engineer",
       "language": "TypeScript",
-      "starsToday": 729,
-      "totalStars": 5693,
+      "starsToday": 725,
+      "totalStars": 6022,
       "htmlUrl": "https://github.com/HenryNdubuaku/maths-cs-ai-compendium",
       "publicPath": "/github/HenryNdubuaku/maths-cs-ai-compendium"
     },
@@ -119,8 +119,8 @@
       "fullName": "Shubhamsaboo/awesome-llm-apps",
       "description": "100+ AI Agent & RAG apps you can actually run — clone, customize, ship.",
       "language": "Python",
-      "starsToday": 1278,
-      "totalStars": 121616,
+      "starsToday": 1236,
+      "totalStars": 122090,
       "htmlUrl": "https://github.com/Shubhamsaboo/awesome-llm-apps",
       "publicPath": "/github/Shubhamsaboo/awesome-llm-apps"
     },
@@ -131,8 +131,8 @@
       "fullName": "coreyhaines31/marketingskills",
       "description": "Marketing skills for Claude Code and AI agents. CRO, copywriting, SEO, analytics, and growth engineering.",
       "language": "JavaScript",
-      "starsToday": 869,
-      "totalStars": 39472,
+      "starsToday": 340,
+      "totalStars": 39893,
       "htmlUrl": "https://github.com/coreyhaines31/marketingskills",
       "publicPath": "/github/coreyhaines31/marketingskills"
     },
@@ -143,8 +143,8 @@
       "fullName": "YimMenu/YimMenuV2",
       "description": "Experimental menu for GTA 5: Enhanced",
       "language": "C++",
-      "starsToday": 21,
-      "totalStars": 1373,
+      "starsToday": 38,
+      "totalStars": 1451,
       "htmlUrl": "https://github.com/YimMenu/YimMenuV2",
       "publicPath": "/github/YimMenu/YimMenuV2"
     },
@@ -155,8 +155,8 @@
       "fullName": "hasaneyldrm/exercises-dataset",
       "description": "1,324-exercise fitness dataset — animation GIFs, 180×180 thumbnails, muscle-group & equipment data, and step-by-step instructions in 6 languages. The exercise data layer behind the LogPress app.",
       "language": "HTML",
-      "starsToday": 951,
-      "totalStars": 14100,
+      "starsToday": 949,
+      "totalStars": 14515,
       "htmlUrl": "https://github.com/hasaneyldrm/exercises-dataset",
       "publicPath": "/github/hasaneyldrm/exercises-dataset"
     }
