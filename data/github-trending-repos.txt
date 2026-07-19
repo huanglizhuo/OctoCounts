@@ -1,15 +1,12 @@
-# GitHub Trending daily snapshot generated 2026-07-18T05:04:48.121Z
-codecrafters-io/build-your-own-x
+# GitHub Trending daily snapshot generated 2026-07-19T05:31:27.555Z
+Robbyant/lingbot-map
+apache/ossie
 PostHog/posthog
-HenryNdubuaku/maths-cs-ai-compendium
-Nutlope/hallmark
-github/copilot-sdk
-anthropics/cwc-workshops
-PrismML-Eng/Bonsai-demo
-protocolbuffers/protobuf
+ibelick/ui-skills
+rohitg00/ai-engineering-from-scratch
 tirth8205/code-review-graph
-docusealco/docuseal
-openinterpreter/openinterpreter
-RyanCodrai/turbovec
-HKUDS/DeepTutor
-OpenCut-app/OpenCut
+elder-plinius/G0DM0D3
+lyogavin/airllm
+KnockOutEZ/wigolo
+codecrafters-io/build-your-own-x
+MoonshotAI/kimi-cli
