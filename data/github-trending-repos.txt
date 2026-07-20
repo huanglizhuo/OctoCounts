@@ -1,12 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-07-19T05:31:27.555Z
-Robbyant/lingbot-map
-apache/ossie
-PostHog/posthog
-ibelick/ui-skills
-rohitg00/ai-engineering-from-scratch
+# GitHub Trending daily snapshot generated 2026-07-20T05:49:06.360Z
+bojieli/ai-agent-book
 tirth8205/code-review-graph
-elder-plinius/G0DM0D3
-lyogavin/airllm
+kvcache-ai/ktransformers
+rohitg00/ai-engineering-from-scratch
+jamiepine/voicebox
 KnockOutEZ/wigolo
-codecrafters-io/build-your-own-x
+andrewrabert/jellium-desktop
+github/copilot-sdk
+PostHog/posthog
+microsoft/terminal
+AstrBotDevs/AstrBot
+1jehuang/jcode
+trycua/cua
 MoonshotAI/kimi-cli
+Flowseal/zapret-discord-youtube
+codecrafters-io/build-your-own-x
+lyogavin/airllm
+Canner/WrenAI
+PKUFlyingPig/cs-self-learning
