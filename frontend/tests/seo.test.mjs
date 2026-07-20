@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { transform } from "esbuild";
 
 import { onRequest } from "../functions/[[path]].js";
 
@@ -141,6 +142,7 @@ test("responsive navigation and the two-mode theme control avoid orphaned UI", a
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
   const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
   const types = await readFile(new URL("src/types.ts", ROOT), "utf8");
+
   const english = await readFile(new URL("src/locales/en.json", ROOT), "utf8");
   const chinese = await readFile(new URL("src/locales/zh.json", ROOT), "utf8");
 
@@ -151,6 +153,30 @@ test("responsive navigation and the two-mode theme control avoid orphaned UI", a
   assert.match(styles, /@media \(max-width: 1180px\)\s*\{[\s\S]*?\.topbar\s*\{[\s\S]*?max-height: none;/);
   assert.match(styles, /\.report-index-grid\s*\{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;/);
   assert.match(styles, /\.report-index-link\s*\{[\s\S]*?flex: 1 1 180px;/);
+});
+
+test("project documentation and promo composition expose only supported themes", async () => {
+  const files = await Promise.all([
+    readFile(new URL("../GROWTH.md", ROOT), "utf8"),
+    readFile(new URL("../hyperframes/octocounts-intro/README.md", ROOT), "utf8"),
+    readFile(new URL("../hyperframes/octocounts-intro/index.html", ROOT), "utf8"),
+  ]);
+
+  assert.doesNotMatch(files.join("\n"), /amber/i);
+});
+
+test("matrix language colors meet the non-text contrast threshold", async () => {
+  const source = await readFile(new URL("src/colorContrast.ts", ROOT), "utf8");
+  const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled.code).toString("base64")}`;
+  const { contrastRatio, MIN_GRAPHIC_CONTRAST, parseHexColor, visibleLanguageColor } = await import(moduleUrl);
+  const matrixSurface = [20, 27, 23];
+
+  for (const color of ["#000080", "#292929", "#083FA1"]) {
+    const adjusted = visibleLanguageColor(color, "matrix");
+    assert.ok(contrastRatio(parseHexColor(adjusted), matrixSurface) >= MIN_GRAPHIC_CONTRAST);
+    assert.equal(visibleLanguageColor(color, "paper"), color);
+  }
 });
 
 test("static and Pages Function responses apply production security headers", async () => {

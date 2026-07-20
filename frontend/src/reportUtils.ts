@@ -1,5 +1,6 @@
 import i18n from "./i18n";
 import type { AppStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
+export { visibleLanguageColor } from "./colorContrast";
 
 export const statusCopy: Record<AppStatus, string> = {
   idle: i18n.t("runner.status.idle"),

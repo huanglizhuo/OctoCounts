@@ -31,10 +31,10 @@ The composition declares these variables:
 - `repoName`: default `huanglizhuo/OctoCounts`
 - `headline`: default `The SLOC panel GitHub forgot`
 - `cta`: default `Install the extension or paste a repo URL`
-- `theme`: `matrix`, `paper`, or `amber`
+- `theme`: `matrix` or `paper`
 
 Example:
 
 ```bash
-npx hyperframes render --variables '{"repoName":"owner/repo","theme":"amber"}'
+npx hyperframes render --variables '{"repoName":"owner/repo","theme":"paper"}'
 ```

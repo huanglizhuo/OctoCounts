@@ -17,6 +17,8 @@ function applyTranslations() {
   $('silentUntilSuccessLabel').textContent  = t('popup.silentUntilSuccess');
   $('replaceGhLanguagesLabel').textContent  = t('popup.replaceGhLanguages');
   $('skipForksLabel').textContent           = t('popup.skipForks');
+  $('hintSilentDesc').textContent           = t('popup.hintSilent');
+  $('hintReplaceGhDesc').textContent        = t('popup.hintReplaceGhLanguages');
 
   $('cardPlacementLabel').textContent    = t('popup.position');
   $('hintPosition').textContent          = t('popup.hintPosition');
@@ -100,7 +102,6 @@ async function checkPageStatus() {
     if (status?.isPrivateRepo) {
       $('noticeText').textContent  = t('popup.privateNotice');
       $('noticeSection').hidden    = false;
-      $('settingsSection').hidden  = true;
       setTabStatus('private');
     } else if (status?.isRepoPage) {
       chrome.storage.local.set({ welcomed: true }).catch(() => {});
@@ -125,9 +126,9 @@ async function initRepoPill(owner, repo) {
   let disabled = result[storageKey] === true;
 
   const pill = $('tabStatus');
+  pill.disabled = false;
   renderPillState(pill, disabled);
 
-  pill.style.cursor = 'pointer';
   pill.addEventListener('click', async () => {
     disabled = !disabled;
     if (disabled) {
@@ -140,6 +141,7 @@ async function initRepoPill(owner, repo) {
 }
 
 function renderPillState(pill, disabled) {
+  pill.setAttribute('aria-pressed', String(!disabled));
   if (disabled) {
     pill.className   = 'status-pill status-pill--idle';
     pill.textContent = t('popup.tabStatusRepoOff');
@@ -151,6 +153,8 @@ function renderPillState(pill, disabled) {
 
 function setTabStatus(state) {
   const el = $('tabStatus');
+  el.disabled = true;
+  el.removeAttribute('aria-pressed');
   el.className = `status-pill status-pill--${state}`;
   const key = state === 'active'  ? 'tabStatusActive'
     : state === 'private' ? 'tabStatusPrivate'

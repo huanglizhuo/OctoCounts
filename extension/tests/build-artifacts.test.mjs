@@ -64,6 +64,29 @@ test("artifacts never contain another browser store URL", async () => {
   assert.doesNotMatch(firefox, /chromewebstore\.google\.com|microsoftedge\.microsoft\.com/);
 });
 
+test("completed cards expose explicit controls without nesting them in a button role", async () => {
+  const card = await readFile(new URL("src/content/card.js", ROOT), "utf8");
+  const zh = JSON.parse(await readFile(new URL("src/locales/zh.json", ROOT), "utf8"));
+  const ja = JSON.parse(await readFile(new URL("src/locales/ja.json", ROOT), "utf8"));
+
+  assert.match(card, /class="oc-icon-btn oc-open-panel-btn"/);
+  assert.match(card, /cardHost\.setAttribute\('role', 'region'\)/);
+  assert.doesNotMatch(card, /cardHost\.setAttribute\('role', 'button'\)/);
+  assert.doesNotMatch(card, /cardHost\.addEventListener\('keydown'/);
+  assert.equal(zh.popup.privateNotice, "私有或内部仓库：OctoCounts 仅支持公开仓库。");
+  assert.equal(ja.popup.privateNotice, "非公開または内部リポジトリ：OctoCounts は公開リポジトリのみ対応しています。");
+});
+
+test("error cards clear stale completed-card interaction and link their details", async () => {
+  const card = await readFile(new URL("src/content/card.js", ROOT), "utf8");
+
+  assert.match(card, /cardHost\.setAttribute\('data-state', 'error'\)/);
+  assert.match(card, /cardHost\.removeEventListener\('click', cardHost\._ocListener\)/);
+  assert.match(card, /cardHost\._ocListener = null/);
+  assert.match(card, /aria-controls="oc-error-detail"/);
+  assert.match(card, /id="oc-error-detail"/);
+});
+
 test("Edge build uses the released listing and enables its rating prompt", async () => {
   const info = JSON.parse(await artifact("edge", "build-info.json"));
   assert.equal(info.storeConfigured, true);

@@ -130,17 +130,22 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   }
 
   // Default mode: insert card immediately with loading/idle UI
-  const { host, root, shadow } = _createCardDom(grid, placement);
+  const { root, shadow } = _createCardDom(grid, placement);
   const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
 
   function runAnalysis(force) {
     startAnalysis({
       owner, repo, ref, forceRefresh: force,
+      onStatus: (status) => {
+        if (_generation !== gen) return;
+        const el = root.querySelector('.oc-status');
+        if (el) el.textContent = t('card.' + status);
+      },
       onCompleted: (report, cachedAt) => {
         if (_generation !== gen) return;
         chrome.storage.local.remove('lastError').catch(() => {});
         renderCompleted(root, report, cachedAt, ctx, () => {
-          renderLoading(root, 'queued');
+          renderLoading(root, cardTitle, 'analyzing');
           runAnalysis(true);
         });
       },
@@ -148,8 +153,12 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
         if (_generation !== gen) return;
         _disabled = true;
         saveError(error, owner, repo);
-        teardownCardHost(host);
-        restoreGhLanguagesSection();
+        renderError(root, error, ctx, () => {
+          if (_generation !== gen) return;
+          _disabled = false;
+          renderLoading(root, cardTitle, 'analyzing');
+          runAnalysis(false);
+        });
       },
     });
   }
@@ -187,7 +196,7 @@ function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLan
 }
 
 function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt }) {
-  const { host, root, shadow } = _createCardDom(grid, placement);
+  const { root, shadow } = _createCardDom(grid, placement);
   const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
 
   function onRefresh() {
@@ -203,8 +212,10 @@ function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLang
       onError: (error) => {
         _disabled = true;
         saveError(error, owner, repo);
-        teardownCardHost(host);
-        restoreGhLanguagesSection();
+        renderError(root, error, ctx, () => {
+          _disabled = false;
+          onRefresh();
+        });
       },
     });
   }
@@ -227,7 +238,7 @@ function header(rightHTML = '', cardTitle = '') {
   const title = cardTitle.trim() || t('card.title');
   return `
     <div class="oc-header">
-      <div class="oc-title">${escapeHtml(title)}</div>
+      <h2 class="oc-title">${escapeHtml(title)}</h2>
       <div class="oc-header-right">${rightHTML}</div>
     </div>`;
 }
@@ -270,7 +281,7 @@ function readGhLanguageCount() {
   return null;
 }
 
-function renderLoading(root, cardTitle = '') {
+function renderLoading(root, cardTitle = '', status = 'analyzing') {
   const rawCount = readGhLanguageCount() ?? SKEL_DEFAULT;
   const count    = Math.min(rawCount, SKEL_MAX);
   const hasMore  = rawCount > SKEL_MAX;
@@ -300,6 +311,7 @@ function renderLoading(root, cardTitle = '') {
     </div>
     <div class="oc-skel oc-skel--bar"></div>
     <div class="oc-lang-list">${langRows}</div>
+    <div class="oc-status" role="status" aria-live="polite">${t('card.' + status)}</div>
   </div>`;
 }
 
@@ -310,9 +322,9 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   recordSuccessfulRender();
 
   const cachedBadge = report.cached
-    ? `<span class="oc-badge" title="${cachedAt ? 'Cached ' + new Date(cachedAt).toLocaleString() : t('card.cached')}">${t('card.cached')}</span>`
+    ? `<span class="oc-badge" title="${cachedAt ? escapeHtml(t('card.cachedAt', { time: new Date(cachedAt).toLocaleString() })) : t('card.cached')}">${t('card.cached')}</span>`
     : '';
-  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-refresh-btn" title="${t('card.refreshTitle')}" aria-label="${t('card.refreshTitle')}">↺</button>`;
+  const headerRight = `${cachedBadge}<button class="oc-icon-btn oc-open-panel-btn" title="${t('card.openPanel')}" aria-label="${t('card.openPanel')}">↗</button><button class="oc-icon-btn oc-refresh-btn" title="${t('card.refreshTitle')}" aria-label="${t('card.refreshTitle')}">↺</button>`;
 
   const statsHTML = `
     <div class="oc-stats-grid">
@@ -343,6 +355,17 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
     ${langListHTML}
   </div>`;
 
+  const onForceRefresh = () => {
+    unmountPanel();
+    onRefresh();
+  };
+  const openPanel = () => mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
+
+  root.querySelector('.oc-open-panel-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    openPanel();
+  });
+
   root.querySelector('.oc-refresh-btn').addEventListener('click', e => {
     e.stopPropagation();
     onRefresh();
@@ -355,11 +378,6 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
     });
   });
 
-  const onForceRefresh = () => {
-    unmountPanel();
-    onRefresh();
-  };
-
   root.querySelector('.oc-lang-more')?.addEventListener('click', e => {
     e.stopPropagation();
     mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
@@ -368,27 +386,88 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const cardHost = shadow.host.closest('[data-octocount-card]');
   cardHost.setAttribute('data-state', 'completed');
   cardHost.style.cursor = 'pointer';
-  cardHost.setAttribute('role', 'button');
-  cardHost.setAttribute('tabindex', '0');
+  cardHost.setAttribute('role', 'region');
   cardHost.setAttribute('aria-label', t('card.openPanel'));
+  cardHost.removeAttribute('tabindex');
   if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
   if (cardHost._ocKeyListener) cardHost.removeEventListener('keydown', cardHost._ocKeyListener);
-  const openPanel = () => mountPanel({ report, owner, repo, theme: getTheme(), onForceRefresh });
-  const onKey = e => {
-    // Only when the card itself is focused — keydowns from inner controls
-    // (refresh, language rows, star link) retarget to the shadow host, not this.
-    if (e.target !== cardHost) return;
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openPanel();
-    }
+  const onCardClick = e => {
+    const origin = e.composedPath()[0];
+    if (origin?.closest?.('button, a, input, select, textarea')) return;
+    openPanel();
   };
-  cardHost._ocListener = openPanel;
-  cardHost._ocKeyListener = onKey;
-  cardHost.addEventListener('click', openPanel);
-  cardHost.addEventListener('keydown', onKey);
+  cardHost._ocListener = onCardClick;
+  cardHost._ocKeyListener = null;
+  cardHost.addEventListener('click', onCardClick);
 
   if (replaceGhLanguages) hideGhLanguagesSection();
+}
+
+// Maps background error codes to localized, user-readable one-liners.
+// (classifyError returns {code, status, detail} without a message.)
+function errorMessage(error) {
+  const codeMap = {
+    rate_limited: t('error.rateLimited'),
+    private_repo: t('error.privateRepo'),
+    forbidden:    t('error.forbidden'),
+    too_large:    t('error.tooLarge'),
+    not_found:    t('error.notFound'),
+    auth_error:   t('error.authError'),
+    offline:      t('error.offline'),
+    timeout:      t('card.error.timedOut'),
+  };
+  return codeMap[error?.code] || error?.message || t('error.unknown');
+}
+
+// Inline error state: the card stays in place with a retry action instead of
+// silently disappearing from the sidebar.
+function renderError(root, error, ctx, onRetry) {
+  const { cardTitle = '' } = ctx;
+  const code = error?.code || 'unknown';
+  const message = errorMessage(error);
+  const retryable = !NON_RETRYABLE.has(code);
+
+  const detailLines = [];
+  if (error?.status)  detailLines.push(`HTTP status: ${error.status}`);
+  if (code)           detailLines.push(`Code: ${code}`);
+  if (error?.message) detailLines.push(`Message: ${error.message}`);
+  if (error?.detail)  detailLines.push('', String(error.detail).trim());
+  const detailText = detailLines.join('\n').trim() || t('card.error.noDetails');
+
+  // Refresh errors can replace a completed card. Clear the previous report
+  // opener so the error surface cannot navigate to stale data.
+  const cardHost = root.host.closest('[data-octocount-card]');
+  cardHost.setAttribute('data-state', 'error');
+  cardHost.style.cursor = '';
+  cardHost.setAttribute('role', 'region');
+  cardHost.setAttribute('aria-label', t('card.error.title'));
+  cardHost.removeAttribute('tabindex');
+  if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
+  if (cardHost._ocKeyListener) cardHost.removeEventListener('keydown', cardHost._ocKeyListener);
+  cardHost._ocListener = null;
+  cardHost._ocKeyListener = null;
+
+  root.innerHTML = `<div class="oc-wrap">
+    ${header('', cardTitle)}
+    <div class="oc-err-text" role="alert">${escapeHtml(t('card.error.title'))}</div>
+    <div class="oc-err-msg" title="${escapeHtml(message)}">${escapeHtml(message)}</div>
+    ${retryable ? `<button type="button" class="oc-link-btn oc-err-retry">${t('card.error.tryAgain')}</button>` : ''}
+    <button type="button" class="oc-link-btn oc-err-details" aria-expanded="false" aria-controls="oc-error-detail">${t('card.error.clickDetails')}</button>
+    <pre id="oc-error-detail" class="oc-error-detail" hidden>${escapeHtml(detailText)}</pre>
+  </div>`;
+
+  root.querySelector('.oc-err-retry')?.addEventListener('click', e => {
+    e.stopPropagation();
+    onRetry();
+  });
+  const detailsBtn = root.querySelector('.oc-err-details');
+  const detailEl = root.querySelector('.oc-error-detail');
+  detailsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const show = detailEl.hidden;
+    detailEl.hidden = !show;
+    detailsBtn.setAttribute('aria-expanded', String(show));
+  });
 }
 
 async function recordSuccessfulRender() {
@@ -421,16 +500,16 @@ function buildLangListHTML(report, theme, totalCode) {
     const color = languageColor(lang.name, theme);
     const pct = formatPercent(lang.stats.code, totalCode);
     const tip = `${lang.name}: ${formatNumber(lang.stats.code)} code, ${formatNumber(lang.stats.lines)} lines, ${formatNumber(lang.stats.files)} files`;
-    return `<div class="oc-lang-row oc-lang-clickable" data-lang="${escapeHtml(lang.name)}" title="${escapeHtml(tip)}">
+    return `<button type="button" class="oc-lang-row oc-lang-clickable" data-lang="${escapeHtml(lang.name)}" title="${escapeHtml(tip)}">
       <span class="oc-lang-dot" style="background:${color}"></span>
       <span class="oc-lang-name">${escapeHtml(lang.name)}</span>
       <span class="oc-lang-pct">${pct}</span>
       <span class="oc-lang-code">${formatCompact(lang.stats.code)}</span>
-    </div>`;
+    </button>`;
   }).join('');
 
   const moreRow = extraCount > 0
-    ? `<div class="oc-lang-row oc-lang-more">${t('card.moreLanguages', { count: extraCount })}</div>`
+    ? `<button type="button" class="oc-lang-row oc-lang-more">${t('card.moreLanguages', { count: extraCount })}</button>`
     : '';
 
   return `<div class="oc-lang-list">${rows}${moreRow}</div>`;
@@ -500,7 +579,7 @@ function pollingInterval(elapsedMs) {
   return 5_000;
 }
 
-async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onError, _retryEntry = false }) {
+async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onError, onStatus, _retryEntry = false }) {
   if (!_retryEntry) _retryCount = 0;
   stopPolling();
 
@@ -532,6 +611,7 @@ async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onEr
 
     const { jobId } = res;
     _pollStart = Date.now();
+    onStatus?.('queued');
 
     const pollUntilDone = async () => {
       const elapsed = Date.now() - _pollStart;
@@ -554,6 +634,7 @@ async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onEr
       }
 
       if (poll.type === 'PENDING') {
+        onStatus?.('running');
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
         return;
       }

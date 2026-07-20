@@ -11,7 +11,7 @@
   <header>
     <img id="logoMark" class="logo-mark" alt="" aria-hidden="true">
     <span class="logo-name">OctoCounts</span>
-    <span id="tabStatus" class="status-pill status-pill--idle"></span>
+    <button type="button" id="tabStatus" class="status-pill status-pill--idle" disabled></button>
   </header>
 
   <div id="noticeSection" class="banner banner--warn" hidden>
@@ -57,6 +57,7 @@
       <label class="row" for="silentUntilSuccess">
         <span class="row-info">
           <span class="row-label" id="silentUntilSuccessLabel"></span>
+          <span class="row-desc" id="hintSilentDesc"></span>
         </span>
         <span class="toggle-wrap">
           <input id="silentUntilSuccess" type="checkbox" class="toggle-inp">
@@ -67,6 +68,7 @@
       <label class="row row--div" for="replaceGhLanguages">
         <span class="row-info">
           <span class="row-label" id="replaceGhLanguagesLabel"></span>
+          <span class="row-desc" id="hintReplaceGhDesc"></span>
         </span>
         <span class="toggle-wrap">
           <input id="replaceGhLanguages" type="checkbox" class="toggle-inp">

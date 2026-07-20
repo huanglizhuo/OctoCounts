@@ -752,8 +752,10 @@ html[data-scheme="paper"] .btn {
   cursor: not-allowed;
 }
 
-.spin {
-  animation: spin .8s linear infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .spin {
+    animation: spin .8s linear infinite;
+  }
 }
 
 @keyframes spin {
@@ -1151,6 +1153,35 @@ html[data-scheme="paper"] .btn {
   color: var(--err);
   padding: 12px 16px;
   background: color-mix(in srgb, var(--err) 7%, var(--bg-2));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.compare-status {
+  border-top: 1px solid var(--rule);
+  padding: 10px 16px;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.retry-btn {
+  min-height: 36px;
+}
+
+.growth-state .retry-btn {
+  margin-left: 8px;
+}
+
+.export-error {
+  margin: 8px 0 0;
+  flex-basis: 100%;
+  color: var(--err);
+  font-size: var(--text-xs);
 }
 
 .compare-results {
@@ -1405,6 +1436,17 @@ html[data-scheme="paper"] .btn {
   margin-right: 6px;
 }
 
+.quick-rows .chip.busy {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+
+.quick-rows .chip:disabled:not(.busy) {
+  opacity: .45;
+  cursor: default;
+}
+
 .runner {
   border: 1px solid var(--rule);
   background: linear-gradient(180deg, var(--panel-hi), var(--panel));
@@ -1542,6 +1584,10 @@ html[data-scheme="paper"] .btn {
   margin: 8px 0 0;
   color: var(--fg-dim);
   max-width: 78ch;
+}
+
+.error-state .retry-btn {
+  margin-top: 12px;
 }
 
 .insights {
@@ -1778,6 +1824,18 @@ html[data-scheme="paper"] .btn {
   align-items: center;
   gap: 8px;
   padding: 3px 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legend-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .legend-row .lname {
@@ -1898,7 +1956,7 @@ table.report th.lang {
   z-index: 3;
 }
 
-table.report tr.lang-row {
+table.report tr.lang-row.expandable {
   cursor: pointer;
 }
 
@@ -2546,10 +2604,6 @@ footer a {
 }
 
 @media (max-width: 980px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-
   .report-index-link {
     flex-basis: 240px;
   }
@@ -2632,9 +2686,7 @@ footer a {
     align-items: flex-start;
     gap: var(--space-3);
   }
-}
 
-@media (max-width: 720px) {
   .page {
     padding: 18px max(14px, env(safe-area-inset-right)) 56px max(14px, env(safe-area-inset-left));
   }
@@ -2917,6 +2969,24 @@ footer a {
     padding: 10px 12px;
     min-height: 44px;
   }
+
+  .report-rail a {
+    min-height: 44px;
+  }
+
+  .sort-btn {
+    min-height: 44px;
+  }
+
+  .compare-field input {
+    min-height: 44px;
+  }
+
+  a.proof-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 /* Touch: remove hover effects that get stuck on tap */
@@ -3072,7 +3142,6 @@ a.proof-badge:hover {
 
 .sticky-bar .copybtn {
   padding: 4px 10px;
-  min-height: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -3083,12 +3152,6 @@ a.proof-badge:hover {
   @keyframes sticky-drop {
     from { transform: translateY(-100%); }
     to { transform: translateY(0); }
-  }
-}
-
-@media (max-width: 560px) {
-  .sticky-bar .sticky-stats {
-    display: none;
   }
 }
 
@@ -3234,6 +3297,10 @@ table.report td.lang {
 
   .sticky-bar {
     gap: 10px;
+  }
+
+  .sticky-bar .sticky-stats {
+    display: none;
   }
 }
 

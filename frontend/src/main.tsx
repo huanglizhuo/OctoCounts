@@ -26,6 +26,7 @@ import {
   sortRows,
   textReport,
   tickerRows,
+  visibleLanguageColor,
 } from "./reportUtils";
 import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
 import type { JobRecord } from "./types";
@@ -130,6 +131,20 @@ function DeferredContent({ children, minHeight = 1, rootMargin = "300px" }: { ch
   const { ref, isNear } = useNearViewport<HTMLDivElement>(rootMargin);
   return <div className="deferred-slot" ref={ref} style={{ minHeight }}>{isNear ? children : null}</div>;
 }
+
+// Tracks html[data-scheme] so components can react to theme toggles without prop drilling.
+function useScheme(): Scheme {
+  const [scheme, setScheme] = useState<Scheme>(() => (document.documentElement.dataset.scheme === "paper" ? "paper" : "matrix"));
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setScheme(root.dataset.scheme === "paper" ? "paper" : "matrix");
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["data-scheme"] });
+    return () => observer.disconnect();
+  }, []);
+  return scheme;
+}
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
 const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
 const defaultAnalysisOptions: AnalysisOptions = {
@@ -231,6 +246,7 @@ function App() {
 
   const typingTimer = useRef<number | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [busySample, setBusySample] = useState<string | null>(null);
   const stopTyping = () => {
     if (typingTimer.current !== null) {
       window.clearInterval(typingTimer.current);
@@ -243,9 +259,13 @@ function App() {
   const playSample = (sample: (typeof samples)[number]) => {
     trackEvent("sample_chip_clicked", { sample: sample.label, provider: providerFromRepoUrl(sample.repoUrl) });
     stopTyping();
+    setBusySample(sample.repoUrl);
     setRefName(sample.refName);
     setLastCommand(commandText(sample.repoUrl, sample.refName, false));
-    const runSample = () => void runAnalysis(false, { repoUrl: sample.repoUrl, refName: sample.refName });
+    const runSample = () => {
+      void runAnalysis(false, { repoUrl: sample.repoUrl, refName: sample.refName })
+        .finally(() => setBusySample(null));
+    };
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setRepoUrl(sample.repoUrl);
       runSample();
@@ -323,7 +343,7 @@ function App() {
             </form>
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {report && <BadgeEmbed report={report} refName={refName} />}
-            <div className="hero-paths" aria-label={t("hero.sidebarHint")}>
+            <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
               <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "hero" })}>
                 <ChromeIcon size={15} />
                 {t("hero.installChrome")}
@@ -338,12 +358,14 @@ function App() {
               </a>
               <span>{t("hero.sidebarHint")}</span>
             </div>
-            <div className="quick-rows" aria-label={t("hero.ariaSamples")}>
+            <div className="quick-rows" role="group" aria-label={t("hero.ariaSamples")}>
               {samples.map((sample) => (
                 <button
-                  className="chip"
+                  className={`chip ${busySample === sample.repoUrl ? "busy" : ""}`}
                   key={sample.repoUrl}
                   type="button"
+                  disabled={busySample !== null}
+                  aria-pressed={busySample === sample.repoUrl}
                   onClick={() => playSample(sample)}
                 >
                   <span className="k">{t("samples.label")}</span>{sample.label}
@@ -351,7 +373,7 @@ function App() {
               ))}
             </div>
             {recentRepos.length > 0 ? (
-              <div className="quick-rows recent-rows" aria-label={t("recent.ariaLabel")}>
+              <div className="quick-rows recent-rows" role="group" aria-label={t("recent.ariaLabel")}>
                 {recentRepos.map((entry) => (
                   <button
                     className="chip recent-chip"
@@ -594,7 +616,7 @@ function StatsPage() {
       </section>
 
       {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError /> : null}
+      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
       {stats ? <StatsDashboard stats={stats} /> : null}
     </MarketingShell>
   );
@@ -666,7 +688,7 @@ function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) 
         <p>{copy.subtitle}</p>
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError /> : null}
+      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
       {query.data ? <SeoReportGrid reports={query.data.reports} /> : null}
     </MarketingShell>
   );
@@ -693,13 +715,17 @@ function TrendingPage() {
         {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError /> : null}
+      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
       {query.data ? <TrendingRepoGrid repositories={query.data.repositories} /> : null}
     </MarketingShell>
   );
 }
 
 function TrendingRepoGrid({ repositories }: { repositories: TrendingRepository[] }) {
+  const { t } = useTranslation();
+  if (repositories.length === 0) {
+    return <p className="growth-empty">{t("growth.empty")}</p>;
+  }
   return (
     <div className="growth-repo-grid">
       {repositories.map((repo) => (
@@ -774,12 +800,16 @@ function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> })
           <i><b style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} /></i>
           <em>{formatCompactNumber(row.value)}</em>
         </div>
-      )) : <p className="growth-empty">No reports yet.</p>}
+      )) : <p className="growth-empty">{i18n.t("growth.empty")}</p>}
     </div>
   );
 }
 
 function GrowthRepoGrid({ reports }: { reports: GrowthRepositoryStat[] }) {
+  const { t } = useTranslation();
+  if (reports.length === 0) {
+    return <p className="growth-empty">{t("growth.empty")}</p>;
+  }
   return (
     <div className="growth-repo-grid">
       {reports.map((report) => (
@@ -795,6 +825,10 @@ function GrowthRepoGrid({ reports }: { reports: GrowthRepositoryStat[] }) {
 }
 
 function SeoReportGrid({ reports }: { reports: SeoReportSummary[] }) {
+  const { t } = useTranslation();
+  if (reports.length === 0) {
+    return <p className="growth-empty">{t("growth.empty")}</p>;
+  }
   return (
     <div className="growth-repo-grid">
       {reports.map((report) => (
@@ -846,9 +880,14 @@ function GrowthLoading() {
   return <section className="growth-state"><Loader2 className="spin" size={18} /> {t("growth.loading")}</section>;
 }
 
-function GrowthError() {
+function GrowthError({ onRetry }: { onRetry?: () => void }) {
   const { t } = useTranslation();
-  return <section className="growth-state">{t("growth.error")}</section>;
+  return (
+    <section className="growth-state">
+      {t("growth.error")}
+      {onRetry ? <button type="button" className="copybtn retry-btn" onClick={onRetry}>{t("error.retry")}</button> : null}
+    </section>
+  );
 }
 
 function sourceLabel(source: string) {
@@ -1041,6 +1080,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   const { t } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [copiedCta, setCopiedCta] = useState<"badge" | "url" | null>(null);
 
   const isWorking = status === "queued" || status === "running";
@@ -1060,16 +1100,23 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   useEffect(() => {
     const head = headRef.current;
     if (!head || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowSticky(!entry.isIntersecting && entry.boundingClientRect.top < 0),
-    );
+    const update = () => setShowSticky(head.getBoundingClientRect().bottom < 0);
+    const observer = new IntersectionObserver(update);
     observer.observe(head);
-    return () => observer.disconnect();
+    // IO fires only on viewport crossings, so an instant jump that skips the
+    // viewport (reduced-motion "back to top", Home key) never re-triggers it.
+    // scrollend recomputes the final position; unsupported browsers just no-op.
+    document.addEventListener("scrollend", update);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("scrollend", update);
+    };
   }, []);
 
   const exportPng = async () => {
     if (!report || !shareCardRef.current) return;
     setIsExporting(true);
+    setExportError(null);
     try {
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(shareCardRef.current, {
@@ -1081,6 +1128,8 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
       });
       downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
       trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
+    } catch {
+      setExportError(t("runner.exportPngFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -1118,7 +1167,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <span>
               {report.refName} / {report.commitSha.slice(0, 12)} /{" "}
               {report.cached
-                ? <b className="cache-flex">{t("runner.cacheHit")} — {report.durationMs}ms</b>
+                ? <b className="cache-flex">{t("runner.cacheHit")} · {report.durationMs}ms</b>
                 : <>{t("runner.freshRun")} / <b className="speed-val">{report.durationMs}ms</b></>}
             </span>
           ) : (
@@ -1132,7 +1181,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ transform: `scaleX(${progressValue(status) / 100})` }} /></div>
       <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
       {!report ? <RunnerLog status={status} report={report} error={error} elapsedSec={elapsedSec} /> : null}
-      {status === "failed" ? <ErrorState code={errorCode} message={error} /> : null}
+      {status === "failed" ? <ErrorState code={errorCode} message={error} onRetry={onRerun} /> : null}
       {report ? (
         <>
           <ReportGrowthActions
@@ -1156,6 +1205,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             }}
             onExportPng={() => void exportPng()}
           />
+          {exportError ? <p className="export-error" role="alert">{exportError}</p> : null}
           <Insights report={report} />
           <Summary stats={report.total} />
           <DeferredContent minHeight={820} rootMargin="100px"><Charts report={report} /></DeferredContent>
@@ -1215,7 +1265,7 @@ function ReportGrowthActions({
   const isGitHub = normalizedProvider(report) === "github";
 
   return (
-    <div className="report-actions" aria-label={t("reportCta.ariaLabel")}>
+    <div className="report-actions" role="group" aria-label={t("reportCta.ariaLabel")}>
       <div className="report-actions-copy">
         <span className="chart-tag">{t("reportCta.kicker")}</span>
         <strong>{t("reportCta.title")}</strong>
@@ -1262,7 +1312,7 @@ function TrustDetails({ report }: { report: Report }) {
   ];
 
   return (
-    <div className="trust-details" aria-label={t("trust.title")}>
+    <div className="trust-details" role="group" aria-label={t("trust.title")}>
       {details.map((detail) => (
         <div key={detail.label}>
           <span>{detail.label}</span>
@@ -1273,7 +1323,7 @@ function TrustDetails({ report }: { report: Report }) {
   );
 }
 
-function ErrorState({ code, message }: { code?: string; message: string | null }) {
+function ErrorState({ code, message, onRetry }: { code?: string; message: string | null; onRetry?: () => void }) {
   const { t } = useTranslation();
   const helpKey = code && i18n.exists(`errorHelp.${code}`) ? `errorHelp.${code}` : "errorHelp.default";
   return (
@@ -1282,6 +1332,7 @@ function ErrorState({ code, message }: { code?: string; message: string | null }
         <span className="chart-tag">{code ?? t("error.failedCode")}</span>
         <h3>{message ?? t("runner.status.failed")}</h3>
         <p>{t(helpKey)}</p>
+        {onRetry ? <button type="button" className="copybtn retry-btn" onClick={onRetry}>{t("error.retry")}</button> : null}
       </div>
     </div>
   );
@@ -1326,7 +1377,7 @@ const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(fun
               {rows.map((row) => (
                 <div className="share-ticker-row" key={row.label}>
                   <span>{row.label}</span>
-                  <i><b style={{ width: `${row.percent}%`, background: row.color }} /></i>
+                  <i><b style={{ width: `${row.percent}%`, background: visibleLanguageColor(row.color, "matrix") }} /></i>
                   <em>{formatNumber(row.value)}</em>
                 </div>
               ))}
@@ -1436,13 +1487,10 @@ function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
   const [compareStatus, setCompareStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [compareError, setCompareError] = useState("");
 
-  const runCompare = async (event: FormEvent) => {
-    event.preventDefault();
+  const runCompare = async () => {
     trackEvent("compare_run", { mode: "repos", leftProvider: providerFromRepoUrl(leftRepo), rightProvider: providerFromRepoUrl(rightRepo) });
     setCompareStatus("running");
     setCompareError("");
-    setLeftReport(null);
-    setRightReport(null);
     try {
       const [left, right] = await Promise.all([
         analyzeAndWait(leftRepo, leftRef),
@@ -1460,7 +1508,7 @@ function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
   return (
     <div className="compare-panel">
       {showHelp ? <p className="compare-help">{t("compare.help")}</p> : null}
-      <form className="compare-form" onSubmit={(event) => void runCompare(event)}>
+      <form className="compare-form" onSubmit={(event) => { event.preventDefault(); void runCompare(); }}>
         <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
         <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
         <button className="btn compare-run" disabled={compareStatus === "running"}>
@@ -1475,7 +1523,13 @@ function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
           {t("compare.copyUrl")}
         </button>
       </div>
-      {compareStatus === "failed" ? <div className="compare-error">{compareError}</div> : null}
+      {compareStatus === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
+      {compareStatus === "failed" ? (
+        <div className="compare-error">
+          <span>{compareError}</span>
+          <button type="button" className="copybtn retry-btn" onClick={() => void runCompare()}>{t("error.retry")}</button>
+        </div>
+      ) : null}
       {leftReport && rightReport ? <CompareResults left={leftReport} right={rightReport} /> : null}
     </div>
   );
@@ -1512,6 +1566,7 @@ function CompareInput({
 
 function CompareResults({ left, right }: { left: Report; right: Report }) {
   const { t } = useTranslation();
+  const scheme = useScheme();
   const topLeft = left.languages[0]?.name ?? t("charts.noData");
   const topRight = right.languages[0]?.name ?? t("charts.noData");
   const rows = [
@@ -1561,7 +1616,7 @@ function CompareResults({ left, right }: { left: Report; right: Report }) {
       <div className="compare-language-grid">
         {languageRows.map((row) => (
           <div className="compare-lang" key={row.name}>
-            <span className="key-sw" style={{ background: languageColor(row.name) }} />
+            <span className="key-sw" style={{ background: visibleLanguageColor(languageColor(row.name), scheme) }} />
             <strong>{row.name}</strong>
             <span>{formatNumber(row.left)}</span>
             <span>{formatNumber(row.right)}</span>
@@ -1584,13 +1639,10 @@ function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
   const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [error, setError] = useState("");
 
-  const runDiff = async (event: FormEvent) => {
-    event.preventDefault();
+  const runDiff = async () => {
     trackEvent("compare_run", { mode: "diff", provider: providerFromRepoUrl(repo) });
     setStatus("running");
     setError("");
-    setBaseReport(null);
-    setHeadReport(null);
     try {
       const [base, head] = await Promise.all([
         analyzeAndWait(repo, baseRef),
@@ -1608,7 +1660,7 @@ function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
   return (
     <div className="compare-panel diff-panel">
       {showHelp ? <p className="compare-help">{t("diff.help")}</p> : null}
-      <form className="compare-form diff-form" onSubmit={(event) => void runDiff(event)}>
+      <form className="compare-form diff-form" onSubmit={(event) => { event.preventDefault(); void runDiff(); }}>
         <fieldset className="compare-field">
           <legend>{t("diff.repo")}</legend>
           <label>
@@ -1639,7 +1691,13 @@ function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
           {t("compare.copyUrl")}
         </button>
       </div>
-      {status === "failed" ? <div className="compare-error">{error}</div> : null}
+      {status === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
+      {status === "failed" ? (
+        <div className="compare-error">
+          <span>{error}</span>
+          <button type="button" className="copybtn retry-btn" onClick={() => void runDiff()}>{t("error.retry")}</button>
+        </div>
+      ) : null}
       {baseReport && headReport ? <CompareResults left={baseReport} right={headReport} /> : null}
     </div>
   );
@@ -2099,7 +2157,7 @@ function Insights({ report }: { report: Report }) {
   ];
 
   return (
-    <div className="insights" aria-label={t("insights.title")}>
+    <div className="insights" role="group" aria-label={t("insights.title")}>
       <div className="insights-head">
         <span className="chart-tag">{t("insights.kicker")}</span>
         <h3>{t("insights.title")}</h3>
@@ -2139,18 +2197,24 @@ function Metric({ label, value, accent }: { label: string; value: number; accent
 
 function Charts({ report }: { report: Report }) {
   const { t } = useTranslation();
+  const scheme = useScheme();
   const languageItems = useMemo(() => languagePieItems(report.languages), [report.languages]);
+  // Lift near-black language colors so slices/swatches stay visible on the dark scheme.
+  const visibleItems = useMemo(
+    () => languageItems.map((item) => ({ ...item, color: visibleLanguageColor(item.color, scheme) })),
+    [languageItems, scheme],
+  );
   const totalLines = report.total.lines;
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const otherLabel = t("charts.other");
-  const sliceLabels = useMemo(() => new Set(languageItems.map((item) => item.label)), [languageItems]);
+  const sliceLabels = useMemo(() => new Set(visibleItems.map((item) => item.label)), [visibleItems]);
   const sliceForLanguage = (name: string) => (sliceLabels.has(name) ? name : sliceLabels.has(otherLabel) ? otherLabel : null);
 
   return (
     <div className="charts-grid">
       <div className="chart-card donut-card">
         <div className="chart-h"><span className="chart-tag">chart</span>{t("charts.languageShare")}</div>
-        <Donut items={languageItems} total={totalLines} hovered={hoveredSlice} onHover={setHoveredSlice} />
+        <Donut items={visibleItems} total={totalLines} hovered={hoveredSlice} onHover={setHoveredSlice} />
       </div>
       <div className="chart-card table-card">
         <div className="chart-h"><span className="chart-tag">table</span>{t("charts.report")}</div>
@@ -2191,15 +2255,18 @@ function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: nu
       </ul>
       <div className="legend" onMouseLeave={() => onHover(null)}>
         {items.map((item) => (
-          <div
+          <button
+            type="button"
             className={`legend-row ${hovered === item.label ? "hl" : ""}`}
             key={item.label}
             onMouseEnter={() => onHover(item.label)}
+            onFocus={() => onHover(item.label)}
+            onBlur={() => onHover(null)}
           >
             <span className="key-sw" style={{ background: item.color }} />
             <span className="lname">{item.label}</span>
             <span>{formatPercent(item.value, total)}</span>
-          </div>
+          </button>
         ))}
       </div>
     </>
@@ -2301,7 +2368,7 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
     <th
       className={className}
       role="columnheader"
-      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <button type="button" className="sort-btn" onClick={onClick}>
         {label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
@@ -2312,17 +2379,20 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
 
 function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
   const { t } = useTranslation();
+  const scheme = useScheme();
   const hasChildren = row.children.length > 0;
+  const expandable = hasChildren && !child;
   const ratioTotal = row.stats.code + row.stats.comments + row.stats.blanks;
   const ratioTitle = `${formatPercent(row.stats.code, ratioTotal)} ${t("table.code")} · ${formatPercent(row.stats.comments, ratioTotal)} ${t("table.comments")} · ${formatPercent(row.stats.blanks, ratioTotal)} ${t("table.blanks")}`;
   return (
     <tr
-      className={`${child ? "file-row" : "lang-row"} ${expanded ? "expanded" : ""} ${highlighted ? "hl-row" : ""}`}
+      className={`${child ? "file-row" : "lang-row"} ${expandable ? "expandable" : ""} ${expanded ? "expanded" : ""} ${highlighted ? "hl-row" : ""}`}
       onMouseEnter={child ? undefined : () => onHover?.(row.name)}
+      onClick={expandable ? () => onToggle?.() : undefined}
     >
       <td className="lang">
         {hasChildren ? <button className="expand" type="button" aria-label={t(expanded ? "table.collapseLanguage" : "table.expandLanguage", { language: row.name })} aria-expanded={Boolean(expanded)} onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button> : <span className="expand-spacer" />}
-        <span className="swatch" style={{ color: languageColor(row.name) }} />
+        <span className="swatch" style={{ color: visibleLanguageColor(languageColor(row.name), scheme) }} />
         {row.name}
         {!child && ratioTotal > 0 ? (
           <span className="row-ratio" title={ratioTitle} aria-hidden="true">

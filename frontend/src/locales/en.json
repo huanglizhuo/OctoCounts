@@ -87,7 +87,8 @@
     "exportGitHub": "github",
     "reRun": "re-run",
     "clear": "clear",
-    "runDetails": "Run details"
+    "runDetails": "Run details",
+    "exportPngFailed": "PNG export failed. Retry the export."
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -254,7 +255,7 @@
       {
         "num": "02",
         "title": "Count",
-        "text": "The Rust backend downloads a compressed archive—no full git clone. It skips generated folders like node_modules, vendor, and .git, then tokei counts every source file in a background worker queue.",
+        "text": "The Rust backend downloads a compressed archive, not a full git clone. It skips generated folders like node_modules, vendor, and .git, then tokei counts every source file in a background worker queue.",
         "code": "tokei <1>--output json</1>"
       },
       {
@@ -288,7 +289,8 @@
     "githubRequestFailed": "GitHub request failed.",
     "analysisFailed": "Analysis failed while counting the repository.",
     "requestFailed": "Request failed",
-    "failedCode": "failed"
+    "failedCode": "failed",
+    "retry": "retry"
   },
   "errorHelp": {
     "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.",
@@ -331,7 +333,7 @@
   },
   "badgeWall": {
     "kicker": "badges, live",
-    "hint": "rendered by the badge API right now — embed yours from the builder above",
+    "hint": "rendered by the badge API right now · embed yours from the builder above",
     "alt": "OctoCounts badge for {{repo}}"
   },
   "compare": {
@@ -349,7 +351,8 @@
     "left": "Left",
     "right": "Right",
     "delta": "Delta",
-    "copyUrl": "copy URL"
+    "copyUrl": "copy URL",
+    "running": "running: analyzing both reports, this can take a minute"
   },
   "diff": {
     "title": "Ref Diff",
@@ -368,6 +371,7 @@
     "launchKit": "Launch kit",
     "loading": "Loading public report stats...",
     "error": "Stats are temporarily unavailable.",
+    "empty": "No reports yet.",
     "nav": {
       "stats": {
         "label": "Stats",

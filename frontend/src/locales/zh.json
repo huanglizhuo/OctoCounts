@@ -78,7 +78,8 @@
     "exportGitHub": "GitHub",
     "reRun": "重新运行",
     "clear": "清除",
-    "runDetails": "运行详情"
+    "runDetails": "运行详情",
+    "exportPngFailed": "PNG 导出失败，请重试。"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -279,7 +280,8 @@
     "githubRequestFailed": "GitHub 请求失败。",
     "analysisFailed": "统计仓库时分析失败。",
     "requestFailed": "请求失败",
-    "failedCode": "失败"
+    "failedCode": "失败",
+    "retry": "重试"
   },
   "errorHelp": {
     "private_repo": "OctoCounts 只分析公开仓库。它不请求 GitHub 账号授权，不支持私有仓库，也不接收源码上传。",
@@ -322,7 +324,7 @@
   },
   "badgeWall": {
     "kicker": "实时徽章",
-    "hint": "由徽章 API 实时渲染 — 用上方生成器嵌入你自己的仓库",
+    "hint": "由徽章 API 实时渲染 · 用上方生成器嵌入你自己的仓库",
     "alt": "{{repo}} 的 OctoCounts 徽章"
   },
   "compare": {
@@ -340,7 +342,8 @@
     "left": "左侧",
     "right": "右侧",
     "delta": "差异",
-    "copyUrl": "复制链接"
+    "copyUrl": "复制链接",
+    "running": "运行中：正在分析两份报告，可能需要一分钟"
   },
   "diff": {
     "title": "引用差异",
@@ -359,6 +362,7 @@
     "launchKit": "发布素材",
     "loading": "正在加载公开报告统计...",
     "error": "统计暂时不可用。",
+    "empty": "暂无报告。",
     "nav": {
       "stats": {
         "label": "统计",

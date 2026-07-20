@@ -15,6 +15,10 @@
   justify-content: flex-end;
 }
 
+:host {
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
 .oc-panel {
   width: 580px;
   max-width: 100vw;
@@ -25,8 +29,13 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 12px;
   transform: translateX(100%);
-  transition: transform 220ms ease-out;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .oc-panel {
+    transition: transform 220ms ease-out;
+  }
 }
 
 .oc-panel.open {
@@ -79,17 +88,18 @@
 }
 
 .oc-plogo-img {
-  width: 48px;
-  height: 48px;
+  width: 30px;
+  height: 30px;
   border-radius: 4px;
   flex-shrink: 0;
 }
 
 .oc-plogo-text {
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--fg);
   letter-spacing: -0.02em;
+  font-family: var(--font-mono);
 }
 
 .oc-pheader-right {
@@ -116,7 +126,7 @@
   cursor: pointer;
   color: var(--fg-dim);
   font-size: 18px;
-  padding: 0 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   line-height: 1;
   font-family: inherit;
@@ -140,6 +150,17 @@
   background: var(--bg-2);
 }
 
+/* ── Focus indicators ── */
+.oc-pclose:focus-visible,
+.oc-popen:focus-visible,
+.oc-export-btn:focus-visible,
+.oc-th-btn:focus-visible,
+.oc-growth-link:focus-visible,
+.oc-growth-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .oc-summary {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -159,6 +180,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
+  font-family: var(--font-mono);
 }
 
 .oc-sum-val.accent {
@@ -195,10 +217,13 @@
   flex-shrink: 0;
 }
 
-.oc-donut-label {
-  font-size: 13px;
-  font-weight: 600;
+.oc-donut-num {
   fill: var(--fg);
+  font-family: var(--font-mono);
+}
+
+.oc-donut-sub {
+  fill: var(--fg-dim);
 }
 
 .oc-legend {
@@ -271,6 +296,16 @@
   color: var(--fg);
 }
 
+.oc-th-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
 .oc-table td {
   padding: 5px 10px;
   text-align: right;
@@ -314,7 +349,7 @@
 
 .oc-pfooter .right {
   font-size: 11px;
-  color: var(--fg-mute);
+  color: var(--fg-dim);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -364,8 +399,8 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--fg-mute);
-  padding: 0 4px;
+  color: var(--fg-dim);
+  padding: 4px 6px;
   font-size: 14px;
   line-height: 1;
   font-family: inherit;

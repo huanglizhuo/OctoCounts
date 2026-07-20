@@ -41,8 +41,8 @@ templated analytics dashboard is wrong.
 3. **Typography as data** — JetBrains Mono throughout is intentional for a code-counting
    tool; the monospace IS the brand.
 4. **Asymmetry signals hierarchy** — layouts vary intentionally to guide the eye.
-5. **Theme consistency** — all three themes (matrix / amber / paper) must feel equally
-   considered; none should look like an afterthought.
+5. **Theme consistency** — both themes (matrix / paper) must feel equally
+   considered; neither should look like an afterthought.
 
 ## Accessibility & Inclusion
 

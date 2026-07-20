@@ -155,7 +155,7 @@ README 缺少动图与"为什么不用 X"的回答。
 
 1. **主预览换 GIF**:录制"打开 GitHub 仓库页 → 侧边栏出现 OctoCounts 卡片 → 数字填充"的 10 秒内循环 GIF
    (工具:任意录屏 + `gifski` 压制,控制在 5MB 内;或 `<video>` 标签用 mp4)。替换 README 的 `images/preview.png` 引用。
-2. **三主题展示**:matrix / paper / amber 三张并排截图(web 端)或循环 GIF,放"Preview"章节下。
+2. **双主题展示**:matrix / paper 两张并排截图(web 端)或循环 GIF,放"Preview"章节下。
    截图基线已有:`screenshots/` 目录。
 3. **对比表**:新增"Why not just…"小节:
 

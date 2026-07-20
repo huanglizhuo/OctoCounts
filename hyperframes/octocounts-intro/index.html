@@ -7,8 +7,7 @@
     {"id":"cta","type":"string","label":"Call to action","default":"Install the extension or paste a repo URL"},
     {"id":"theme","type":"enum","label":"Theme","default":"matrix","options":[
       {"value":"matrix","label":"Matrix"},
-      {"value":"paper","label":"Paper"},
-      {"value":"amber","label":"Amber"}
+      {"value":"paper","label":"Paper"}
     ]}
   ]'
 >
@@ -88,24 +87,6 @@
         --rule-2: oklch(86% 0.014 90);
         --shadow: rgba(28, 24, 16, 0.12);
         color-scheme: light;
-      }
-
-      [data-theme="amber"] {
-        --bg: oklch(8% 0.02 62);
-        --bg-2: oklch(11% 0.025 62);
-        --panel: oklch(14% 0.025 62);
-        --fg: oklch(93% 0.075 85);
-        --fg-dim: oklch(70% 0.118 70);
-        --fg-mute: oklch(48% 0.078 68);
-        --accent: oklch(79% 0.175 82);
-        --accent-2: oklch(68% 0.175 32);
-        --warn: oklch(89% 0.118 88);
-        --blue: oklch(79% 0.118 228);
-        --violet: oklch(74% 0.165 292);
-        --err: oklch(65% 0.21 15);
-        --rule: oklch(28% 0.058 66);
-        --rule-2: oklch(18% 0.04 66);
-        color-scheme: dark;
       }
 
       .scanlines,

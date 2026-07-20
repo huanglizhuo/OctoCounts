@@ -55,6 +55,8 @@
 }
 
 .oc-title {
+  margin: 0;
+  padding: 0;
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
@@ -82,9 +84,9 @@
   border: none;
   cursor: pointer;
   color: var(--fg-dim);
-  padding: 2px 4px;
+  padding: 5px 6px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   font-family: inherit;
   display: flex;
@@ -94,6 +96,22 @@
 .oc-icon-btn:hover {
   color: var(--fg);
   background: var(--bg-2);
+}
+
+/* ── Focus indicators ── */
+:host(:focus-visible) .oc-wrap {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.oc-icon-btn:focus-visible,
+.oc-count-btn:focus-visible,
+.oc-lang-clickable:focus-visible,
+.oc-lang-more:focus-visible,
+.oc-link-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ── Count button (idle state) ── */
@@ -191,6 +209,15 @@
   cursor: pointer;
 }
 
+/* Language rows and the "+N more" row are real buttons: reset UA button styles */
+button.oc-lang-row {
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
 .oc-lang-clickable:hover .oc-lang-name {
   text-decoration: underline;
   color: var(--fg);
@@ -263,15 +290,28 @@
 }
 
 .oc-skel {
-  background: linear-gradient(90deg, var(--skel-base) 0%, var(--skel-shine) 50%, var(--skel-base) 100%);
-  background-size: 200% 100%;
+  background: var(--skel-base);
   border-radius: 4px;
-  animation: oc-shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .oc-skel {
+    background: linear-gradient(90deg, var(--skel-base) 0%, var(--skel-shine) 50%, var(--skel-base) 100%);
+    background-size: 200% 100%;
+    animation: oc-shimmer 1.6s ease-in-out infinite;
+  }
 }
 
 @keyframes oc-shimmer {
   0%   { background-position: 200% center; }
   100% { background-position: -200% center; }
+}
+
+/* ── Loading status line (announced to screen readers) ── */
+.oc-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--fg-dim);
 }
 
 .oc-skel--icon {
@@ -313,15 +353,20 @@
   flex-shrink: 0;
 }
 
-/* ── Error / warn states ── */
-.oc-warn-text {
-  color: var(--warn);
-  font-size: 13px;
-}
-
+/* ── Error state ── */
 .oc-err-text {
   color: var(--err);
   font-size: 13px;
+  font-weight: 600;
+}
+
+.oc-err-msg {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .oc-error-detail {
@@ -349,5 +394,6 @@
   padding: 0;
   font-size: 12px;
   font-family: inherit;
-  display: inline;
+  display: inline-block;
+  margin-top: 6px;
 }

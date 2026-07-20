@@ -21,12 +21,34 @@ export function unmountPanel() {
     _panelHost = null;
   }
   document.removeEventListener('keydown', _escHandler);
+  document.removeEventListener('keydown', _trapHandler);
   _prevFocus?.focus();
   _prevFocus = null;
 }
 
 function _escHandler(e) {
   if (e.key === 'Escape') unmountPanel();
+}
+
+// Keep Tab/Shift+Tab cycling inside the panel's shadow root while it is open:
+// the panel claims aria-modal, so focus must not escape into the page.
+function _trapHandler(e) {
+  if (e.key !== 'Tab' || !_panelHost?.shadowRoot) return;
+  const shadow = _panelHost.shadowRoot;
+  const focusables = shadow.querySelectorAll('button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])');
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = shadow.activeElement;
+  if (e.shiftKey) {
+    if (!active || active === first) {
+      e.preventDefault();
+      last.focus();
+    }
+  } else if (!active || active === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
@@ -56,6 +78,7 @@ export function mountPanel({ report, owner, repo, theme, onForceRefresh }) {
     if (e.target === shadow.querySelector('.oc-backdrop')) unmountPanel();
   });
   document.addEventListener('keydown', _escHandler);
+  document.addEventListener('keydown', _trapHandler);
 
   // Export with copy feedback
   bindCopyBtn(shadow.querySelector('.oc-btn-txt'), textReport(report), t('panel.txt'));
@@ -295,9 +318,9 @@ function buildDonutHTML(report, theme) {
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${strokeW}"/>
       ${arcs.join('')}
       <text x="${cx}" y="${cy - 4}" text-anchor="middle" dominant-baseline="middle"
-        fill="currentColor" font-size="11" font-family="-apple-system,sans-serif">${formatCompact(total)}</text>
+        class="oc-donut-num" fill="currentColor" font-size="11">${formatCompact(total)}</text>
       <text x="${cx}" y="${cy + 9}" text-anchor="middle" dominant-baseline="middle"
-        fill="#8b949e" font-size="9" font-family="-apple-system,sans-serif">${t('panel.lines')}</text>
+        class="oc-donut-sub" fill="currentColor" font-size="9">${t('panel.lines')}</text>
     </svg>
     <div class="oc-legend">${legend}</div>`;
 }
@@ -310,7 +333,8 @@ function buildTableHTML(report, theme, sortKey, sortDir) {
     const active = c === sortKey ? ' active' : '';
     const arrow  = c === sortKey ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
     const label  = c === 'name' ? t('panel.table.language') : t('panel.table.' + c);
-    return `<th class="col-${c}${active}" data-col="${c}">${label}${arrow}</th>`;
+    const ariaSort = c === sortKey ? ` aria-sort="${sortDir === 'asc' ? 'ascending' : 'descending'}"` : '';
+    return `<th class="col-${c}${active}" data-col="${c}"${ariaSort}><button type="button" class="oc-th-btn">${label}${arrow}</button></th>`;
   }).join('');
 
   const rows = sorted.map(lang => `

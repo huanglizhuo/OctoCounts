@@ -9,8 +9,9 @@
   --text-2:    #374151;
   --text-3:    #4b5563;
   --text-4:    #5b6470;
-  --accent:    #2563eb;
-  --accent-bg: rgba(37,99,235,0.12);
+  --accent:    #1a7f37;
+  --accent-bg: rgba(26,127,55,0.12);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
   --pill-active-bg:   #dcfce7;
   --pill-active-fg:   #15803d;
@@ -30,7 +31,7 @@
   --banner-info-border: #bfdbfe;
 
   --toggle-off: #d1d5db;
-  --toggle-on:  #2563eb;
+  --toggle-on:  #1a7f37;
 
   --error-bg:     #fff5f0;
   --error-border: #fca5a5;
@@ -54,8 +55,8 @@
     --text-2:    #c9d1d9;
     --text-3:    #8b949e;
     --text-4:    #7d8590;
-    --accent:    #4493f8;
-    --accent-bg: rgba(68,147,248,0.15);
+    --accent:    #3fb950;
+    --accent-bg: rgba(63,185,80,0.15);
 
     --pill-active-bg:   #0f2c1a;
     --pill-active-fg:   #3fb950;
@@ -75,7 +76,7 @@
     --banner-info-border: #1f3a5c;
 
     --toggle-off: #30363d;
-    --toggle-on:  #4493f8;
+    --toggle-on:  #3fb950;
 
     --error-bg:     #1a0a0a;
     --error-border: #6e1c1c;
@@ -128,6 +129,7 @@ header {
   color: var(--text-1);
   flex: 1;
   letter-spacing: -0.01em;
+  font-family: var(--font-mono);
 }
 
 /* ── Status pill ── */
@@ -137,11 +139,14 @@ header {
   gap: 5px;
   font-size: 10.5px;
   font-weight: 500;
-  padding: 3px 8px;
+  padding: 7px 10px;
+  border: none;
   border-radius: 20px;
   white-space: nowrap;
   flex-shrink: 0;
   line-height: 1;
+  font-family: var(--font-mono);
+  cursor: default;
 }
 .status-pill::before {
   content: '';
@@ -156,9 +161,9 @@ header {
 .status-pill--private::before { background: var(--pill-private-dot); }
 .status-pill--idle    { background: var(--pill-idle-bg);    color: var(--pill-idle-fg); }
 .status-pill--idle::before    { background: var(--pill-idle-dot); }
-.status-pill[style*="cursor"] { transition: opacity 120ms; }
-.status-pill[style*="cursor"]:hover  { opacity: 0.75; }
-.status-pill[style*="cursor"]:active { opacity: 0.55; }
+.status-pill:not(:disabled) { cursor: pointer; transition: opacity 120ms; }
+.status-pill:not(:disabled):hover  { opacity: 0.75; }
+.status-pill:not(:disabled):active { opacity: 0.55; }
 
 /* ── Banners ── */
 .banner {
@@ -451,3 +456,24 @@ footer {
 footer a       { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 .sep { opacity: 0.5; }
+
+/* ── Focus indicators (keyboard navigation) ── */
+.status-pill:not(:disabled):focus-visible,
+.btn-cache:focus-visible,
+.icon-btn:focus-visible,
+.link-btn:focus-visible,
+footer a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Larger hit area for the error-card dismiss button ── */
+.icon-btn { padding: 6px; margin: -4px; }
+
+/* ── Reduced motion: all popup motion is decorative transitions ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+  }
+}
