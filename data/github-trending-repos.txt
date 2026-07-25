@@ -1,16 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-07-24T05:29:28.736Z
+# GitHub Trending daily snapshot generated 2026-07-25T05:23:28.876Z
 block/buzz
 koala73/worldmonitor
-shiyu-coder/Kronos
-Pumpkin-MC/Pumpkin
-citrolabs/ego-lite
-chrislgarry/Apollo-11
-diegosouzapw/OmniRoute
 ComposioHQ/awesome-claude-skills
-earthtojake/text-to-cad
-agegr/pi-web
-alibaba/open-code-review
-ruvnet/RuView
-likec4/likec4
+Pumpkin-MC/Pumpkin
+shiyu-coder/Kronos
 Automattic/harper
-jellyfin/jellyfin
+likec4/likec4
+citrolabs/ego-lite
+yorukot/superfile
+ruvnet/RuView
+CoreBunch/Instatic
+chrislgarry/Apollo-11
+mattpocock/skills
+Lordog/dive-into-llms
+diegosouzapw/OmniRoute
+OtterMind/Chat2DB
