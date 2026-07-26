@@ -1,17 +1,19 @@
-# GitHub Trending daily snapshot generated 2026-07-25T05:23:28.876Z
+# GitHub Trending daily snapshot generated 2026-07-26T05:40:42.605Z
 block/buzz
-koala73/worldmonitor
-ComposioHQ/awesome-claude-skills
-Pumpkin-MC/Pumpkin
-shiyu-coder/Kronos
-Automattic/harper
-likec4/likec4
+alibaba/open-code-review
 citrolabs/ego-lite
-yorukot/superfile
-ruvnet/RuView
-CoreBunch/Instatic
-chrislgarry/Apollo-11
+ComposioHQ/awesome-claude-skills
+anthropics/claude-cookbooks
+Automattic/harper
+shiyu-coder/Kronos
+obra/superpowers
+Pumpkin-MC/Pumpkin
+permissionlesstech/bitchat
 mattpocock/skills
+palmier-io/palmier-pro
+CoreBunch/Instatic
 Lordog/dive-into-llms
-diegosouzapw/OmniRoute
+RyanCodrai/turbovec
 OtterMind/Chat2DB
+andrewyng/aisuite
+affaan-m/ECC
