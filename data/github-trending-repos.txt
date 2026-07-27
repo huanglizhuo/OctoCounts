@@ -1,19 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-07-26T05:40:42.605Z
-block/buzz
-alibaba/open-code-review
-citrolabs/ego-lite
-ComposioHQ/awesome-claude-skills
-anthropics/claude-cookbooks
-Automattic/harper
-shiyu-coder/Kronos
-obra/superpowers
-Pumpkin-MC/Pumpkin
+# GitHub Trending daily snapshot generated 2026-07-27T05:59:29.913Z
 permissionlesstech/bitchat
-mattpocock/skills
-palmier-io/palmier-pro
+citrolabs/ego-lite
+block/buzz
+pingdotgg/t3code
 CoreBunch/Instatic
-Lordog/dive-into-llms
-RyanCodrai/turbovec
+yorukot/superfile
+nodejs/node
 OtterMind/Chat2DB
+pbakaus/impeccable
+shiyu-coder/Kronos
+alibaba/open-code-review
 andrewyng/aisuite
-affaan-m/ECC
+anthropics/claude-cookbooks
+Pumpkin-MC/Pumpkin
+permissionlesstech/bitchat-android
+jenkinsci/jenkins
+amnezia-vpn/amnezia-client
