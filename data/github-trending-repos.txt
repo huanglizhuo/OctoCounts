@@ -1,18 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-07-27T05:59:29.913Z
+# GitHub Trending daily snapshot generated 2026-07-28T05:24:13.294Z
 permissionlesstech/bitchat
-citrolabs/ego-lite
-block/buzz
-pingdotgg/t3code
-CoreBunch/Instatic
+amnezia-vpn/amnezia-client
+moeru-ai/airi
+opengeos/GeoLibre
 yorukot/superfile
-nodejs/node
-OtterMind/Chat2DB
+NanmiCoder/MediaCrawler
 pbakaus/impeccable
 shiyu-coder/Kronos
 alibaba/open-code-review
-andrewyng/aisuite
-anthropics/claude-cookbooks
-Pumpkin-MC/Pumpkin
-permissionlesstech/bitchat-android
 jenkinsci/jenkins
-amnezia-vpn/amnezia-client
+bradautomates/claude-video
+vudovn/ag-kit
+apache/cassandra
+mvanhorn/last30days-skill
+ocornut/imgui
