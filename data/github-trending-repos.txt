@@ -1,16 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-07-28T05:24:13.294Z
-permissionlesstech/bitchat
-amnezia-vpn/amnezia-client
-moeru-ai/airi
-opengeos/GeoLibre
-yorukot/superfile
-NanmiCoder/MediaCrawler
-pbakaus/impeccable
-shiyu-coder/Kronos
-alibaba/open-code-review
+# GitHub Trending daily snapshot generated 2026-07-29T05:31:00.015Z
+pascalorg/editor
 jenkinsci/jenkins
+moeru-ai/airi
+andrewyng/aisuite
+affaan-m/ECC
+hello245m/free-stockdb
+huggingface/speech-to-speech
+virgiliojr94/book-to-skill
+opengeos/GeoLibre
+paperswithbacktest/awesome-systematic-trading
+microsoft/agent-governance-toolkit
+yorukot/superfile
 bradautomates/claude-video
-vudovn/ag-kit
-apache/cassandra
-mvanhorn/last30days-skill
-ocornut/imgui
