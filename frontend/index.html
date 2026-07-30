@@ -165,6 +165,22 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://octocounts.com/#organization",
+      "name": "OctoCounts",
+      "url": "https://octocounts.com/",
+      "logo": "https://octocounts.com/favicons/web-app-manifest-512x512.png",
+      "sameAs": [
+        "https://github.com/huanglizhuo/OctoCounts",
+        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
+        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "OctoCounts – GitHub SLOC & Code Statistics",
       "operatingSystem": "Chrome, Edge, Firefox",
@@ -226,6 +242,32 @@
 
         <h3>Does OctoCounts support private repositories?</h3>
         <p>OctoCounts supports public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
+
+        <h2>Explore OctoCounts</h2>
+        <ul>
+          <li><a href="/recent">Recently analyzed repositories</a></li>
+          <li><a href="/popular">Popular SLOC reports</a></li>
+          <li><a href="/trending">Trending GitHub repositories</a></li>
+          <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by SLOC</a></li>
+          <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+          <li><a href="/docs/methodology">Counting methodology</a></li>
+          <li><a href="/docs/api">OctoCounts API docs</a></li>
+        </ul>
+        <p>Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>, <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
+
+        <h2>OctoCounts vs local tokei/cloc</h2>
+        <table>
+          <thead>
+            <tr><th></th><th>OctoCounts</th><th>Local tokei/cloc</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Repository access</td><td>Fetches the archive tarball for the requested ref. No git clone, no history objects.</td><td>Requires a local clone or checkout.</td></tr>
+            <tr><td>Install</td><td>Nothing for the web app. One-time install for the browser extension.</td><td>Install git plus tokei or cloc.</td></tr>
+            <tr><td>Reproducibility</td><td>Reports are cached by commit SHA, tokei version, and analysis options. Re-running the same commit returns the identical report instantly.</td><td>Output depends on your checkout state and tool version.</td></tr>
+            <tr><td>Sharing</td><td>Stable report URLs, README badge, JSON API, and PNG/JSON/plain-text export.</td><td>Terminal output you copy by hand.</td></tr>
+            <tr><td>Compare and diff</td><td><a href="/compare">Compare two repositories</a> or <a href="/diff">diff two refs of one repository</a> side by side.</td><td>Run the tool twice and diff the outputs yourself.</td></tr>
+          </tbody>
+        </table>
       </main>
     </noscript>
   </body>

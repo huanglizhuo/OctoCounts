@@ -1,20 +1,23 @@
+import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
+
 const API_BASE = "https://api.octocounts.com";
 const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
+const STATIC_SITEMAP_LASTMOD = "2026-07-30";
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/" },
-  { loc: "https://octocounts.com/stats" },
-  { loc: "https://octocounts.com/recent" },
-  { loc: "https://octocounts.com/popular" },
-  { loc: "https://octocounts.com/trending" },
-  { loc: "https://octocounts.com/hall-of-monoliths" },
-  { loc: "https://octocounts.com/launch-kit.html" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter" },
-  { loc: "https://octocounts.com/docs/api" },
-  { loc: "https://octocounts.com/docs/methodology" },
-  { loc: "https://octocounts.com/llms.txt" },
-  { loc: "https://octocounts.com/llms-full.txt" },
-  { loc: "https://octocounts.com/privacy" },
-  { loc: "https://octocounts.com/contact" },
+  { loc: "https://octocounts.com/", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/stats", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/recent", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/popular", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/trending", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/launch-kit.html", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/api", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/llms.txt", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/llms-full.txt", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/privacy", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/contact", lastmod: STATIC_SITEMAP_LASTMOD },
 ];
 
 export async function onRequest(context) {
@@ -34,6 +37,15 @@ export async function onRequest(context) {
   const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
   if (legacyReport) {
     return Response.redirect(new URL(legacyReport, url.origin), 308);
+  }
+
+  // IndexNow key verification file. The backend submits URLs with this key;
+  // both the Pages and backend environments must share the same INDEXNOW_KEY.
+  const indexNowKey = context.env.INDEXNOW_KEY;
+  if (indexNowKey && url.pathname === `/${indexNowKey}.txt`) {
+    return new Response(indexNowKey, {
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
   }
 
   if (url.pathname === "/sitemap.xml") {
@@ -59,6 +71,17 @@ export async function onRequest(context) {
 
   if (url.pathname === "/hall-of-monoliths") {
     return listPageResponse(context, "monoliths", url);
+  }
+
+  if (parts[0] === "compare" && parts.length === 2) {
+    const curated = findCuratedComparison(parts[1].toLowerCase());
+    if (curated) return curatedCompareResponse(context, curated);
+    // Unknown comparison slugs are not curated content; they fall through to
+    // static asset handling, which answers 404 in production.
+  }
+
+  if (url.pathname === "/compare" || url.pathname === "/diff") {
+    return comparePageResponse(context, url.pathname);
   }
 
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
@@ -264,13 +287,216 @@ async function statsPageResponse(context) {
   );
 }
 
+async function comparePageResponse(context, pathname) {
+  const index = await indexHtml(context);
+  const isCompare = pathname === "/compare";
+  const title = isCompare ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
+  const description = isCompare
+    ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
+    : "Compare source line count changes between two branches, tags, or commits in a public repository.";
+  const example = isCompare
+    ? `<p>Example: <a href="/compare?left=https%3A%2F%2Fgithub.com%2Ffacebook%2Freact&amp;right=https%3A%2F%2Fgithub.com%2Fvuejs%2Fcore">facebook/react vs vuejs/core</a>. Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`
+    : `<p>Example: <a href="/diff?repo=https%3A%2F%2Fgithub.com%2Ffacebook%2Freact&amp;base=v18.0.0&amp;head=main">facebook/react v18.0.0 to main</a>. Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`;
+  const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
+    <li><a href="/recent">Recently analyzed repositories</a></li>
+    <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/trending">Trending GitHub repositories</a></li>
+    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+    <li><a href="/docs/methodology">Counting methodology</a></li>
+    <li><a href="/docs/api">OctoCounts API docs</a></li>
+  </ul></nav>`;
+  const curatedLinks = isCompare
+    ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul></section>`
+    : "";
+
+  return htmlResponse(
+    injectHeadAndNoscript(index, {
+      title,
+      description,
+      canonical: `https://octocounts.com${pathname}`,
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: null,
+      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
+    }),
+    "public, s-maxage=3600, stale-while-revalidate=86400"
+  );
+}
+
+async function curatedCompareResponse(context, entry) {
+  const index = await indexHtml(context);
+  const [leftResponse, rightResponse] = await Promise.all([
+    fetch(seoReportUrl(context, entry.left), { headers: { accept: "application/json" } }),
+    fetch(seoReportUrl(context, entry.right), { headers: { accept: "application/json" } }),
+  ]);
+
+  if (!leftResponse.ok || !rightResponse.ok) {
+    return htmlResponse(injectCompareFallback(index, entry), "public, max-age=60");
+  }
+
+  const [left, right] = await Promise.all([leftResponse.json(), rightResponse.json()]);
+  return htmlResponse(injectCuratedCompare(index, entry, left, right), "public, s-maxage=300, stale-while-revalidate=3600");
+}
+
+function seoReportUrl(context, target) {
+  const params = new URLSearchParams({ provider: "github", owner: target.owner, repo: target.repo });
+  if (target.ref) params.set("refName", target.ref);
+  return `${apiBase(context)}/api/seo/report?${params.toString()}`;
+}
+
+function injectCuratedCompare(index, entry, left, right) {
+  const canonical = `https://octocounts.com/compare/${entry.slug}`;
+  const leftDate = left.generatedAt.slice(0, 10);
+  const rightDate = right.generatedAt.slice(0, 10);
+  const title = `${entry.name}: source lines of code compared | OctoCounts`;
+  const description = `${left.repoFullName} has ${formatNumber(left.total.lines)} total lines (${formatNumber(left.total.code)} code) and ${right.repoFullName} has ${formatNumber(right.total.lines)} total lines (${formatNumber(right.total.code)} code), counted with tokei. Totals, language mix, and methodology compared.`;
+  const interactiveParams = new URLSearchParams({ left: gitHubUrl(entry.left), right: gitHubUrl(entry.right) });
+  if (entry.left.ref) interactiveParams.set("leftRef", entry.left.ref);
+  if (entry.right.ref) interactiveParams.set("rightRef", entry.right.ref);
+  const interactiveHref = `/compare?${interactiveParams.toString()}`;
+  const prefill = { left: gitHubUrl(entry.left), right: gitHubUrl(entry.right) };
+  if (entry.left.ref) prefill.leftRef = entry.left.ref;
+  if (entry.right.ref) prefill.rightRef = entry.right.ref;
+
+  const table = `<table><thead><tr><th>Metric</th><th><a href="${escapeAttr(left.publicPath)}">${escapeHtml(left.repoFullName)}</a></th><th><a href="${escapeAttr(right.publicPath)}">${escapeHtml(right.repoFullName)}</a></th></tr></thead><tbody>${[
+    ["Files", left.total.files, right.total.files],
+    ["Total lines", left.total.lines, right.total.lines],
+    ["Code lines", left.total.code, right.total.code],
+    ["Comment lines", left.total.comments, right.total.comments],
+    ["Blank lines", left.total.blanks, right.total.blanks],
+    ["Languages counted", left.languages.length, right.languages.length],
+  ]
+    .map(([label, leftValue, rightValue]) => `<tr><td>${label}</td><td>${formatNumber(leftValue)}</td><td>${formatNumber(rightValue)}</td></tr>`)
+    .join("")}</tbody></table>`;
+  const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
+    <li><a href="/compare">Interactive repository comparison</a></li>
+    <li><a href="/recent">Recently analyzed repositories</a></li>
+    <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/trending">Trending GitHub repositories</a></li>
+    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+    <li><a href="/docs/methodology">Counting methodology</a></li>
+    <li><a href="/docs/api">OctoCounts API docs</a></li>
+  </ul></nav>`;
+  const noscript = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
+    <li><a href="${escapeAttr(left.publicPath)}">${escapeHtml(left.repoFullName)} SLOC report</a></li>
+    <li><a href="${escapeAttr(right.publicPath)}">${escapeHtml(right.repoFullName)} SLOC report</a></li>
+    <li><a href="${escapeAttr(interactiveHref)}">Compare ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} interactively</a></li>
+  </ul><p>Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.</p>${internalLinks}</section>`;
+
+  return injectHeadAndNoscript(index, {
+    title,
+    description,
+    canonical,
+    robots: "index,follow,max-image-preview:large,max-snippet:-1",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: compareJsonLd(entry, left, right, canonical, description),
+    extraHead: `<script type="application/json" id="octocounts-compare-prefill">${escapeScriptJson(prefill)}</script>`,
+    noscript,
+  });
+}
+
+function gitHubUrl(target) {
+  return `https://github.com/${target.owner}/${target.repo}`;
+}
+
+function compareSummary(left, right, leftDate, rightDate) {
+  const leftCode = Math.max(Number(left.total.code) || 0, 1);
+  const rightCode = Math.max(Number(right.total.code) || 0, 1);
+  const ratio = leftCode >= rightCode ? leftCode / rightCode : rightCode / leftCode;
+  const sizePhrase = ratio < 1.15
+    ? `${left.repoFullName} and ${right.repoFullName} are similar in size by code lines`
+    : `${leftCode >= rightCode ? left.repoFullName : right.repoFullName} is about ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)}x the size of ${leftCode >= rightCode ? right.repoFullName : left.repoFullName} by code lines`;
+  return `<p>As of ${escapeHtml(leftDate)}, ${escapeHtml(left.repoFullName)} contains ${formatNumber(left.total.lines)} total lines (${formatNumber(left.total.code)} code) across ${formatNumber(left.total.files)} files, while ${escapeHtml(right.repoFullName)} contains ${formatNumber(right.total.lines)} total lines (${formatNumber(right.total.code)} code) across ${formatNumber(right.total.files)} files as of ${escapeHtml(rightDate)}. ${escapeHtml(sizePhrase)}. Code size is not code quality: a larger count only means more source material, not a better or worse project.</p>`;
+}
+
+function compareLanguageMix(left, right) {
+  const leftTop = topLanguages(left, 5);
+  const rightTop = topLanguages(right, 5);
+  const format = (report, languages) => languages
+    .slice(0, 3)
+    .map((language) => `${language.name} (${((language.stats.code / Math.max(Number(report.total.code) || 0, 1)) * 100).toFixed(1)}% of code)`)
+    .join(", ");
+  const leftNames = new Set(leftTop.map((language) => language.name));
+  const rightNames = new Set(rightTop.map((language) => language.name));
+  const shared = [...leftNames].filter((name) => rightNames.has(name));
+  const leftOnly = [...leftNames].filter((name) => !rightNames.has(name));
+  const rightOnly = [...rightNames].filter((name) => !leftNames.has(name));
+  const clauses = [];
+  if (shared.length) clauses.push(`${shared.join(", ")} ${shared.length > 1 ? "appear" : "appears"} in both top language lists`);
+  if (leftOnly.length) clauses.push(`${leftOnly.join(", ")} ${leftOnly.length > 1 ? "appear" : "appears"} only in ${left.repoFullName}'s top languages`);
+  if (rightOnly.length) clauses.push(`${rightOnly.join(", ")} ${rightOnly.length > 1 ? "appear" : "appears"} only in ${right.repoFullName}'s top languages`);
+  const difference = clauses.length ? `${clauses.join("; ")}.` : "No language ranks in the top five of both repositories.";
+  return `<p>Top languages in ${escapeHtml(left.repoFullName)}: ${escapeHtml(format(left, leftTop))}. Top languages in ${escapeHtml(right.repoFullName)}: ${escapeHtml(format(right, rightTop))}. ${escapeHtml(difference)}</p>`;
+}
+
+function topLanguages(report, count) {
+  return [...report.languages].sort((a, b) => b.stats.code - a.stats.code).slice(0, count);
+}
+
+function compareMethodology(left, right, leftDate, rightDate) {
+  return `<p>Methodology: both counts come from cached OctoCounts reports generated with tokei. ${escapeHtml(left.repoFullName)} was counted at ref ${escapeHtml(left.refName)} (commit ${escapeHtml(left.commitSha.slice(0, 12))}) on ${escapeHtml(leftDate)}; ${escapeHtml(right.repoFullName)} was counted at ref ${escapeHtml(right.refName)} (commit ${escapeHtml(right.commitSha.slice(0, 12))}) on ${escapeHtml(rightDate)}. See the <a href="/docs/methodology">counting methodology</a> for ignored directories and analysis options.</p>`;
+}
+
+function compareJsonLd(entry, left, right, canonical, description) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Dataset",
+        "@id": `${canonical}#dataset`,
+        name: `${entry.name} source line count comparison`,
+        description,
+        url: canonical,
+        dateModified: left.generatedAt > right.generatedAt ? left.generatedAt : right.generatedAt,
+        measurementTechnique: "tokei via OctoCounts",
+        variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
+        creator: {
+          "@type": "Organization",
+          name: "OctoCounts",
+          url: "https://octocounts.com/",
+        },
+        isBasedOn: [left.canonicalUrl, right.canonicalUrl],
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumbs`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "OctoCounts", item: "https://octocounts.com/" },
+          { "@type": "ListItem", position: 2, name: "Compare", item: "https://octocounts.com/compare" },
+          { "@type": "ListItem", position: 3, name: entry.name, item: canonical },
+        ],
+      },
+    ],
+  };
+}
+
+function injectCompareFallback(index, entry) {
+  const fullNames = `${entry.left.owner}/${entry.left.repo} and ${entry.right.owner}/${entry.right.repo}`;
+  return injectHeadAndNoscript(index, {
+    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    description: `Source line count comparison of ${fullNames}. Analyze these public GitHub repositories with OctoCounts.`,
+    canonical: `https://octocounts.com/compare/${entry.slug}`,
+    robots: "noindex,follow,max-image-preview:large",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: null,
+    noscript: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>A cached OctoCounts report is not available for both repositories yet, so this comparison cannot be rendered. Open this page with JavaScript enabled to run the analyses, then revisit this page.</p></section>`,
+  });
+}
+
 async function sitemapResponse(context) {
   const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
     headers: { accept: "application/json" },
   });
   const dynamicEntries = response.ok ? await response.json() : [];
   const snapshot = await trendingSnapshot(context);
+  const curatedEntries = COMPARE_REGISTRY.map((entry) => ({
+    loc: `https://octocounts.com/compare/${entry.slug}`,
+    lastmod: STATIC_SITEMAP_LASTMOD,
+  }));
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
+    .concat(curatedEntries)
     .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
   const urls = entries
     .map(
@@ -465,6 +691,15 @@ function reportJsonLd(report) {
           { "@type": "ListItem", position: 2, name: "GitHub reports", item: "https://octocounts.com/recent" },
           { "@type": "ListItem", position: 3, name: report.repoFullName, item: report.canonicalUrl },
         ],
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${report.canonicalUrl}#faq`,
+        mainEntity: reportFaq(report).map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: { "@type": "Answer", text: item.answer },
+        })),
       },
     ],
   };

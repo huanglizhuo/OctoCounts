@@ -7,8 +7,9 @@ Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
 # AI search crawlers: allow search/index crawlers that can cite OctoCounts.
-# Training-only or broad corpus crawlers remain blocked below.
+# GPTBot is explicitly allowed (including training use) for ChatGPT visibility.
 User-agent: GPTBot
+Content-Signal: search=yes,ai-input=yes,ai-train=yes
 Allow: /
 
 User-agent: OAI-SearchBot

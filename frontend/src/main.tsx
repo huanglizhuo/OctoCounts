@@ -166,7 +166,7 @@ function App() {
   if (routePath === "/popular") return <ReportListPage kind="popular" />;
   if (routePath === "/trending") return <TrendingPage />;
   if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
-  if (routePath === "/compare") return <ComparePage />;
+  if (routePath === "/compare" || routePath.startsWith("/compare/")) return <ComparePage />;
   if (routePath === "/diff") return <DiffPage />;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
@@ -1856,6 +1856,16 @@ function initialRequestFromLocation() {
 }
 
 function initialCompareFromLocation() {
+  if (window.location.pathname.startsWith("/compare/")) {
+    // Curated comparison pages (functions/[[path]].js) embed the pair as JSON.
+    const prefill = curatedComparePrefill();
+    return {
+      leftRepo: prefill?.left || defaultRepoUrl,
+      leftRef: prefill?.leftRef || "",
+      rightRepo: prefill?.right || "https://github.com/tokio-rs/axum",
+      rightRef: prefill?.rightRef || "",
+    };
+  }
   if (window.location.pathname !== "/compare") {
     return {
       leftRepo: defaultRepoUrl,
@@ -1871,6 +1881,16 @@ function initialCompareFromLocation() {
     rightRepo: params.get("right") || "https://github.com/tokio-rs/axum",
     rightRef: params.get("rightRef") || "",
   };
+}
+
+function curatedComparePrefill(): { left?: string; right?: string; leftRef?: string; rightRef?: string } | null {
+  const element = document.getElementById("octocounts-compare-prefill");
+  if (!element?.textContent) return null;
+  try {
+    return JSON.parse(element.textContent) as { left?: string; right?: string; leftRef?: string; rightRef?: string };
+  } catch {
+    return null;
+  }
 }
 
 function initialDiffFromLocation() {
@@ -1979,7 +1999,9 @@ function syncPageMetadata({
       : "Compare source line count changes between two branches, tags, or commits in a public repository.";
     document.title = title;
     setMeta("name", "description", description);
-    setMeta("name", "robots", "noindex,follow,max-image-preview:large");
+    // Server-side injection (functions/[[path]].js) makes these indexable;
+    // keep the client-side value aligned so hydration does not flip them to noindex.
+    setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1");
     setMeta("property", "og:title", title);
     setMeta("property", "og:description", description);
     setMeta("property", "og:url", window.location.href);
