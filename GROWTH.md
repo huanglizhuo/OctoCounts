@@ -29,6 +29,7 @@
 | 13 | Hall of Monoliths 排行榜页 | 内容 | P3 | ✅ 已完成 |
 | 14 | 大版本发布追踪内容 | 内容 | P3 | ⬜(半自动) |
 | 15 | 商店 listing 优化 | 转化 | P3 | ⬜ |
+| 16 | ChatGPT GEO 深化(compare/diff 收录修复、报告页 FAQPage、IndexNow、curated 对比页) | 增长 | P0/P1 | ✅ 已完成(TASK.md T05/T15/T21;采样监测 T22、站外证据 T23 待办) |
 
 ---
 

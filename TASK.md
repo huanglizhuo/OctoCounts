@@ -69,7 +69,7 @@ These are stored in project memory and must not be implemented without explicit 
 | 2 | T02 | P0 | 5 | S | Explicit Chrome/Edge/Firefox build targets and store routing | completed |
 | 3 | T03 | P0 | 5 | M | Extension “since last visit” repository delta | pending |
 | 4 | T04 | P0 | 4 | S | Contextual first-value activation flow | pending |
-| 5 | T05 | P0 | 4 | S | IndexNow submission for new/updated canonical data pages | pending |
+| 5 | T05 | P0 | 4 | S | IndexNow submission for new/updated canonical data pages | completed |
 | 6 | T06 | P0 | 4 | M | Sitemap/indexability quality gate | pending |
 | 7 | T07 | P1 | 5 | M | GitHub-native fork, branch, tag, and commit comparison actions | pending |
 | 8 | T11 | P1 | 5 | M | GitHub DOM compatibility tests and resilient insertion fallback | pending |
@@ -79,12 +79,15 @@ These are stored in project memory and must not be implemented without explicit 
 | 12 | T09 | P1 | 4 | M | Popup current-repository dashboard and card quick actions | pending |
 | 13 | T10 | P1 | 4 | S | Value-signal-based Star/rating prompts | pending |
 | 14 | T14 | P1 | 4 | M | Language data hubs and leaderboards | pending |
-| 15 | T15 | P1 | 4 | M | Curated framework/tool comparison landing pages | pending |
+| 15 | T15 | P1 | 4 | M | Curated framework/tool comparison landing pages | completed |
 | 16 | T16 | P2 | 4 | M | Localized SEO entry pages with stable locale URLs and hreflang | pending |
 | 17 | T17 | P2 | 4 | S | Extension-specific Chrome/Edge/Firefox landing pages | pending |
 | 18 | T18 | P2 | 3 | M | README badge adopter discovery and showcase | pending |
 | 19 | T19 | P3 | 3 | L | Explicit analysis profiles and exclusions | pending |
 | 20 | T20 | P3 | 3 | S | Deeper GitHub language filtering and code-search actions | pending |
+| 21 | T21 | P0 | 4 | S | GEO P0 batch: compare/diff indexability, report FAQPage, crawler policy, entity signals | completed |
+| 22 | T22 | P1 | 4 | S | ChatGPT AI Search sampling baseline and monthly monitoring | pending — blocked on browser bridge setup |
+| 23 | T23 | P1 | 4 | M | Off-site evidence for answer-engine corroboration | pending |
 
 ---
 
@@ -340,7 +343,7 @@ The current welcome banner is visible only if the user opens the popup. The exte
 **Priority:** P0
 **Impact:** 4/5
 **Effort:** Small
-**Status:** pending
+**Status:** completed
 
 ### Why
 
@@ -376,6 +379,15 @@ OctoCounts creates and updates canonical report pages continuously. Search engin
 - Cache hits do not trigger submissions.
 - Network failure does not fail analysis or report persistence.
 - Tests verify batching, deduplication, URL filtering, and retry behavior.
+
+### Verification Evidence — 2026-07-30
+
+- `cd backend && cargo fmt --check && cargo test`: 43 passed / 0 failed, including 11 new IndexNow tests (batch size trigger and flush-interval trigger, same-window dedup, URL filtering for query/fragment/wrong-host/http/root, retry on 5xx/429 with backoff, no retry on 4xx, dry-run zero requests, payload host/key/keyLocation/urlList correctness, disabled-without-key behavior).
+- Trigger point: `coordinator.rs` `complete_job` after `store.save_report()` succeeds — reached only on new/materially-updated reports; cache hits return earlier and never enqueue.
+- New module `backend/src/indexnow.rs` (config, fire-and-forget service, batch worker, bounded retry); env config in `backend/src/config.rs`; `seo.rs::public_path` reused for canonical URLs.
+- Env documented in `.env.example`, `docker-compose.yml` (9 `INDEXNOW_*` pass-throughs), and `how-to-run-and-deploy.md` (new "IndexNow submission" section).
+- Key file served by the Cloudflare Pages function at `https://octocounts.com/<INDEXNOW_KEY>.txt` from the Pages `INDEXNOW_KEY` env (see T21), not by the backend; both sides must share the same key.
+- Deviation recorded: `INDEXNOW_KEY_LOCATION` default derives from `INDEXNOW_HOST` instead of a hard-coded host; identical under the default host.
 
 ---
 
@@ -750,7 +762,7 @@ Historical trends create return usage and a unique original dataset. They should
 **Priority:** P1
 **Impact:** 4/5
 **Effort:** Medium
-**Status:** pending
+**Status:** completed
 
 ### Why
 
@@ -777,6 +789,14 @@ Existing `/compare` query pages are interactive but not a curated indexable cont
 - Each page has current, reproducible source reports.
 - Copy clearly states that code size is not code quality.
 - Pages validate on mobile and expose useful non-JS HTML.
+
+### Verification Evidence — 2026-07-30
+
+- Registry `frontend/functions/compare-registry.js`: 16 pairs (react-vs-vue, angular-vs-react, svelte-vs-react, nextjs-vs-react-router, vite-vs-webpack, fastify-vs-express, nestjs-vs-express, deno-vs-node, pnpm-vs-yarn, tensorflow-vs-pytorch, electron-vs-tauri, react-native-vs-flutter, rust-vs-go, mongodb-vs-postgres, grafana-vs-kibana, terraform-vs-ansible). Both sides of every pair are in `data/popular-repos.txt` and returned HTTP 200 from the live `api/seo/report` endpoint; candidates failing that check (bootstrap, django, valkey, nuxt, npm/cli) were dropped.
+- `/compare/:slug` server-renders in `frontend/functions/[[path].js`: neutral direct summary with an explicit "code size is not code quality" disclaimer, totals comparison table, language overlap/difference section, methodology/ref/SHA/date, links to both reports and the prefilled interactive `/compare?left=...&right=...` page, Dataset + BreadcrumbList JSON-LD consistent with page facts, `noindex` fallback when either report is missing.
+- Bare `/compare` noscript lists all curated comparisons; generated and static sitemaps both include all 16 `/compare/<slug>` entries; `llms.txt`/`llms-full.txt` document the corpus.
+- `frontend/src/main.tsx`: `/compare/*` routes to `ComparePage` and prefills from the SSR-injected `#octocounts-compare-prefill` JSON, so client hydration keeps the SSR head intact.
+- `cd frontend && npm run test:seo`: 30/30 passed (5 new tests). `npx playwright test`: 9/9 passed.
 
 ---
 
@@ -921,6 +941,84 @@ Provide a small set of reproducible profiles rather than an unrestricted ignore-
 - Language filter and code-search URLs work for representative languages.
 - Keyboard users can invoke every action.
 - Unsupported/ambiguous languages omit the code-search action rather than generating broken queries.
+
+---
+
+## T21 — GEO P0 Batch: Compare/Diff Indexability, Report FAQPage, Crawler Policy, Entity Signals
+
+**Priority:** P0
+**Impact:** 4/5
+**Effort:** Small
+**Status:** completed
+
+### Why
+
+A 2026-07 GEO audit (yao-geo-skills page-audit/panorama-audit methodology, ChatGPT focus) found: `/compare` and `/diff` returned HTTP 404 in production (Pages function fell through to static assets), report pages lacked the FAQPage JSON-LD that `llms-full.txt` advertises, `robots.txt` contradicted itself (`Content-Signal: ai-train=no` vs `GPTBot: Allow`), the homepage raw HTML had no crawlable internal links, static sitemap entries had no `lastmod`, and the IndexNow key file (T05) had no serving route.
+
+### Implemented
+
+1. `/compare` and `/diff` return 200 SSR shells with unique title/description/canonical/OG, `index,follow` robots, and noscript content (`comparePageResponse` in `frontend/functions/[[path].js`); client hydration no longer flips robots to `noindex` (`frontend/src/main.tsx`).
+2. `reportJsonLd` @graph includes a `FAQPage` node built from the existing `reportFaq(report)` Q&As already present in page noscript.
+3. `robots.txt`: GPTBot group carries an explicit `Content-Signal: search=yes,ai-input=yes,ai-train=yes` with a corrected comment; owner decision: keep GPTBot allowed for ChatGPT visibility. Google-Extended and CCBot remain disallowed.
+4. Homepage noscript: "Explore OctoCounts" internal-link block (recent/popular/trending/hall-of-monoliths/docs + 3 sample reports) and an "OctoCounts vs local tokei/cloc" comparison table.
+5. Homepage gains an `Organization` JSON-LD block (`@id: https://octocounts.com/#organization`, sameAs GitHub + three extension stores).
+6. All static sitemap entries carry `lastmod` (`STATIC_SITEMAP_LASTMOD`) in both the generated and static `sitemap.xml` copies; static copy adds the missing `/llms-full.txt` entry.
+7. Pages function serves the IndexNow key file at `/<INDEXNOW_KEY>.txt` from the `INDEXNOW_KEY` env (deploy companion to T05).
+
+### Verification Evidence — 2026-07-30
+
+- `cd frontend && npm run test:seo`: 25/25 passed before T15 (30/30 after), including new tests for compare/diff SSR shells, FAQPage presence on report pages, GPTBot content signal, sitemap lastmod in both copies, Organization schema, and the IndexNow key route (env set and unset).
+- Production spot-check before the fix: `curl https://octocounts.com/compare` returned HTTP 404 with the 404.html body.
+
+---
+
+## T22 — ChatGPT AI Search Sampling Baseline and Monthly Monitoring
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Small (recurring)
+**Status:** pending — blocked on local OpenCLI Browser Bridge setup
+
+### Why
+
+GEO changes need a measurement loop. The `yao-chatgpt-crawler` skill (installed at `~/.agents/skills/`) repeatedly samples ChatGPT web AI search for a fixed question set and reports mention rate, Top 1/3/5 probability, citation source structure, and competitor comparison.
+
+### Implementation
+
+1. Prerequisite (manual): local OpenCLI Browser Bridge with a logged-in ChatGPT web profile; then `node scripts/preflight.mjs --profile <profile>` from the skill directory.
+2. Fixed question set (~25 questions): repo line-count lookups ("how many lines of code does facebook/react have"), tool discovery ("best SLOC counter", "github line count tool"), and comparisons ("react vs vue codebase size").
+3. Run 5–10 repeats per question monthly; store JSON/HTML reports under a dated directory; track OctoCounts mention/citation trend and which sources ChatGPT cites.
+4. Fallback if no browser bridge: manual monthly run of the same question set in ChatGPT with results logged to a spreadsheet.
+
+### Acceptance Criteria
+
+- First baseline report exists and lists per-question mention status and cited sources.
+- Month-over-month runs are comparable (same question set, same repeat count).
+
+---
+
+## T23 — Off-Site Evidence for Answer-Engine Corroboration
+
+**Priority:** P1
+**Impact:** 4/5
+**Effort:** Medium (non-code, recurring)
+**Status:** pending
+
+### Why
+
+For recommendation-type questions ("best SLOC counter", "github line count tool"), ChatGPT answers lean on third-party pages rather than the product site itself. OctoCounts currently has little third-party corroboration.
+
+### Implementation
+
+1. Submit listings: AlternativeTo, SaaSHub, StackShare (and similar tool directories).
+2. Pitch inclusion in 2–3 "best GitHub tools / developer productivity tools" listicles.
+3. Execute the GROWTH.md P1-8 launch plan (Show HN, Product Hunt, Chinese communities, Reddit) — launch threads are themselves frequently cited sources.
+4. Track new referring domains alongside the T22 sampling results.
+
+### Acceptance Criteria
+
+- Listings live on at least 3 tool directories.
+- At least one independent third-party article/thread mentioning OctoCounts is indexed.
 
 ---
 
