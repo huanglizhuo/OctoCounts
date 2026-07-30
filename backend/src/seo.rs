@@ -371,7 +371,7 @@ fn top_language(report: &Report) -> Option<TopLanguage> {
     })
 }
 
-fn public_path(report: &Report) -> String {
+pub(crate) fn public_path(report: &Report) -> String {
     match report.repository.provider {
         RepositoryProvider::GitHub => format!(
             "/github/{}/{}",

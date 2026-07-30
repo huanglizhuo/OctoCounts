@@ -6,6 +6,7 @@ mod config;
 mod coordinator;
 mod error;
 mod github;
+mod indexnow;
 mod models;
 mod og;
 mod seo;
@@ -28,6 +29,7 @@ use crate::{
     config::Config,
     coordinator::AnalysisCoordinator,
     github::GitHubClient,
+    indexnow::IndexNowService,
     store::{CleanupConfig, Store},
 };
 
@@ -61,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
             store,
             GitHubClient::new()?,
             config.analysis_concurrency,
+            IndexNowService::start(config.indexnow.clone()),
         ),
         caches: AppCaches::new(),
     };

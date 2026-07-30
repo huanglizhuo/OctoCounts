@@ -191,6 +191,36 @@ on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 | `REPORT_MIN_RETENTION_DAYS` | `30` | Never evict reports younger than this |
 | `REPORT_MAX_ROWS` | `20000` | LRU-style report cap |
 | `REPORT_CLEANUP_BATCH_SIZE` | `1000` | Max report rows deleted per cleanup batch |
+| `INDEXNOW_ENABLED` | `false` | Submit new/updated canonical report URLs to IndexNow |
+| `INDEXNOW_KEY` | — | Required when enabled; must match the Pages-side `INDEXNOW_KEY` |
+| `INDEXNOW_HOST` | `octocounts.com` | Host that submitted URLs and the key file belong to |
+| `INDEXNOW_KEY_LOCATION` | `https://<INDEXNOW_HOST>/<INDEXNOW_KEY>.txt` | Public URL of the key file |
+| `INDEXNOW_BATCH_SIZE` | `100` | Max URLs per IndexNow request |
+| `INDEXNOW_MAX_RETRIES` | `3` | Retries per batch after the first attempt (exponential backoff) |
+| `INDEXNOW_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout |
+| `INDEXNOW_DRY_RUN` | `false` | Log batches without sending HTTP requests (testing) |
+| `INDEXNOW_ENDPOINT` | `https://api.indexnow.org/indexnow` | Submission endpoint; override to point at a mock server |
+
+### IndexNow submission
+
+When `INDEXNOW_ENABLED=true`, the backend submits the canonical URL of a report
+page to IndexNow whenever a report is newly created or materially updated
+(cache hits never trigger submissions). Submissions are batched, deduplicated,
+and retried with backoff; failures are only logged and never affect analysis
+or report persistence.
+
+Deployment requirement: IndexNow verifies ownership by fetching the key file at
+`https://<INDEXNOW_HOST>/<INDEXNOW_KEY>.txt`. The backend does **not** serve
+this file — it is served by a Cloudflare Pages function on `octocounts.com`
+that reads the Pages environment variable `INDEXNOW_KEY`. You must therefore
+set the **same** `INDEXNOW_KEY` in two places:
+
+1. Cloudflare Pages project env var `INDEXNOW_KEY` (serves the key file), and
+2. the backend environment (`INDEXNOW_ENABLED=true` + `INDEXNOW_KEY`).
+
+The key must be a hex/alphanumeric token (8–128 characters) of your choosing.
+Set `INDEXNOW_DRY_RUN=true` first if you want to verify wiring in the logs
+before real submissions go out.
 
 To stop:
 ```bash

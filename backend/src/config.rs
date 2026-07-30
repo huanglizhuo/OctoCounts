@@ -1,6 +1,11 @@
+use std::time::Duration;
+
 use anyhow::Context;
 
-use crate::store::CleanupConfig;
+use crate::{
+    indexnow::{IndexNowConfig, DEFAULT_ENDPOINT, DEFAULT_HOST},
+    store::CleanupConfig,
+};
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -9,6 +14,7 @@ pub struct Config {
     pub analysis_concurrency: usize,
     pub cleanup_interval_seconds: u64,
     pub cleanup: CleanupConfig,
+    pub indexnow: IndexNowConfig,
 }
 
 impl Config {
@@ -30,8 +36,40 @@ impl Config {
                 report_max_rows: env_i64("REPORT_MAX_ROWS", 20_000).max(1),
                 report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
             },
+            indexnow: IndexNowConfig {
+                enabled: env_bool("INDEXNOW_ENABLED", false),
+                key: env_string("INDEXNOW_KEY"),
+                host: env_string("INDEXNOW_HOST").unwrap_or_else(|| DEFAULT_HOST.to_string()),
+                key_location: env_string("INDEXNOW_KEY_LOCATION"),
+                endpoint: env_string("INDEXNOW_ENDPOINT")
+                    .unwrap_or_else(|| DEFAULT_ENDPOINT.to_string()),
+                batch_size: env_usize("INDEXNOW_BATCH_SIZE", 100).max(1),
+                max_retries: env_usize("INDEXNOW_MAX_RETRIES", 3),
+                timeout: Duration::from_secs(env_u64("INDEXNOW_TIMEOUT_SECONDS", 10).max(1)),
+                dry_run: env_bool("INDEXNOW_DRY_RUN", false),
+                ..IndexNowConfig::default()
+            },
         })
     }
+}
+
+fn env_bool(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|value| {
+            matches!(
+                value.to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(default)
+}
+
+fn env_string(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 fn env_i64(name: &str, default: i64) -> i64 {

@@ -7,6 +7,7 @@ use crate::{
     analyzer::{self, AnalysisInput},
     error::ApiError,
     github::GitHubClient,
+    indexnow::IndexNowService,
     models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, ApiErrorBody, RepoRef},
     store::{JobKey, Store},
 };
@@ -16,14 +17,21 @@ pub struct AnalysisCoordinator {
     store: Store,
     github: GitHubClient,
     semaphore: Arc<Semaphore>,
+    indexnow: Option<IndexNowService>,
 }
 
 impl AnalysisCoordinator {
-    pub fn new(store: Store, github: GitHubClient, concurrency: usize) -> Self {
+    pub fn new(
+        store: Store,
+        github: GitHubClient,
+        concurrency: usize,
+        indexnow: Option<IndexNowService>,
+    ) -> Self {
         Self {
             store,
             github,
             semaphore: Arc::new(Semaphore::new(concurrency)),
+            indexnow,
         }
     }
 
@@ -142,7 +150,7 @@ impl AnalysisCoordinator {
             })
             .await
             {
-                Ok(report) => complete_job(&coordinator.store, job_id, report, source).await,
+                Ok(report) => complete_job(&coordinator, job_id, report, source).await,
                 Err(error) => {
                     tracing::warn!(%error, "analysis failed");
                     mark_job_failed(
@@ -159,16 +167,23 @@ impl AnalysisCoordinator {
 }
 
 async fn complete_job(
-    store: &Store,
+    coordinator: &AnalysisCoordinator,
     job_id: Uuid,
     report: crate::models::Report,
     source: AnalysisSource,
 ) {
+    let store = &coordinator.store;
     let report_id = report.id.clone();
     if let Err(error) = store.save_report(&report, source).await {
         tracing::error!(%error, "failed to save report");
         mark_job_failed(store, job_id, "internal", "failed to save report").await;
         return;
+    }
+    // The report page was newly created or materially updated (save_report
+    // upserts the body); cache hits never reach this path. Submitting is
+    // fire-and-forget and must not affect job completion.
+    if let Some(indexnow) = &coordinator.indexnow {
+        indexnow.submit_report(&report);
     }
     if let Err(error) = store.set_job_completed(job_id, report_id).await {
         tracing::error!(%error, "failed to mark job completed");
