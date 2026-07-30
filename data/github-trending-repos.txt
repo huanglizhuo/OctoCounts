@@ -1,14 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-07-29T05:31:00.015Z
-pascalorg/editor
-jenkinsci/jenkins
-moeru-ai/airi
-andrewyng/aisuite
-affaan-m/ECC
-hello245m/free-stockdb
-huggingface/speech-to-speech
-virgiliojr94/book-to-skill
+# GitHub Trending daily snapshot generated 2026-07-30T05:17:19.511Z
 opengeos/GeoLibre
+moeru-ai/airi
+affaan-m/ECC
+huggingface/speech-to-speech
+1jehuang/jcode
+grokability/snipe-it
+deepfakes/faceswap
+microsoft/VibeVoice
+different-ai/openwork
+obra/superpowers
+MoonshotAI/FlashKDA
+NanmiCoder/MediaCrawler
+alibaba/open-code-review
 paperswithbacktest/awesome-systematic-trading
-microsoft/agent-governance-toolkit
-yorukot/superfile
-bradautomates/claude-video
+maderix/ANE
+pascalorg/editor
+virgiliojr94/book-to-skill
