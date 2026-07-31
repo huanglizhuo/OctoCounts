@@ -1,18 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-07-30T05:17:19.511Z
-opengeos/GeoLibre
-moeru-ai/airi
-affaan-m/ECC
+# GitHub Trending daily snapshot generated 2026-07-31T05:45:09.953Z
 huggingface/speech-to-speech
-1jehuang/jcode
-grokability/snipe-it
-deepfakes/faceswap
-microsoft/VibeVoice
-different-ai/openwork
-obra/superpowers
-MoonshotAI/FlashKDA
-NanmiCoder/MediaCrawler
-alibaba/open-code-review
+microsoft/AI-For-Beginners
 paperswithbacktest/awesome-systematic-trading
-maderix/ANE
+different-ai/openwork
+WhiskeySockets/Baileys
 pascalorg/editor
-virgiliojr94/book-to-skill
+mvanhorn/last30days-skill
+dotnet/aspnetcore
+microsoft/PowerToys
+ansible/ansible
+ChromeDevTools/chrome-devtools-mcp
+jenkinsci/jenkins
+agavra/tuicr
+affaan-m/ECC
