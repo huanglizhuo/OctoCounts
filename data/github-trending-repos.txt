@@ -1,15 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-07-31T05:45:09.953Z
-huggingface/speech-to-speech
-microsoft/AI-For-Beginners
-paperswithbacktest/awesome-systematic-trading
+# GitHub Trending daily snapshot generated 2026-08-01T05:35:13.724Z
+zhaoxuya520/reverse-skill
 different-ai/openwork
-WhiskeySockets/Baileys
-pascalorg/editor
 mvanhorn/last30days-skill
-dotnet/aspnetcore
-microsoft/PowerToys
-ansible/ansible
-ChromeDevTools/chrome-devtools-mcp
-jenkinsci/jenkins
+paperswithbacktest/awesome-systematic-trading
+microsoft/AI-For-Beginners
+github/copilot-sdk
+chatwoot/chatwoot
 agavra/tuicr
-affaan-m/ECC
+usekaneo/kaneo
+geo-tp/ESP32-Bit-Pirate
+deepfakes/faceswap
+1jehuang/jcode
