@@ -218,13 +218,16 @@ pub async fn sitemap(
     let entries: Vec<SitemapEntry> = state
         .coordinator
         .store()
-        .sitemap_reports(45_000)
+        .sitemap_entries(45_000)
         .await
         .map_err(ApiError::internal)?
-        .iter()
-        .map(|report| SitemapEntry {
-            loc: canonical_url(report),
-            lastmod: report.generated_at.date_naive().to_string(),
+        .into_iter()
+        .map(|row| SitemapEntry {
+            loc: format!(
+                "https://octocounts.com{}",
+                repository_public_path(row.provider, &row.owner, &row.repo)
+            ),
+            lastmod: row.lastmod.to_string(),
         })
         .collect();
     state
@@ -372,22 +375,34 @@ fn top_language(report: &Report) -> Option<TopLanguage> {
 }
 
 pub(crate) fn public_path(report: &Report) -> String {
-    match report.repository.provider {
-        RepositoryProvider::GitHub => format!(
-            "/github/{}/{}",
-            encode_segment(&report.repository.owner),
-            encode_segment(&report.repository.name)
-        ),
+    repository_public_path(
+        report.repository.provider,
+        &report.repository.owner,
+        &report.repository.name,
+    )
+}
+
+/// The canonical site path for a repository. Kept free of `Report` so the sitemap
+/// can build it from four columns instead of a deserialized report body.
+pub(crate) fn repository_public_path(
+    provider: RepositoryProvider,
+    owner: &str,
+    repo: &str,
+) -> String {
+    match provider {
+        RepositoryProvider::GitHub => {
+            format!("/github/{}/{}", encode_segment(owner), encode_segment(repo))
+        }
+        // GitLab owners are nested group paths, so the separators have to survive
+        // encoding.
         RepositoryProvider::GitLab => format!(
             "/gitlab/{}/{}",
-            report
-                .repository
-                .owner
+            owner
                 .split('/')
                 .map(encode_segment)
                 .collect::<Vec<_>>()
                 .join("/"),
-            encode_segment(&report.repository.name)
+            encode_segment(repo)
         ),
     }
 }

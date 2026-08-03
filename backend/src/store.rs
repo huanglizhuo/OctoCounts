@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
@@ -604,8 +604,48 @@ impl Store {
             .await
     }
 
-    pub async fn sitemap_reports(&self, limit: i64) -> anyhow::Result<Vec<Report>> {
-        self.distinct_reports("created_at DESC", limit, 0).await
+    /// Repository identity plus last-modified date for every distinct repository,
+    /// newest first.
+    ///
+    /// The sitemap only ever needed four scalars per row, but it used to go
+    /// through `distinct_reports`, which pulls up to 45k complete report bodies
+    /// out of Postgres and runs every one of them through `serde_json`. This
+    /// touches neither `body` nor the TOAST table.
+    ///
+    /// `created_at` is written from `Report::generated_at` by `save_report`, so
+    /// `(created_at AT TIME ZONE 'UTC')::date` is the same day as
+    /// `generated_at.date_naive()`. The explicit `AT TIME ZONE` matters: a bare
+    /// `::date` cast would resolve against the session's TimeZone setting.
+    pub async fn sitemap_entries(&self, limit: i64) -> anyhow::Result<Vec<SitemapRow>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT provider, owner, repo, (created_at AT TIME ZONE 'UTC')::date AS lastmod
+            FROM (
+                SELECT DISTINCT ON (provider, owner, repo)
+                    provider, owner, repo, created_at
+                FROM reports
+                ORDER BY provider, owner, repo, created_at DESC
+            ) latest
+            ORDER BY created_at DESC
+            LIMIT $1
+            "#,
+        )
+        .bind(limit.clamp(0, 100_000))
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let provider: String = row.try_get("provider")?;
+                Ok(SitemapRow {
+                    provider: provider_from_str(&provider)
+                        .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
+                    owner: row.try_get("owner")?,
+                    repo: row.try_get("repo")?,
+                    lastmod: row.try_get("lastmod")?,
+                })
+            })
+            .collect()
     }
 
     pub async fn growth_stats(&self) -> anyhow::Result<GrowthStats> {
@@ -1264,6 +1304,15 @@ impl Store {
 
 const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 
+/// One sitemap row: everything `/api/seo/sitemap` needs, and nothing else.
+#[derive(Clone, Debug)]
+pub struct SitemapRow {
+    pub provider: RepositoryProvider,
+    pub owner: String,
+    pub repo: String,
+    pub lastmod: NaiveDate,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct ReportCacheKey<'a> {
     provider: RepositoryProvider,
@@ -1732,6 +1781,44 @@ mod tests {
             None,
             "an UPDATE that does not set body must not re-derive the columns"
         );
+        store.drop_schema().await;
+    }
+
+    /// The golden fixtures pin the endpoint's bytes; this pins the query itself:
+    /// one row per repository, newest first, and the limit is honoured.
+    #[tokio::test]
+    async fn sitemap_entries_dedupe_by_repository_and_order_by_recency() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for (index, repo) in ["alpha", "beta", "gamma"].iter().enumerate() {
+            for revision in 0..2 {
+                let mut report =
+                    test_report(&format!("report-sitemap-{repo}-{revision}"), &owner, 100);
+                report.repository.name = (*repo).to_string();
+                report.commit_sha = format!("sha-{repo}-{revision}");
+                report.generated_at =
+                    Utc::now() - Duration::days(index as i64) - Duration::hours(revision * 5);
+                store
+                    .save_report(&report, AnalysisSource::Unknown)
+                    .await
+                    .unwrap();
+            }
+        }
+
+        let all = store.sitemap_entries(45_000).await.unwrap();
+        let limited = store.sitemap_entries(2).await.unwrap();
+
+        assert_eq!(all.len(), 3, "one entry per repository, not per report");
+        assert_eq!(
+            all.iter().map(|row| row.repo.as_str()).collect::<Vec<_>>(),
+            ["alpha", "beta", "gamma"],
+        );
+        assert_eq!(limited.len(), 2);
+        assert_eq!(limited[0].repo, "alpha");
+        assert_eq!(all[0].provider, RepositoryProvider::GitHub);
+        assert_eq!(all[0].lastmod, all[0].lastmod.min(Utc::now().date_naive()));
         store.drop_schema().await;
     }
 
