@@ -52,6 +52,27 @@ pub async fn badge_commit(
     serve_badge(state, owner, repo, Some(sha), true, params).await
 }
 
+/// `owner:repo:ref:badge_type:lang` — everything that can change the rendered
+/// SVG. `badge_type` is normalized first so that aliases (`sloc`, `code-lines`,
+/// ...) share one entry.
+fn badge_cache_key(
+    owner: &str,
+    repo: &str,
+    ref_name: Option<&str>,
+    params: &BadgeParams,
+) -> String {
+    let badge_type = params
+        .badge_type
+        .as_deref()
+        .map(normalize_badge_type)
+        .unwrap_or_default();
+    format!(
+        "{owner}:{repo}:{}:{badge_type}:{}",
+        ref_name.unwrap_or_default(),
+        params.lang.as_deref().unwrap_or_default(),
+    )
+}
+
 async fn serve_badge(
     state: AppState,
     owner: String,
@@ -60,6 +81,24 @@ async fn serve_badge(
     is_immutable: bool,
     params: BadgeParams,
 ) -> Response {
+    let cache = if is_immutable {
+        "public, max-age=31536000, immutable"
+    } else {
+        "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
+    };
+
+    // Tags and commits cannot move, so their rendered SVG is cached for much
+    // longer than a branch's.
+    let svg_cache = if is_immutable {
+        &state.caches.badge_svg_immutable
+    } else {
+        &state.caches.badge_svg
+    };
+    let cache_key = badge_cache_key(&owner, &repo, ref_name.as_deref(), &params);
+    if let Some(svg) = svg_cache.get(&cache_key).await {
+        return svg_response(svg, cache);
+    }
+
     let request = AnalyzeRequest {
         repo_url: format!("https://github.com/{}/{}", owner, repo),
         ref_name,
@@ -68,24 +107,25 @@ async fn serve_badge(
         source: AnalysisSource::Api,
     };
 
-    let cache = if is_immutable {
-        "public, max-age=31536000, immutable"
-    } else {
-        "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
-    };
-
-    match state.coordinator.submit(request).await {
-        Ok(AnalyzeResponse::Cached { report, .. }) => {
-            svg_response(render_for_params(&report, &params), cache)
-        }
+    // Only successful renders are memoized. Pending ("...") and error ("—")
+    // badges are transient states that must be re-checked on the next request,
+    // which is also why they keep their `no-cache, no-store` header.
+    let report = match state.coordinator.submit(request).await {
+        Ok(AnalyzeResponse::Cached { report, .. }) => report,
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
             match wait_for_job(state.coordinator.store(), job_id, Duration::from_secs(30)).await {
-                Some(report) => svg_response(render_for_params(&report, &params), cache),
-                None => svg_response(render_pending_for_params(&params), "no-cache, no-store"),
+                Some(report) => report,
+                None => {
+                    return svg_response(render_pending_for_params(&params), "no-cache, no-store")
+                }
             }
         }
-        Err(_) => svg_response(render_error_for_params(&params), "no-cache, no-store"),
-    }
+        Err(_) => return svg_response(render_error_for_params(&params), "no-cache, no-store"),
+    };
+
+    let svg = render_for_params(&report, &params);
+    svg_cache.insert(cache_key, svg.clone()).await;
+    svg_response(svg, cache)
 }
 
 async fn wait_for_job(store: &Store, job_id: Uuid, timeout: Duration) -> Option<Report> {
@@ -476,7 +516,75 @@ fn single_badge_svg(label: &str, value: &str, color: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_percent, format_stat, normalize_badge_type};
+    use super::{badge_cache_key, format_percent, format_stat, normalize_badge_type, BadgeParams};
+    use crate::cache::AppCaches;
+
+    fn params(badge_type: Option<&str>, lang: Option<&str>) -> BadgeParams {
+        BadgeParams {
+            lang: lang.map(str::to_string),
+            badge_type: badge_type.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn cache_key_collapses_badge_type_aliases() {
+        let canonical = badge_cache_key("acme", "widget", None, &params(Some("code"), None));
+        for alias in ["code", "code-lines", "code_lines", "sloc"] {
+            assert_eq!(
+                badge_cache_key("acme", "widget", None, &params(Some(alias), None)),
+                canonical,
+                "alias {alias} must share one cache entry",
+            );
+        }
+    }
+
+    #[test]
+    fn cache_key_separates_every_rendering_input() {
+        let base = badge_cache_key("acme", "widget", None, &params(None, None));
+        let variants = [
+            badge_cache_key("other", "widget", None, &params(None, None)),
+            badge_cache_key("acme", "other", None, &params(None, None)),
+            badge_cache_key("acme", "widget", Some("main"), &params(None, None)),
+            badge_cache_key("acme", "widget", None, &params(Some("lines"), None)),
+            badge_cache_key("acme", "widget", None, &params(None, Some("Rust"))),
+        ];
+        for variant in &variants {
+            assert_ne!(&base, variant);
+        }
+        // ...and no two variants collide with each other either.
+        for (index, left) in variants.iter().enumerate() {
+            for right in &variants[index + 1..] {
+                assert_ne!(left, right);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn badge_cache_round_trips_and_separates_mutable_from_immutable() {
+        let caches = AppCaches::new();
+        let key = badge_cache_key("acme", "widget", Some("v1.0.0"), &params(None, None));
+
+        caches
+            .badge_svg_immutable
+            .insert(key.clone(), "<svg/>".to_string())
+            .await;
+
+        assert_eq!(
+            caches.badge_svg_immutable.get(&key).await.as_deref(),
+            Some("<svg/>"),
+        );
+        assert!(
+            caches.badge_svg.get(&key).await.is_none(),
+            "immutable entries must not leak into the short-TTL cache",
+        );
+
+        let mutable_ttl = caches.badge_svg.policy().time_to_live().unwrap();
+        let immutable_ttl = caches.badge_svg_immutable.policy().time_to_live().unwrap();
+        assert!(
+            immutable_ttl > mutable_ttl,
+            "tag/commit badges should outlive branch badges in cache",
+        );
+    }
 
     #[test]
     fn format_stat_small_numbers() {
