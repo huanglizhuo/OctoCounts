@@ -440,6 +440,78 @@ async fn legacy_report_by_id_matches_golden() {
     harness.drop_schema().await;
 }
 
+/// The raw-JSON passthrough is *semantically* identical to the old
+/// parse-then-re-serialize path, but it is not byte-identical: jsonb re-renders
+/// the document in its own canonical key order (shortest key first, then
+/// bytewise) with `": "` and `", "` separators, whereas serde emitted struct
+/// field order with no spaces. Every consumer parses this as JSON and nothing
+/// signs or hashes it, so the change is safe -- but pin it, so it stays a
+/// deliberate decision rather than something discovered later.
+#[tokio::test]
+async fn raw_passthrough_matches_the_parsed_path_field_for_field() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+
+    for id in [MODERN_REPORT_ID, LEGACY_REPORT_ID, "report-gitlab-runner"] {
+        let parsed = harness.store.report(id).await.unwrap().unwrap();
+        let old = serde_json::to_string(&parsed).unwrap();
+        let new = harness.store.report_json(id).await.unwrap().unwrap();
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&new).unwrap(),
+            serde_json::from_str::<serde_json::Value>(&old).unwrap(),
+            "{id}: passthrough JSON must carry the same fields and values",
+        );
+        // The pre-existing shape is recoverable, which is all any consumer needs.
+        assert_eq!(
+            serde_json::from_str::<crate::models::Report>(&new)
+                .map(|report| serde_json::to_string(&report).unwrap())
+                .unwrap(),
+            old,
+            "{id}: passthrough JSON must still deserialize into Report",
+        );
+    }
+
+    harness.drop_schema().await;
+}
+
+#[tokio::test]
+async fn report_by_id_is_served_as_json() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    let response = harness
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/reports/{MODERN_REPORT_ID}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/json"),
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::CACHE_CONTROL)
+            .and_then(|value| value.to_str().ok()),
+        Some("public, max-age=31536000, immutable"),
+    );
+
+    harness.drop_schema().await;
+}
+
 /// `/api/reports/{id}` must keep reporting whatever `cached` the stored body has;
 /// it is *not* forced to `true` the way the analyze-cache-hit path does.
 #[tokio::test]

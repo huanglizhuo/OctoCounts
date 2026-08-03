@@ -1,9 +1,11 @@
+use std::sync::OnceLock;
+
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::models::{
-    AnalysisSource, ApiErrorBody, GrowthLanguageStat, GrowthRepositoryStat, GrowthSourceStat,
+    AnalysisOptions, AnalysisSource, ApiErrorBody, GrowthLanguageStat, GrowthRepositoryStat, GrowthSourceStat,
     GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus, LanguageReport, LanguageStats,
     Report, RepositoryProvider,
 };
@@ -561,6 +563,36 @@ impl Store {
             .await?
             .map(|body| Ok(serde_json::from_str(&body)?))
             .transpose()
+    }
+
+    /// The stored report as JSON text, ready to hand straight to the client.
+    ///
+    /// `/api/reports/{id}` is an immutable, verbatim echo of what was stored, so
+    /// deserializing into `Report` only to serialize it straight back is pure
+    /// overhead on bodies that routinely run into hundreds of kilobytes.
+    ///
+    /// The catch is that three fields carry `#[serde(default)]`, so the round trip
+    /// was *adding* them for rows written before they existed. The projection
+    /// re-adds them in SQL, using `||` so a value already present in the body
+    /// always wins. `Report::cached` has no default and is therefore echoed
+    /// unchanged -- this path never forces it to `true` the way the analyze
+    /// cache-hit path does.
+    pub async fn report_json(&self, id: &str) -> anyhow::Result<Option<String>> {
+        static SQL: OnceLock<(String, String)> = OnceLock::new();
+        let (update_sql, select_sql) = SQL.get_or_init(|| {
+            let body = normalized_report_body_expr();
+            (
+                format!(
+                    "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 \
+                     WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' \
+                     RETURNING {body} AS body"
+                ),
+                format!("SELECT {body} AS body FROM reports WHERE id = $1"),
+            )
+        });
+
+        self.fetch_throttled_report_body(update_sql, select_sql, id)
+            .await
     }
 
     pub async fn latest_report(
@@ -1423,6 +1455,35 @@ impl ReportOrder {
             }
         }
     }
+}
+
+/// A SQL expression rendering `body` as the JSON `/api/reports/{id}` has always
+/// returned: the stored document plus the defaults that `serde` used to
+/// materialize for the three fields that carry `#[serde(default)]`.
+///
+/// The defaults are serialized from the Rust types rather than hand-written, so
+/// they cannot drift away from what deserialization would have produced.
+fn normalized_report_body_expr() -> &'static str {
+    static EXPR: OnceLock<String> = OnceLock::new();
+    EXPR.get_or_init(|| {
+        // Note this is `AnalysisOptions::default()`, i.e. every bool false --
+        // *not* the `default_true` per-field defaults, which only apply when the
+        // object itself is present. That is what the old round trip produced.
+        let options =
+            serde_json::to_string(&AnalysisOptions::default()).expect("options serialize");
+        format!(
+            r#"(
+                jsonb_build_object('analysisKey', '', 'analysisOptions', '{options}'::jsonb)
+                || body
+                || jsonb_build_object(
+                       'repository',
+                       jsonb_build_object('provider', 'github')
+                       || COALESCE(body->'repository', '{{}}'::jsonb)
+                   )
+            )::text"#
+        )
+    })
+    .as_str()
 }
 
 fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> {

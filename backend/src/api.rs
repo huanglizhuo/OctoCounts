@@ -1,6 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::{header, HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
     Json,
 };
 use uuid::Uuid;
@@ -43,14 +44,23 @@ pub async fn job_status(
     Ok((headers, Json(job)))
 }
 
+/// Echoes the stored report document.
+///
+/// The response is served straight from the database as JSON text instead of
+/// being deserialized into `Report` and re-serialized. Report bodies routinely
+/// run to hundreds of kilobytes and this endpoint is a verbatim, immutably
+/// cached passthrough, so the round trip bought nothing.
+///
+/// `cached` is whatever the stored body says, exactly as before: unlike the
+/// analyze cache-hit path, this handler never forces it to `true`.
 pub async fn report(
     State(state): State<AppState>,
     Path(report_id): Path<String>,
-) -> Result<(HeaderMap, Json<crate::models::Report>), ApiError> {
-    let Some(report) = state
+) -> Result<Response, ApiError> {
+    let Some(body) = state
         .coordinator
         .store()
-        .report(&report_id)
+        .report_json(&report_id)
         .await
         .map_err(ApiError::internal)?
     else {
@@ -59,12 +69,18 @@ pub async fn report(
             "report was not found",
         ));
     };
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=31536000, immutable"),
-    );
-    Ok((headers, Json(report)))
+
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/json"),
+            (
+                header::CACHE_CONTROL,
+                "public, max-age=31536000, immutable",
+            ),
+        ],
+        body,
+    )
+        .into_response())
 }
 
 pub async fn stats(
