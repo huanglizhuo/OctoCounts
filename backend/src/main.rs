@@ -33,6 +33,13 @@ use crate::{
     store::{CleanupConfig, Store},
 };
 
+/// mimalloc replaces the system allocator process-wide. The hot paths here are
+/// allocation-heavy (tarball unpacking, tokei's per-file buffers, serde_json
+/// trees, resvg pixmaps) and mimalloc's thread-local free lists handle that
+/// churn better than glibc malloc, which is what the deployed Debian image uses.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
