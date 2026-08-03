@@ -782,37 +782,60 @@ impl Store {
     /// out of Postgres and runs every one of them through `serde_json`. This
     /// touches neither `body` nor the TOAST table.
     ///
-    /// `created_at` is written from `Report::generated_at` by `save_report`, so
-    /// `(created_at AT TIME ZONE 'UTC')::date` is the same day as
-    /// `generated_at.date_naive()`. The explicit `AT TIME ZONE` matters: a bare
-    /// `::date` cast would resolve against the session's TimeZone setting.
+    /// Deduplication, sorting and the row cap all run over narrow scalar columns;
+    /// only the surviving page is joined back for its `generatedAt`.
+    ///
+    /// `lastmod` deliberately comes from the body rather than from the `created_at`
+    /// column. `save_report` writes `created_at` from `Report::generated_at`, so in
+    /// practice they agree -- but only in practice, and a row where they disagree
+    /// across a UTC midnight would silently shift a sitemap date. Reading the same
+    /// field the old code read costs one detoast for at most 500 rows and removes
+    /// the question entirely.
     pub async fn sitemap_entries(&self, limit: i64) -> anyhow::Result<Vec<SitemapRow>> {
         let rows = sqlx::query(
             r#"
-            SELECT provider, owner, repo, (created_at AT TIME ZONE 'UTC')::date AS lastmod
+            SELECT
+                r.provider AS provider,
+                r.owner AS owner,
+                r.repo AS repo,
+                r.body->>'generatedAt' AS generated_at
             FROM (
-                SELECT DISTINCT ON (provider, owner, repo)
-                    provider, owner, repo, created_at
-                FROM reports
-                ORDER BY provider, owner, repo, created_at DESC
-            ) latest
-            ORDER BY created_at DESC
-            LIMIT $1
+                SELECT id, created_at
+                FROM (
+                    SELECT DISTINCT ON (provider, owner, repo) id, created_at
+                    FROM reports
+                    ORDER BY provider, owner, repo, created_at DESC
+                ) latest
+                ORDER BY created_at DESC
+                LIMIT $1
+            ) page
+            JOIN reports r ON r.id = page.id
+            ORDER BY page.created_at DESC
             "#,
         )
-        .bind(limit.clamp(0, 100_000))
+        // Deliberately the same cap the old implementation had. `distinct_reports`
+        // clamped its limit to 500, so although the sitemap handler asks for
+        // 45,000 entries it has only ever emitted 500. That is almost certainly
+        // not intended -- it is an SEO endpoint whose whole job is to enumerate
+        // every canonical URL -- but raising it is a product decision that would
+        // change the response, so it stays here and gets reported rather than
+        // being quietly fixed inside a performance change.
+        .bind(limit.clamp(0, LEGACY_LIST_LIMIT))
         .fetch_all(&self.pool)
         .await?;
 
         rows.into_iter()
             .map(|row| {
                 let provider: String = row.try_get("provider")?;
+                let generated_at: String = row.try_get("generated_at")?;
                 Ok(SitemapRow {
                     provider: provider_from_str(&provider)
                         .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
                     owner: row.try_get("owner")?,
                     repo: row.try_get("repo")?,
-                    lastmod: row.try_get("lastmod")?,
+                    lastmod: DateTime::parse_from_rfc3339(&generated_at)?
+                        .with_timezone(&Utc)
+                        .date_naive(),
                 })
             })
             .collect()
@@ -982,7 +1005,7 @@ impl Store {
         offset: i64,
     ) -> anyhow::Result<Vec<ReportCard>> {
         let rows = sqlx::query(order.card_sql())
-            .bind(limit.clamp(0, 500))
+            .bind(limit.clamp(0, LEGACY_LIST_LIMIT))
             .bind(offset.max(0))
             .bind(SEO_CARD_LANGUAGES as i64)
             .fetch_all(&self.pool)
@@ -1534,6 +1557,10 @@ impl Store {
 
 const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 
+/// The row cap the pre-batch-B `distinct_reports` applied to every list query.
+/// Preserved verbatim so the rewritten queries return the same number of rows.
+const LEGACY_LIST_LIMIT: i64 = 500;
+
 /// How close to the row cap the planner's estimate may get before cleanup stops
 /// trusting it. `reltuples` drifts between autovacuum runs, so it is only used to
 /// answer "are we comfortably under the cap?", never to decide how much to delete.
@@ -1779,20 +1806,35 @@ fn throttled_fetch_sql(
 fn normalized_report_body_expr() -> &'static str {
     static EXPR: OnceLock<String> = OnceLock::new();
     EXPR.get_or_init(|| {
-        // Note this is `AnalysisOptions::default()`, i.e. every bool false --
-        // *not* the `default_true` per-field defaults, which only apply when the
-        // object itself is present. That is what the old round trip produced.
-        let options =
-            serde_json::to_string(&AnalysisOptions::default()).expect("options serialize");
+        // `analysisOptions` has two different defaults and they disagree.
+        //
+        // When the key is absent, `Report`'s field-level #[serde(default)] runs
+        // `AnalysisOptions::default()`, which is Derive(Default) -- every bool
+        // false. When the key is present but incomplete, the *field*-level
+        // defaults inside AnalysisOptions apply instead, and three of those are
+        // `default_true`. Both are serialized from the Rust types here rather than
+        // hand-written, so neither can drift.
+        let absent = serde_json::to_string(&AnalysisOptions::default()).expect("options serialize");
+        let partial = serde_json::to_string(
+            &serde_json::from_str::<AnalysisOptions>("{}").expect("empty options deserialize"),
+        )
+        .expect("options serialize");
         format!(
             r#"(
-                jsonb_build_object('analysisKey', '', 'analysisOptions', '{options}'::jsonb)
+                jsonb_build_object('analysisKey', '')
                 || body
                 || jsonb_build_object(
                        'repository',
                        jsonb_build_object('provider', 'github')
                        || COALESCE(body->'repository', '{{}}'::jsonb)
                    )
+                || CASE WHEN body ? 'analysisOptions'
+                        THEN jsonb_build_object(
+                                 'analysisOptions',
+                                 '{partial}'::jsonb || (body->'analysisOptions')
+                             )
+                        ELSE jsonb_build_object('analysisOptions', '{absent}'::jsonb)
+                   END
             )::text"#
         )
     })
@@ -2509,6 +2551,7 @@ mod tests {
 
         let all = store.sitemap_entries(45_000).await.unwrap();
         let limited = store.sitemap_entries(2).await.unwrap();
+        let clamped = store.sitemap_entries(i64::MAX).await.unwrap();
 
         assert_eq!(all.len(), 3, "one entry per repository, not per report");
         assert_eq!(
@@ -2517,6 +2560,11 @@ mod tests {
         );
         assert_eq!(limited.len(), 2);
         assert_eq!(limited[0].repo, "alpha");
+        assert_eq!(
+            clamped.len(),
+            3,
+            "the inherited 500-row cap must stay in force; see LEGACY_LIST_LIMIT"
+        );
         assert_eq!(all[0].provider, RepositoryProvider::GitHub);
         assert_eq!(all[0].lastmod, all[0].lastmod.min(Utc::now().date_naive()));
         store.drop_schema().await;

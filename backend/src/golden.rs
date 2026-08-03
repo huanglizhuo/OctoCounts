@@ -476,6 +476,151 @@ async fn raw_passthrough_matches_the_parsed_path_field_for_field() {
     harness.drop_schema().await;
 }
 
+/// `analysisOptions` has two different defaults depending on whether the key is
+/// absent or merely incomplete, and they disagree on three booleans. Both have to
+/// survive the passthrough.
+#[tokio::test]
+async fn passthrough_fills_both_flavours_of_analysis_options_default() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+
+    let cases = [
+        // Key absent: Report's field-level default runs AnalysisOptions::default().
+        ("report-options-absent", "", false),
+        // Key present but empty: AnalysisOptions' own field defaults apply.
+        ("report-options-empty", r#""analysisOptions": {},"#, true),
+        // Key present and partial: only the missing fields get defaults.
+        (
+            "report-options-partial",
+            r#""analysisOptions": {"includeDocs": false, "profile": "source-only"},"#,
+            true,
+        ),
+    ];
+
+    for (index, (id, options, defaults_are_true)) in cases.into_iter().enumerate() {
+        harness
+            .store
+            .insert_raw_report(
+                id,
+                "github",
+                "octocounts",
+                id,
+                &format!("{index}aaaabbbbccccdddd1111"),
+                "tokei-14.0.0:default",
+                &format!(
+                    r#"{{
+                        "id": "{id}",
+                        "repository": {{"owner": "octocounts", "name": "{id}", "htmlUrl": "https://example.test/x"}},
+                        "refName": "main",
+                        "commitSha": "{index}aaaabbbbccccdddd1111",
+                        "generatedAt": "2024-08-08T08:08:08.808Z",
+                        "durationMs": 8,
+                        "cached": false,
+                        "tokeiVersion": "tokei-14.0.0",
+                        {options}
+                        "languages": [],
+                        "total": {{"files": 0, "lines": 0, "code": 0, "comments": 0, "blanks": 0}}
+                    }}"#
+                ),
+                at(2024, 8, 8, 8),
+            )
+            .await
+            .unwrap();
+
+        let (_, body) = harness.get(&format!("/api/reports/{id}")).await;
+        let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+        // Whatever the flavour, the passthrough must agree with what deserializing
+        // and re-serializing would have produced.
+        let parsed = harness.store.report(id).await.unwrap().unwrap();
+        assert_eq!(
+            value["analysisOptions"],
+            serde_json::to_value(&parsed).unwrap()["analysisOptions"],
+            "{id}",
+        );
+        assert_eq!(
+            value["analysisOptions"]["includeTests"],
+            serde_json::Value::Bool(defaults_are_true),
+            "{id}: an absent key defaults to false, a present one to true",
+        );
+        assert_eq!(value["analysisKey"], "");
+        assert_eq!(value["repository"]["provider"], "github");
+    }
+
+    // The partial case must keep the values the body actually specified.
+    let (_, body) = harness.get("/api/reports/report-options-partial").await;
+    let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(value["analysisOptions"]["includeDocs"], false);
+    assert_eq!(value["analysisOptions"]["profile"], "source-only");
+
+    harness.drop_schema().await;
+}
+
+/// A documented, bounded consequence of the raw passthrough: it echoes the stored
+/// timestamp *string*, whereas the old path round-tripped it through chrono and
+/// re-emitted chrono's canonical form. For anything this service wrote they are
+/// the same string -- `save_report` serializes with chrono, so the stored form is
+/// already canonical -- but a body inserted by hand or by an import can carry a
+/// non-canonical spelling of the same instant, and that spelling now survives.
+#[tokio::test]
+async fn passthrough_echoes_the_stored_timestamp_spelling() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    harness
+        .store
+        .insert_raw_report(
+            "report-padded-timestamp",
+            "github",
+            "octocounts",
+            "padded",
+            "9999888877776666eeee",
+            "tokei-14.0.0:default",
+            r#"{
+                "id": "report-padded-timestamp",
+                "repository": {"owner": "octocounts", "name": "padded", "htmlUrl": "https://github.com/octocounts/padded", "provider": "github"},
+                "refName": "main",
+                "commitSha": "9999888877776666eeee",
+                "generatedAt": "2024-04-04T04:04:04.000000Z",
+                "durationMs": 4,
+                "cached": false,
+                "tokeiVersion": "tokei-14.0.0",
+                "analysisKey": "tokei-14.0.0:default",
+                "analysisOptions": {"ignoredDirs": [], "ignoredLanguages": [], "profile": "default", "includeDocs": true, "includeTests": true, "includeGenerated": true},
+                "languages": [],
+                "total": {"files": 0, "lines": 0, "code": 0, "comments": 0, "blanks": 0}
+            }"#,
+            at(2024, 4, 4, 4),
+        )
+        .await
+        .unwrap();
+
+    let (_, body) = harness.get("/api/reports/report-padded-timestamp").await;
+    let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(value["generatedAt"], "2024-04-04T04:04:04.000000Z");
+
+    // The old path would have re-emitted chrono's canonical spelling instead.
+    let parsed = harness
+        .store
+        .report("report-padded-timestamp")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(parsed).unwrap()["generatedAt"],
+        "2024-04-04T04:04:04Z",
+    );
+
+    // Same instant either way, which is the property that actually matters.
+    assert_eq!(
+        DateTime::parse_from_rfc3339("2024-04-04T04:04:04.000000Z").unwrap(),
+        DateTime::parse_from_rfc3339("2024-04-04T04:04:04Z").unwrap(),
+    );
+
+    harness.drop_schema().await;
+}
+
 #[tokio::test]
 async fn report_by_id_is_served_as_json() {
     let Some(harness) = harness().await else {
