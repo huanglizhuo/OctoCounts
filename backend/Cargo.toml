@@ -22,7 +22,7 @@ thiserror = "2.0"
 tokei = "14.0"
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 moka = { version = "0.12", features = ["future"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", features = ["compression-br", "compression-gzip", "cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
