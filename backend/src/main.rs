@@ -54,7 +54,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env()?;
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(config.database_max_connections)
+        .acquire_timeout(config.database_acquire_timeout)
         .connect(&config.database_url)
         .await
         .with_context(|| format!("failed to connect to {}", config.database_url))?;
