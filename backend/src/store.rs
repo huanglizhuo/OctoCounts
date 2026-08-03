@@ -1087,9 +1087,7 @@ impl Store {
         .rows_affected();
 
         let mut cold_reports_deleted = 0;
-        let report_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM reports")
-            .fetch_one(&mut **tx)
-            .await?;
+        let report_count = report_row_count(config.report_max_rows, tx).await?;
         let mut over_limit = report_count.saturating_sub(config.report_max_rows);
         while over_limit > 0 {
             let batch_size = over_limit.min(config.report_cleanup_batch_size) as i64;
@@ -1277,6 +1275,20 @@ impl Store {
         .fetch_all(&self.pool)
         .await
         .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    async fn report_reltuples(&self) -> anyhow::Result<f32> {
+        sqlx::query_scalar("SELECT reltuples FROM pg_class WHERE oid = to_regclass('reports')")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    async fn analyze_reports(&self) -> anyhow::Result<()> {
+        sqlx::query("ANALYZE reports").execute(&self.pool).await?;
+        Ok(())
     }
 
     #[cfg(test)]
@@ -1521,6 +1533,54 @@ impl Store {
 }
 
 const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
+
+/// How close to the row cap the planner's estimate may get before cleanup stops
+/// trusting it. `reltuples` drifts between autovacuum runs, so it is only used to
+/// answer "are we comfortably under the cap?", never to decide how much to delete.
+const ROW_ESTIMATE_TRUST_MARGIN: f64 = 0.9;
+
+/// Whether `reltuples` can stand in for a real `COUNT(*)`.
+///
+/// A negative value means the table has never been analyzed (Postgres 14+ uses
+/// -1 for this; older versions leave it at 0, which is indistinguishable from a
+/// genuinely empty table). Either way the answer is "no", and the caller pays for
+/// an exact count -- which on a table that has never been analyzed is cheap
+/// precisely because it is small or new.
+fn row_estimate_is_usable(estimate: f32, threshold: i64) -> bool {
+    estimate > 0.0 && f64::from(estimate) < threshold as f64 * ROW_ESTIMATE_TRUST_MARGIN
+}
+
+/// The number of rows in `reports`, exactly when it matters and approximately
+/// when it does not.
+///
+/// This runs inside the transaction that holds the cleanup advisory lock, so a
+/// sequential scan of the whole table here blocks the next cleanup round for its
+/// duration. The planner already keeps an estimate in `pg_class.reltuples`;
+/// reading it is a single index lookup, and the exact count is only needed when
+/// the estimate is close enough to the cap that the difference could change how
+/// many rows get evicted.
+async fn report_row_count(
+    threshold: i64,
+    tx: &mut Transaction<'_, Postgres>,
+) -> anyhow::Result<i64> {
+    // to_regclass resolves through search_path and yields NULL (hence no row)
+    // rather than erroring if the table is absent.
+    let estimate: Option<f32> =
+        sqlx::query_scalar("SELECT reltuples FROM pg_class WHERE oid = to_regclass('reports')")
+            .fetch_optional(&mut **tx)
+            .await?;
+
+    if let Some(estimate) = estimate {
+        if row_estimate_is_usable(estimate, threshold) {
+            return Ok(estimate as i64);
+        }
+    }
+
+    sqlx::query_scalar("SELECT COUNT(*) FROM reports")
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(Into::into)
+}
 
 /// How many languages an SEO card carries. The card also reports the *full*
 /// language count in its prose, which is why `ReportCard` keeps both.
@@ -2863,6 +2923,148 @@ mod tests {
         assert!(!store.report_exists("report-cold-0").await.unwrap());
         assert!(store.report_exists("report-cold-1").await.unwrap());
         assert!(store.report_exists("report-cold-2").await.unwrap());
+        store.drop_schema().await;
+    }
+
+    #[test]
+    fn row_estimate_is_only_trusted_when_it_is_comfortably_under_the_cap() {
+        // Never analyzed: -1 on Postgres 14+, 0 on older versions. Both must fall
+        // back, which is why 0 is rejected even though it is a legal row count.
+        assert!(!super::row_estimate_is_usable(-1.0, 20_000));
+        assert!(!super::row_estimate_is_usable(0.0, 20_000));
+
+        assert!(super::row_estimate_is_usable(1.0, 20_000));
+        assert!(super::row_estimate_is_usable(17_999.0, 20_000));
+
+        // Within the margin, or over it: the difference could change how many
+        // rows get evicted, so count for real.
+        assert!(!super::row_estimate_is_usable(18_000.0, 20_000));
+        assert!(!super::row_estimate_is_usable(25_000.0, 20_000));
+    }
+
+    /// A freshly created table has never been analyzed, so `reltuples` is -1 and
+    /// cleanup has to notice and count for real -- otherwise nothing is ever
+    /// evicted from a young deployment.
+    #[tokio::test]
+    async fn cleanup_falls_back_to_an_exact_count_on_a_never_analyzed_table() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..3 {
+            let id = format!("report-estimate-{index}");
+            let mut report = test_report(&id, &owner, 100 + index);
+            report.commit_sha = format!("abc123-{index}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+            store
+                .force_report_timestamps(
+                    &id,
+                    Utc::now() - Duration::days(31),
+                    Utc::now() - Duration::days(31 + i64::from(2 - index as i32)),
+                )
+                .await
+                .unwrap();
+        }
+
+        assert!(
+            store.report_reltuples().await.unwrap() <= 0.0,
+            "precondition: the table must not have been analyzed yet"
+        );
+
+        let stats = cleanup(
+            &store,
+            CleanupConfig {
+                report_min_retention_days: 30,
+                report_max_rows: 2,
+                report_cleanup_batch_size: 10,
+                ..CleanupConfig::default()
+            },
+        )
+        .await;
+
+        assert_eq!(stats.cold_reports_deleted, 1);
+        store.drop_schema().await;
+    }
+
+    /// Once analyzed and comfortably under the cap, cleanup takes the estimate and
+    /// skips the scan entirely.
+    #[tokio::test]
+    async fn cleanup_trusts_the_estimate_when_it_is_far_below_the_cap() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..3 {
+            let id = format!("report-estimate-low-{index}");
+            let mut report = test_report(&id, &owner, 100 + index);
+            report.commit_sha = format!("abc123-{index}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+            store
+                .force_report_timestamps(
+                    &id,
+                    Utc::now() - Duration::days(31),
+                    Utc::now() - Duration::days(31),
+                )
+                .await
+                .unwrap();
+        }
+        store.analyze_reports().await.unwrap();
+        assert_eq!(store.report_reltuples().await.unwrap(), 3.0);
+
+        let stats = cleanup(&store, CleanupConfig::default()).await;
+
+        assert_eq!(stats.cold_reports_deleted, 0);
+        assert!(store.report_exists("report-estimate-low-0").await.unwrap());
+        store.drop_schema().await;
+    }
+
+    /// Near the cap the estimate is not good enough: the exact count is what
+    /// decides how many rows go.
+    #[tokio::test]
+    async fn cleanup_counts_exactly_once_the_estimate_approaches_the_cap() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..4 {
+            let id = format!("report-estimate-near-{index}");
+            let mut report = test_report(&id, &owner, 100 + index);
+            report.commit_sha = format!("abc123-{index}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+            store
+                .force_report_timestamps(
+                    &id,
+                    Utc::now() - Duration::days(31),
+                    Utc::now() - Duration::days(31 + i64::from(3 - index as i32)),
+                )
+                .await
+                .unwrap();
+        }
+        store.analyze_reports().await.unwrap();
+        assert_eq!(store.report_reltuples().await.unwrap(), 4.0);
+
+        let stats = cleanup(
+            &store,
+            CleanupConfig {
+                report_min_retention_days: 30,
+                report_max_rows: 3,
+                report_cleanup_batch_size: 10,
+                ..CleanupConfig::default()
+            },
+        )
+        .await;
+
+        assert_eq!(stats.cold_reports_deleted, 1, "4 rows, cap of 3");
+        assert!(!store.report_exists("report-estimate-near-0").await.unwrap());
         store.drop_schema().await;
     }
 
