@@ -1,0 +1,302 @@
+{
+  "limit": 24,
+  "page": 1,
+  "reports": [
+    {
+      "canonicalUrl": "https://octocounts.com/github/octocounts/empty",
+      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Counted with tokei via OctoCounts.",
+      "commitSha": "ffffffffffffffffffff",
+      "description": "octocounts/empty contains 0 code lines across 0 files and 0 languages.",
+      "durationMs": 7,
+      "generatedAt": "2024-06-01T00:30:15+00:00",
+      "htmlUrl": "https://github.com/octocounts/empty",
+      "languages": [],
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/empty",
+      "refName": "main",
+      "repo": "empty",
+      "repoFullName": "octocounts/empty",
+      "title": "octocounts/empty: 0 lines of code | OctoCounts",
+      "tokeiVersion": "tokei-14.0.0",
+      "topLanguage": null,
+      "total": {
+        "blanks": 0,
+        "code": 0,
+        "comments": 0,
+        "files": 0,
+        "lines": 0
+      }
+    },
+    {
+      "canonicalUrl": "https://octocounts.com/gitlab/gitlab-org/ci-cd/gitlab-runner",
+      "citation": "As of 2024-05-20 (commit aabbccddeeff), gitlab-org/ci-cd/gitlab-runner contains 431,818 total lines: 350,000 code, 50,000 comments, 31,818 blank, across 2,189 files in 2 languages (top: Go 98.8%). Counted with tokei via OctoCounts.",
+      "commitSha": "aabbccddeeff00112233",
+      "description": "gitlab-org/ci-cd/gitlab-runner contains 350,000 code lines across 2,189 files and 2 languages; top language: Go 98.8%.",
+      "durationMs": 4567,
+      "generatedAt": "2024-05-20T17:30:15+00:00",
+      "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
+      "languages": [
+        {
+          "children": [],
+          "name": "Go",
+          "stats": {
+            "blanks": 31425,
+            "code": 345678,
+            "comments": 49382,
+            "files": 2101,
+            "lines": 426485
+          }
+        },
+        {
+          "children": [],
+          "name": "Shell",
+          "stats": {
+            "blanks": 392,
+            "code": 4321,
+            "comments": 617,
+            "files": 88,
+            "lines": 5330
+          }
+        }
+      ],
+      "owner": "gitlab-org/ci-cd",
+      "provider": "gitlab",
+      "publicPath": "/gitlab/gitlab-org/ci-cd/gitlab-runner",
+      "refName": "main",
+      "repo": "gitlab-runner",
+      "repoFullName": "gitlab-org/ci-cd/gitlab-runner",
+      "title": "gitlab-org/ci-cd/gitlab-runner: 350,000 lines of code | OctoCounts",
+      "tokeiVersion": "tokei-14.0.0",
+      "topLanguage": {
+        "code": 345678,
+        "name": "Go",
+        "percent": 98.76514285714286
+      },
+      "total": {
+        "blanks": 31818,
+        "code": 350000,
+        "comments": 50000,
+        "files": 2189,
+        "lines": 431818
+      }
+    },
+    {
+      "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
+      "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Counted with tokei via OctoCounts.",
+      "commitSha": "9f8e7d6c5b4a39281706",
+      "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
+      "durationMs": 91234,
+      "generatedAt": "2024-03-14T09:30:15+00:00",
+      "htmlUrl": "https://github.com/rust-lang/rust",
+      "languages": [
+        {
+          "children": [
+            {
+              "children": [],
+              "name": "Markdown",
+              "stats": {
+                "blanks": 363,
+                "code": 4000,
+                "comments": 571,
+                "files": 40,
+                "lines": 4934
+              }
+            }
+          ],
+          "name": "Rust",
+          "stats": {
+            "blanks": 112233,
+            "code": 1234567,
+            "comments": 176366,
+            "files": 12345,
+            "lines": 1523166
+          }
+        },
+        {
+          "children": [],
+          "name": "C",
+          "stats": {
+            "blanks": 41526,
+            "code": 456789,
+            "comments": 65255,
+            "files": 890,
+            "lines": 563570
+          }
+        },
+        {
+          "children": [],
+          "name": "C++",
+          "stats": {
+            "blanks": 21324,
+            "code": 234567,
+            "comments": 33509,
+            "files": 611,
+            "lines": 289400
+          }
+        },
+        {
+          "children": [],
+          "name": "Python",
+          "stats": {
+            "blanks": 11223,
+            "code": 123456,
+            "comments": 17636,
+            "files": 512,
+            "lines": 152315
+          }
+        },
+        {
+          "children": [],
+          "name": "JavaScript",
+          "stats": {
+            "blanks": 8978,
+            "code": 98765,
+            "comments": 14109,
+            "files": 431,
+            "lines": 121852
+          }
+        },
+        {
+          "children": [],
+          "name": "Shell",
+          "stats": {
+            "blanks": 4152,
+            "code": 45678,
+            "comments": 6525,
+            "files": 322,
+            "lines": 56355
+          }
+        },
+        {
+          "children": [],
+          "name": "Markdown",
+          "stats": {
+            "blanks": 3142,
+            "code": 34567,
+            "comments": 4938,
+            "files": 289,
+            "lines": 42647
+          }
+        },
+        {
+          "children": [],
+          "name": "YAML",
+          "stats": {
+            "blanks": 2132,
+            "code": 23456,
+            "comments": 3350,
+            "files": 233,
+            "lines": 28938
+          }
+        },
+        {
+          "children": [],
+          "name": "TOML",
+          "stats": {
+            "blanks": 1122,
+            "code": 12345,
+            "comments": 1763,
+            "files": 187,
+            "lines": 15230
+          }
+        },
+        {
+          "children": [],
+          "name": "HTML",
+          "stats": {
+            "blanks": 897,
+            "code": 9876,
+            "comments": 1410,
+            "files": 145,
+            "lines": 12183
+          }
+        },
+        {
+          "children": [],
+          "name": "CSS",
+          "stats": {
+            "blanks": 796,
+            "code": 8765,
+            "comments": 1252,
+            "files": 121,
+            "lines": 10813
+          }
+        },
+        {
+          "children": [],
+          "name": "Makefile",
+          "stats": {
+            "blanks": 695,
+            "code": 7654,
+            "comments": 1093,
+            "files": 98,
+            "lines": 9442
+          }
+        }
+      ],
+      "owner": "rust-lang",
+      "provider": "github",
+      "publicPath": "/github/rust-lang/rust",
+      "refName": "main",
+      "repo": "rust",
+      "repoFullName": "rust-lang/rust",
+      "title": "rust-lang/rust: 2,306,821 lines of code | OctoCounts",
+      "tokeiVersion": "tokei-14.0.0",
+      "topLanguage": {
+        "code": 1234567,
+        "name": "Rust",
+        "percent": 53.518109987727705
+      },
+      "total": {
+        "blanks": 209710,
+        "code": 2306821,
+        "comments": 329546,
+        "files": 16346,
+        "lines": 2846077
+      }
+    },
+    {
+      "canonicalUrl": "https://octocounts.com/github/octocounts/legacy",
+      "citation": "As of 2024-02-29 (commit 111122223333), octocounts/legacy contains 900 total lines: 700 code, 120 comments, 80 blank, across 9 files in 1 languages (top: Perl 100.0%). Counted with tokei via OctoCounts.",
+      "commitSha": "1111222233334444aaaa",
+      "description": "octocounts/legacy contains 700 code lines across 9 files and 1 languages; top language: Perl 100.0%.",
+      "durationMs": 1234,
+      "generatedAt": "2024-02-29T11:30:15.123456789+00:00",
+      "htmlUrl": "https://github.com/octocounts/legacy",
+      "languages": [
+        {
+          "children": [],
+          "name": "Perl",
+          "stats": {
+            "blanks": 80,
+            "code": 700,
+            "comments": 120,
+            "files": 9,
+            "lines": 900
+          }
+        }
+      ],
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/legacy",
+      "refName": "master",
+      "repo": "legacy",
+      "repoFullName": "octocounts/legacy",
+      "title": "octocounts/legacy: 700 lines of code | OctoCounts",
+      "tokeiVersion": "tokei-14.0.0",
+      "topLanguage": {
+        "code": 700,
+        "name": "Perl",
+        "percent": 100.0
+      },
+      "total": {
+        "blanks": 80,
+        "code": 700,
+        "comments": 120,
+        "files": 9,
+        "lines": 900
+      }
+    }
+  ]
+}

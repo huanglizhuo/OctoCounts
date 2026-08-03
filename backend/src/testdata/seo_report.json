@@ -1,0 +1,175 @@
+{
+  "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
+  "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Counted with tokei via OctoCounts.",
+  "commitSha": "9f8e7d6c5b4a39281706",
+  "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
+  "durationMs": 91234,
+  "generatedAt": "2024-03-14T09:30:15+00:00",
+  "htmlUrl": "https://github.com/rust-lang/rust",
+  "languages": [
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "Markdown",
+          "stats": {
+            "blanks": 363,
+            "code": 4000,
+            "comments": 571,
+            "files": 40,
+            "lines": 4934
+          }
+        }
+      ],
+      "name": "Rust",
+      "stats": {
+        "blanks": 112233,
+        "code": 1234567,
+        "comments": 176366,
+        "files": 12345,
+        "lines": 1523166
+      }
+    },
+    {
+      "children": [],
+      "name": "C",
+      "stats": {
+        "blanks": 41526,
+        "code": 456789,
+        "comments": 65255,
+        "files": 890,
+        "lines": 563570
+      }
+    },
+    {
+      "children": [],
+      "name": "C++",
+      "stats": {
+        "blanks": 21324,
+        "code": 234567,
+        "comments": 33509,
+        "files": 611,
+        "lines": 289400
+      }
+    },
+    {
+      "children": [],
+      "name": "Python",
+      "stats": {
+        "blanks": 11223,
+        "code": 123456,
+        "comments": 17636,
+        "files": 512,
+        "lines": 152315
+      }
+    },
+    {
+      "children": [],
+      "name": "JavaScript",
+      "stats": {
+        "blanks": 8978,
+        "code": 98765,
+        "comments": 14109,
+        "files": 431,
+        "lines": 121852
+      }
+    },
+    {
+      "children": [],
+      "name": "Shell",
+      "stats": {
+        "blanks": 4152,
+        "code": 45678,
+        "comments": 6525,
+        "files": 322,
+        "lines": 56355
+      }
+    },
+    {
+      "children": [],
+      "name": "Markdown",
+      "stats": {
+        "blanks": 3142,
+        "code": 34567,
+        "comments": 4938,
+        "files": 289,
+        "lines": 42647
+      }
+    },
+    {
+      "children": [],
+      "name": "YAML",
+      "stats": {
+        "blanks": 2132,
+        "code": 23456,
+        "comments": 3350,
+        "files": 233,
+        "lines": 28938
+      }
+    },
+    {
+      "children": [],
+      "name": "TOML",
+      "stats": {
+        "blanks": 1122,
+        "code": 12345,
+        "comments": 1763,
+        "files": 187,
+        "lines": 15230
+      }
+    },
+    {
+      "children": [],
+      "name": "HTML",
+      "stats": {
+        "blanks": 897,
+        "code": 9876,
+        "comments": 1410,
+        "files": 145,
+        "lines": 12183
+      }
+    },
+    {
+      "children": [],
+      "name": "CSS",
+      "stats": {
+        "blanks": 796,
+        "code": 8765,
+        "comments": 1252,
+        "files": 121,
+        "lines": 10813
+      }
+    },
+    {
+      "children": [],
+      "name": "Makefile",
+      "stats": {
+        "blanks": 695,
+        "code": 7654,
+        "comments": 1093,
+        "files": 98,
+        "lines": 9442
+      }
+    }
+  ],
+  "owner": "rust-lang",
+  "provider": "github",
+  "publicPath": "/github/rust-lang/rust",
+  "refName": "main",
+  "repo": "rust",
+  "repoFullName": "rust-lang/rust",
+  "title": "rust-lang/rust: 2,306,821 lines of code | OctoCounts",
+  "tokeiVersion": "tokei-14.0.0",
+  "topLanguage": {
+    "code": 1234567,
+    "name": "Rust",
+    "percent": 53.518109987727705
+  },
+  "total": {
+    "blanks": 209710,
+    "code": 2306821,
+    "comments": 329546,
+    "files": 16346,
+    "lines": 2846077
+  }
+}

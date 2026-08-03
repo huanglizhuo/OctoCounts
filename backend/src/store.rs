@@ -848,8 +848,46 @@ impl Store {
         })
     }
 
+    /// Inserts a report body verbatim, bypassing `save_report`'s serialization.
+    /// Used by the golden fixtures to reproduce rows written by older binaries.
     #[cfg(test)]
-    async fn force_report_access_metadata(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn insert_raw_report(
+        &self,
+        id: &str,
+        provider: &str,
+        owner: &str,
+        repo: &str,
+        commit_sha: &str,
+        tokei_version: &str,
+        body: &str,
+        created_at: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO reports (
+                id, provider, owner, repo, commit_sha, tokei_version, body, created_at,
+                last_accessed_at, access_count, body_bytes, source
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $8, 0, $9, 'unknown')
+            "#,
+        )
+        .bind(id)
+        .bind(provider)
+        .bind(owner)
+        .bind(repo)
+        .bind(commit_sha)
+        .bind(tokei_version)
+        .bind(body)
+        .bind(created_at)
+        .bind(body.len() as i64)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn force_report_access_metadata(
         &self,
         id: &str,
         last_accessed_at: DateTime<Utc>,

@@ -1,0 +1,44 @@
+{
+  "analysisKey": "",
+  "analysisOptions": {
+    "ignoredDirs": [],
+    "ignoredLanguages": [],
+    "includeDocs": false,
+    "includeGenerated": false,
+    "includeTests": false,
+    "profile": "default"
+  },
+  "cached": false,
+  "commitSha": "1111222233334444aaaa",
+  "durationMs": 1234,
+  "generatedAt": "2024-02-29T11:30:15.123456789Z",
+  "id": "report-legacy-shape",
+  "languages": [
+    {
+      "children": [],
+      "name": "Perl",
+      "stats": {
+        "blanks": 80,
+        "code": 700,
+        "comments": 120,
+        "files": 9,
+        "lines": 900
+      }
+    }
+  ],
+  "refName": "master",
+  "repository": {
+    "htmlUrl": "https://github.com/octocounts/legacy",
+    "name": "legacy",
+    "owner": "octocounts",
+    "provider": "github"
+  },
+  "tokeiVersion": "tokei-14.0.0",
+  "total": {
+    "blanks": 80,
+    "code": 700,
+    "comments": 120,
+    "files": 9,
+    "lines": 900
+  }
+}

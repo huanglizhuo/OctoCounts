@@ -6,6 +6,8 @@ mod config;
 mod coordinator;
 mod error;
 mod github;
+#[cfg(test)]
+mod golden;
 mod indexnow;
 mod models;
 mod og;
