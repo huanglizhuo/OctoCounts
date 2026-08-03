@@ -289,6 +289,8 @@ impl Store {
         .execute(&self.pool)
         .await?;
 
+        self.migrate_report_stat_columns().await?;
+
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
             .await?;
@@ -326,6 +328,16 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
+        // Plain, not CONCURRENTLY: `migrate()` runs statement-by-statement outside an
+        // explicit transaction so CONCURRENTLY would be legal, but a failed
+        // CONCURRENTLY build leaves an INVALID index behind that `IF NOT EXISTS`
+        // then refuses to retry. `reports` is capped at REPORT_MAX_ROWS (20k by
+        // default), so a blocking build is milliseconds.
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_total_lines ON reports (total_lines DESC)",
+        )
+        .execute(&self.pool)
+        .await?;
         sqlx::query("DROP INDEX IF EXISTS idx_jobs_cleanup")
             .execute(&self.pool)
             .await?;
@@ -353,6 +365,113 @@ impl Store {
         .await?;
 
         Ok(())
+    }
+
+    /// Adds the materialized statistics columns, the trigger that keeps them in
+    /// sync with `body`, and backfills historical rows in bounded batches.
+    ///
+    /// Why a trigger instead of computing the values in `save_report`: deploys are
+    /// not instantaneous, so for a while an old binary keeps writing rows with an
+    /// `INSERT ... ON CONFLICT DO UPDATE` that knows nothing about these columns.
+    /// Deriving them in the database makes the columns a pure function of `body`
+    /// for *every* writer, which is what lets `ORDER BY total_lines DESC` stay
+    /// exactly equivalent to the `(body->'total'->>'lines')::bigint` expression it
+    /// replaces. A `STORED GENERATED` column would give the same guarantee, but
+    /// adding one rewrites the whole table under an ACCESS EXCLUSIVE lock, and the
+    /// production table's bodies are large enough that that is a real stall.
+    ///
+    /// The trigger is `UPDATE OF body`, not plain `UPDATE`, so the hourly
+    /// access-count touch on the hot read path does not detoast the body.
+    async fn migrate_report_stat_columns(&self) -> anyhow::Result<()> {
+        // Nullable, no default: a metadata-only change, no table rewrite.
+        sqlx::query(
+            r#"
+            ALTER TABLE reports
+                ADD COLUMN IF NOT EXISTS total_lines BIGINT,
+                ADD COLUMN IF NOT EXISTS total_code BIGINT,
+                ADD COLUMN IF NOT EXISTS total_files BIGINT,
+                ADD COLUMN IF NOT EXISTS language_count INT,
+                ADD COLUMN IF NOT EXISTS top_language TEXT
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE OR REPLACE FUNCTION reports_materialize_stats() RETURNS trigger AS $$
+            BEGIN
+                NEW.total_lines := COALESCE((NEW.body->'total'->>'lines')::bigint, 0);
+                NEW.total_code := COALESCE((NEW.body->'total'->>'code')::bigint, 0);
+                NEW.total_files := COALESCE((NEW.body->'total'->>'files')::bigint, 0);
+                NEW.language_count := COALESCE(jsonb_array_length(NEW.body->'languages'), 0);
+                NEW.top_language := NEW.body->'languages'->0->>'name';
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query("DROP TRIGGER IF EXISTS reports_materialize_stats ON reports")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            r#"
+            CREATE TRIGGER reports_materialize_stats
+            BEFORE INSERT OR UPDATE OF body ON reports
+            FOR EACH ROW EXECUTE FUNCTION reports_materialize_stats()
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        self.backfill_report_stats().await?;
+        Ok(())
+    }
+
+    /// Fills the materialized columns for rows that predate them, one bounded
+    /// batch per statement. A single table-wide UPDATE would hold row locks over
+    /// the entire table for the duration, which on the production database is a
+    /// stall; this keeps each statement short and lets other writers interleave.
+    async fn backfill_report_stats(&self) -> anyhow::Result<u64> {
+        const BATCH: i64 = 1_000;
+        // 10k batches * 1k rows caps a runaway loop far above any plausible table
+        // size (the cleanup task holds `reports` to REPORT_MAX_ROWS).
+        const MAX_BATCHES: usize = 10_000;
+
+        let mut total = 0_u64;
+        for _ in 0..MAX_BATCHES {
+            let affected = sqlx::query(
+                r#"
+                UPDATE reports
+                SET total_lines = COALESCE((body->'total'->>'lines')::bigint, 0),
+                    total_code = COALESCE((body->'total'->>'code')::bigint, 0),
+                    total_files = COALESCE((body->'total'->>'files')::bigint, 0),
+                    language_count = COALESCE(jsonb_array_length(body->'languages'), 0),
+                    top_language = body->'languages'->0->>'name'
+                WHERE id IN (
+                    SELECT id FROM reports WHERE total_lines IS NULL LIMIT $1
+                )
+                "#,
+            )
+            .bind(BATCH)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+
+            total += affected;
+            if affected == 0 {
+                return Ok(total);
+            }
+        }
+
+        tracing::warn!(
+            backfilled = total,
+            "report stat backfill hit its batch cap; the next migrate() will resume it"
+        );
+        Ok(total)
     }
 
     #[cfg(test)]
@@ -658,9 +777,7 @@ impl Store {
                 SELECT body::text AS body
                 FROM (
                     SELECT DISTINCT ON (provider, owner, repo)
-                        body,
-                        ((body->'total'->>'lines')::bigint) AS total_lines,
-                        created_at
+                        body, total_lines, created_at
                     FROM reports
                     ORDER BY provider, owner, repo, created_at DESC
                 ) monoliths
@@ -949,6 +1066,48 @@ impl Store {
     }
 
     #[cfg(test)]
+    async fn report_stat_columns(&self, id: &str) -> anyhow::Result<ReportStatColumns> {
+        let row = sqlx::query(
+            "SELECT total_lines, total_code, total_files, language_count, top_language FROM reports WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(ReportStatColumns {
+            total_lines: row.try_get("total_lines")?,
+            total_code: row.try_get("total_code")?,
+            total_files: row.try_get("total_files")?,
+            language_count: row.try_get("language_count")?,
+            top_language: row.try_get("top_language")?,
+        })
+    }
+
+    /// Blanks the materialized columns without touching `body`, reproducing a row
+    /// as it looked before this migration existed.
+    #[cfg(test)]
+    async fn clear_report_stat_columns(&self, id: &str) -> anyhow::Result<()> {
+        sqlx::query(
+            "UPDATE reports SET total_lines = NULL, total_code = NULL, total_files = NULL, language_count = NULL, top_language = NULL WHERE id = $1",
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Writes only `body`, the way a binary that predates the materialized
+    /// columns would during a rolling deploy.
+    #[cfg(test)]
+    async fn force_report_body(&self, id: &str, body: &str) -> anyhow::Result<()> {
+        sqlx::query("UPDATE reports SET body = $1::jsonb WHERE id = $2")
+            .bind(body)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    #[cfg(test)]
     async fn report_exists(&self, id: &str) -> anyhow::Result<bool> {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM reports WHERE id = $1)")
             .bind(id)
@@ -1143,6 +1302,16 @@ impl Default for CleanupConfig {
             report_cleanup_batch_size: 1_000,
         }
     }
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq, Eq)]
+struct ReportStatColumns {
+    total_lines: Option<i64>,
+    total_code: Option<i64>,
+    total_files: Option<i64>,
+    language_count: Option<i32>,
+    top_language: Option<String>,
 }
 
 #[derive(Default, Debug)]
@@ -1405,6 +1574,164 @@ mod tests {
         assert_eq!(stats.sources.iter().map(|row| row.reports).sum::<i64>(), 2);
         assert!(stats.languages.iter().any(|row| row.language == "Rust"));
         assert_eq!(stats.top_repositories.len(), 1);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn saved_report_materializes_stat_columns_from_body() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let mut report = test_report("report-stats", &owner, 100);
+        report.languages.push(LanguageReport {
+            name: "TOML".to_string(),
+            stats: LanguageStats {
+                files: 2,
+                lines: 20,
+                code: 15,
+                comments: 3,
+                blanks: 2,
+            },
+            children: Vec::new(),
+        });
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        let columns = store.report_stat_columns(&report.id).await.unwrap();
+
+        assert_eq!(columns.total_lines, Some(report.total.lines as i64));
+        assert_eq!(columns.total_code, Some(report.total.code as i64));
+        assert_eq!(columns.total_files, Some(report.total.files as i64));
+        assert_eq!(columns.language_count, Some(2));
+        assert_eq!(columns.top_language.as_deref(), Some("Rust"));
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn upsert_refreshes_stat_columns() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        store
+            .save_report(
+                &test_report("report-stats-v1", &owner, 100),
+                AnalysisSource::Unknown,
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &test_report("report-stats-v2", &owner, 999),
+                AnalysisSource::Unknown,
+            )
+            .await
+            .unwrap();
+
+        let columns = store.report_stat_columns("report-stats-v2").await.unwrap();
+
+        assert_eq!(columns.total_code, Some(999));
+        assert_eq!(columns.total_lines, Some(1009));
+        store.drop_schema().await;
+    }
+
+    /// The rolling-deploy case: a binary that predates these columns writes only
+    /// `body`. The trigger has to keep the projection honest anyway, otherwise
+    /// `ORDER BY total_lines DESC` silently ranks that row with a stale value.
+    #[tokio::test]
+    async fn body_only_write_still_refreshes_stat_columns() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-stats-legacy-writer", &owner, 100);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        let mut rewritten = test_report("report-stats-legacy-writer", &owner, 4_242);
+        rewritten.languages[0].name = "Zig".to_string();
+        store
+            .force_report_body(&report.id, &serde_json::to_string(&rewritten).unwrap())
+            .await
+            .unwrap();
+
+        let columns = store.report_stat_columns(&report.id).await.unwrap();
+
+        assert_eq!(columns.total_code, Some(4_242));
+        assert_eq!(columns.top_language.as_deref(), Some("Zig"));
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn backfill_fills_rows_whose_stat_columns_are_null() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-stats-backfill", &owner, 777);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        store
+            .clear_report_stat_columns(&report.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .report_stat_columns(&report.id)
+                .await
+                .unwrap()
+                .total_lines,
+            None
+        );
+
+        let backfilled = store.backfill_report_stats().await.unwrap();
+
+        assert_eq!(backfilled, 1);
+        let columns = store.report_stat_columns(&report.id).await.unwrap();
+        assert_eq!(columns.total_code, Some(777));
+        assert_eq!(columns.language_count, Some(1));
+        // Idempotent: a second pass has nothing left to do.
+        assert_eq!(store.backfill_report_stats().await.unwrap(), 0);
+        store.drop_schema().await;
+    }
+
+    /// The access-count touch must not fire the trigger, otherwise every cached
+    /// read pays to detoast the report body.
+    #[tokio::test]
+    async fn access_touch_does_not_fire_the_stat_trigger() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-stats-untouched", &owner, 100);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        store.clear_report_stat_columns(&report.id).await.unwrap();
+
+        store
+            .force_report_access_metadata(&report.id, Utc::now() - Duration::hours(2), 1)
+            .await
+            .unwrap();
+        assert!(store.report(&report.id).await.unwrap().is_some());
+
+        assert_eq!(
+            store
+                .report_stat_columns(&report.id)
+                .await
+                .unwrap()
+                .total_lines,
+            None,
+            "an UPDATE that does not set body must not re-derive the columns"
+        );
         store.drop_schema().await;
     }
 
