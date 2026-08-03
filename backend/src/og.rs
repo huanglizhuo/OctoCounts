@@ -52,15 +52,15 @@ pub async fn github(
             .latest_report(RepositoryProvider::GitHub, &owner, &repo)
             .await
             .ok()
-            .flatten()
-            .as_ref(),
+            .flatten(),
     )
+    .await
 }
 
 pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
     let Some((repo, owner_parts)) = segments.split_last() else {
-        return og_response(None);
+        return og_response(None).await;
     };
     let owner = owner_parts.join("/");
     og_response(
@@ -70,16 +70,23 @@ pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> 
             .latest_report(RepositoryProvider::GitLab, &owner, repo)
             .await
             .ok()
-            .flatten()
-            .as_ref(),
+            .flatten(),
     )
+    .await
 }
 
-fn og_response(report: Option<&Report>) -> Response {
-    let png = render_png(report).unwrap_or_else(|error| {
-        tracing::warn!(%error, "failed to render og image");
-        Vec::new()
-    });
+/// Rasterizing 1200x630 and PNG-encoding it takes single-digit milliseconds of
+/// pure CPU. Running that inline would park a tokio worker for the whole time,
+/// so it is handed to the blocking pool instead.
+async fn og_response(report: Option<Report>) -> Response {
+    let png = tokio::task::spawn_blocking(move || render_png(report.as_ref()))
+        .await
+        .map_err(anyhow::Error::from)
+        .and_then(|result| result)
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, "failed to render og image");
+            Vec::new()
+        });
 
     (
         StatusCode::OK,
