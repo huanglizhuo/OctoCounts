@@ -578,21 +578,11 @@ impl Store {
     /// unchanged -- this path never forces it to `true` the way the analyze
     /// cache-hit path does.
     pub async fn report_json(&self, id: &str) -> anyhow::Result<Option<String>> {
-        static SQL: OnceLock<(String, String)> = OnceLock::new();
-        let (update_sql, select_sql) = SQL.get_or_init(|| {
-            let body = normalized_report_body_expr();
-            (
-                format!(
-                    "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 \
-                     WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' \
-                     RETURNING {body} AS body"
-                ),
-                format!("SELECT {body} AS body FROM reports WHERE id = $1"),
-            )
+        static SQL: OnceLock<String> = OnceLock::new();
+        let sql = SQL.get_or_init(|| {
+            throttled_fetch_sql(normalized_report_body_expr(), "id = $1", "id = $1")
         });
-
-        self.fetch_throttled_report_body(update_sql, select_sql, id)
-            .await
+        self.fetch_throttled_report_body(sql, id).await
     }
 
     pub async fn latest_report(
@@ -851,41 +841,27 @@ impl Store {
         &self,
         key: ReportCacheKey<'_>,
     ) -> anyhow::Result<Option<String>> {
-        let touched = sqlx::query(
-            r#"
-            UPDATE reports
-            SET last_accessed_at = NOW(), access_count = access_count + 1
-            WHERE id = (
-                SELECT id
-                FROM reports
-                WHERE provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5
+        static SQL: OnceLock<String> = OnceLock::new();
+        let sql = SQL.get_or_init(|| {
+            throttled_fetch_sql(
+                "body::text",
+                "id = (
+                    SELECT id
+                    FROM reports
+                    WHERE provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5
+                )",
+                "provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5",
             )
-            AND last_accessed_at < NOW() - INTERVAL '1 hour'
-            RETURNING body::text AS body
-            "#,
-        )
-        .bind(provider_to_str(&key.provider))
-        .bind(key.owner)
-        .bind(key.repo)
-        .bind(key.commit_sha)
-        .bind(key.tokei_version)
-        .fetch_optional(&self.pool)
-        .await?;
+        });
 
-        if let Some(row) = touched {
-            return Ok(Some(row.try_get("body")?));
-        }
-
-        let row = sqlx::query(
-            "SELECT body::text AS body FROM reports WHERE provider = $1 AND owner = $2 AND repo = $3 AND commit_sha = $4 AND tokei_version = $5",
-        )
-        .bind(provider_to_str(&key.provider))
-        .bind(key.owner)
-        .bind(key.repo)
-        .bind(key.commit_sha)
-        .bind(key.tokei_version)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = sqlx::query(sql)
+            .bind(provider_to_str(&key.provider))
+            .bind(key.owner)
+            .bind(key.repo)
+            .bind(key.commit_sha)
+            .bind(key.tokei_version)
+            .fetch_optional(&self.pool)
+            .await?;
 
         row.map(|row| row.try_get("body"))
             .transpose()
@@ -893,30 +869,17 @@ impl Store {
     }
 
     async fn fetch_report_body_by_id(&self, id: &str) -> anyhow::Result<Option<String>> {
-        self.fetch_throttled_report_body(
-            "UPDATE reports SET last_accessed_at = NOW(), access_count = access_count + 1 WHERE id = $1 AND last_accessed_at < NOW() - INTERVAL '1 hour' RETURNING body::text AS body",
-            "SELECT body::text AS body FROM reports WHERE id = $1",
-            id,
-        )
-        .await
+        static SQL: OnceLock<String> = OnceLock::new();
+        let sql = SQL.get_or_init(|| throttled_fetch_sql("body::text", "id = $1", "id = $1"));
+        self.fetch_throttled_report_body(sql, id).await
     }
 
     async fn fetch_throttled_report_body(
         &self,
-        update_sql: &str,
-        select_sql: &str,
+        sql: &str,
         id: &str,
     ) -> anyhow::Result<Option<String>> {
-        let touched = sqlx::query(update_sql)
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
-
-        if let Some(row) = touched {
-            return Ok(Some(row.try_get("body")?));
-        }
-
-        let row = sqlx::query(select_sql)
+        let row = sqlx::query(sql)
             .bind(id)
             .fetch_optional(&self.pool)
             .await?;
@@ -1457,6 +1420,45 @@ impl ReportOrder {
     }
 }
 
+/// Builds the "read a report and maybe bump its access counter" statement.
+///
+/// Access counting is throttled to once an hour per report, so on any popular
+/// report the `UPDATE ... RETURNING` matches zero rows almost every time and the
+/// old code then had to issue a second `SELECT`: two round trips on the hottest
+/// read path in the service, for one row.
+///
+/// A data-modifying CTE collapses that into one. Postgres runs the CTE exactly
+/// once and to completion whether or not the outer query reads from it, and every
+/// sub-statement sees the same snapshot, so the fallback arm reads the same body
+/// the update would have returned. `NOT EXISTS (SELECT 1 FROM touched)` makes the
+/// two arms mutually exclusive, so the result is still zero or one row.
+///
+/// `update_predicate` and `select_predicate` differ only because the cache-key
+/// lookup has to resolve the primary key before it can update by it.
+fn throttled_fetch_sql(
+    body_expr: &str,
+    update_predicate: &str,
+    select_predicate: &str,
+) -> String {
+    format!(
+        r#"
+        WITH touched AS (
+            UPDATE reports
+            SET last_accessed_at = NOW(), access_count = access_count + 1
+            WHERE {update_predicate}
+            AND last_accessed_at < NOW() - INTERVAL '1 hour'
+            RETURNING {body_expr} AS body
+        )
+        SELECT body FROM touched
+        UNION ALL
+        SELECT {body_expr} AS body
+        FROM reports
+        WHERE {select_predicate}
+        AND NOT EXISTS (SELECT 1 FROM touched)
+        "#
+    )
+}
+
 /// A SQL expression rendering `body` as the JSON `/api/reports/{id}` has always
 /// returned: the stored document plus the defaults that `serde` used to
 /// materialize for the three fields that carry `#[serde(default)]`.
@@ -1779,6 +1781,124 @@ mod tests {
 
         assert_eq!(loaded.id, report.id);
         assert_eq!(access_count, 4);
+        store.drop_schema().await;
+    }
+
+    /// The CTE that merged the two round trips must not change the throttle:
+    /// a read inside the hour returns the body but leaves the counter alone.
+    #[tokio::test]
+    async fn report_read_within_the_hour_does_not_bump_the_access_count() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-throttle-inside", &owner, 100);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        let touched_at = Utc::now() - Duration::minutes(30);
+        store
+            .force_report_access_metadata(&report.id, touched_at, 5)
+            .await
+            .unwrap();
+
+        let loaded = store.report(&report.id).await.unwrap().unwrap();
+        let json = store.report_json(&report.id).await.unwrap().unwrap();
+        let (last_accessed_at, access_count) =
+            store.report_access_metadata(&report.id).await.unwrap();
+
+        assert_eq!(loaded.id, report.id);
+        assert!(json.contains("report-throttle-inside"));
+        assert_eq!(access_count, 5, "still inside the throttle window");
+        assert_eq!(
+            last_accessed_at.timestamp_millis(),
+            touched_at.timestamp_millis(),
+            "last_accessed_at must not move either"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn report_read_after_the_hour_bumps_the_access_count_once() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-throttle-outside", &owner, 100);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        store
+            .force_report_access_metadata(&report.id, Utc::now() - Duration::hours(2), 5)
+            .await
+            .unwrap();
+
+        assert!(store.report(&report.id).await.unwrap().is_some());
+        let (_, after_first) = store.report_access_metadata(&report.id).await.unwrap();
+        // The first read reset the clock, so the immediate second read is throttled.
+        assert!(store.report_json(&report.id).await.unwrap().is_some());
+        let (_, after_second) = store.report_access_metadata(&report.id).await.unwrap();
+
+        assert_eq!(after_first, 6);
+        assert_eq!(after_second, 6);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn cached_report_lookup_throttles_the_same_way() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let report = test_report("report-throttle-key", &owner, 100);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        store
+            .force_report_access_metadata(&report.id, Utc::now() - Duration::minutes(30), 2)
+            .await
+            .unwrap();
+
+        assert!(store
+            .cached_report(&owner, "count", "abc123", "tokei-test:default")
+            .await
+            .unwrap()
+            .is_some());
+        let (_, inside) = store.report_access_metadata(&report.id).await.unwrap();
+
+        store
+            .force_report_access_metadata(&report.id, Utc::now() - Duration::hours(2), 2)
+            .await
+            .unwrap();
+        assert!(store
+            .cached_report(&owner, "count", "abc123", "tokei-test:default")
+            .await
+            .unwrap()
+            .is_some());
+        let (_, outside) = store.report_access_metadata(&report.id).await.unwrap();
+
+        assert_eq!(inside, 2, "within the hour: no increment");
+        assert_eq!(outside, 3, "after the hour: exactly one increment");
+        store.drop_schema().await;
+    }
+
+    /// A miss must stay a miss: the CTE's fallback arm cannot invent a row.
+    #[tokio::test]
+    async fn missing_report_returns_none_from_both_read_paths() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+
+        assert!(store.report("no-such-report").await.unwrap().is_none());
+        assert!(store.report_json("no-such-report").await.unwrap().is_none());
+        assert!(store
+            .cached_report("nobody", "nothing", "deadbeef", "tokei-test:default")
+            .await
+            .unwrap()
+            .is_none());
         store.drop_schema().await;
     }
 
