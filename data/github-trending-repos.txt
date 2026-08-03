@@ -1,16 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-08-02T05:36:06.768Z
+# GitHub Trending daily snapshot generated 2026-08-03T05:52:04.248Z
 microsoft/AI-For-Beginners
-paperswithbacktest/awesome-systematic-trading
 usekaneo/kaneo
-zhaoxuya520/reverse-skill
-microsoft/generative-ai-for-beginners
-github/copilot-sdk
-github/gh-stack
-huggingface/speech-to-speech
-abus-aikorea/voice-pro
+lyogavin/airllm
 iv-org/invidious
-ansible/ansible
-microsoft/TRELLIS.2
+codecrafters-io/build-your-own-x
+zhaoxuya520/reverse-skill
+different-ai/openwork
+microsoft/generative-ai-for-beginners
+Panniantong/Agent-Reach
 TencentCloud/TencentDB-Agent-Memory
+mvanhorn/last30days-skill
 NomaDamas/k-skill
-bytedance/deer-flow
+HarbourMasters/Lighthouse
+antirez/ds4
+esengine/DeepSeek-Reasonix
