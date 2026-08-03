@@ -32,3 +32,11 @@ uuid = { version = "1.23", features = ["serde", "v4"] }
 [dev-dependencies]
 http-body-util = "0.1"
 tower = "0.5"
+
+# Tuned for the deployed binary only. `cargo test` builds with the `test`
+# profile (inherits `dev`), so unwinding still works for `#[should_panic]`
+# and for assertion failures in the test harness.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
