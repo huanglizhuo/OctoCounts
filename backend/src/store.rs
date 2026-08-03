@@ -4,7 +4,8 @@ use uuid::Uuid;
 
 use crate::models::{
     AnalysisSource, ApiErrorBody, GrowthLanguageStat, GrowthRepositoryStat, GrowthSourceStat,
-    GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus, Report, RepositoryProvider,
+    GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus, LanguageReport, LanguageStats,
+    Report, RepositoryProvider,
 };
 
 #[derive(Clone)]
@@ -589,18 +590,24 @@ impl Store {
             .transpose()
     }
 
-    pub async fn recent_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
-        self.distinct_reports("created_at DESC", limit, offset)
-            .await
+    pub async fn recent_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<ReportCard>> {
+        self.report_cards(ReportOrder::Recent, limit, offset).await
     }
 
-    pub async fn popular_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
-        self.distinct_reports("access_count DESC, last_accessed_at DESC", limit, offset)
-            .await
+    pub async fn popular_reports(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ReportCard>> {
+        self.report_cards(ReportOrder::Popular, limit, offset).await
     }
 
-    pub async fn monolith_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<Report>> {
-        self.distinct_reports("total_lines DESC", limit, offset)
+    pub async fn monolith_reports(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> anyhow::Result<Vec<ReportCard>> {
+        self.report_cards(ReportOrder::Monolith, limit, offset)
             .await
     }
 
@@ -653,8 +660,8 @@ impl Store {
         let windows = self.growth_windows().await?;
         let sources = self.growth_sources().await?;
         let languages = self.growth_languages().await?;
-        let top_repositories = self.growth_repository_list("total_lines DESC", 12).await?;
-        let recent_repositories = self.growth_repository_list("created_at DESC", 12).await?;
+        let top_repositories = self.growth_repository_list(ReportOrder::Monolith, 12).await?;
+        let recent_repositories = self.growth_repository_list(ReportOrder::Recent, 12).await?;
 
         Ok(GrowthStats {
             totals,
@@ -772,75 +779,40 @@ impl Store {
 
     async fn growth_repository_list(
         &self,
-        order: &'static str,
+        order: ReportOrder,
         limit: i64,
     ) -> anyhow::Result<Vec<GrowthRepositoryStat>> {
-        let reports = self.distinct_reports(order, limit.clamp(1, 50), 0).await?;
-        Ok(reports.iter().map(growth_repository_stat).collect())
+        let cards = self.report_cards(order, limit.clamp(1, 50), 0).await?;
+        Ok(cards.iter().map(growth_repository_stat).collect())
     }
 
-    async fn distinct_reports(
+    /// One SEO card per distinct repository, in `order`.
+    ///
+    /// The shape matters as much as the projection. Deduplication, sorting and
+    /// pagination all happen over narrow scalar columns in a subquery; only the
+    /// rows that survive `LIMIT` are joined back to `reports` for their body
+    /// fields. The old query carried a whole `body` through the `DISTINCT ON` and
+    /// the sort, which made the sort spill to disk and detoasted every row in the
+    /// table to return 24 of them.
+    ///
+    /// Everything except `provider` / `owner` / `repo` (which `save_report` writes
+    /// from the report itself) is still read out of `body`, so the values are the
+    /// same ones the previous deserialize-the-whole-report path produced. What is
+    /// gone is shipping ~50 KB per row over the socket and parsing it.
+    async fn report_cards(
         &self,
-        order: &'static str,
+        order: ReportOrder,
         limit: i64,
         offset: i64,
-    ) -> anyhow::Result<Vec<Report>> {
-        let sql = match order {
-            "created_at DESC" => {
-                r#"
-                SELECT body::text AS body
-                FROM (
-                    SELECT DISTINCT ON (provider, owner, repo)
-                        body, created_at
-                    FROM reports
-                    ORDER BY provider, owner, repo, created_at DESC
-                ) latest
-                ORDER BY created_at DESC
-                LIMIT $1 OFFSET $2
-                "#
-            }
-            "access_count DESC, last_accessed_at DESC" => {
-                r#"
-                SELECT body::text AS body
-                FROM (
-                    SELECT DISTINCT ON (provider, owner, repo)
-                        body, access_count, last_accessed_at, created_at
-                    FROM reports
-                    ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
-                ) popular
-                ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
-                LIMIT $1 OFFSET $2
-                "#
-            }
-            "total_lines DESC" => {
-                r#"
-                SELECT body::text AS body
-                FROM (
-                    SELECT DISTINCT ON (provider, owner, repo)
-                        body, total_lines, created_at
-                    FROM reports
-                    ORDER BY provider, owner, repo, created_at DESC
-                ) monoliths
-                ORDER BY total_lines DESC, created_at DESC
-                LIMIT $1 OFFSET $2
-                "#
-            }
-            _ => unreachable!("unsupported report order"),
-        };
-
-        let rows = sqlx::query(sql)
+    ) -> anyhow::Result<Vec<ReportCard>> {
+        let rows = sqlx::query(order.card_sql())
             .bind(limit.clamp(0, 500))
             .bind(offset.max(0))
+            .bind(SEO_CARD_LANGUAGES as i64)
             .fetch_all(&self.pool)
             .await?;
 
-        rows.into_iter()
-            .map(|row| {
-                let body: String = row.try_get("body")?;
-                let report: Report = serde_json::from_str(&body)?;
-                Ok(report)
-            })
-            .collect()
+        rows.into_iter().map(row_to_report_card).collect()
     }
 
     async fn fetch_cached_report_by_key(
@@ -1304,6 +1276,187 @@ impl Store {
 
 const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 
+/// How many languages an SEO card carries. The card also reports the *full*
+/// language count in its prose, which is why `ReportCard` keeps both.
+pub const SEO_CARD_LANGUAGES: usize = 12;
+
+/// Everything the SEO cards and the growth-stats repository lists need from a
+/// report, and nothing else. Deliberately not a `Report`: the point is to never
+/// materialize the full language list or re-serialize a body we already had.
+#[derive(Clone, Debug)]
+pub struct ReportCard {
+    pub provider: RepositoryProvider,
+    pub owner: String,
+    pub repo: String,
+    pub html_url: String,
+    pub ref_name: String,
+    pub commit_sha: String,
+    pub generated_at: DateTime<Utc>,
+    pub duration_ms: u128,
+    pub tokei_version: String,
+    pub total: LanguageStats,
+    /// The number of languages in the report, *not* `languages.len()`.
+    pub language_count: usize,
+    /// The first [`SEO_CARD_LANGUAGES`] languages, in report order.
+    pub languages: Vec<LanguageReport>,
+}
+
+impl From<&Report> for ReportCard {
+    fn from(report: &Report) -> Self {
+        Self {
+            provider: report.repository.provider,
+            owner: report.repository.owner.clone(),
+            repo: report.repository.name.clone(),
+            html_url: report.repository.html_url.clone(),
+            ref_name: report.ref_name.clone(),
+            commit_sha: report.commit_sha.clone(),
+            generated_at: report.generated_at,
+            duration_ms: report.duration_ms,
+            tokei_version: report.tokei_version.clone(),
+            total: report.total.clone(),
+            language_count: report.languages.len(),
+            languages: report
+                .languages
+                .iter()
+                .take(SEO_CARD_LANGUAGES)
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ReportOrder {
+    Recent,
+    Popular,
+    Monolith,
+}
+
+/// The per-row projection shared by every card query. A macro rather than a
+/// `const` so `concat!` can splice it into each order's `&'static str`.
+/// `$3` is the language cap; see [`SEO_CARD_LANGUAGES`].
+macro_rules! card_projection {
+    () => {
+        r#"
+        SELECT
+            r.provider AS provider,
+            r.owner AS owner,
+            r.repo AS repo,
+            r.language_count AS language_count,
+            r.body->'repository'->>'htmlUrl' AS html_url,
+            r.body->>'refName' AS ref_name,
+            r.body->>'commitSha' AS commit_sha,
+            r.body->>'generatedAt' AS generated_at,
+            r.body->>'durationMs' AS duration_ms,
+            r.body->>'tokeiVersion' AS tokei_version,
+            (r.body->'total')::text AS total,
+            COALESCE((
+                SELECT jsonb_agg(entry ORDER BY idx)
+                FROM jsonb_array_elements(r.body->'languages')
+                     WITH ORDINALITY AS elements(entry, idx)
+                WHERE idx <= $3
+            ), '[]'::jsonb)::text AS languages
+        "#
+    };
+}
+
+impl ReportOrder {
+    fn card_sql(self) -> &'static str {
+        match self {
+            Self::Recent => {
+                concat!(
+                    card_projection!(),
+                    r#"
+                    FROM (
+                        SELECT id, created_at
+                        FROM (
+                            SELECT DISTINCT ON (provider, owner, repo) id, created_at
+                            FROM reports
+                            ORDER BY provider, owner, repo, created_at DESC
+                        ) latest
+                        ORDER BY created_at DESC
+                        LIMIT $1 OFFSET $2
+                    ) page
+                    JOIN reports r ON r.id = page.id
+                    ORDER BY page.created_at DESC
+                    "#
+                )
+            }
+            Self::Popular => {
+                concat!(
+                    card_projection!(),
+                    r#"
+                    FROM (
+                        SELECT id, access_count, last_accessed_at, created_at
+                        FROM (
+                            SELECT DISTINCT ON (provider, owner, repo)
+                                id, access_count, last_accessed_at, created_at
+                            FROM reports
+                            ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
+                        ) popular
+                        ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
+                        LIMIT $1 OFFSET $2
+                    ) page
+                    JOIN reports r ON r.id = page.id
+                    ORDER BY page.access_count DESC, page.last_accessed_at DESC, page.created_at DESC
+                    "#
+                )
+            }
+            Self::Monolith => {
+                concat!(
+                    card_projection!(),
+                    r#"
+                    FROM (
+                        SELECT id, total_lines, created_at
+                        FROM (
+                            SELECT DISTINCT ON (provider, owner, repo) id, total_lines, created_at
+                            FROM reports
+                            ORDER BY provider, owner, repo, created_at DESC
+                        ) monoliths
+                        ORDER BY total_lines DESC, created_at DESC
+                        LIMIT $1 OFFSET $2
+                    ) page
+                    JOIN reports r ON r.id = page.id
+                    ORDER BY page.total_lines DESC, page.created_at DESC
+                    "#
+                )
+            }
+        }
+    }
+}
+
+fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> {
+    let provider: String = row.try_get("provider")?;
+    let generated_at: String = row.try_get("generated_at")?;
+    let duration_ms: String = row.try_get("duration_ms")?;
+    let total: String = row.try_get("total")?;
+    let languages: String = row.try_get("languages")?;
+    let language_count: Option<i32> = row.try_get("language_count")?;
+    let languages: Vec<LanguageReport> = serde_json::from_str(&languages)?;
+
+    Ok(ReportCard {
+        provider: provider_from_str(&provider)
+            .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
+        owner: row.try_get("owner")?,
+        repo: row.try_get("repo")?,
+        html_url: row.try_get("html_url")?,
+        ref_name: row.try_get("ref_name")?,
+        commit_sha: row.try_get("commit_sha")?,
+        generated_at: DateTime::parse_from_rfc3339(&generated_at)?.with_timezone(&Utc),
+        duration_ms: duration_ms.parse()?,
+        tokei_version: row.try_get("tokei_version")?,
+        total: serde_json::from_str(&total)?,
+        // Maintained by the reports_materialize_stats trigger, so it is only NULL
+        // if a row escaped both the trigger and the backfill. The projected slice
+        // is the best available fallback and is exact whenever the report has at
+        // most SEO_CARD_LANGUAGES languages.
+        language_count: language_count
+            .map(|count| count as usize)
+            .unwrap_or(languages.len()),
+        languages,
+    })
+}
+
 /// One sitemap row: everything `/api/seo/sitemap` needs, and nothing else.
 #[derive(Clone, Debug)]
 pub struct SitemapRow {
@@ -1453,46 +1606,18 @@ fn source_from_str(source: &str) -> AnalysisSource {
     }
 }
 
-fn growth_repository_stat(report: &Report) -> GrowthRepositoryStat {
+fn growth_repository_stat(card: &ReportCard) -> GrowthRepositoryStat {
     GrowthRepositoryStat {
-        provider: report.repository.provider,
-        owner: report.repository.owner.clone(),
-        repo: report.repository.name.clone(),
-        public_path: report_public_path(report),
-        html_url: report.repository.html_url.clone(),
-        ref_name: report.ref_name.clone(),
-        generated_at: report.generated_at,
-        total: report.total.clone(),
-        top_language: report
-            .languages
-            .first()
-            .map(|language| language.name.clone()),
+        provider: card.provider,
+        owner: card.owner.clone(),
+        repo: card.repo.clone(),
+        public_path: crate::seo::repository_public_path(card.provider, &card.owner, &card.repo),
+        html_url: card.html_url.clone(),
+        ref_name: card.ref_name.clone(),
+        generated_at: card.generated_at,
+        total: card.total.clone(),
+        top_language: card.languages.first().map(|language| language.name.clone()),
     }
-}
-
-fn report_public_path(report: &Report) -> String {
-    match report.repository.provider {
-        RepositoryProvider::GitHub => format!(
-            "/github/{}/{}",
-            encode_segment(&report.repository.owner),
-            encode_segment(&report.repository.name)
-        ),
-        RepositoryProvider::GitLab => format!(
-            "/gitlab/{}/{}",
-            report
-                .repository
-                .owner
-                .split('/')
-                .map(encode_segment)
-                .collect::<Vec<_>>()
-                .join("/"),
-            encode_segment(&report.repository.name)
-        ),
-    }
-}
-
-fn encode_segment(value: &str) -> String {
-    urlencoding::encode(value).replace("%2F", "/")
 }
 
 fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
@@ -1506,7 +1631,7 @@ fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{CleanupConfig, JobKey, Store};
+    use super::{CleanupConfig, JobKey, ReportCard, Store};
     use crate::models::{
         AnalysisOptions, AnalysisSource, JobStatus, LanguageReport, LanguageStats, Report,
         Repository, RepositoryProvider,
@@ -1781,6 +1906,89 @@ mod tests {
             None,
             "an UPDATE that does not set body must not re-derive the columns"
         );
+        store.drop_schema().await;
+    }
+
+    /// The SQL-side projection has to agree with what deserializing the whole
+    /// report and slicing it in Rust used to produce -- including keeping the
+    /// *full* language count next to the truncated language list.
+    #[tokio::test]
+    async fn projected_card_matches_the_in_memory_projection() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let mut report = test_report("report-card", &owner, 100);
+        report.languages = (0..20)
+            .map(|index| LanguageReport {
+                name: format!("Lang{index:02}"),
+                stats: LanguageStats {
+                    files: index + 1,
+                    lines: (index + 1) * 100,
+                    code: (index + 1) * 70,
+                    comments: (index + 1) * 20,
+                    blanks: (index + 1) * 10,
+                },
+                children: vec![LanguageReport {
+                    name: format!("Child{index:02}"),
+                    stats: LanguageStats::default(),
+                    children: Vec::new(),
+                }],
+            })
+            .collect();
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        let expected = ReportCard::from(&report);
+        let cards = store.recent_reports(10, 0).await.unwrap();
+        let actual = cards.first().expect("one card");
+
+        assert_eq!(actual.provider, expected.provider);
+        assert_eq!(actual.owner, expected.owner);
+        assert_eq!(actual.repo, expected.repo);
+        assert_eq!(actual.html_url, expected.html_url);
+        assert_eq!(actual.ref_name, expected.ref_name);
+        assert_eq!(actual.commit_sha, expected.commit_sha);
+        assert_eq!(actual.generated_at, expected.generated_at);
+        assert_eq!(actual.duration_ms, expected.duration_ms);
+        assert_eq!(actual.tokei_version, expected.tokei_version);
+        assert_eq!(
+            serde_json::to_value(&actual.total).unwrap(),
+            serde_json::to_value(&expected.total).unwrap()
+        );
+        assert_eq!(actual.language_count, 20, "full count, not the slice length");
+        assert_eq!(actual.languages.len(), super::SEO_CARD_LANGUAGES);
+        assert_eq!(
+            serde_json::to_value(&actual.languages).unwrap(),
+            serde_json::to_value(&expected.languages).unwrap(),
+            "SQL-side slice must match iter().take(SEO_CARD_LANGUAGES), children included"
+        );
+        store.drop_schema().await;
+    }
+
+    /// A report with no languages at all must not blow up the `jsonb_agg`
+    /// projection, and must come back with an empty list rather than SQL NULL.
+    #[tokio::test]
+    async fn projected_card_handles_a_report_with_no_languages() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let mut report = test_report("report-card-empty", &owner, 0);
+        report.languages = Vec::new();
+        report.total = LanguageStats::default();
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        let cards = store.recent_reports(10, 0).await.unwrap();
+
+        assert_eq!(cards.len(), 1);
+        assert!(cards[0].languages.is_empty());
+        assert_eq!(cards[0].language_count, 0);
         store.drop_schema().await;
     }
 
