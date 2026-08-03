@@ -1,3 +1,5 @@
+use std::sync::{Arc, OnceLock};
+
 use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
@@ -8,6 +10,36 @@ use crate::{
     api::AppState,
     models::{Report, RepositoryProvider},
 };
+
+/// DejaVu Sans Mono, embedded so that rendering never touches the filesystem and
+/// the runtime image does not need `fonts-dejavu-core` / `fontconfig`.
+/// See `assets/fonts/LICENSE` for the (permissive) DejaVu font license.
+const DEJAVU_SANS_MONO: &[u8] = include_bytes!("../assets/fonts/DejaVuSansMono.ttf");
+const DEJAVU_SANS_MONO_BOLD: &[u8] = include_bytes!("../assets/fonts/DejaVuSansMono-Bold.ttf");
+
+const OG_FONT_FAMILY: &str = "DejaVu Sans Mono";
+
+static FONTDB: OnceLock<Arc<resvg::usvg::fontdb::Database>> = OnceLock::new();
+
+/// Builds the font database exactly once for the lifetime of the process.
+///
+/// The previous implementation called `load_system_fonts()` on every `/og/...`
+/// request, which walks and parses every font file on the host.
+fn fontdb() -> Arc<resvg::usvg::fontdb::Database> {
+    FONTDB
+        .get_or_init(|| {
+            let mut db = resvg::usvg::fontdb::Database::new();
+            db.load_font_data(DEJAVU_SANS_MONO.to_vec());
+            db.load_font_data(DEJAVU_SANS_MONO_BOLD.to_vec());
+            db.set_monospace_family(OG_FONT_FAMILY);
+            db.set_sans_serif_family(OG_FONT_FAMILY);
+            db.set_serif_family(OG_FONT_FAMILY);
+            db.set_cursive_family(OG_FONT_FAMILY);
+            db.set_fantasy_family(OG_FONT_FAMILY);
+            Arc::new(db)
+        })
+        .clone()
+}
 
 pub async fn github(
     State(state): State<AppState>,
@@ -65,9 +97,11 @@ fn og_response(report: Option<&Report>) -> Response {
 
 fn render_png(report: Option<&Report>) -> anyhow::Result<Vec<u8>> {
     let svg = render_svg(report);
-    let mut options = resvg::usvg::Options::default();
-    options.fontdb_mut().load_system_fonts();
-    options.font_family = "DejaVu Sans Mono".to_string();
+    let mut options = resvg::usvg::Options {
+        font_family: OG_FONT_FAMILY.to_string(),
+        ..Default::default()
+    };
+    options.fontdb = fontdb();
     let tree = resvg::usvg::Tree::from_str(&svg, &options)?;
     let mut pixmap = resvg::tiny_skia::Pixmap::new(1200, 630)
         .ok_or_else(|| anyhow::anyhow!("failed to allocate pixmap"))?;
@@ -234,4 +268,27 @@ fn format_number(value: usize) -> String {
         out.push(ch);
     }
     out.chars().rev().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_png;
+
+    #[test]
+    fn render_png_is_deterministic_across_calls() {
+        let first = render_png(None).expect("first render");
+        let second = render_png(None).expect("second render");
+        assert!(!first.is_empty(), "rendered png must not be empty");
+        assert_eq!(&first[..8], b"\x89PNG\r\n\x1a\n", "output must be a png");
+        assert_eq!(first, second, "repeated renders must be byte-identical");
+    }
+
+    #[test]
+    fn embedded_font_is_the_only_source() {
+        let db = super::fontdb();
+        assert_eq!(db.len(), 2, "only the two embedded DejaVu faces are loaded");
+        assert!(db
+            .faces()
+            .all(|face| face.families.iter().any(|(name, _)| name == super::OG_FONT_FAMILY)));
+    }
 }
