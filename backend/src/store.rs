@@ -293,6 +293,7 @@ impl Store {
         .await?;
 
         self.migrate_report_stat_columns().await?;
+        self.migrate_report_languages().await?;
 
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
@@ -475,6 +476,146 @@ impl Store {
             "report stat backfill hit its batch cap; the next migrate() will resume it"
         );
         Ok(total)
+    }
+
+    /// Creates the per-report language rollup, the trigger that keeps it in sync,
+    /// and backfills it in bounded batches.
+    ///
+    /// `growth_languages` and `growth_totals` used to `jsonb_array_elements` the
+    /// whole `reports` table -- roughly 30 rows of expansion per report, twice per
+    /// stats refresh -- to answer questions a narrow summary table answers with an
+    /// index scan.
+    ///
+    /// Sync lives in a trigger rather than in `save_report` for two reasons.
+    /// `save_report` is a single `INSERT ... ON CONFLICT DO UPDATE`, and moving it
+    /// into a transaction to keep a second table in step is exactly the kind of
+    /// write-path complexity worth avoiding. More importantly, `save_report`'s
+    /// upsert sets `id = EXCLUDED.id`, so re-analysing a repository can *change the
+    /// primary key of an existing row*; the trigger deletes by both the old and the
+    /// new id, which keeps stale rows from surviving that rename no matter how the
+    /// FK's ON UPDATE CASCADE and this trigger are ordered.
+    async fn migrate_report_languages(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS report_languages (
+                report_id TEXT NOT NULL REFERENCES reports(id) ON UPDATE CASCADE ON DELETE CASCADE,
+                language TEXT NOT NULL,
+                code BIGINT NOT NULL DEFAULT 0,
+                lines BIGINT NOT NULL DEFAULT 0,
+                PRIMARY KEY (report_id, language)
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_report_languages_language ON report_languages (language)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE OR REPLACE FUNCTION reports_sync_languages() RETURNS trigger AS $$
+            BEGIN
+                IF TG_OP = 'UPDATE' THEN
+                    DELETE FROM report_languages WHERE report_id IN (OLD.id, NEW.id);
+                ELSE
+                    DELETE FROM report_languages WHERE report_id = NEW.id;
+                END IF;
+
+                INSERT INTO report_languages (report_id, language, code, lines)
+                SELECT
+                    NEW.id,
+                    entry->>'name',
+                    COALESCE(SUM((entry->'stats'->>'code')::bigint), 0),
+                    COALESCE(SUM((entry->'stats'->>'lines')::bigint), 0)
+                FROM jsonb_array_elements(COALESCE(NEW.body->'languages', '[]'::jsonb)) AS t(entry)
+                WHERE entry->>'name' IS NOT NULL
+                GROUP BY entry->>'name';
+
+                RETURN NULL;
+            END;
+            $$ LANGUAGE plpgsql
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query("DROP TRIGGER IF EXISTS reports_sync_languages ON reports")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query(
+            r#"
+            CREATE TRIGGER reports_sync_languages
+            AFTER INSERT OR UPDATE OF body ON reports
+            FOR EACH ROW EXECUTE FUNCTION reports_sync_languages()
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        self.backfill_report_languages().await?;
+        Ok(())
+    }
+
+    /// Populates `report_languages` for reports that predate it.
+    ///
+    /// Batching is driven by a monotonically advancing id cursor, so the loop is
+    /// guaranteed to terminate even if some row can never satisfy the pending
+    /// predicate. The predicate itself (`language_count > 0` and no rows yet)
+    /// makes repeat runs cheap: on an already-migrated database the very first
+    /// query comes back empty. Reports with zero languages correctly have no rows
+    /// and are skipped rather than being retried forever.
+    async fn backfill_report_languages(&self) -> anyhow::Result<u64> {
+        const BATCH: i64 = 1_000;
+
+        let mut cursor = String::new();
+        let mut total = 0_u64;
+        loop {
+            let ids: Vec<String> = sqlx::query_scalar(
+                r#"
+                SELECT r.id
+                FROM reports r
+                WHERE r.id > $1
+                AND COALESCE(r.language_count, 0) > 0
+                AND NOT EXISTS (SELECT 1 FROM report_languages rl WHERE rl.report_id = r.id)
+                ORDER BY r.id
+                LIMIT $2
+                "#,
+            )
+            .bind(&cursor)
+            .bind(BATCH)
+            .fetch_all(&self.pool)
+            .await?;
+
+            let Some(last) = ids.last().cloned() else {
+                return Ok(total);
+            };
+            cursor = last;
+
+            total += sqlx::query(
+                r#"
+                INSERT INTO report_languages (report_id, language, code, lines)
+                SELECT
+                    r.id,
+                    entry->>'name',
+                    COALESCE(SUM((entry->'stats'->>'code')::bigint), 0),
+                    COALESCE(SUM((entry->'stats'->>'lines')::bigint), 0)
+                FROM reports r,
+                     LATERAL jsonb_array_elements(COALESCE(r.body->'languages', '[]'::jsonb)) AS t(entry)
+                WHERE r.id = ANY($1)
+                AND entry->>'name' IS NOT NULL
+                GROUP BY r.id, entry->>'name'
+                ON CONFLICT (report_id, language) DO NOTHING
+                "#,
+            )
+            .bind(&ids)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+        }
     }
 
     #[cfg(test)]
@@ -695,17 +836,31 @@ impl Store {
         })
     }
 
+    /// # A preserved bug
+    ///
+    /// The query this replaces read `FROM reports LEFT JOIN LATERAL
+    /// jsonb_array_elements(body->'languages') ON TRUE`, which fans each report
+    /// out into one row per language. `COUNT(*)` and the two `SUM`s therefore
+    /// counted every report once *per language it contains*: with ~30 languages
+    /// per report, `/api/stats` has been reporting `reportsGenerated` and
+    /// `linesCounted` roughly 30x too high.
+    ///
+    /// This rewrite reproduces that inflation exactly -- `GREATEST(language_count,
+    /// 1)` is the fan-out factor, and 1 rather than 0 because a LEFT JOIN still
+    /// emits one row for a report with no languages. Removing the join without
+    /// reproducing it would have silently changed two public numbers by an order
+    /// of magnitude, which is a product decision, not a performance one. Fixing it
+    /// is a separate, deliberate change.
     async fn growth_totals(&self) -> anyhow::Result<GrowthTotals> {
         let row = sqlx::query(
             r#"
             SELECT
-                COUNT(*)::bigint AS reports_generated,
+                COALESCE(SUM(GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS reports_generated,
                 COUNT(DISTINCT (provider, owner, repo))::bigint AS repositories_analyzed,
-                COALESCE(SUM((body->'total'->>'lines')::bigint), 0)::bigint AS lines_counted,
-                COALESCE(SUM((body->'total'->>'code')::bigint), 0)::bigint AS code_lines_counted,
-                COALESCE(COUNT(DISTINCT language.value->>'name'), 0)::bigint AS languages_detected
+                COALESCE(SUM(COALESCE(total_lines, 0) * GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS lines_counted,
+                COALESCE(SUM(COALESCE(total_code, 0) * GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS code_lines_counted,
+                (SELECT COUNT(DISTINCT language) FROM report_languages)::bigint AS languages_detected
             FROM reports
-            LEFT JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value) ON TRUE
             "#,
         )
         .fetch_one(&self.pool)
@@ -773,14 +928,13 @@ impl Store {
         let rows = sqlx::query(
             r#"
             SELECT
-                language.value->>'name' AS language,
-                COALESCE(SUM((language.value->'stats'->>'code')::bigint), 0)::bigint AS code,
-                COALESCE(SUM((language.value->'stats'->>'lines')::bigint), 0)::bigint AS lines,
+                language,
+                COALESCE(SUM(code), 0)::bigint AS code,
+                COALESCE(SUM(lines), 0)::bigint AS lines,
                 COUNT(*)::bigint AS reports
-            FROM reports
-            CROSS JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value)
-            GROUP BY language.value->>'name'
-            ORDER BY code DESC, language ASC
+            FROM report_languages
+            GROUP BY language
+            ORDER BY SUM(code) DESC, language ASC
             LIMIT 16
             "#,
         )
@@ -1112,6 +1266,103 @@ impl Store {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    #[cfg(test)]
+    async fn report_language_names(&self, id: &str) -> anyhow::Result<Vec<String>> {
+        sqlx::query_scalar(
+            "SELECT language FROM report_languages WHERE report_id = $1 ORDER BY language",
+        )
+        .bind(id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    async fn total_language_rows(&self) -> anyhow::Result<i64> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM report_languages")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    async fn orphaned_language_rows(&self) -> anyhow::Result<i64> {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM report_languages rl WHERE NOT EXISTS (SELECT 1 FROM reports r WHERE r.id = rl.report_id)",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    async fn truncate_report_languages(&self) -> anyhow::Result<()> {
+        sqlx::query("DELETE FROM report_languages")
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// The `growth_languages` query as it stood before B6, for differential
+    /// testing against the `report_languages` rollup.
+    #[cfg(test)]
+    async fn legacy_growth_languages(&self) -> anyhow::Result<Vec<(String, i64, i64, i64)>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                language.value->>'name' AS language,
+                COALESCE(SUM((language.value->'stats'->>'code')::bigint), 0)::bigint AS code,
+                COALESCE(SUM((language.value->'stats'->>'lines')::bigint), 0)::bigint AS lines,
+                COUNT(*)::bigint AS reports
+            FROM reports
+            CROSS JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value)
+            GROUP BY language.value->>'name'
+            ORDER BY code DESC, language ASC
+            LIMIT 16
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok((
+                    row.try_get("language")?,
+                    row.try_get("code")?,
+                    row.try_get("lines")?,
+                    row.try_get("reports")?,
+                ))
+            })
+            .collect()
+    }
+
+    /// The `growth_totals` query as it stood before B6, fan-out and all.
+    #[cfg(test)]
+    async fn legacy_growth_totals(&self) -> anyhow::Result<(i64, i64, i64, i64, i64)> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                COUNT(*)::bigint AS reports_generated,
+                COUNT(DISTINCT (provider, owner, repo))::bigint AS repositories_analyzed,
+                COALESCE(SUM((body->'total'->>'lines')::bigint), 0)::bigint AS lines_counted,
+                COALESCE(SUM((body->'total'->>'code')::bigint), 0)::bigint AS code_lines_counted,
+                COALESCE(COUNT(DISTINCT language.value->>'name'), 0)::bigint AS languages_detected
+            FROM reports
+            LEFT JOIN LATERAL jsonb_array_elements(body->'languages') AS language(value) ON TRUE
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((
+            row.try_get("reports_generated")?,
+            row.try_get("repositories_analyzed")?,
+            row.try_get("lines_counted")?,
+            row.try_get("code_lines_counted")?,
+            row.try_get("languages_detected")?,
+        ))
     }
 
     #[cfg(test)]
@@ -2208,6 +2459,227 @@ mod tests {
         assert_eq!(limited[0].repo, "alpha");
         assert_eq!(all[0].provider, RepositoryProvider::GitHub);
         assert_eq!(all[0].lastmod, all[0].lastmod.min(Utc::now().date_naive()));
+        store.drop_schema().await;
+    }
+
+    /// A live differential test against the JSON-expansion queries B6 replaced.
+    /// The golden fixture pins one corpus; this re-runs the original SQL on
+    /// whatever is in the table and demands the same answer.
+    #[tokio::test]
+    async fn language_rollup_agrees_with_the_json_expansion_it_replaced() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for (index, languages) in [
+            vec![("Rust", 1_000), ("TOML", 30)],
+            vec![("Rust", 250), ("Go", 900), ("Shell", 12)],
+            vec![],
+            vec![("Go", 5), ("Rust", 5), ("Zig", 5)],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut report = test_report(&format!("report-rollup-{index}"), &owner, 100);
+            report.repository.name = format!("repo{index}");
+            report.languages = languages
+                .into_iter()
+                .map(|(name, code)| LanguageReport {
+                    name: name.to_string(),
+                    stats: LanguageStats {
+                        files: 1,
+                        lines: code + 10,
+                        code,
+                        comments: 7,
+                        blanks: 3,
+                    },
+                    children: Vec::new(),
+                })
+                .collect();
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+        }
+
+        let languages = store.growth_languages().await.unwrap();
+        let legacy_languages = store.legacy_growth_languages().await.unwrap();
+        let totals = store.growth_stats().await.unwrap().totals;
+        let legacy_totals = store.legacy_growth_totals().await.unwrap();
+
+        assert_eq!(
+            languages
+                .iter()
+                .map(|row| (row.language.clone(), row.code, row.lines, row.reports))
+                .collect::<Vec<_>>(),
+            legacy_languages,
+        );
+        assert_eq!(
+            (
+                totals.reports_generated,
+                totals.repositories_analyzed,
+                totals.lines_counted,
+                totals.code_lines_counted,
+                totals.languages_detected
+            ),
+            legacy_totals,
+        );
+        store.drop_schema().await;
+    }
+
+    /// `save_report`'s upsert can change the primary key of an existing row, so
+    /// the rollup has to survive both the rename and the language list changing
+    /// underneath it.
+    #[tokio::test]
+    async fn upsert_replaces_stale_language_rows() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let mut first = test_report("report-langs-v1", &owner, 100);
+        first.languages = vec![
+            LanguageReport {
+                name: "Rust".to_string(),
+                stats: LanguageStats {
+                    files: 1,
+                    lines: 110,
+                    code: 100,
+                    comments: 7,
+                    blanks: 3,
+                },
+                children: Vec::new(),
+            },
+            LanguageReport {
+                name: "Perl".to_string(),
+                stats: LanguageStats::default(),
+                children: Vec::new(),
+            },
+        ];
+        store
+            .save_report(&first, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        assert_eq!(
+            store.report_language_names("report-langs-v1").await.unwrap(),
+            ["Perl", "Rust"]
+        );
+
+        // Same cache key, different id and a language dropped.
+        let mut second = test_report("report-langs-v2", &owner, 250);
+        second.languages = vec![LanguageReport {
+            name: "Rust".to_string(),
+            stats: LanguageStats {
+                files: 1,
+                lines: 260,
+                code: 250,
+                comments: 7,
+                blanks: 3,
+            },
+            children: Vec::new(),
+        }];
+        store
+            .save_report(&second, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store.report_language_names("report-langs-v2").await.unwrap(),
+            ["Rust"],
+            "Perl must not survive the upsert"
+        );
+        assert!(
+            store
+                .report_language_names("report-langs-v1")
+                .await
+                .unwrap()
+                .is_empty(),
+            "no rows may be left behind under the previous id"
+        );
+        assert_eq!(store.orphaned_language_rows().await.unwrap(), 0);
+        store.drop_schema().await;
+    }
+
+    /// cleanup() deletes reports directly; ON DELETE CASCADE has to take the
+    /// rollup rows with them.
+    #[tokio::test]
+    async fn deleting_a_report_cascades_to_its_language_rows() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..3 {
+            let id = format!("report-cascade-{index}");
+            let mut report = test_report(&id, &owner, 100 + index);
+            report.commit_sha = format!("abc123-{index}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+            store
+                .force_report_timestamps(
+                    &id,
+                    Utc::now() - Duration::days(31),
+                    Utc::now() - Duration::days(31 + i64::from(2 - index as i32)),
+                )
+                .await
+                .unwrap();
+        }
+        assert_eq!(store.total_language_rows().await.unwrap(), 3);
+
+        cleanup(
+            &store,
+            CleanupConfig {
+                report_min_retention_days: 30,
+                report_max_rows: 1,
+                report_cleanup_batch_size: 10,
+                ..CleanupConfig::default()
+            },
+        )
+        .await;
+
+        assert!(!store.report_exists("report-cascade-0").await.unwrap());
+        assert_eq!(store.orphaned_language_rows().await.unwrap(), 0);
+        assert_eq!(
+            store.total_language_rows().await.unwrap(),
+            1,
+            "one row per surviving report"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn language_backfill_is_batched_and_idempotent() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        for index in 0..3 {
+            let mut report = test_report(&format!("report-lang-backfill-{index}"), &owner, 100);
+            report.repository.name = format!("repo{index}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+        }
+        // A report with no languages at all must not keep the backfill looping.
+        let mut empty = test_report("report-lang-backfill-empty", &owner, 0);
+        empty.repository.name = "empty".to_string();
+        empty.languages = Vec::new();
+        store
+            .save_report(&empty, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+
+        store.truncate_report_languages().await.unwrap();
+        assert_eq!(store.total_language_rows().await.unwrap(), 0);
+
+        assert_eq!(store.backfill_report_languages().await.unwrap(), 3);
+        assert_eq!(store.total_language_rows().await.unwrap(), 3);
+        assert_eq!(
+            store.backfill_report_languages().await.unwrap(),
+            0,
+            "a second pass must find nothing to do"
+        );
         store.drop_schema().await;
     }
 
