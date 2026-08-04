@@ -1,0 +1,33 @@
+name: Card did not appear on a GitHub page
+description: The OctoCounts card is missing on a public repository page (usually a GitHub DOM change)
+title: "[dom] card not inserted"
+labels: ["dom-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is normally opened by the extension popup, which prefills the
+        diagnostics below. If you are filling it in by hand, open the OctoCounts
+        popup on the affected page and use **Copy diagnostics**.
+
+        The diagnostics contain CSS class names and sidebar section headings
+        only — no README content, file names or other page text.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Prefilled by the extension popup.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: Which repository page were you on? (optional)
+      placeholder: https://github.com/owner/repo
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Screenshot of the sidebar, or anything unusual about the page.

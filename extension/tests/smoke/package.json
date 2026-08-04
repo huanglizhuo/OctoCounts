@@ -1,0 +1,12 @@
+{
+  "name": "octocounts-dom-monitor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Behavioural smoke test against live GitHub pages. Kept in its own package so Playwright and Chromium never become dependencies of the extension build.",
+  "scripts": {
+    "test": "playwright test --reporter=line"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}

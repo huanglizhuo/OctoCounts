@@ -1,0 +1,84 @@
+name: Extension DOM monitor
+
+# Loads the built extension into Chromium and checks that the card still mounts
+# on live GitHub pages. Runs on a GitHub-hosted runner rather than the backend
+# VPS: Chromium dependencies, trace/screenshot artifacts and issue filing all
+# come for free here, and a browser crash cannot touch the API container.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'extension/src/content/**'
+      - 'extension/tests/smoke/**'
+      - '.github/workflows/extension-dom-monitor.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: extension-dom-monitor
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build the Chrome artifact
+        run: |
+          npm ci
+          npm run build:chrome
+
+      - name: Install Playwright Chromium
+        working-directory: extension/tests/smoke
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      # Extensions need a persistent, headed context; xvfb provides the display.
+      - name: Run the smoke test
+        id: smoke
+        working-directory: extension/tests/smoke
+        env:
+          PLAYWRIGHT_HEADED: '1'
+          EXTENSION_PATH: ${{ github.workspace }}/extension/dist/chrome
+        run: xvfb-run --auto-servernum npx playwright test --reporter=line
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dom-monitor-diagnostics
+          path: |
+            extension/tests/smoke/results
+            extension/tests/smoke/report
+          retention-days: 14
+
+      # One issue per outage, not one per run: a GitHub redesign fails every
+      # scheduled run until it is fixed.
+      - name: Open or update the tracking issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='[dom] scheduled smoke test failing'
+          existing=$(gh issue list --state open --label dom-compat \
+            --search "\"$title\" in:title" --json number --jq '.[0].number')
+          body="The scheduled DOM monitor failed. Diagnostics (DOM fingerprint, screenshots, trace) are attached to the run: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --label dom-compat --body "$body"
+          fi

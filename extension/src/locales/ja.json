@@ -89,7 +89,13 @@
     "clearCacheSuccess": "{{count}} 件のキャッシュを消去しました",
     "clearCacheFail": "キャッシュの消去に失敗しました",
     "retriedN": "再試行回数: {{count}}",
-    "tabStatusRepoOff": "このリポジトリで無効"
+    "tabStatusRepoOff": "このリポジトリで無効",
+    "mountFail": "リポジトリページを検出しましたが、カードを挿入できる信頼できる位置が見つかりませんでした。GitHub のページ構造が変更された可能性があります。",
+    "mountFailKnown": "このページ構造（{{hash}}）はすでに報告済みです。次回の更新で修正されます。",
+    "mountFailReport": "この問題を報告",
+    "mountFailViewIssue": "既存の報告を見る",
+    "mountFailCopy": "診断情報をコピー",
+    "mountFailCopied": "コピーしました"
   },
   "error": {
     "privateRepo": "非公開リポジトリはサポートされていません。",

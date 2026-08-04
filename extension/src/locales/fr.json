@@ -89,7 +89,13 @@
     "clearCacheSuccess": "Supprimées du cache : {{count}}",
     "clearCacheFail": "Échec de la suppression du cache",
     "retriedN": "Tentatives épuisées : {{count}}",
-    "tabStatusRepoOff": "désactivé pour ce dépôt"
+    "tabStatusRepoOff": "désactivé pour ce dépôt",
+    "mountFail": "Page de dépôt détectée, mais OctoCounts n'a pas trouvé d'emplacement fiable pour insérer sa carte — GitHub a peut-être modifié la structure de la page.",
+    "mountFailKnown": "Cette structure de page ({{hash}}) a déjà été signalée. Un correctif arrive dans la prochaine mise à jour.",
+    "mountFailReport": "Signaler",
+    "mountFailViewIssue": "Voir le signalement existant",
+    "mountFailCopy": "Copier le diagnostic",
+    "mountFailCopied": "Copié"
   },
   "error": {
     "privateRepo": "Les dépôts privés ne sont pas pris en charge.",

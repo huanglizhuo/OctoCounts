@@ -1,8 +1,18 @@
 import { t } from '../i18n/index.js';
 import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import { BUILD_INFO } from '../shared/buildInfo.js';
+import { parseRoute, fingerprintHash } from '../content/github-dom.js';
 
 const $ = id => document.getElementById(id);
+
+const ISSUE_NEW_URL = 'https://github.com/huanglizhuo/OctoCounts/issues/new';
+const ISSUE_SEARCH_URL = 'https://github.com/huanglizhuo/OctoCounts/issues';
+const ISSUE_TEMPLATE = 'dom-mount-failure.yml';
+const REPORTED_KEY = 'reportedDomFingerprints';
+const REPORTED_MAX = 20;
+// GitHub rejects very long issue URLs, so the prefilled body is capped and the
+// copy button carries the untruncated version.
+const ISSUE_BODY_MAX = 4000;
 
 $('logoMark').src = chrome.runtime.getURL('icons/icon48.png');
 applyTranslations();
@@ -110,14 +120,173 @@ async function checkPageStatus() {
       } else {
         setTabStatus('active');
       }
+      // The content script tried every mount strategy and found no trustworthy
+      // insertion point. This is the one "no card" case worth reporting.
+      if (status.mountState === 'mount_failed') {
+        await showMountFailure(tab, 'mount_failed');
+      }
     } else {
       setTabStatus('idle');
       showWelcomeBanner();
     }
   } catch (_) {
     setTabStatus('idle');
-    if (!isGithubTab) showWelcomeBanner();
+    // No answer from the content script. On a repo URL the symptom is identical
+    // to a failed mount from the user's point of view, so it gets the same path.
+    if (isRepoTabUrl(tab.url)) {
+      await showMountFailure(tab, 'no_content_script');
+    } else {
+      showWelcomeBanner();
+    }
   }
+}
+
+function isRepoTabUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== 'github.com') return false;
+    return parseRoute(parsed.pathname) !== null;
+  } catch (_) {
+    return false;
+  }
+}
+
+/* ── "card did not appear" report ────────────────────────────────────────── */
+
+async function showMountFailure(tab, reason) {
+  let diagnostics = null;
+  if (reason === 'mount_failed') {
+    try {
+      diagnostics = await chrome.tabs.sendMessage(tab.id, { type: 'GET_MOUNT_DIAGNOSTICS' });
+    } catch (_) {}
+  }
+
+  const route = (() => {
+    try { return parseRoute(new URL(tab.url).pathname); } catch (_) { return null; }
+  })();
+
+  const fingerprint = diagnostics?.fingerprint ?? null;
+  const hash = diagnostics?.hash ?? fingerprintHash({ strategy: reason, moduleClasses: [], trace: [] });
+  const reportText = buildReportText({ reason, route, fingerprint, hash });
+
+  const section = $('mountFailSection');
+  const detail  = $('mountFailDetail');
+  const toggle  = $('mountFailToggle');
+  const report  = $('mountFailReport');
+  const copy    = $('mountFailCopy');
+
+  const alreadyReported = await isAlreadyReported(hash);
+
+  $('mountFailText').textContent = alreadyReported
+    ? t('popup.mountFailKnown', { hash })
+    : t('popup.mountFail');
+
+  detail.textContent = reportText;
+  toggle.textContent = t('popup.showDetails');
+  toggle.addEventListener('click', () => {
+    const wasHidden = detail.hidden;
+    detail.hidden = !wasHidden;
+    toggle.textContent = wasHidden ? t('popup.hideDetails') : t('popup.showDetails');
+    toggle.setAttribute('aria-expanded', String(wasHidden));
+  });
+
+  copy.textContent = t('popup.mountFailCopy');
+  copy.addEventListener('click', () => {
+    navigator.clipboard.writeText(reportText).then(() => {
+      copy.textContent = t('popup.mountFailCopied');
+      setTimeout(() => { copy.textContent = t('popup.mountFailCopy'); }, 1500);
+    }).catch(() => {});
+  });
+
+  // Already-reported fingerprints link to the existing thread instead of
+  // inviting a duplicate: one GitHub redesign hits every user at once.
+  report.textContent = alreadyReported ? t('popup.mountFailViewIssue') : t('popup.mountFailReport');
+  report.addEventListener('click', async () => {
+    if (alreadyReported) {
+      chrome.tabs.create({ url: `${ISSUE_SEARCH_URL}?q=${encodeURIComponent(`is:issue ${hash}`)}` });
+      return;
+    }
+    await rememberReported(hash);
+    chrome.tabs.create({ url: buildIssueUrl(hash, reportText) });
+  });
+
+  section.hidden = false;
+}
+
+function buildReportText({ reason, route, fingerprint, hash }) {
+  const lines = [
+    `Fingerprint: ${hash}`,
+    `Reason: ${reason}`,
+    `Extension: v${BUILD_INFO.version} (${BUILD_INFO.target})`,
+    `Extension locale: ${chrome.i18n?.getUILanguage?.() ?? 'unknown'}`,
+    `User agent: ${navigator.userAgent}`,
+    `Repository: ${route ? `${route.owner}/${route.repo}` : 'unknown'}`,
+    `Route: ${route?.isTreeView ? 'tree' : 'repo-home'}`,
+  ];
+
+  if (!fingerprint) {
+    lines.push('', 'No page diagnostics available (content script did not respond).');
+    return lines.join('\n');
+  }
+
+  lines.push(
+    `GitHub UI language: ${fingerprint.htmlLang ?? 'unknown'}`,
+    `Has legacy .BorderGrid: ${fingerprint.hasLegacyGrid}`,
+    `Has CSS-module borderGrid: ${fingerprint.hasModuleGrid}`,
+    `Has repo page signal: ${fingerprint.hasRepoSignal}`,
+    `Resolved strategy: ${fingerprint.strategy ?? 'none'}`,
+    '',
+    'Strategy trace:',
+    ...(fingerprint.trace ?? []).map(e => `  - ${e.strategy}: ${e.ok ? 'ok' : (e.reason ?? 'rejected')}`),
+    '',
+    `Section anchors found: ${formatAnchorKinds(fingerprint.anchorKinds)}`,
+    '',
+    'Sidebar headings:',
+    ...(fingerprint.headings ?? []).map(h => `  - ${h}`),
+    '',
+    'CSS module class names:',
+    ...(fingerprint.moduleClasses ?? []).map(c => `  - ${c}`),
+  );
+
+  return lines.join('\n');
+}
+
+function formatAnchorKinds(anchorKinds) {
+  const entries = Object.entries(anchorKinds ?? {});
+  if (entries.length === 0) return 'none';
+  return entries.map(([kind, count]) => `${kind}×${count}`).join(', ');
+}
+
+function buildIssueUrl(hash, reportText) {
+  const body = reportText.length > ISSUE_BODY_MAX
+    ? `${reportText.slice(0, ISSUE_BODY_MAX)}\n… truncated, full report copied separately`
+    : reportText;
+  const params = new URLSearchParams({
+    template: ISSUE_TEMPLATE,
+    title: `[dom] card not inserted (${hash})`,
+    diagnostics: body,
+  });
+  return `${ISSUE_NEW_URL}?${params.toString()}`;
+}
+
+async function isAlreadyReported(hash) {
+  try {
+    const stored = await chrome.storage.local.get(REPORTED_KEY);
+    return Array.isArray(stored[REPORTED_KEY]) && stored[REPORTED_KEY].includes(hash);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function rememberReported(hash) {
+  try {
+    const stored = await chrome.storage.local.get(REPORTED_KEY);
+    const list = Array.isArray(stored[REPORTED_KEY]) ? stored[REPORTED_KEY] : [];
+    if (list.includes(hash)) return;
+    await chrome.storage.local.set({
+      [REPORTED_KEY]: [...list, hash].slice(-REPORTED_MAX),
+    });
+  } catch (_) {}
 }
 
 async function initRepoPill(owner, repo) {

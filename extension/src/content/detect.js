@@ -1,85 +1,87 @@
-export function isPublicRepoRoot() {
+import { isRepoRoute, parseRoute, hasRepoPageSignal, readEmbeddedPayload } from './github-dom.js';
+
+// Legacy Primer class names. They still work on pages GitHub has not migrated,
+// but they are checked last: a class rename must never be able to turn a private
+// repository into an apparently public one, because that decides whether the
+// owner/repo pair is sent to the API.
+const LEGACY_PRIVATE_SELECTORS = [
+  '[aria-label="Private repository"]',
+  '[aria-label*="private repository" i]',
+  '[aria-label="Internal repository"]',
+  '[aria-label*="internal repository" i]',
+  '[data-testid="private-repo-label"]',
+];
+
+const NON_PUBLIC_LABELS = new Set(['private', 'internal']);
+
+export function isRepoPage(root = document) {
   if (window.self !== window.top) return false;
   if (window.location.hostname !== 'github.com') return false;
-
-  const parts = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
-  const isRepoHome = parts.length === 2;
-  const isTreeView = parts.length >= 4 && parts[2] === 'tree';
-  if (!isRepoHome && !isTreeView) return false;
-
-  if (!document.querySelector('.BorderGrid')) return false;
-
-  if (isPrivateRepoPage()) return false;
-
-  return true;
+  if (!isRepoRoute(window.location.pathname)) return false;
+  return hasRepoPageSignal(root);
 }
 
-export function isPrivateRepoPage() {
-  const selectors = [
-    '[aria-label="Private repository"]',
-    '[aria-label*="private repository" i]',
-    '[aria-label="Internal repository"]',
-    '[aria-label*="internal repository" i]',
-    '[data-testid="private-repo-label"]',
-    '.Label.Label--secondary',
-  ];
-  if (selectors.some(selector => {
-    const element = document.querySelector(selector);
-    if (!element) return false;
-    if (selector === '.Label.Label--secondary') {
-      const text = element.textContent.trim();
-      return text === 'Private' || text === 'Internal';
-    }
-    return true;
-  })) return true;
+export function isPublicRepoPage(root = document) {
+  return isRepoPage(root) && !isPrivateRepo(root);
+}
 
-  // Lock icon in repo header breadcrumbs — scoped to avoid false positives from nav items
-  const repoHeaderLock = document.querySelector('.AppHeader-context .octicon-lock');
-  if (repoHeaderLock) return true;
-
-  const privateMeta = document.querySelector(
-    'meta[name="octolytics-dimension-repository_is_private"]'
-  )?.content;
-  if (privateMeta === 'true') return true;
-
-  // Scope to repo header to avoid false positives from unrelated text
-  const repoHeader = document.querySelector('.AppHeader-context .AppHeader-context-compact') || document.querySelector('.pagehead');
-  if (repoHeader) {
-    for (const label of repoHeader.querySelectorAll('.Label, [data-view-component="true"]')) {
-      const text = label.textContent.trim();
-      if (text === 'Private' || text === 'Internal') return true;
+/**
+ * Single private/internal check for the whole extension.
+ *
+ * Order matters: the embedded React payload and the octolytics meta tag are
+ * data GitHub ships with the page regardless of styling, so they decide first.
+ * The DOM-label checks below them can only ever add a positive — they are a
+ * safety net for pages without embedded data, not the primary signal.
+ */
+export function isPrivateRepo(root = document) {
+  const payload = readEmbeddedPayload(root);
+  if (payload) {
+    const repo = repoFromPayload(payload);
+    if (repo) {
+      if (repo.isPrivate === true || repo.private === true) return true;
+      const visibility = String(repo.visibility || '').toUpperCase();
+      if (visibility === 'PRIVATE' || visibility === 'INTERNAL') return true;
+      if (repo.isPrivate === false || visibility === 'PUBLIC') return false;
     }
   }
 
-  return embeddedRepoIsNotPublic();
-}
-
-export function isConfirmedPrivateRepo() {
-  // Label badge next to repo name — reliable, text-guarded
-  const label = document.querySelector('.Label.Label--secondary');
-  if (label) {
-    const t = label.textContent.trim();
-    if (t === 'Private' || t === 'Internal') return true;
-  }
-  // Exact aria-label matches only — no substring to avoid false positives
-  if (document.querySelector('[aria-label="Private repository"]')) return true;
-  if (document.querySelector('[aria-label="Internal repository"]')) return true;
-  if (document.querySelector('[data-testid="private-repo-label"]')) return true;
-  const meta = document.querySelector(
+  const meta = root.querySelector(
     'meta[name="octolytics-dimension-repository_is_private"]'
   )?.content;
   if (meta === 'true') return true;
-  return embeddedRepoIsNotPublic();
+  if (meta === 'false') return false;
+
+  if (LEGACY_PRIVATE_SELECTORS.some(selector => root.querySelector(selector))) return true;
+
+  // Visibility badge next to the repo name, text-guarded so unrelated
+  // secondary labels elsewhere on the page cannot trigger it.
+  for (const label of root.querySelectorAll('.Label--secondary, [data-testid="visibility-badge"]')) {
+    if (NON_PUBLIC_LABELS.has(label.textContent.trim().toLowerCase())) return true;
+  }
+
+  // Lock icon, scoped to the repo header so nav items cannot match.
+  const header = repoHeader(root);
+  if (header?.querySelector('.octicon-lock')) return true;
+  if (header) {
+    for (const label of header.querySelectorAll('.Label, [data-view-component="true"]')) {
+      if (NON_PUBLIC_LABELS.has(label.textContent.trim().toLowerCase())) return true;
+    }
+  }
+
+  return false;
 }
 
 export function parseRepoInfo() {
-  const parts = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
-  const [owner, repo] = parts;
-  const treePath = parts[2] === 'tree'
-    ? parts.slice(3).map(part => decodeURIComponent(part)).join('/')
-    : '';
+  const route = parseRoute(window.location.pathname);
+  if (!route) return { owner: undefined, repo: undefined, ref: 'HEAD', isFork: false };
 
-  const embeddedRef = embeddedRepoRef();
+  const { owner, repo, treePath } = route;
+  const payload = readEmbeddedPayload(document);
+
+  const embeddedRef = payload?.codeViewRepoRoute?.refInfo?.name?.trim()
+    || payload?.refInfo?.name?.trim()
+    || '';
+
   const refEl =
     document.querySelector('[data-hotkey="w"] .css-truncate-target') ??
     document.querySelector('summary[data-hotkey="w"] span');
@@ -89,14 +91,12 @@ export function parseRepoInfo() {
     'meta[name="octolytics-dimension-repository_default_branch"]'
   )?.content;
 
-  const ref = resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef);
-
-  const isFork =
-    !!document.querySelector('.fork-flag') ||
-    document.querySelector('.pagehead-heading-text')?.textContent?.includes('forked from') ||
-    false;
-
-  return { owner, repo, ref, isFork };
+  return {
+    owner,
+    repo,
+    ref: resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef),
+    isFork: detectFork(payload),
+  };
 }
 
 function resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef) {
@@ -110,34 +110,38 @@ function resolveRefFromPage(treePath, embeddedRef, buttonRef, metaRef) {
   return treePath || embeddedRef || buttonRef || metaRef || 'HEAD';
 }
 
-function embeddedRepoRef() {
-  const data = document.querySelector('script[data-target="react-app.embeddedData"]')?.textContent;
-  if (!data) return '';
-
-  try {
-    const parsed = JSON.parse(data);
-    return parsed?.payload?.codeViewRepoRoute?.refInfo?.name?.trim() || '';
-  } catch (_) {
-    return '';
+// The skipForks setting fails silently when this returns a wrong answer, so the
+// embedded payload comes first here too — `.fork-flag` and `.pagehead-heading-text`
+// no longer exist on the React repo header.
+function detectFork(payload) {
+  const repo = repoFromPayload(payload);
+  if (repo) {
+    if (repo.isFork === true || repo.fork === true) return true;
+    if (repo.parent || repo.parentRepository) return true;
+    if (repo.isFork === false || repo.fork === false) return false;
   }
+
+  if (document.querySelector('.fork-flag')) return true;
+  if (document.querySelector('[data-testid="fork-flag"]')) return true;
+
+  const header = repoHeader(document);
+  if (header?.textContent?.includes('forked from')) return true;
+
+  return false;
 }
 
-function embeddedRepoIsNotPublic() {
-  const data = document.querySelector('script[data-target="react-app.embeddedData"]')?.textContent;
-  if (!data) return false;
+function repoFromPayload(payload) {
+  if (!payload) return null;
+  return payload.repository
+    || payload.repo
+    || payload.codeViewRepoRoute?.repository
+    || payload.codeViewRepoRoute?.repo
+    || null;
+}
 
-  try {
-    const parsed = JSON.parse(data);
-    const payload = parsed?.payload || {};
-    const repo =
-      payload.repository ||
-      payload.repo ||
-      payload.codeViewRepoRoute?.repository ||
-      payload.codeViewRepoRoute?.repo;
-    if (repo?.isPrivate === true || repo?.private === true) return true;
-    const vis = repo?.visibility;
-    return vis === 'PRIVATE' || vis === 'INTERNAL';
-  } catch (_) {
-    return false;
-  }
+function repoHeader(root) {
+  return root.querySelector('#repository-container-header')
+    || root.querySelector('[data-testid="repository-container-header"]')
+    || root.querySelector('.AppHeader-context')
+    || root.querySelector('.pagehead');
 }

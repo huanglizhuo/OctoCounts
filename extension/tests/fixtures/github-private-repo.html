@@ -1,0 +1,23 @@
+<!--
+  Private repository. The embedded React payload is the authoritative signal:
+  if this page were ever read as public, the owner/repo pair would be sent to
+  the API. The legacy visibility badge is intentionally absent so the test
+  covers the embedded-data path on its own.
+-->
+<html lang="en">
+<head>
+  <meta name="octolytics-dimension-repository_id" content="555">
+  <script type="application/json" data-target="react-app.embeddedData">
+    {"payload":{"repo":{"name":"secret","ownerLogin":"octo","isPrivate":true,"visibility":"private"},"codeViewRepoRoute":{"refInfo":{"name":"main"}}}}
+  </script>
+</head>
+<body>
+  <div id="repository-container-header"><a href="/octo/secret">secret</a></div>
+  <main>
+    <div class="CodeViewSidebar-module__borderGrid__HASH">
+      <div class="Section-module__row__HASH"><h2>About</h2><a href="/octo/secret?tab=readme-ov-file">Readme</a></div>
+      <div class="Section-module__row__HASH"><h2>Releases</h2><a href="/octo/secret/releases">1 tags</a></div>
+    </div>
+  </main>
+</body>
+</html>

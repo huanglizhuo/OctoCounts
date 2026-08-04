@@ -181,6 +181,20 @@ header {
 .banner--info { background: var(--banner-info-bg); color: var(--banner-info-fg); border-color: var(--banner-info-border); }
 .banner-icon  { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
 .banner-text  { flex: 1; }
+.banner-body  { flex: 1; min-width: 0; }
+
+/* Actions inside a banner sit inline and inherit the banner's own colour, so
+   they read as part of the warning rather than as unrelated accent links. */
+.banner-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.banner-actions .link-btn {
+  display: inline;
+  margin-top: 0;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.banner-actions .link-btn:hover { opacity: 0.75; }
+#mountFailDetail { max-height: 140px; }
 
 /* ── Cards ── */
 .card {

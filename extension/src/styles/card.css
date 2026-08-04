@@ -1,15 +1,22 @@
 /*
-  Host is the .BorderGrid-cell div. GitHub's CSS gives it padding: 16px 0.
-  We set padding: 0 here so we don't override GitHub's top/bottom spacing.
-  Horizontal padding is added inside via .oc-wrap.
+  The host is our own <section>, not a Primer `.BorderGrid-cell`, so GitHub
+  supplies no styling for it: vertical spacing and the section divider are ours.
+
+  The divider is conditional on purpose. With the card placed at the top of the
+  sidebar it is the first child, and an unconditional border-top would draw a
+  stray line above the whole sidebar; the native section below us draws its own.
 */
 :host {
   display: block;
-  padding: 0;
+  padding: 16px 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   box-sizing: border-box;
+}
+
+:host(:not(:first-child)) {
+  border-top: 1px solid var(--border);
 }
 
 *,

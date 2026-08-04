@@ -1,14 +1,52 @@
-import { isPublicRepoRoot, parseRepoInfo, isConfirmedPrivateRepo } from './detect.js';
-import { mountCard, unmountCard, isDisabled } from './card.js';
+import { isRepoPage, isPrivateRepo, parseRepoInfo } from './detect.js';
+import { resolveSidebar, collectDomFingerprint, fingerprintHash } from './github-dom.js';
+import { mountCard, unmountCard, getCardActivity } from './card.js';
 import { unmountPanel } from './panel.js';
 
-let guardObserver = null;
-let routeObserver = null;
-let lastContextKey = '';
-let scheduled = false;
-let running = false;
+/*
+ * Why there is no card on screen. The popup needs this to tell "GitHub changed
+ * its DOM and we could not find a mount point" (worth reporting) apart from the
+ * six perfectly normal reasons a repo page has no card (not worth reporting).
+ */
+const STATE = {
+  NOT_REPO: 'not_repo',
+  PRIVATE: 'private',
+  SKIPPED_FORK: 'skipped_fork',
+  DISABLED_BY_USER: 'disabled_by_user',
+  PENDING: 'pending',
+  ANALYZING: 'analyzing',
+  API_ERROR: 'api_error',
+  MOUNTED: 'mounted',
+  MOUNT_FAILED: 'mount_failed',
+};
 
-async function run(forceRefresh = false) {
+// The sidebar is React-rendered and lands after document_end, so "no mount
+// point" is only a failure once the page has had a fair chance to render.
+const MOUNT_ATTEMPT_CAP = 10;
+const MOUNT_DEADLINE_MS = 6000;
+const ROUTE_DEBOUNCE_MS = 150;
+// A page that genuinely has no sidebar (GitHub removed it, or an experiment we
+// cannot read) would otherwise re-resolve forever on every mutation burst.
+const MOUNT_ATTEMPT_HARD_CAP = 40;
+
+let routeObserver = null;
+let routeDebounce = null;
+let deadlineTimer = null;
+
+// Resolved once per repo context: everything that needs async IO lives here so
+// that DOM activity can retry mounting without re-reading settings or storage.
+let plan = null;
+let mountState = STATE.NOT_REPO;
+let mountAttempts = 0;
+let contextStartedAt = 0;
+let lastResolution = null;
+
+let running = false;
+let scheduled = false;
+
+/* ── async pass: decide whether this page should get a card ───────────────── */
+
+async function run() {
   if (running) {
     scheduleRun();
     return;
@@ -16,23 +54,27 @@ async function run(forceRefresh = false) {
 
   running = true;
   try {
-    if (!isPublicRepoRoot()) {
-      unmountCard();
-      unmountPanel();
-      if (guardObserver) { guardObserver.disconnect(); guardObserver = null; }
-      lastContextKey = '';
+    if (!isRepoPage()) {
+      resetContext(STATE.NOT_REPO);
       return;
     }
 
-    const { owner, repo, ref, isFork } = parseRepoInfo();
-    const contextKey = `${owner}/${repo}@${ref}`;
-    if (contextKey === lastContextKey && document.querySelector('[data-octocount-card]')) {
+    if (isPrivateRepo()) {
+      resetContext(STATE.PRIVATE);
+      return;
+    }
+
+    const info = parseRepoInfo();
+    const contextKey = `${info.owner}/${info.repo}@${info.ref}`;
+
+    // Same repo, same ref: nothing async to redo, just make sure a card exists.
+    if (plan?.contextKey === contextKey) {
+      ensureMounted();
       return;
     }
 
     unmountCard();
     unmountPanel();
-    if (guardObserver) { guardObserver.disconnect(); guardObserver = null; }
 
     let settings;
     try {
@@ -41,42 +83,124 @@ async function run(forceRefresh = false) {
       settings = { skipForks: true, cardPlacement: 'top' };
     }
 
-    if (settings.skipForks && isFork) {
-      lastContextKey = contextKey;
+    if (settings.skipForks && info.isFork) {
+      setContext(contextKey, info, settings, false, STATE.SKIPPED_FORK);
       return;
     }
 
-    const disabledResult = await chrome.storage.local.get(`disabled::${owner}/${repo}`);
-    if (disabledResult[`disabled::${owner}/${repo}`] === true) {
-      unmountCard();
-      unmountPanel();
-      lastContextKey = contextKey;
+    let disabled = false;
+    try {
+      const key = `disabled::${info.owner}/${info.repo}`;
+      disabled = (await chrome.storage.local.get(key))[key] === true;
+    } catch (_) {}
+
+    if (disabled) {
+      setContext(contextKey, info, settings, false, STATE.DISABLED_BY_USER);
       return;
     }
 
-    const placement = settings.cardPlacement === 'bottom' ? 'bottom' : 'top';
-    const replaceGhLanguages = settings.replaceGhLanguages !== false;
-    const silentUntilSuccess = settings.silentUntilSuccess === true;
-    const cardTitle = settings.cardTitle || '';
-    const injected = mountCard({ owner, repo, ref, autoAnalyze: true, placement, replaceGhLanguages, silentUntilSuccess, cardTitle, forceRefresh });
-    if (!injected) return;
-
-    lastContextKey = contextKey;
-
-    const borderGrid = document.querySelector('.BorderGrid');
-    if (borderGrid) {
-      guardObserver = new MutationObserver(() => {
-        if (running || isDisabled()) return;
-        if (!document.querySelector('[data-octocount-card]')) {
-          mountCard({ owner, repo, ref, autoAnalyze: true, placement, replaceGhLanguages, silentUntilSuccess, cardTitle });
-        }
-      });
-      guardObserver.observe(borderGrid, { childList: true });
-    }
+    setContext(contextKey, info, settings, true, STATE.PENDING);
+    ensureMounted();
+    armDeadline();
   } finally {
     running = false;
   }
 }
+
+/* ── sync pass: get a card onto the page ─────────────────────────────────── */
+
+/**
+ * Idempotent, synchronous, no IO — safe to call from a MutationObserver.
+ * This is the extension's only mount retry path; card.js does not retry.
+ */
+function ensureMounted() {
+  if (!plan?.shouldMount) return;
+  if (mountState === STATE.MOUNT_FAILED && mountAttempts >= MOUNT_ATTEMPT_HARD_CAP) return;
+
+  if (document.querySelector('[data-octocount-card]')) {
+    mountState = STATE.MOUNTED;
+    return;
+  }
+
+  // Silent mode deliberately shows nothing until the API answers, and a failed
+  // analysis deliberately leaves the sidebar untouched. Neither is a mount
+  // failure, and re-mounting here would restart the analysis on every mutation.
+  const activity = getCardActivity();
+  if (activity.analyzing) {
+    mountState = STATE.ANALYZING;
+    return;
+  }
+  if (activity.errored) {
+    mountState = STATE.API_ERROR;
+    return;
+  }
+
+  const { owner, repo, ref, settings } = plan;
+  const resolution = resolveSidebar({ owner, repo });
+  lastResolution = resolution;
+
+  if (!resolution.grid) {
+    mountAttempts++;
+    mountState = mountExhausted() ? STATE.MOUNT_FAILED : STATE.PENDING;
+    return;
+  }
+
+  const mounted = mountCard({
+    mount: resolution,
+    owner,
+    repo,
+    ref,
+    autoAnalyze: true,
+    placement: settings.cardPlacement === 'bottom' ? 'bottom' : 'top',
+    replaceGhLanguages: settings.replaceGhLanguages !== false,
+    silentUntilSuccess: settings.silentUntilSuccess === true,
+    cardTitle: settings.cardTitle || '',
+  });
+
+  if (!mounted) {
+    mountAttempts++;
+    mountState = mountExhausted() ? STATE.MOUNT_FAILED : STATE.PENDING;
+    return;
+  }
+
+  mountState = settings.silentUntilSuccess === true ? STATE.ANALYZING : STATE.MOUNTED;
+}
+
+function mountExhausted() {
+  return mountAttempts >= MOUNT_ATTEMPT_CAP
+    || Date.now() - contextStartedAt >= MOUNT_DEADLINE_MS;
+}
+
+// A single timer per context, so a page that simply stops mutating still reaches
+// a final verdict instead of sitting in `pending` forever.
+function armDeadline() {
+  clearTimeout(deadlineTimer);
+  deadlineTimer = setTimeout(() => {
+    if (!plan?.shouldMount) return;
+    ensureMounted();
+    if (mountState === STATE.PENDING) mountState = STATE.MOUNT_FAILED;
+  }, MOUNT_DEADLINE_MS);
+}
+
+function setContext(contextKey, info, settings, shouldMount, state) {
+  plan = { contextKey, owner: info.owner, repo: info.repo, ref: info.ref, settings, shouldMount };
+  mountState = state;
+  mountAttempts = 0;
+  contextStartedAt = Date.now();
+  lastResolution = null;
+}
+
+function resetContext(state) {
+  unmountCard();
+  unmountPanel();
+  clearTimeout(deadlineTimer);
+  plan = null;
+  mountState = state;
+  mountAttempts = 0;
+  lastResolution = null;
+}
+
+/* ── scheduling ──────────────────────────────────────────────────────────── */
 
 function scheduleRun() {
   if (scheduled) return;
@@ -87,29 +211,33 @@ function scheduleRun() {
   }, 100);
 }
 
-function maybeRerunForContextChange() {
+// GitHub mutates the DOM constantly. Cheap path first: if the repo context has
+// not changed, only ensureMounted() runs — no settings read, no storage read.
+function onDomActivity() {
   if (running) return;
 
-  if (!isPublicRepoRoot()) {
-    if (lastContextKey) scheduleRun();
+  if (!isRepoPage()) {
+    if (plan) scheduleRun();
     return;
   }
 
-  const { owner, repo, ref } = parseRepoInfo();
-  const contextKey = `${owner}/${repo}@${ref}`;
-  if (contextKey !== lastContextKey || !document.querySelector('[data-octocount-card]')) {
+  const info = parseRepoInfo();
+  const contextKey = `${info.owner}/${info.repo}@${info.ref}`;
+  if (plan?.contextKey !== contextKey) {
     scheduleRun();
+    return;
   }
+
+  ensureMounted();
 }
 
-let routeDebounce = null;
 function scheduleContextCheck() {
-  // GitHub mutates the DOM constantly; coalesce bursts so we run the (DOM-query
-  // heavy) context check at most once per idle window instead of per mutation.
   clearTimeout(routeDebounce);
-  routeDebounce = setTimeout(maybeRerunForContextChange, 150);
+  routeDebounce = setTimeout(onDomActivity, ROUTE_DEBOUNCE_MS);
 }
 
+// One observer for the whole page. It already fires when GitHub re-renders the
+// sidebar and drops our card, which is why there is no separate guard observer.
 function observeRouteChanges() {
   if (routeObserver) return;
   routeObserver = new MutationObserver(scheduleContextCheck);
@@ -118,24 +246,51 @@ function observeRouteChanges() {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync') {
-    lastContextKey = '';
+    plan = null;
     scheduleRun();
   }
   if (area === 'local' && Object.keys(changes).some(k => k.startsWith('disabled::'))) {
-    lastContextKey = '';
+    plan = null;
     scheduleRun();
   }
 });
 
+/* ── popup messaging ─────────────────────────────────────────────────────── */
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_PAGE_STATUS') {
-    const parts = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
-    const isRepoPage = window.location.hostname === 'github.com'
-      && (parts.length === 2 || (parts.length >= 4 && parts[2] === 'tree'))
-      && !!document.querySelector('.BorderGrid');
-    const owner = isRepoPage ? (parts[0] || null) : null;
-    const repo  = isRepoPage ? (parts[1] || null) : null;
-    sendResponse({ isRepoPage, isPrivateRepo: isRepoPage && isConfirmedPrivateRepo(), owner, repo });
+    const onRepoPage = isRepoPage();
+    const info = onRepoPage ? parseRepoInfo() : {};
+    sendResponse({
+      isRepoPage: onRepoPage,
+      isPrivateRepo: onRepoPage && isPrivateRepo(),
+      owner: info.owner ?? null,
+      repo: info.repo ?? null,
+      mountState: onRepoPage ? mountState : STATE.NOT_REPO,
+      strategy: document.querySelector('[data-octocount-card]')?.dataset.strategy ?? null,
+    });
+    return false;
+  }
+
+  if (msg.type === 'GET_MOUNT_DIAGNOSTICS') {
+    const info = parseRepoInfo();
+    // Resolve once more so the report describes the page as it is right now,
+    // including a fresh per-strategy rejection trace.
+    const resolution = info.owner
+      ? resolveSidebar({ owner: info.owner, repo: info.repo })
+      : lastResolution;
+    const fingerprint = collectDomFingerprint({
+      owner: info.owner,
+      repo: info.repo,
+      resolution: resolution || lastResolution,
+    });
+    sendResponse({
+      fingerprint,
+      hash: fingerprintHash(fingerprint),
+      owner: info.owner ?? null,
+      repo: info.repo ?? null,
+      mountState,
+    });
     return false;
   }
 });

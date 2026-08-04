@@ -21,20 +21,6 @@ let _analyzing = false;
 let _retryCount = 0;
 let _generation = 0;
 
-function findBorderGrid() {
-  const selectors = [
-    '.Layout-sidebar .BorderGrid',
-    '[data-pjax-container] .BorderGrid',
-    '.repository-sidebar .BorderGrid',
-    '.BorderGrid',
-  ];
-  for (const sel of selectors) {
-    const el = document.querySelector(sel);
-    if (el) return el;
-  }
-  return null;
-}
-
 // Remove a card host, running any theme-listener cleanup registered on it.
 function teardownCardHost(host) {
   if (!host) return;
@@ -46,43 +32,41 @@ export function unmountCard() {
   _generation++;
   stopPolling();
   _analyzing = false;
+  // Clearing _disabled matters: the entry point consults getCardActivity()
+  // *before* mounting, so an error left over from the previous repo would
+  // otherwise block the next one from ever getting a card.
+  _disabled = false;
   restoreGhLanguagesSection();
-  teardownCardHost(document.querySelector('[data-octocount-card]'));
+  // querySelectorAll, not querySelector: if a re-render ever leaves a duplicate
+  // behind, a single-element teardown could never clean it up again.
+  document.querySelectorAll('[data-octocount-card]').forEach(teardownCardHost);
 }
 
-export function mountCard({ owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
+/**
+ * Insert the card at an already-resolved mount point.
+ *
+ * `mount` comes from resolveSidebar() in github-dom.js — this module no longer
+ * looks for the sidebar itself, and no longer retries on its own. Retrying is
+ * the content entry point's job so there is exactly one retry mechanism.
+ */
+export function mountCard({ mount, owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
+  if (!mount?.grid) return false;
+
   _disabled = false;
   _generation++;
   const gen = _generation;
 
-  const grid = findBorderGrid();
-  if (!grid) {
-    let tries = 0;
-    const retry = setInterval(() => {
-      tries++;
-      const g = findBorderGrid();
-      if (g) {
-        clearInterval(retry);
-        _doMount(g, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
-      } else if (tries >= 5) {
-        clearInterval(retry);
-      }
-    }, 200);
-    return false;
-  }
-  return _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
+  return _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
 }
 
-function _createCardDom(grid, placement) {
-  const host = document.createElement('div');
+function _createCardDom(mount, placement) {
+  // Own element and own shadow root: no Primer class names, so nothing here
+  // depends on GitHub still shipping CSS for `.BorderGrid-row`/`-cell`.
+  const host = document.createElement('section');
   host.dataset.octocountCard = '1';
-  host.className = 'BorderGrid-row';
+  host.dataset.strategy = mount.strategy || 'unknown';
 
-  const cell = document.createElement('div');
-  cell.className = 'BorderGrid-cell';
-  host.appendChild(cell);
-
-  const shadow = cell.attachShadow({ mode: 'open' });
+  const shadow = host.attachShadow({ mode: 'open' });
   shadow.innerHTML = `<style>${cardCss}</style><div class="oc-inner"></div>`;
 
   const syncTheme = () => shadow.host.setAttribute('data-theme', getTheme());
@@ -101,37 +85,41 @@ function _createCardDom(grid, placement) {
     mql.removeEventListener('change', syncTheme);
   };
 
-  if (placement === 'bottom') {
-    grid.append(host);
+  if (mount.insertBefore?.parentElement === mount.grid) {
+    mount.grid.insertBefore(host, mount.insertBefore);
+  } else if (placement === 'bottom') {
+    mount.grid.append(host);
   } else {
-    grid.prepend(host);
+    mount.grid.prepend(host);
   }
 
   const root = shadow.querySelector('.oc-inner');
   return { host, root, shadow };
 }
 
-function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle = '', gen }) {
+function _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle = '', gen }) {
+  const languagesSection = mount.languagesSection || null;
+
   // Silent mode: don't insert a card until the API returns success
   if (silentUntilSuccess) {
     if (autoAnalyze || forceRefresh) {
       _analyzing = true;
-      _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen });
+      _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen });
     } else {
       // Idle card with button; on click remove it and run silently
-      const { host, root } = _createCardDom(grid, placement);
+      const { host, root } = _createCardDom(mount, placement);
       renderIdle(root, () => {
         teardownCardHost(host);
         _analyzing = true;
-        _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, cardTitle, gen });
+        _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, cardTitle, gen });
       }, cardTitle);
     }
     return true;
   }
 
   // Default mode: insert card immediately with loading/idle UI
-  const { root, shadow } = _createCardDom(grid, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
+  const { root, shadow } = _createCardDom(mount, placement);
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle, languagesSection };
 
   function runAnalysis(force) {
     startAnalysis({
@@ -145,7 +133,7 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
         if (_generation !== gen) return;
         chrome.storage.local.remove('lastError').catch(() => {});
         renderCompleted(root, report, cachedAt, ctx, () => {
-          renderLoading(root, cardTitle, 'analyzing');
+          renderLoading(root, ctx, 'analyzing');
           runAnalysis(true);
         });
       },
@@ -156,7 +144,7 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
         renderError(root, error, ctx, () => {
           if (_generation !== gen) return;
           _disabled = false;
-          renderLoading(root, cardTitle, 'analyzing');
+          renderLoading(root, ctx, 'analyzing');
           runAnalysis(false);
         });
       },
@@ -164,11 +152,11 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
   }
 
   if (autoAnalyze || forceRefresh) {
-    renderLoading(root, cardTitle);
+    renderLoading(root, ctx);
     runAnalysis(forceRefresh);
   } else {
     renderIdle(root, () => {
-      renderLoading(root, cardTitle);
+      renderLoading(root, ctx);
       runAnalysis(false);
     }, cardTitle);
   }
@@ -177,14 +165,14 @@ function _doMount(grid, { owner, repo, ref, autoAnalyze, placement, replaceGhLan
 }
 
 // Silent path: no card inserted until API succeeds
-function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen }) {
+function _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen }) {
   startAnalysis({
     owner, repo, ref, forceRefresh,
     onCompleted: (report, cachedAt) => {
       if (_generation !== gen) return;
       _analyzing = false;
       chrome.storage.local.remove('lastError').catch(() => {});
-      _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt });
+      _insertCompletedCard(mount, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt });
     },
     onError: (error) => {
       if (_generation !== gen) return;
@@ -195,9 +183,9 @@ function _launchSilentAnalysis(grid, { owner, repo, ref, placement, replaceGhLan
   });
 }
 
-function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt }) {
-  const { root, shadow } = _createCardDom(grid, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle };
+function _insertCompletedCard(mount, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt }) {
+  const { root, shadow } = _createCardDom(mount, placement);
+  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle, languagesSection: mount.languagesSection || null };
 
   function onRefresh() {
     const refreshBtn = root.querySelector('.oc-refresh-btn');
@@ -223,8 +211,10 @@ function _insertCompletedCard(grid, { owner, repo, ref, placement, replaceGhLang
   renderCompleted(root, report, cachedAt, ctx, onRefresh);
 }
 
-export function isDisabled() {
-  return _disabled || _analyzing;
+// Why there is legitimately no card on screen right now, so the entry point can
+// tell "still working" apart from "we failed to find a mount point".
+export function getCardActivity() {
+  return { analyzing: _analyzing, errored: _disabled };
 }
 
 function getTheme() {
@@ -265,24 +255,20 @@ function skelMoreRow() {
   </div>`;
 }
 
-function readGhLanguageCount() {
+// Skeleton row count, taken from the native Languages section that
+// resolveSidebar() already identified — no second, divergent DOM lookup.
+function readGhLanguageCount(languagesSection) {
+  if (!languagesSection) return null;
   try {
-    const headings = ['Languages', '语言', '言語', 'Langues', 'Idiomas'];
-    for (const row of document.querySelectorAll('.BorderGrid-row')) {
-      if (row.dataset.octocountCard) continue;
-      const h = row.querySelector('h2, h3');
-      if (h && headings.includes(h.textContent.trim())) {
-        const n = row.querySelectorAll('li').length;
-        if (n > 0) return Math.min(Math.max(n, SKEL_MIN), SKEL_MAX);
-        break;
-      }
-    }
+    const n = languagesSection.querySelectorAll('li').length;
+    if (n > 0) return Math.min(Math.max(n, SKEL_MIN), SKEL_MAX);
   } catch (_) {}
   return null;
 }
 
-function renderLoading(root, cardTitle = '', status = 'analyzing') {
-  const rawCount = readGhLanguageCount() ?? SKEL_DEFAULT;
+function renderLoading(root, ctx = {}, status = 'analyzing') {
+  const cardTitle = ctx.cardTitle || '';
+  const rawCount = readGhLanguageCount(ctx.languagesSection) ?? SKEL_DEFAULT;
   const count    = Math.min(rawCount, SKEL_MAX);
   const hasMore  = rawCount > SKEL_MAX;
   const langRows = Array.from({ length: count }, (_, i) =>
@@ -400,7 +386,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   cardHost._ocKeyListener = null;
   cardHost.addEventListener('click', onCardClick);
 
-  if (replaceGhLanguages) hideGhLanguagesSection();
+  if (replaceGhLanguages) hideGhLanguagesSection(ctx.languagesSection);
 }
 
 // Maps background error codes to localized, user-readable one-liners.
@@ -422,7 +408,7 @@ function errorMessage(error) {
 // Inline error state: the card stays in place with a retry action instead of
 // silently disappearing from the sidebar.
 function renderError(root, error, ctx, onRetry) {
-  const { cardTitle = '' } = ctx;
+  const { cardTitle = '', shadow } = ctx;
   const code = error?.code || 'unknown';
   const message = errorMessage(error);
   const retryable = !NON_RETRYABLE.has(code);
@@ -436,7 +422,8 @@ function renderError(root, error, ctx, onRetry) {
 
   // Refresh errors can replace a completed card. Clear the previous report
   // opener so the error surface cannot navigate to stale data.
-  const cardHost = root.host.closest('[data-octocount-card]');
+  // `root` is the .oc-inner div, so the host has to come from the shadow root.
+  const cardHost = shadow.host.closest('[data-octocount-card]');
   cardHost.setAttribute('data-state', 'error');
   cardHost.style.cursor = '';
   cardHost.setAttribute('role', 'region');
@@ -533,16 +520,13 @@ function triggerGhLanguageFilter(langName) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-function hideGhLanguagesSection() {
-  const languageHeadings = ['Languages', '语言', '言語', 'Langues', 'Idiomas'];
-  document.querySelectorAll('.BorderGrid-row').forEach(row => {
-    if (row.dataset.octocountCard) return;
-    const h = row.querySelector('h2, h3');
-    if (h && languageHeadings.includes(h.textContent.trim())) {
-      row.style.display = 'none';
-      row.dataset.octocountHidden = '1';
-    }
-  });
+// display:none rather than remove(): triggerGhLanguageFilter() clicks GitHub's
+// own `?l=` links to apply the language filter, and those links have to stay in
+// the document for that to work.
+function hideGhLanguagesSection(languagesSection) {
+  if (!languagesSection || languagesSection.dataset.octocountCard) return;
+  languagesSection.style.display = 'none';
+  languagesSection.dataset.octocountHidden = '1';
 }
 
 function restoreGhLanguagesSection() {

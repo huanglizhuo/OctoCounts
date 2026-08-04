@@ -89,7 +89,13 @@
     "clearCacheSuccess": "Eliminados de caché: {{count}}",
     "clearCacheFail": "Error al limpiar el caché",
     "retriedN": "Reintentos agotados: {{count}}",
-    "tabStatusRepoOff": "deshabilitado para este repo"
+    "tabStatusRepoOff": "deshabilitado para este repo",
+    "mountFail": "Página de repositorio detectada, pero OctoCounts no encontró un lugar fiable donde insertar su tarjeta: GitHub puede haber cambiado la estructura de la página.",
+    "mountFailKnown": "Esta estructura de página ({{hash}}) ya se ha informado. La corrección llegará en la próxima actualización.",
+    "mountFailReport": "Informar de esto",
+    "mountFailViewIssue": "Ver el informe existente",
+    "mountFailCopy": "Copiar diagnóstico",
+    "mountFailCopied": "Copiado"
   },
   "error": {
     "privateRepo": "Los repositorios privados no están admitidos.",

@@ -89,7 +89,13 @@
     "clearCacheSuccess": "已清除 {{count}} 条缓存",
     "clearCacheFail": "清除缓存失败",
     "retriedN": "重试 {{count}} 次后放弃",
-    "tabStatusRepoOff": "已在此仓库禁用"
+    "tabStatusRepoOff": "已在此仓库禁用",
+    "mountFail": "检测到仓库页面，但 OctoCounts 没能找到可信的插入位置 —— GitHub 可能改了页面结构。",
+    "mountFailKnown": "这种页面结构（{{hash}}）已经报告过了，修复会在下个版本发布。",
+    "mountFailReport": "报告此问题",
+    "mountFailViewIssue": "查看已有报告",
+    "mountFailCopy": "复制诊断信息",
+    "mountFailCopied": "已复制"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",

@@ -89,7 +89,13 @@
     "clearCacheSuccess": "Cleared {{count}} cached reports",
     "clearCacheFail": "Failed to clear cache",
     "retriedN": "Retries exhausted: {{count}}",
-    "tabStatusRepoOff": "disabled for this repo"
+    "tabStatusRepoOff": "disabled for this repo",
+    "mountFail": "Repository page detected, but OctoCounts could not find a trusted place to insert its card — GitHub may have changed its page structure.",
+    "mountFailKnown": "This page layout ({{hash}}) has already been reported. A fix ships in the next update.",
+    "mountFailReport": "Report this",
+    "mountFailViewIssue": "View existing report",
+    "mountFailCopy": "Copy diagnostics",
+    "mountFailCopied": "Copied"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",
