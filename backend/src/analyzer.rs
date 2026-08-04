@@ -11,7 +11,7 @@ use flate2::read::GzDecoder;
 use sha2::{Digest, Sha256};
 use tar::Archive;
 use tempfile::TempDir;
-use tokei::{Config, Language, Languages, Report as TokeiReport};
+use tokei::{Config, Language, LanguageType, Languages, Report as TokeiReport};
 use tokio::time::timeout;
 
 use crate::models::{
@@ -157,6 +157,14 @@ fn extract_archive(
             return Err(anyhow!("repository has too many files"));
         }
 
+        // Deliberately after the byte and file accounting above: those guards
+        // describe the archive we were handed, not the subset we chose to keep,
+        // and a repository that used to be rejected as too large must still be
+        // rejected. Skipping only avoids the write and the later read.
+        if is_uncountable_asset(&stripped) {
+            continue;
+        }
+
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -164,6 +172,27 @@ fn extract_archive(
     }
 
     Ok(())
+}
+
+/// True when tokei would never count this path, so writing it to disk only buys
+/// a write, a directory entry, and a file tokei has to open and reject later.
+///
+/// The predicate is not a hand-maintained blacklist of image and archive
+/// extensions — it asks tokei the same question tokei's own walk asks, so it
+/// cannot drift from the counting rules and cannot accidentally swallow a
+/// language. `LanguageType::from_path` checks its filename table first
+/// (`Makefile`, `meson.build`, `CMakeLists.txt`, `nuget.config`, …) and only
+/// then the extension table; neither touches the filesystem.
+///
+/// Files with no extension are always kept. tokei resolves those by reading a
+/// shebang out of the file, which it cannot do for a file we never wrote, and
+/// that set also contains the ignore files (`.gitignore`, `.ignore`,
+/// `.tokeignore`) whose presence changes which *other* files get walked.
+fn is_uncountable_asset(path: &Path) -> bool {
+    if path.extension().is_none() {
+        return false;
+    }
+    LanguageType::from_path(path, &Config::default()).is_none()
 }
 
 fn strip_archive_root(path: &Path) -> Option<PathBuf> {
@@ -363,9 +392,92 @@ mod difftest;
 
 #[cfg(test)]
 mod tests {
-    use super::{analysis_key, effective_ignored_dirs, report_id, should_ignore};
+    use super::{
+        analysis_key, effective_ignored_dirs, is_uncountable_asset, report_id, should_ignore,
+    };
     use crate::models::{AnalysisOptions, AnalysisProfile};
     use std::path::Path;
+
+    /// The payload types that dominate repository size. None of them are
+    /// languages, so none of them may reach the disk.
+    #[test]
+    fn binary_and_asset_payloads_are_skipped_during_extraction() {
+        for path in [
+            "assets/logo.png",
+            "assets/photo.JPEG",
+            "assets/icon.ico",
+            "assets/Inter.woff2",
+            "assets/Inter.ttf",
+            "assets/bundle.zip",
+            "assets/archive.tar.gz",
+            "assets/model.onnx",
+            "assets/weights.safetensors",
+            "assets/native.so",
+            "assets/report.pdf",
+            "assets/sheet.xlsx",
+            "assets/cache.sqlite3",
+            "Cargo.lock",
+            "yarn.lock",
+            "data/records.csv",
+        ] {
+            assert!(
+                is_uncountable_asset(Path::new(path)),
+                "{path} is not counted by tokei and should not be extracted"
+            );
+        }
+    }
+
+    /// The expensive half of the guarantee: nothing tokei counts may be dropped.
+    /// SVG in particular looks like an image and is a language.
+    #[test]
+    fn source_files_are_never_skipped_during_extraction() {
+        for path in [
+            "src/main.rs",
+            "src/app.tsx",
+            "src/app.ts",
+            "public/bundle.min.js",
+            "assets/logo.svg",
+            "index.html",
+            "styles/app.css",
+            "src/Widget.vue",
+            "README.md",
+            "Cargo.toml",
+            "package.json",
+            "config/ci.yml",
+            "CMakeLists.txt",
+            "meson.build",
+            "meson_options.txt",
+            "nuget.config",
+            "scripts/run.sh",
+        ] {
+            assert!(
+                !is_uncountable_asset(Path::new(path)),
+                "{path} is counted by tokei and must be extracted"
+            );
+        }
+    }
+
+    /// Extension-less files are resolved by reading a shebang, which only works
+    /// if the bytes are on disk. The ignore files in this set additionally
+    /// change which *other* files tokei walks, so dropping them would move the
+    /// counts for the rest of the tree.
+    #[test]
+    fn extensionless_files_are_always_extracted() {
+        for path in [
+            "scripts/deploy",
+            "Makefile",
+            "Dockerfile",
+            "LICENSE",
+            ".gitignore",
+            ".ignore",
+            ".tokeignore",
+        ] {
+            assert!(
+                !is_uncountable_asset(Path::new(path)),
+                "{path} must be extracted; its language is decided from its contents"
+            );
+        }
+    }
 
     #[test]
     fn cache_key_includes_commit() {
