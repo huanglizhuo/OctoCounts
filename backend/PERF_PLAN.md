@@ -142,10 +142,29 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 - **做法**：`reqwest` 的 `stream` feature 已开启。改用 `bytes_stream()`，通过一个有界的同步管道（`std::io::Read` 适配器 + `tokio::sync::mpsc`，或 `tokio_util::io::StreamReader` + `SyncIoBridge`）喂给 blocking 线程上的 `GzDecoder`。超限检查改成边累计边中断，不再等整包下完才报 `TooLarge`。
 - **验证**：端到端测试用一个本地 HTTP server 提供测试 tarball，断言分析结果与旧实现一致；单独测试超限中断路径。
 
-### C7. 免落盘统计
-- **现状**：`analyzer.rs:105` 把每个文件 `unpack` 写进 tempdir，`analyzer.rs:184` 的 tokei 再 walk 整棵目录树、重新打开每个文件读一遍，等于两遍 I/O。
-- **做法**：在 tar 流里对每个 entry 按文件名推断 `LanguageType`，把内容 buffer 直接交给 tokei 的按内容解析接口，完全不落盘。**关键约束：统计结果必须与旧实现逐字节一致**——先确认当前 tokei 14.0 的 API 能否覆盖现有全部行为（尤其是 `children` 嵌套语言统计）。如果 API 不支持，就退化为「保留落盘但跳过 tokei 的二次 walk」，并在 commit message 里说明。
-- **验证**：对一组真实仓库 tarball 做新旧实现对拍，断言 `LanguageReport` 完全相同。**这一项如果对拍不过就不要合入**。
+### C7. 免落盘统计 —— **已放弃，不合入**
+- **原设想**：在 tar 流里对每个 entry 按文件名推断 `LanguageType`，内容 buffer 直接交给 tokei 解析，完全不落盘，省掉「解压写盘 + tokei 重新 walk 并重读每个文件」的两遍 I/O。
+- **实现过并对拍失败**。差分 harness（`analyzer::difftest::real_repositories_are_counted_identically`，拿内存实现与 `count_via_disk` 磁盘 oracle 对比）在 ripgrep 上抓到分歧：
+
+  | | files | code |
+  |---|---|---|
+  | 内存实现 | 156 | 43,202 |
+  | 磁盘 oracle | 162 | 43,844 |
+
+  丢失的正好 6 个文件，全在 `.github/` 下（5 个 YAML + `feature_request.md`），642 行代码。
+
+- **根因比看上去深**。`ignore` crate 的 walk 默认跳过隐藏项，但 ripgrep 根目录有个 `.ignore` 文件，内容是一行 `!/.github/` —— 一条**反选规则**，把 `.github/` 从隐藏规则里重新捞回来。所以正确语义是三层：
+
+  1. 隐藏项默认跳过；
+  2. 除非某条 `.ignore`/`.gitignore` 的 `!` 白名单规则把它重新纳入；
+  3. 而 ignore 文件在 tar 里的出现顺序**可能晚于它所管辖的条目**，所以必须缓冲候选项，等全部 ignore 文件就位后**回溯重判**。
+
+  单纯去掉隐藏跳过是错的（试过：反而多数出 `.nvim.lua` 和 `.cargo/config.toml` 两个文件）。要做对就得在流式管线里重新实现一遍 `ignore` crate 的目录语义。
+
+- **而且收益存疑**。对拍时实测 ripgrep：流式内存统计 54ms，磁盘 oracle 44ms —— 内存版反而更慢。tokei 的 walk 本身是并行的，而流式管线被 tar 的顺序读串行化了，抵消了省下的 I/O。
+
+- **结论**：复杂度高、正确性风险大、收益未经证实。保留落盘 + tokei walk。C6 的流式下载已经拿走了这条链路上确定的那部分收益（下载与解压重叠、峰值内存降为常数）。
+  尝试代码没有合入；差分 harness 留在 `src/analyzer/difftest.rs`，将来若重启此项可直接复用，`count_via_disk` 就是现成的 oracle。
 
 ---
 
