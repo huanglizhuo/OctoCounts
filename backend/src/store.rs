@@ -859,29 +859,31 @@ impl Store {
         })
     }
 
-    /// # A preserved bug
+    /// # A fixed bug
     ///
-    /// The query this replaces read `FROM reports LEFT JOIN LATERAL
+    /// Until this change the query read `FROM reports LEFT JOIN LATERAL
     /// jsonb_array_elements(body->'languages') ON TRUE`, which fans each report
     /// out into one row per language. `COUNT(*)` and the two `SUM`s therefore
     /// counted every report once *per language it contains*: with ~30 languages
-    /// per report, `/api/stats` has been reporting `reportsGenerated` and
-    /// `linesCounted` roughly 30x too high.
+    /// per report, `/api/stats` reported `reportsGenerated`, `linesCounted` and
+    /// `codeLinesCounted` roughly 30x too high.
     ///
-    /// This rewrite reproduces that inflation exactly -- `GREATEST(language_count,
-    /// 1)` is the fan-out factor, and 1 rather than 0 because a LEFT JOIN still
-    /// emits one row for a report with no languages. Removing the join without
-    /// reproducing it would have silently changed two public numbers by an order
-    /// of magnitude, which is a product decision, not a performance one. Fixing it
-    /// is a separate, deliberate change.
+    /// B6 reproduced that inflation deliberately, so that a performance change
+    /// would not silently move two public numbers by an order of magnitude. The
+    /// correction is this separate commit: each report now contributes exactly
+    /// once. The published counters will drop sharply and that is the point --
+    /// they are now the real figures.
+    ///
+    /// `repositoriesAnalyzed` and `languagesDetected` were always correct; both
+    /// were guarded by `DISTINCT`, which absorbed the duplicate rows.
     async fn growth_totals(&self) -> anyhow::Result<GrowthTotals> {
         let row = sqlx::query(
             r#"
             SELECT
-                COALESCE(SUM(GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS reports_generated,
+                COUNT(*)::bigint AS reports_generated,
                 COUNT(DISTINCT (provider, owner, repo))::bigint AS repositories_analyzed,
-                COALESCE(SUM(COALESCE(total_lines, 0) * GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS lines_counted,
-                COALESCE(SUM(COALESCE(total_code, 0) * GREATEST(COALESCE(language_count, 0), 1)), 0)::bigint AS code_lines_counted,
+                COALESCE(SUM(COALESCE(total_lines, 0)), 0)::bigint AS lines_counted,
+                COALESCE(SUM(COALESCE(total_code, 0)), 0)::bigint AS code_lines_counted,
                 (SELECT COUNT(DISTINCT language) FROM report_languages)::bigint AS languages_detected
             FROM reports
             "#,
@@ -2622,16 +2624,29 @@ mod tests {
                 .collect::<Vec<_>>(),
             legacy_languages,
         );
-        assert_eq!(
-            (
-                totals.reports_generated,
-                totals.repositories_analyzed,
-                totals.lines_counted,
-                totals.code_lines_counted,
-                totals.languages_detected
-            ),
-            legacy_totals,
-        );
+        let (
+            legacy_reports,
+            legacy_repositories,
+            legacy_lines,
+            legacy_code_lines,
+            legacy_languages_detected,
+        ) = legacy_totals;
+
+        // The two counters that were always right, because `DISTINCT` absorbed
+        // the fan-out, still have to agree with the original query exactly.
+        assert_eq!(totals.repositories_analyzed, legacy_repositories);
+        assert_eq!(totals.languages_detected, legacy_languages_detected);
+
+        // The other three deliberately no longer agree: the legacy query counted
+        // each report once per language. The four reports here hold 2, 3, 0 and 3
+        // languages, and a report with no languages still produced one row under
+        // the LEFT JOIN -- so the old fan-out factor was 2 + 3 + 1 + 3 = 9.
+        assert_eq!(totals.reports_generated, 4);
+        assert_eq!(legacy_reports, 9);
+        assert_eq!(totals.lines_counted, 4 * 110);
+        assert_eq!(legacy_lines, 9 * 110);
+        assert_eq!(totals.code_lines_counted, 4 * 100);
+        assert_eq!(legacy_code_lines, 9 * 100);
         store.drop_schema().await;
     }
 

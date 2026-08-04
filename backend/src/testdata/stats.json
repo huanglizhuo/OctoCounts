@@ -260,10 +260,10 @@
     }
   ],
   "totals": {
-    "codeLinesCounted": 36303015,
+    "codeLinesCounted": 3657521,
     "languagesDetected": 17,
-    "linesCounted": 44789457,
-    "reportsGenerated": 20,
+    "linesCounted": 4512561,
+    "reportsGenerated": 5,
     "repositoriesAnalyzed": 4
   },
   "windows": {
