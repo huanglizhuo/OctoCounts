@@ -200,21 +200,21 @@ impl AnalysisCoordinator {
     /// Every status write goes through one of these three so the database write
     /// and the wakeup can never drift apart. The wakeup is always published
     /// after the write returns, so a woken waiter re-reads a committed row.
-    async fn set_job_running(&self, job_id: Uuid) {
+    pub(crate) async fn set_job_running(&self, job_id: Uuid) {
         if let Err(error) = self.store.set_job_running(job_id).await {
             tracing::error!(%error, "failed to mark job running");
         }
         self.events.publish(job_id);
     }
 
-    async fn set_job_completed(&self, job_id: Uuid, report_id: String) {
+    pub(crate) async fn set_job_completed(&self, job_id: Uuid, report_id: String) {
         if let Err(error) = self.store.set_job_completed(job_id, report_id).await {
             tracing::error!(%error, "failed to mark job completed");
         }
         self.events.publish(job_id);
     }
 
-    async fn set_job_failed(&self, job_id: Uuid, code: &str, message: &str) {
+    pub(crate) async fn set_job_failed(&self, job_id: Uuid, code: &str, message: &str) {
         if let Err(error) = self
             .store
             .set_job_failed(
