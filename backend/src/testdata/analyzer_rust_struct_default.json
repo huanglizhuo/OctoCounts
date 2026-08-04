@@ -1,0 +1,79 @@
+{
+  "languages": [
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "Markdown",
+          "stats": {
+            "blanks": 0,
+            "code": 0,
+            "comments": 2,
+            "files": 1,
+            "lines": 2
+          }
+        }
+      ],
+      "name": "Rust",
+      "stats": {
+        "blanks": 3,
+        "code": 13,
+        "comments": 3,
+        "files": 4,
+        "lines": 19
+      }
+    },
+    {
+      "children": [],
+      "name": "TOML",
+      "stats": {
+        "blanks": 1,
+        "code": 5,
+        "comments": 1,
+        "files": 1,
+        "lines": 7
+      }
+    },
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "Rust",
+          "stats": {
+            "blanks": 0,
+            "code": 3,
+            "comments": 1,
+            "files": 1,
+            "lines": 4
+          }
+        },
+        {
+          "children": [],
+          "name": "Python",
+          "stats": {
+            "blanks": 0,
+            "code": 2,
+            "comments": 0,
+            "files": 1,
+            "lines": 2
+          }
+        }
+      ],
+      "name": "Markdown",
+      "stats": {
+        "blanks": 3,
+        "code": 0,
+        "comments": 6,
+        "files": 1,
+        "lines": 9
+      }
+    }
+  ],
+  "total": {
+    "blanks": 7,
+    "code": 18,
+    "comments": 10,
+    "files": 6,
+    "lines": 35
+  }
+}

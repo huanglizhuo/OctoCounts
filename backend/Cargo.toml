@@ -21,8 +21,10 @@ tempfile = "3.27"
 thiserror = "2.0"
 tokei = "14.0"
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["io", "io-util"] }
+mimalloc = { version = "0.1", default-features = false }
 moka = { version = "0.12", features = ["future"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", features = ["compression-br", "compression-gzip", "cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
@@ -32,3 +34,24 @@ uuid = { version = "1.23", features = ["serde", "v4"] }
 [dev-dependencies]
 http-body-util = "0.1"
 tower = "0.5"
+
+# Tuned for the deployed binary only; `cargo test` builds with the `test`
+# profile, which inherits `dev`.
+#
+# Deliberately NOT `panic = "abort"`. Analysis runs untrusted input -- an
+# arbitrary public repository's tarball -- through gzip, tar and tokei's ~200
+# language parsers on a `spawn_blocking` thread. Unwinding turns a panic in
+# that stack into a `JoinError`, which `analyzer::analyze` converts into a
+# failed job while the service keeps serving; aborting would take the whole
+# process down, and with it every in-flight request, on one malformed
+# repository. The saving did not justify that: measured on this tree,
+# `panic = "abort"` was worth 2.1 MB of binary (13,668,784 vs 15,812,032
+# bytes) and no runtime gain outside the noise. The bulk of the size win over
+# an untuned release build comes from `lto` and `codegen-units`, both kept.
+#
+# Note that no test can catch this being re-added: cargo ignores the `panic`
+# setting for the `test` and `bench` profiles, so `cargo test` and
+# `cargo test --release` both unwind either way. This comment is the guard.
+[profile.release]
+lto = "fat"
+codegen-units = 1

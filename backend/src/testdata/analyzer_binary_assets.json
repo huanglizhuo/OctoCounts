@@ -1,0 +1,44 @@
+{
+  "languages": [
+    {
+      "children": [],
+      "name": "Python",
+      "stats": {
+        "blanks": 2,
+        "code": 3,
+        "comments": 1,
+        "files": 1,
+        "lines": 6
+      }
+    },
+    {
+      "children": [],
+      "name": "Go",
+      "stats": {
+        "blanks": 1,
+        "code": 2,
+        "comments": 1,
+        "files": 1,
+        "lines": 4
+      }
+    },
+    {
+      "children": [],
+      "name": "JavaScript",
+      "stats": {
+        "blanks": 0,
+        "code": 1,
+        "comments": 0,
+        "files": 1,
+        "lines": 1
+      }
+    }
+  ],
+  "total": {
+    "blanks": 3,
+    "code": 6,
+    "comments": 2,
+    "files": 3,
+    "lines": 11
+  }
+}

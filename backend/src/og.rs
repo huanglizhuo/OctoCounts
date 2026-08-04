@@ -1,54 +1,138 @@
+use std::sync::{Arc, OnceLock};
+
 use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
+use bytes::Bytes;
 
 use crate::{
     api::AppState,
+    cache::AppCaches,
     models::{Report, RepositoryProvider},
 };
+
+/// DejaVu Sans Mono, embedded so that rendering never touches the filesystem and
+/// the runtime image does not need `fonts-dejavu-core` / `fontconfig`.
+/// See `assets/fonts/LICENSE` for the (permissive) DejaVu font license.
+const DEJAVU_SANS_MONO: &[u8] = include_bytes!("../assets/fonts/DejaVuSansMono.ttf");
+const DEJAVU_SANS_MONO_BOLD: &[u8] = include_bytes!("../assets/fonts/DejaVuSansMono-Bold.ttf");
+
+const OG_FONT_FAMILY: &str = "DejaVu Sans Mono";
+
+static FONTDB: OnceLock<Arc<resvg::usvg::fontdb::Database>> = OnceLock::new();
+
+/// Builds the font database exactly once for the lifetime of the process.
+///
+/// The previous implementation called `load_system_fonts()` on every `/og/...`
+/// request, which walks and parses every font file on the host.
+fn fontdb() -> Arc<resvg::usvg::fontdb::Database> {
+    FONTDB
+        .get_or_init(|| {
+            let mut db = resvg::usvg::fontdb::Database::new();
+            db.load_font_data(DEJAVU_SANS_MONO.to_vec());
+            db.load_font_data(DEJAVU_SANS_MONO_BOLD.to_vec());
+            db.set_monospace_family(OG_FONT_FAMILY);
+            db.set_sans_serif_family(OG_FONT_FAMILY);
+            db.set_serif_family(OG_FONT_FAMILY);
+            db.set_cursive_family(OG_FONT_FAMILY);
+            db.set_fantasy_family(OG_FONT_FAMILY);
+            Arc::new(db)
+        })
+        .clone()
+}
 
 pub async fn github(
     State(state): State<AppState>,
     Path((owner, repo)): Path<(String, String)>,
 ) -> Response {
+    let report = state
+        .coordinator
+        .store()
+        .latest_report(RepositoryProvider::GitHub, &owner, &repo)
+        .await
+        .ok()
+        .flatten();
     og_response(
-        state
-            .coordinator
-            .store()
-            .latest_report(RepositoryProvider::GitHub, &owner, &repo)
-            .await
-            .ok()
-            .flatten()
-            .as_ref(),
+        &state.caches,
+        og_cache_key(RepositoryProvider::GitHub, &owner, &repo, report.as_ref()),
+        report,
     )
+    .await
 }
 
 pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
     let Some((repo, owner_parts)) = segments.split_last() else {
-        return og_response(None);
+        return og_response(&state.caches, DEFAULT_OG_CACHE_KEY.to_string(), None).await;
     };
     let owner = owner_parts.join("/");
+    let report = state
+        .coordinator
+        .store()
+        .latest_report(RepositoryProvider::GitLab, &owner, repo)
+        .await
+        .ok()
+        .flatten();
     og_response(
-        state
-            .coordinator
-            .store()
-            .latest_report(RepositoryProvider::GitLab, &owner, repo)
-            .await
-            .ok()
-            .flatten()
-            .as_ref(),
+        &state.caches,
+        og_cache_key(RepositoryProvider::GitLab, &owner, repo, report.as_ref()),
+        report,
     )
+    .await
 }
 
-fn og_response(report: Option<&Report>) -> Response {
-    let png = render_png(report).unwrap_or_else(|error| {
-        tracing::warn!(%error, "failed to render og image");
-        Vec::new()
-    });
+/// Key used for the repo-less fallback card, which is identical for every miss.
+const DEFAULT_OG_CACHE_KEY: &str = "__default__";
 
+/// `provider:owner:repo:commit_sha`. Because the commit sha is part of the key,
+/// a cached PNG can never disagree with the report it was rendered from — a new
+/// analysis simply produces a new key.
+fn og_cache_key(
+    provider: RepositoryProvider,
+    owner: &str,
+    repo: &str,
+    report: Option<&Report>,
+) -> String {
+    let Some(report) = report else {
+        return DEFAULT_OG_CACHE_KEY.to_string();
+    };
+    let provider = match provider {
+        RepositoryProvider::GitHub => "github",
+        RepositoryProvider::GitLab => "gitlab",
+    };
+    format!("{provider}:{owner}:{repo}:{}", report.commit_sha)
+}
+
+/// Rasterizing 1200x630 and PNG-encoding it takes single-digit milliseconds of
+/// pure CPU. Running that inline would park a tokio worker for the whole time,
+/// so it is handed to the blocking pool instead — and, once rendered, the bytes
+/// are memoized so repeat traffic for the same commit never rasterizes again.
+async fn og_response(caches: &AppCaches, cache_key: String, report: Option<Report>) -> Response {
+    if let Some(png) = caches.og_png.get(&cache_key).await {
+        return png_response(png);
+    }
+
+    let png = tokio::task::spawn_blocking(move || render_png(report.as_ref()))
+        .await
+        .map_err(anyhow::Error::from)
+        .and_then(|result| result)
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, "failed to render og image");
+            Vec::new()
+        });
+    let png = Bytes::from(png);
+
+    // An empty body means the render failed; never memoize a failure.
+    if !png.is_empty() {
+        caches.og_png.insert(cache_key, png.clone()).await;
+    }
+
+    png_response(png)
+}
+
+fn png_response(png: Bytes) -> Response {
     (
         StatusCode::OK,
         [
@@ -65,9 +149,11 @@ fn og_response(report: Option<&Report>) -> Response {
 
 fn render_png(report: Option<&Report>) -> anyhow::Result<Vec<u8>> {
     let svg = render_svg(report);
-    let mut options = resvg::usvg::Options::default();
-    options.fontdb_mut().load_system_fonts();
-    options.font_family = "DejaVu Sans Mono".to_string();
+    let mut options = resvg::usvg::Options {
+        font_family: OG_FONT_FAMILY.to_string(),
+        ..Default::default()
+    };
+    options.fontdb = fontdb();
     let tree = resvg::usvg::Tree::from_str(&svg, &options)?;
     let mut pixmap = resvg::tiny_skia::Pixmap::new(1200, 630)
         .ok_or_else(|| anyhow::anyhow!("failed to allocate pixmap"))?;
@@ -234,4 +320,81 @@ fn format_number(value: usize) -> String {
         out.push(ch);
     }
     out.chars().rev().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use http_body_util::BodyExt;
+
+    use super::*;
+
+    async fn body_bytes(response: Response) -> Bytes {
+        response.into_body().collect().await.unwrap().to_bytes()
+    }
+
+    #[test]
+    fn og_cache_key_pins_provider_owner_repo_and_commit() {
+        assert_eq!(
+            og_cache_key(RepositoryProvider::GitHub, "acme", "widget", None),
+            DEFAULT_OG_CACHE_KEY,
+        );
+        assert_eq!(
+            og_cache_key(RepositoryProvider::GitLab, "acme", "widget", None),
+            DEFAULT_OG_CACHE_KEY,
+        );
+    }
+
+    /// A cache hit must short-circuit rendering entirely, so a sentinel value
+    /// under the key comes back verbatim instead of a freshly drawn PNG.
+    #[tokio::test]
+    async fn cached_png_is_served_without_rendering() {
+        let caches = AppCaches::new();
+        let key = "github:acme:widget:deadbeef".to_string();
+        let sentinel = Bytes::from_static(b"not-really-a-png");
+        caches.og_png.insert(key.clone(), sentinel.clone()).await;
+
+        let response = og_response(&caches, key, None).await;
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("image/png"),
+        );
+        assert_eq!(body_bytes(response).await, sentinel);
+    }
+
+    #[tokio::test]
+    async fn rendered_png_is_memoized_under_its_key() {
+        let caches = AppCaches::new();
+        let key = "github:acme:widget:cafebabe".to_string();
+        assert!(caches.og_png.get(&key).await.is_none());
+
+        let first = body_bytes(og_response(&caches, key.clone(), None).await).await;
+        assert_eq!(&first[..8], b"\x89PNG\r\n\x1a\n");
+
+        let cached = caches.og_png.get(&key).await.expect("png was memoized");
+        assert_eq!(cached, first);
+
+        let second = body_bytes(og_response(&caches, key, None).await).await;
+        assert_eq!(second, first);
+    }
+
+    #[test]
+    fn render_png_is_deterministic_across_calls() {
+        let first = render_png(None).expect("first render");
+        let second = render_png(None).expect("second render");
+        assert!(!first.is_empty(), "rendered png must not be empty");
+        assert_eq!(&first[..8], b"\x89PNG\r\n\x1a\n", "output must be a png");
+        assert_eq!(first, second, "repeated renders must be byte-identical");
+    }
+
+    #[test]
+    fn embedded_font_is_the_only_source() {
+        let db = fontdb();
+        assert_eq!(db.len(), 2, "only the two embedded DejaVu faces are loaded");
+        assert!(db
+            .faces()
+            .all(|face| face.families.iter().any(|(name, _)| name == OG_FONT_FAMILY)));
+    }
 }

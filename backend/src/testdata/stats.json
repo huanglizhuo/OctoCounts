@@ -1,0 +1,277 @@
+{
+  "languages": [
+    {
+      "code": 2234567,
+      "language": "Rust",
+      "lines": 2756932,
+      "reports": 2
+    },
+    {
+      "code": 456789,
+      "language": "C",
+      "lines": 563570,
+      "reports": 1
+    },
+    {
+      "code": 345678,
+      "language": "Go",
+      "lines": 426485,
+      "reports": 1
+    },
+    {
+      "code": 234567,
+      "language": "C++",
+      "lines": 289400,
+      "reports": 1
+    },
+    {
+      "code": 123456,
+      "language": "Python",
+      "lines": 152315,
+      "reports": 1
+    },
+    {
+      "code": 98765,
+      "language": "JavaScript",
+      "lines": 121852,
+      "reports": 1
+    },
+    {
+      "code": 49999,
+      "language": "Shell",
+      "lines": 61685,
+      "reports": 2
+    },
+    {
+      "code": 34567,
+      "language": "Markdown",
+      "lines": 42647,
+      "reports": 1
+    },
+    {
+      "code": 23456,
+      "language": "YAML",
+      "lines": 28938,
+      "reports": 1
+    },
+    {
+      "code": 12345,
+      "language": "TOML",
+      "lines": 15230,
+      "reports": 1
+    },
+    {
+      "code": 9876,
+      "language": "HTML",
+      "lines": 12183,
+      "reports": 1
+    },
+    {
+      "code": 8765,
+      "language": "CSS",
+      "lines": 10813,
+      "reports": 1
+    },
+    {
+      "code": 7654,
+      "language": "Makefile",
+      "lines": 9442,
+      "reports": 1
+    },
+    {
+      "code": 6543,
+      "language": "Dockerfile",
+      "lines": 8071,
+      "reports": 1
+    },
+    {
+      "code": 5432,
+      "language": "Nix",
+      "lines": 6701,
+      "reports": 1
+    },
+    {
+      "code": 4321,
+      "language": "Assembly",
+      "lines": 5330,
+      "reports": 1
+    }
+  ],
+  "recentRepositories": [
+    {
+      "generatedAt": "2024-06-01T00:30:15Z",
+      "htmlUrl": "https://github.com/octocounts/empty",
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/empty",
+      "refName": "main",
+      "repo": "empty",
+      "topLanguage": null,
+      "total": {
+        "blanks": 0,
+        "code": 0,
+        "comments": 0,
+        "files": 0,
+        "lines": 0
+      }
+    },
+    {
+      "generatedAt": "2024-05-20T17:30:15Z",
+      "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
+      "owner": "gitlab-org/ci-cd",
+      "provider": "gitlab",
+      "publicPath": "/gitlab/gitlab-org/ci-cd/gitlab-runner",
+      "refName": "main",
+      "repo": "gitlab-runner",
+      "topLanguage": "Go",
+      "total": {
+        "blanks": 31818,
+        "code": 350000,
+        "comments": 50000,
+        "files": 2189,
+        "lines": 431818
+      }
+    },
+    {
+      "generatedAt": "2024-03-14T09:30:15Z",
+      "htmlUrl": "https://github.com/rust-lang/rust",
+      "owner": "rust-lang",
+      "provider": "github",
+      "publicPath": "/github/rust-lang/rust",
+      "refName": "main",
+      "repo": "rust",
+      "topLanguage": "Rust",
+      "total": {
+        "blanks": 209710,
+        "code": 2306821,
+        "comments": 329546,
+        "files": 16346,
+        "lines": 2846077
+      }
+    },
+    {
+      "generatedAt": "2024-02-29T11:30:15.123456789Z",
+      "htmlUrl": "https://github.com/octocounts/legacy",
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/legacy",
+      "refName": "master",
+      "repo": "legacy",
+      "topLanguage": "Perl",
+      "total": {
+        "blanks": 80,
+        "code": 700,
+        "comments": 120,
+        "files": 9,
+        "lines": 900
+      }
+    }
+  ],
+  "sources": [
+    {
+      "reports": 1,
+      "source": "cli"
+    },
+    {
+      "reports": 1,
+      "source": "github_trending"
+    },
+    {
+      "reports": 1,
+      "source": "mcp"
+    },
+    {
+      "reports": 1,
+      "source": "unknown"
+    },
+    {
+      "reports": 1,
+      "source": "web"
+    }
+  ],
+  "topRepositories": [
+    {
+      "generatedAt": "2024-03-14T09:30:15Z",
+      "htmlUrl": "https://github.com/rust-lang/rust",
+      "owner": "rust-lang",
+      "provider": "github",
+      "publicPath": "/github/rust-lang/rust",
+      "refName": "main",
+      "repo": "rust",
+      "topLanguage": "Rust",
+      "total": {
+        "blanks": 209710,
+        "code": 2306821,
+        "comments": 329546,
+        "files": 16346,
+        "lines": 2846077
+      }
+    },
+    {
+      "generatedAt": "2024-05-20T17:30:15Z",
+      "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
+      "owner": "gitlab-org/ci-cd",
+      "provider": "gitlab",
+      "publicPath": "/gitlab/gitlab-org/ci-cd/gitlab-runner",
+      "refName": "main",
+      "repo": "gitlab-runner",
+      "topLanguage": "Go",
+      "total": {
+        "blanks": 31818,
+        "code": 350000,
+        "comments": 50000,
+        "files": 2189,
+        "lines": 431818
+      }
+    },
+    {
+      "generatedAt": "2024-02-29T11:30:15.123456789Z",
+      "htmlUrl": "https://github.com/octocounts/legacy",
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/legacy",
+      "refName": "master",
+      "repo": "legacy",
+      "topLanguage": "Perl",
+      "total": {
+        "blanks": 80,
+        "code": 700,
+        "comments": 120,
+        "files": 9,
+        "lines": 900
+      }
+    },
+    {
+      "generatedAt": "2024-06-01T00:30:15Z",
+      "htmlUrl": "https://github.com/octocounts/empty",
+      "owner": "octocounts",
+      "provider": "github",
+      "publicPath": "/github/octocounts/empty",
+      "refName": "main",
+      "repo": "empty",
+      "topLanguage": null,
+      "total": {
+        "blanks": 0,
+        "code": 0,
+        "comments": 0,
+        "files": 0,
+        "lines": 0
+      }
+    }
+  ],
+  "totals": {
+    "codeLinesCounted": 3657521,
+    "languagesDetected": 17,
+    "linesCounted": 4512561,
+    "reportsGenerated": 5,
+    "repositoriesAnalyzed": 4
+  },
+  "windows": {
+    "reports30d": 0,
+    "reports7d": 0,
+    "reportsToday": 0,
+    "repositories30d": 0,
+    "repositories7d": 0,
+    "repositoriesToday": 0
+  }
+}

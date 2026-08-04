@@ -1,0 +1,121 @@
+{
+  "languages": [
+    {
+      "children": [],
+      "name": "Rust",
+      "stats": {
+        "blanks": 1,
+        "code": 4,
+        "comments": 1,
+        "files": 2,
+        "lines": 6
+      }
+    },
+    {
+      "children": [],
+      "name": "BASH",
+      "stats": {
+        "blanks": 1,
+        "code": 2,
+        "comments": 2,
+        "files": 1,
+        "lines": 5
+      }
+    },
+    {
+      "children": [],
+      "name": "Dockerfile",
+      "stats": {
+        "blanks": 1,
+        "code": 2,
+        "comments": 1,
+        "files": 1,
+        "lines": 4
+      }
+    },
+    {
+      "children": [],
+      "name": "Go",
+      "stats": {
+        "blanks": 1,
+        "code": 2,
+        "comments": 0,
+        "files": 1,
+        "lines": 3
+      }
+    },
+    {
+      "children": [],
+      "name": "Makefile",
+      "stats": {
+        "blanks": 0,
+        "code": 2,
+        "comments": 1,
+        "files": 1,
+        "lines": 3
+      }
+    },
+    {
+      "children": [],
+      "name": "CMake",
+      "stats": {
+        "blanks": 1,
+        "code": 1,
+        "comments": 1,
+        "files": 1,
+        "lines": 3
+      }
+    },
+    {
+      "children": [],
+      "name": "Meson",
+      "stats": {
+        "blanks": 1,
+        "code": 1,
+        "comments": 1,
+        "files": 1,
+        "lines": 3
+      }
+    },
+    {
+      "children": [],
+      "name": "Python",
+      "stats": {
+        "blanks": 0,
+        "code": 1,
+        "comments": 1,
+        "files": 1,
+        "lines": 2
+      }
+    },
+    {
+      "children": [],
+      "name": "Shell",
+      "stats": {
+        "blanks": 0,
+        "code": 1,
+        "comments": 1,
+        "files": 1,
+        "lines": 2
+      }
+    },
+    {
+      "children": [],
+      "name": "YAML",
+      "stats": {
+        "blanks": 0,
+        "code": 1,
+        "comments": 1,
+        "files": 1,
+        "lines": 2
+      }
+    }
+  ],
+  "total": {
+    "blanks": 6,
+    "code": 17,
+    "comments": 10,
+    "files": 11,
+    "lines": 33
+  }
+}

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use bytes::Bytes;
 use moka::{future::Cache, policy::EvictionPolicy};
 
 use crate::{
@@ -15,6 +16,17 @@ pub struct AppCaches {
     pub seo_popular: Cache<String, SeoList>,
     pub seo_monoliths: Cache<String, SeoList>,
     pub seo_sitemap: Cache<String, Vec<SitemapEntry>>,
+    /// Rendered OG PNGs, keyed by `provider:owner:repo:commit_sha`.
+    /// The key pins a specific commit, so entries can never go stale; the TTL
+    /// only bounds memory.
+    pub og_png: Cache<String, Bytes>,
+    /// Rendered badge SVGs for mutable refs (default branch / branch), keyed by
+    /// `owner:repo:ref:badge_type:lang`. Short TTL because the underlying report
+    /// can change under the same key.
+    pub badge_svg: Cache<String, String>,
+    /// Rendered badge SVGs for immutable refs (tag / commit). The content behind
+    /// the key cannot change, so this gets a much longer TTL.
+    pub badge_svg_immutable: Cache<String, String>,
 }
 
 impl AppCaches {
@@ -26,6 +38,9 @@ impl AppCaches {
             seo_popular: ttl_cache(100, Duration::from_secs(300)),
             seo_monoliths: ttl_cache(100, Duration::from_secs(900)),
             seo_sitemap: ttl_cache(1, Duration::from_secs(900)),
+            og_png: ttl_cache(500, Duration::from_secs(86_400)),
+            badge_svg: ttl_cache(2_000, Duration::from_secs(300)),
+            badge_svg_immutable: ttl_cache(2_000, Duration::from_secs(86_400)),
         }
     }
 }
