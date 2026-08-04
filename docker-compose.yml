@@ -30,15 +30,36 @@ services:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
+  # Tunnel services are opt-in: `docker compose --profile tunnel up -d`.
+  #
+  # A Cloudflare Tunnel token identifies a tunnel, not a machine. Any cloudflared
+  # process started with the production token registers as a connector and
+  # Cloudflare begins routing real api.octocounts.com traffic to it within
+  # seconds. On 2026-08-04 a laptop running this file did exactly that, serving
+  # production from a locally built image that predated every /api/seo/* route,
+  # so those endpoints 404ed for whoever landed on it -- while /healthz stayed
+  # green and the edge cache masked it for weeks.
+  #
+  # Without the profile these two never start, so `docker compose up` gives you
+  # a local api and web and nothing that can reach production. Deploys go
+  # through sloc-infra on the VPS nodes.
+  #
+  # The token uses `:-` rather than `:?` on purpose. Compose interpolates every
+  # service before it applies profiles, so a `:?` guard here fails the whole
+  # file -- including `docker compose up api` -- rather than just this service.
+  # The profile is what provides the isolation; an absent token then makes
+  # cloudflared exit immediately instead of connecting to anything.
   cloudflared:
+    profiles: ["tunnel"]
     image: cloudflare/cloudflared:latest
     container_name: sloc-cloudflared
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:?set CLOUDFLARED_TOKEN}
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-}
     depends_on:
       - api
     restart: unless-stopped
 
   tunnel-watchdog:
+    profiles: ["tunnel"]
     image: docker:27-cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
