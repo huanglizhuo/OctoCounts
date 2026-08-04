@@ -444,7 +444,14 @@ mod tests {
             // Pre-opened: a connection handshake to the test container costs
             // ~30ms, which would otherwise show up as fake wakeup latency the
             // first time two tasks want a connection at once.
-            .min_connections(8)
+            //
+            // Kept to 4 rather than the full 8. `cargo test` runs one thread per
+            // core, every harness holds its minimum for the life of its test, and
+            // the sum has to stay under the server's `max_connections` (100 by
+            // default) or the suite fails with `PoolTimedOut` on a busy machine.
+            // Four covers the widest test here -- four concurrent waiters plus
+            // the worker -- with room to spare.
+            .min_connections(4)
             .connect_with(options.options([("search_path", schema.as_str())]))
             .await
             .unwrap();

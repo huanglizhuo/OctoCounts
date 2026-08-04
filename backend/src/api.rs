@@ -243,7 +243,10 @@ mod tests {
         let options: PgConnectOptions = database_url.parse().unwrap();
         let pool = PgPoolOptions::new()
             .max_connections(8)
-            .min_connections(8)
+            // See the note in `coordinator::tests`: the per-harness minimum is
+            // summed across every test running in parallel, so it stays well
+            // under the server's `max_connections`.
+            .min_connections(4)
             .connect_with(options.options([("search_path", schema.as_str())]))
             .await
             .unwrap();
