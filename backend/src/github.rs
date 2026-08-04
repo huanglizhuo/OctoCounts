@@ -20,6 +20,24 @@ use crate::models::{RepoRef, RepositoryProvider};
 const REF_CACHE_TTL: Duration = Duration::from_secs(60);
 const REF_CACHE_CAPACITY: u64 = 10_000;
 
+const GRAPHQL_ENDPOINT: &str = "https://api.github.com/graphql";
+
+/// One request for everything REST needs two for: visibility, canonical URL, the
+/// default branch, and the commit the requested ref points at.
+///
+/// `object(expression:)` resolves the same grammar as
+/// `GET /repos/{o}/{r}/commits/{ref}` — branch, tag or raw sha — and GitHub
+/// peels annotated tags to their commit before returning, so `torvalds/linux`
+/// at `v6.6` yields the same sha through both paths. It is skipped entirely
+/// when no ref was requested, because the default branch's target is already in
+/// hand.
+const REF_QUERY: &str = "\
+query($owner:String!,$name:String!,$expression:String!,$hasRef:Boolean!){\
+repository(owner:$owner,name:$name){\
+isPrivate url \
+defaultBranchRef{name target{oid}} \
+object(expression:$expression)@include(if:$hasRef){__typename oid}}}";
+
 #[derive(Debug, Error)]
 pub enum GitHubError {
     #[error("only public github.com and gitlab.com repository URLs are supported")]
@@ -42,6 +60,10 @@ pub enum GitHubError {
 pub struct GitHubClient {
     client: Client,
     ref_cache: Cache<(String, Option<String>), RepoRef>,
+    /// GitHub's GraphQL API rejects unauthenticated requests outright, and
+    /// `GITHUB_TOKEN` is optional in this deployment, so the fast path is only
+    /// attempted when there is a token to attempt it with.
+    has_token: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -70,6 +92,165 @@ struct GitLabCommitResponse {
     id: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GraphQlResponse {
+    #[serde(default)]
+    data: Option<GraphQlData>,
+    #[serde(default)]
+    errors: Vec<GraphQlError>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlData {
+    #[serde(default)]
+    repository: Option<GraphQlRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GraphQlRepository {
+    is_private: bool,
+    url: String,
+    #[serde(default)]
+    default_branch_ref: Option<GraphQlRef>,
+    /// Absent when `hasRef` was false, null when the expression resolved to
+    /// nothing.
+    #[serde(default)]
+    object: Option<GraphQlObject>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlRef {
+    name: String,
+    #[serde(default)]
+    target: Option<GraphQlOid>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlOid {
+    oid: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlObject {
+    #[serde(rename = "__typename")]
+    typename: String,
+    oid: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlError {
+    #[serde(rename = "type", default)]
+    error_type: Option<String>,
+}
+
+/// What a GraphQL response told us.
+///
+/// The third arm is the important one: GraphQL is an optimisation, not a
+/// replacement. Anything this code does not positively recognise — an
+/// unexpected object type, an error class it has no mapping for, a 500 — defers
+/// to the REST path rather than guessing, so a change on GitHub's side degrades
+/// to the old latency instead of to a wrong answer.
+#[derive(Debug, PartialEq, Eq)]
+enum GraphQlOutcome {
+    Resolved {
+        html_url: String,
+        ref_name: String,
+        commit_sha: String,
+    },
+    Failed(GraphQlFailure),
+    Unusable,
+}
+
+/// The subset of [`GitHubError`] a GraphQL response can decide on its own.
+/// Separate because `GitHubError` is not `PartialEq` (it wraps `reqwest::Error`)
+/// and these outcomes need to be asserted on directly.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum GraphQlFailure {
+    NotFound,
+    PrivateRepo,
+    RateLimited,
+    RefNotFound,
+}
+
+impl From<GraphQlFailure> for GitHubError {
+    fn from(failure: GraphQlFailure) -> Self {
+        match failure {
+            GraphQlFailure::NotFound => GitHubError::NotFound,
+            GraphQlFailure::PrivateRepo => GitHubError::PrivateRepo,
+            GraphQlFailure::RateLimited => GitHubError::RateLimited,
+            GraphQlFailure::RefNotFound => GitHubError::RefNotFound,
+        }
+    }
+}
+
+/// Turns a GraphQL body into an outcome. Pure, so the mapping is testable
+/// without a network.
+fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> GraphQlOutcome {
+    let Some(repository) = response.data.and_then(|data| data.repository) else {
+        return classify_graphql_errors(&response.errors);
+    };
+
+    if repository.is_private {
+        return GraphQlOutcome::Failed(GraphQlFailure::PrivateRepo);
+    }
+
+    match requested_ref {
+        Some(ref_name) => {
+            let Some(object) = repository.object else {
+                return GraphQlOutcome::Failed(GraphQlFailure::RefNotFound);
+            };
+            // GitHub resolves annotated tags to their commit, so anything else
+            // is a shape this code has not seen; let REST answer it.
+            if object.typename != "Commit" {
+                return GraphQlOutcome::Unusable;
+            }
+            GraphQlOutcome::Resolved {
+                html_url: repository.url,
+                ref_name: ref_name.to_string(),
+                commit_sha: object.oid,
+            }
+        }
+        None => {
+            // An empty repository has no default branch; REST answers that with
+            // a 404 from the commits endpoint, which maps to the same error.
+            let Some(target) = repository
+                .default_branch_ref
+                .as_ref()
+                .and_then(|branch| branch.target.as_ref())
+            else {
+                return GraphQlOutcome::Failed(GraphQlFailure::RefNotFound);
+            };
+            GraphQlOutcome::Resolved {
+                html_url: repository.url.clone(),
+                ref_name: repository
+                    .default_branch_ref
+                    .as_ref()
+                    .map(|branch| branch.name.clone())
+                    .unwrap_or_default(),
+                commit_sha: target.oid.clone(),
+            }
+        }
+    }
+}
+
+fn classify_graphql_errors(errors: &[GraphQlError]) -> GraphQlOutcome {
+    let has = |wanted: &str| {
+        errors
+            .iter()
+            .any(|error| error.error_type.as_deref() == Some(wanted))
+    };
+    if has("RATE_LIMITED") {
+        GraphQlOutcome::Failed(GraphQlFailure::RateLimited)
+    } else if has("NOT_FOUND") {
+        // Also what a private repository the token cannot see looks like —
+        // exactly as REST reports it.
+        GraphQlOutcome::Failed(GraphQlFailure::NotFound)
+    } else {
+        GraphQlOutcome::Unusable
+    }
+}
+
 #[derive(Debug, Clone)]
 struct RepoTarget {
     provider: RepositoryProvider,
@@ -88,6 +269,12 @@ fn build_ref_cache(ttl: Duration) -> Cache<(String, Option<String>), RepoRef> {
 
 impl GitHubClient {
     pub fn new() -> anyhow::Result<Self> {
+        Self::with_token(std::env::var("GITHUB_TOKEN").ok())
+    }
+
+    /// Explicit-token constructor so tests can build both a tokened and an
+    /// untokened client without racing on the process environment.
+    fn with_token(token: Option<String>) -> anyhow::Result<Self> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::USER_AGENT,
@@ -98,7 +285,9 @@ impl GitHubClient {
             header::HeaderValue::from_static("application/vnd.github+json"),
         );
 
-        if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        let token = token.filter(|token| !token.trim().is_empty());
+        let has_token = token.is_some();
+        if let Some(token) = token {
             let value = format!("Bearer {token}");
             headers.insert(
                 header::AUTHORIZATION,
@@ -109,6 +298,7 @@ impl GitHubClient {
         Ok(Self {
             client: Client::builder().default_headers(headers).build()?,
             ref_cache: build_ref_cache(REF_CACHE_TTL),
+            has_token,
         })
     }
 
@@ -166,6 +356,14 @@ impl GitHubClient {
         }
     }
 
+    /// Keeps the token (so rate limits stay generous) but disarms the GraphQL
+    /// fast path, so a test can run the same resolution down both routes.
+    #[cfg(test)]
+    fn without_graphql(mut self) -> Self {
+        self.has_token = false;
+        self
+    }
+
     #[cfg(test)]
     pub fn parse_repo_owner_name(input: &str) -> Result<(String, String), GitHubError> {
         let target = Self::parse_repo_url(input)?;
@@ -206,6 +404,34 @@ impl GitHubClient {
     ) -> Result<RepoRef, GitHubError> {
         let owner = target.owner;
         let repo = target.repo;
+        let requested_ref = requested_ref.filter(|value| !value.trim().is_empty());
+
+        if self.has_token {
+            match self
+                .resolve_github_ref_graphql(&owner, &repo, requested_ref.as_deref())
+                .await
+            {
+                GraphQlOutcome::Resolved {
+                    html_url,
+                    ref_name,
+                    commit_sha,
+                } => {
+                    let repo_ref = RepoRef {
+                        provider: RepositoryProvider::GitHub,
+                        owner,
+                        repo,
+                        ref_name,
+                        commit_sha,
+                        html_url,
+                    };
+                    self.ref_cache.insert(cache_key, repo_ref.clone()).await;
+                    return Ok(repo_ref);
+                }
+                GraphQlOutcome::Failed(failure) => return Err(failure.into()),
+                GraphQlOutcome::Unusable => {}
+            }
+        }
+
         let repo_api = format!("https://api.github.com/repos/{owner}/{repo}");
         let repo_response = self.client.get(repo_api).send().await?;
         match repo_response.status() {
@@ -221,9 +447,7 @@ impl GitHubClient {
             return Err(GitHubError::PrivateRepo);
         }
 
-        let ref_name = requested_ref
-            .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| repo_body.default_branch.clone());
+        let ref_name = requested_ref.unwrap_or_else(|| repo_body.default_branch.clone());
 
         let commit_sha = self.resolve_commit(&owner, &repo, &ref_name).await?;
 
@@ -237,6 +461,57 @@ impl GitHubClient {
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
         Ok(repo_ref)
+    }
+
+    /// Single-request ref resolution. Never returns a transport error: a GraphQL
+    /// request that does not produce a definitive answer resolves to
+    /// [`GraphQlOutcome::Unusable`] and the caller retries over REST, which is
+    /// the path that then reports the failure.
+    async fn resolve_github_ref_graphql(
+        &self,
+        owner: &str,
+        repo: &str,
+        requested_ref: Option<&str>,
+    ) -> GraphQlOutcome {
+        let body = serde_json::json!({
+            "query": REF_QUERY,
+            "variables": {
+                "owner": owner,
+                "name": repo,
+                // GraphQL requires a value for a non-null variable even when the
+                // field using it is skipped by @include.
+                "expression": requested_ref.unwrap_or("HEAD"),
+                "hasRef": requested_ref.is_some(),
+            },
+        });
+
+        let response = match self.client.post(GRAPHQL_ENDPOINT).json(&body).send().await {
+            Ok(response) => response,
+            Err(error) => {
+                tracing::debug!(%error, "GraphQL ref resolution failed; falling back to REST");
+                return GraphQlOutcome::Unusable;
+            }
+        };
+
+        match response.status() {
+            StatusCode::OK => {}
+            StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
+                return GraphQlOutcome::Failed(GraphQlFailure::RateLimited)
+            }
+            // 401 from a bad or expired token, 5xx from GitHub: REST decides.
+            status => {
+                tracing::debug!(%status, "unexpected GraphQL status; falling back to REST");
+                return GraphQlOutcome::Unusable;
+            }
+        }
+
+        match response.json::<GraphQlResponse>().await {
+            Ok(body) => interpret_graphql(body, requested_ref),
+            Err(error) => {
+                tracing::debug!(%error, "unreadable GraphQL body; falling back to REST");
+                GraphQlOutcome::Unusable
+            }
+        }
     }
 
     async fn resolve_gitlab_ref(
@@ -372,7 +647,10 @@ impl GitHubClient {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_ref_cache, GitHubClient, RepoRef, RepositoryProvider, REF_CACHE_TTL};
+    use super::{
+        build_ref_cache, interpret_graphql, GitHubClient, GraphQlFailure, GraphQlOutcome, RepoRef,
+        RepositoryProvider, REF_CACHE_TTL,
+    };
     use std::time::Duration;
 
     fn sample_ref(sha: &str) -> RepoRef {
@@ -412,6 +690,255 @@ mod tests {
             cache.get(&key).await.is_none(),
             "expired entry was still served; the branch would stay pinned to a stale sha"
         );
+    }
+
+    // ---------------------------------------------------------------------
+    // GraphQL ref resolution
+    //
+    // The bodies below are the shapes the live API returned while this was
+    // built, trimmed to the fields the query selects. The commit shas were
+    // cross-checked against `GET /repos/{o}/{r}/commits/{ref}` for a moving
+    // branch, a lightweight tag, an annotated tag (torvalds/linux v6.6, where a
+    // naive `object(expression:)` reading could have produced the tag object's
+    // own sha instead of the commit's), a raw sha, and a renamed repository.
+    // ---------------------------------------------------------------------
+
+    fn interpret(body: &str, requested_ref: Option<&str>) -> GraphQlOutcome {
+        interpret_graphql(serde_json::from_str(body).unwrap(), requested_ref)
+    }
+
+    #[test]
+    fn graphql_resolves_the_default_branch_when_no_ref_is_requested() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":false,
+                "url":"https://github.com/tokio-rs/axum",
+                "defaultBranchRef":{"name":"main","target":{"oid":"a5116d6b1bcabdfd7039279e4957b4a9c0b50587"}}
+            }}}"#,
+            None,
+        );
+        assert_eq!(
+            outcome,
+            GraphQlOutcome::Resolved {
+                html_url: "https://github.com/tokio-rs/axum".to_string(),
+                ref_name: "main".to_string(),
+                commit_sha: "a5116d6b1bcabdfd7039279e4957b4a9c0b50587".to_string(),
+            }
+        );
+    }
+
+    /// `v6.6` is an annotated tag. GitHub peels it to the commit, which is the
+    /// same sha REST reports; anything else would silently fork the report cache
+    /// and point the archive download at a tag object.
+    #[test]
+    fn graphql_resolves_an_annotated_tag_to_its_commit() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":false,
+                "url":"https://github.com/torvalds/linux",
+                "defaultBranchRef":{"name":"master","target":{"oid":"cd78d08026c75c6681c2e5e418aad800e729d54d"}},
+                "object":{"__typename":"Commit","oid":"ffc253263a1375a65fa6c9f62a893e9767fbebfa"}
+            }}}"#,
+            Some("v6.6"),
+        );
+        assert_eq!(
+            outcome,
+            GraphQlOutcome::Resolved {
+                html_url: "https://github.com/torvalds/linux".to_string(),
+                ref_name: "v6.6".to_string(),
+                commit_sha: "ffc253263a1375a65fa6c9f62a893e9767fbebfa".to_string(),
+            }
+        );
+    }
+
+    /// A renamed repository resolves under its old name and reports the new
+    /// canonical URL, matching REST's redirect behaviour.
+    #[test]
+    fn graphql_reports_the_canonical_url_for_a_renamed_repository() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":false,
+                "url":"https://github.com/vuejs/core",
+                "defaultBranchRef":{"name":"main","target":{"oid":"b5f8518379b77c3b62a7a9d2b52f6c76cda09bd5"}}
+            }}}"#,
+            None,
+        );
+        let GraphQlOutcome::Resolved { html_url, .. } = outcome else {
+            panic!("expected a resolution");
+        };
+        assert_eq!(html_url, "https://github.com/vuejs/core");
+    }
+
+    #[test]
+    fn graphql_rejects_private_repositories() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":true,
+                "url":"https://github.com/acme/secret",
+                "defaultBranchRef":{"name":"main","target":{"oid":"aaaa"}}
+            }}}"#,
+            None,
+        );
+        assert_eq!(
+            outcome,
+            GraphQlOutcome::Failed(GraphQlFailure::PrivateRepo)
+        );
+    }
+
+    #[test]
+    fn graphql_maps_a_missing_repository_to_not_found() {
+        let outcome = interpret(
+            r#"{"data":{"repository":null},"errors":[{"type":"NOT_FOUND","message":"Could not resolve to a Repository"}]}"#,
+            None,
+        );
+        assert_eq!(outcome, GraphQlOutcome::Failed(GraphQlFailure::NotFound));
+    }
+
+    #[test]
+    fn graphql_maps_rate_limiting_to_rate_limited() {
+        let outcome = interpret(
+            r#"{"data":null,"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}"#,
+            None,
+        );
+        assert_eq!(outcome, GraphQlOutcome::Failed(GraphQlFailure::RateLimited));
+    }
+
+    /// A ref that resolves to nothing comes back as a present repository with a
+    /// null object.
+    #[test]
+    fn graphql_maps_an_unresolvable_ref_to_ref_not_found() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":false,
+                "url":"https://github.com/tokio-rs/axum",
+                "defaultBranchRef":{"name":"main","target":{"oid":"a511"}},
+                "object":null
+            }}}"#,
+            Some("does-not-exist-ref"),
+        );
+        assert_eq!(outcome, GraphQlOutcome::Failed(GraphQlFailure::RefNotFound));
+    }
+
+    /// An empty repository has no default branch to resolve.
+    #[test]
+    fn graphql_maps_an_empty_repository_to_ref_not_found() {
+        let outcome = interpret(
+            r#"{"data":{"repository":{
+                "isPrivate":false,
+                "url":"https://github.com/acme/empty",
+                "defaultBranchRef":null
+            }}}"#,
+            None,
+        );
+        assert_eq!(outcome, GraphQlOutcome::Failed(GraphQlFailure::RefNotFound));
+    }
+
+    /// The safety valve. An object type this code does not understand, or an
+    /// error class it has no mapping for, must fall through to REST rather than
+    /// be guessed at.
+    #[test]
+    fn graphql_defers_to_rest_for_shapes_it_does_not_recognise() {
+        assert_eq!(
+            interpret(
+                r#"{"data":{"repository":{
+                    "isPrivate":false,
+                    "url":"https://github.com/acme/blobref",
+                    "defaultBranchRef":{"name":"main","target":{"oid":"aaaa"}},
+                    "object":{"__typename":"Blob","oid":"bbbb"}
+                }}}"#,
+                Some("some/file.txt"),
+            ),
+            GraphQlOutcome::Unusable
+        );
+
+        assert_eq!(
+            interpret(
+                r#"{"data":{"repository":null},"errors":[{"type":"SOMETHING_NEW"}]}"#,
+                None,
+            ),
+            GraphQlOutcome::Unusable
+        );
+
+        assert_eq!(
+            interpret(r#"{"data":null,"errors":[{"message":"no type field"}]}"#, None),
+            GraphQlOutcome::Unusable
+        );
+    }
+
+    /// GraphQL requires authentication, so a deployment without `GITHUB_TOKEN`
+    /// must never attempt it — and must keep working.
+    #[test]
+    fn the_graphql_fast_path_is_only_armed_when_a_token_exists() {
+        assert!(!GitHubClient::with_token(None).unwrap().has_token);
+        assert!(
+            !GitHubClient::with_token(Some("   ".to_string()))
+                .unwrap()
+                .has_token,
+            "a blank token is not a token"
+        );
+        assert!(GitHubClient::with_token(Some("ghp_example".to_string()))
+            .unwrap()
+            .has_token);
+    }
+
+    /// The live differential. Resolves the same refs through GraphQL and
+    /// through REST against api.github.com and asserts they agree on the
+    /// canonical URL, the ref name and — above all — the commit sha, which is
+    /// both the report cache key and the archive download path.
+    ///
+    /// Ignored by default: it needs a token and the network.
+    ///
+    /// ```text
+    /// GITHUB_TOKEN=$(gh auth token) cargo test github::tests::graphql_and_rest -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore = "hits api.github.com; needs GITHUB_TOKEN"]
+    async fn graphql_and_rest_resolve_refs_identically() {
+        let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN must be set");
+        let graphql = GitHubClient::with_token(Some(token.clone())).unwrap();
+        let rest = GitHubClient::with_token(Some(token)).unwrap().without_graphql();
+
+        let cases: &[(&str, Option<&str>)] = &[
+            // default branch
+            ("https://github.com/tokio-rs/axum", None),
+            // lightweight tag
+            ("https://github.com/vuejs/core", Some("v3.4.0")),
+            // annotated tag: the case where a naive reading returns the tag
+            // object's sha rather than the commit's
+            ("https://github.com/torvalds/linux", Some("v6.6")),
+            ("https://github.com/git/git", Some("v2.43.0")),
+            // raw commit sha
+            (
+                "https://github.com/tokio-rs/axum",
+                Some("a5116d6b1bcabdfd7039279e4957b4a9c0b50587"),
+            ),
+            // renamed repository, resolved under its old name
+            ("https://github.com/vuejs/vue-next", None),
+        ];
+
+        for (url, ref_name) in cases {
+            let from_graphql = graphql
+                .resolve_ref(url, ref_name.map(str::to_string), true)
+                .await
+                .unwrap_or_else(|error| panic!("graphql failed for {url}@{ref_name:?}: {error}"));
+            let from_rest = rest
+                .resolve_ref(url, ref_name.map(str::to_string), true)
+                .await
+                .unwrap_or_else(|error| panic!("rest failed for {url}@{ref_name:?}: {error}"));
+
+            println!(
+                "{url}@{ref_name:?} -> {} ({})",
+                from_graphql.commit_sha, from_graphql.ref_name
+            );
+            assert_eq!(
+                from_graphql.commit_sha, from_rest.commit_sha,
+                "commit sha diverged for {url}@{ref_name:?}"
+            );
+            assert_eq!(from_graphql.ref_name, from_rest.ref_name);
+            assert_eq!(from_graphql.html_url, from_rest.html_url);
+            assert_eq!(from_graphql.owner, from_rest.owner);
+            assert_eq!(from_graphql.repo, from_rest.repo);
+        }
     }
 
     #[test]
