@@ -50,7 +50,7 @@
       "@type": "TechArticle",
       "headline": "GitHub SLOC Counter Guide",
       "description": "A practical guide to counting source lines of code in public GitHub repositories with OctoCounts.",
-      "dateModified": "2026-07-13",
+      "dateModified": "2026-08-04",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -62,6 +62,40 @@
         "url": "https://octocounts.com/"
       },
       "mainEntityOfPage": "https://octocounts.com/docs/github-sloc-counter"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to count lines of code in a GitHub repository",
+      "description": "Count source lines of code in any public GitHub repository with OctoCounts, without cloning it.",
+      "totalTime": "PT1M",
+      "estimatedCost": { "@type": "MonetaryAmount", "currency": "USD", "value": "0" },
+      "tool": [{ "@type": "HowToTool", "name": "OctoCounts" }],
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Copy the repository URL",
+          "text": "Copy the URL of any public GitHub repository, for example https://github.com/facebook/react. Private repositories are not supported.",
+          "url": "https://octocounts.com/docs/github-sloc-counter#step-url"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Paste it into OctoCounts",
+          "text": "Paste the URL on the OctoCounts home page. Optionally specify a branch, tag, or commit SHA to count a particular revision instead of the default branch.",
+          "url": "https://octocounts.com/docs/github-sloc-counter#step-paste"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Read the report",
+          "text": "OctoCounts downloads the source archive, runs tokei, and returns files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the commit that was counted.",
+          "url": "https://octocounts.com/docs/github-sloc-counter#step-report"
+        }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -100,7 +134,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/api">API docs</a> / SLOC guide</nav>
     <main>
-      <p class="meta">Updated July 13, 2026</p>
+      <p class="meta">Updated August 4, 2026</p>
       <h1>GitHub SLOC Counter Guide</h1>
       <p class="note">OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.</p>
 
