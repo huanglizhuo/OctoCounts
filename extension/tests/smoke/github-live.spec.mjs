@@ -28,9 +28,18 @@ const PAGES = [
   { name: 'no-releases repo', url: 'https://github.com/jgm/pandoc' },
 ];
 
-// Anything other than semantic resolution means we are running on a fallback,
-// which still works today but is the early warning that GitHub moved on.
-const HEALTHY_STRATEGIES = new Set(['semantic-anchor']);
+/*
+ * The two class-free strategies. Which one wins is a race with React: mount
+ * before the sidebar links hydrate and only the section headings are there
+ * (sibling-sections); mount after and the repo-scoped links are available
+ * (semantic-anchor). Both are healthy — the first run of this monitor showed
+ * the same page resolving either way depending on load timing.
+ *
+ * Falling back to a class-based strategy (css-module-*, legacy-border-grid,
+ * aria/aside/layout) or to before-languages is the real early warning: the card
+ * still appears, but it is now riding on a class name GitHub can rename.
+ */
+const HEALTHY_STRATEGIES = new Set(['semantic-anchor', 'sibling-sections']);
 
 let context;
 
