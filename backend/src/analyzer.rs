@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs,
     io::Cursor,
     path::{Component, Path, PathBuf},
@@ -120,6 +121,9 @@ fn extract_archive(
     let mut archive = Archive::new(decoder);
     let mut extracted_bytes = 0_u64;
     let mut file_count = 0_usize;
+    // The caller created `destination`; seeding it stops the very first file
+    // from re-walking it.
+    let mut created_dirs: HashSet<PathBuf> = HashSet::from([destination.to_path_buf()]);
 
     for entry in archive.entries()? {
         let mut entry = entry?;
@@ -137,7 +141,7 @@ fn extract_archive(
 
         let entry_type = entry.header().entry_type();
         if entry_type.is_dir() {
-            fs::create_dir_all(&out_path)?;
+            ensure_dir(&out_path, &mut created_dirs)?;
             continue;
         }
         if !entry_type.is_file() {
@@ -166,11 +170,38 @@ fn extract_archive(
         }
 
         if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent)?;
+            ensure_dir(parent, &mut created_dirs)?;
         }
         entry.unpack(&out_path)?;
     }
 
+    Ok(())
+}
+
+/// `create_dir_all`, minus the syscalls for directories we already made.
+///
+/// A tar lists files depth-first, so calling `create_dir_all` per file asks the
+/// kernel about the same chain of parents once for every sibling — a `mkdir`
+/// per component per file, each failing with `EEXIST` after the first. Real
+/// repositories have long shared prefixes (`src/vs/workbench/contrib/...`), so
+/// this is a large multiple of the number of directories that actually exist.
+///
+/// Remembering the chain rather than just the leaf matters: `create_dir_all`
+/// already created every ancestor, so a later sibling deeper in a different
+/// branch can stop as soon as it reaches a known ancestor.
+fn ensure_dir(path: &Path, created: &mut HashSet<PathBuf>) -> anyhow::Result<()> {
+    if created.contains(path) {
+        return Ok(());
+    }
+    fs::create_dir_all(path)?;
+
+    let mut current = Some(path);
+    while let Some(dir) = current {
+        if !created.insert(dir.to_path_buf()) {
+            break;
+        }
+        current = dir.parent();
+    }
     Ok(())
 }
 
@@ -393,10 +424,48 @@ mod difftest;
 #[cfg(test)]
 mod tests {
     use super::{
-        analysis_key, effective_ignored_dirs, is_uncountable_asset, report_id, should_ignore,
+        analysis_key, effective_ignored_dirs, ensure_dir, is_uncountable_asset, report_id,
+        should_ignore,
     };
     use crate::models::{AnalysisOptions, AnalysisProfile};
-    use std::path::Path;
+    use std::{collections::HashSet, path::Path};
+
+    #[test]
+    fn ensure_dir_creates_the_whole_chain_and_records_every_ancestor() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+        let mut created = HashSet::from([root.to_path_buf()]);
+
+        let deep = root.join("a/b/c/d/e/f/g/h");
+        ensure_dir(&deep, &mut created).unwrap();
+        assert!(deep.is_dir());
+
+        // `create_dir_all` made the ancestors too, so the next file under
+        // `a/b/c/` must be able to stop at a hash lookup instead of walking
+        // eight components through the kernel again.
+        for ancestor in ["a", "a/b", "a/b/c", "a/b/c/d/e/f/g"] {
+            assert!(
+                created.contains(&root.join(ancestor)),
+                "{ancestor} was created but not recorded"
+            );
+        }
+    }
+
+    /// Siblings must still be created; only repeats of the *same* directory are
+    /// elided.
+    #[test]
+    fn ensure_dir_still_creates_previously_unseen_siblings() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+        let mut created = HashSet::from([root.to_path_buf()]);
+
+        ensure_dir(&root.join("shared/left"), &mut created).unwrap();
+        ensure_dir(&root.join("shared/right"), &mut created).unwrap();
+        ensure_dir(&root.join("shared/left"), &mut created).unwrap();
+
+        assert!(root.join("shared/left").is_dir());
+        assert!(root.join("shared/right").is_dir());
+    }
 
     /// The payload types that dominate repository size. None of them are
     /// languages, so none of them may reach the disk.
