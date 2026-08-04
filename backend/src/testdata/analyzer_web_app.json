@@ -1,0 +1,156 @@
+{
+  "languages": [
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "CSS",
+          "stats": {
+            "blanks": 0,
+            "code": 2,
+            "comments": 1,
+            "files": 1,
+            "lines": 3
+          }
+        },
+        {
+          "children": [],
+          "name": "JavaScript",
+          "stats": {
+            "blanks": 1,
+            "code": 2,
+            "comments": 1,
+            "files": 1,
+            "lines": 4
+          }
+        }
+      ],
+      "name": "HTML",
+      "stats": {
+        "blanks": 0,
+        "code": 12,
+        "comments": 1,
+        "files": 1,
+        "lines": 13
+      }
+    },
+    {
+      "children": [],
+      "name": "JSON",
+      "stats": {
+        "blanks": 0,
+        "code": 7,
+        "comments": 0,
+        "files": 2,
+        "lines": 7
+      }
+    },
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "JavaScript",
+          "stats": {
+            "blanks": 0,
+            "code": 3,
+            "comments": 1,
+            "files": 1,
+            "lines": 4
+          }
+        },
+        {
+          "children": [],
+          "name": "CSS",
+          "stats": {
+            "blanks": 0,
+            "code": 1,
+            "comments": 0,
+            "files": 1,
+            "lines": 1
+          }
+        },
+        {
+          "children": [],
+          "name": "HTML",
+          "stats": {
+            "blanks": 0,
+            "code": 1,
+            "comments": 0,
+            "files": 1,
+            "lines": 1
+          }
+        }
+      ],
+      "name": "Vue",
+      "stats": {
+        "blanks": 2,
+        "code": 6,
+        "comments": 0,
+        "files": 1,
+        "lines": 8
+      }
+    },
+    {
+      "children": [],
+      "name": "TSX",
+      "stats": {
+        "blanks": 1,
+        "code": 4,
+        "comments": 2,
+        "files": 1,
+        "lines": 7
+      }
+    },
+    {
+      "children": [],
+      "name": "CSS",
+      "stats": {
+        "blanks": 1,
+        "code": 3,
+        "comments": 1,
+        "files": 1,
+        "lines": 5
+      }
+    },
+    {
+      "children": [],
+      "name": "JavaScript",
+      "stats": {
+        "blanks": 0,
+        "code": 3,
+        "comments": 1,
+        "files": 1,
+        "lines": 4
+      }
+    },
+    {
+      "children": [],
+      "name": "SVG",
+      "stats": {
+        "blanks": 0,
+        "code": 3,
+        "comments": 0,
+        "files": 1,
+        "lines": 3
+      }
+    },
+    {
+      "children": [],
+      "name": "TypeScript",
+      "stats": {
+        "blanks": 1,
+        "code": 2,
+        "comments": 0,
+        "files": 1,
+        "lines": 3
+      }
+    }
+  ],
+  "total": {
+    "blanks": 5,
+    "code": 40,
+    "comments": 5,
+    "files": 9,
+    "lines": 50
+  }
+}

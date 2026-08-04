@@ -354,6 +354,13 @@ fn report_id(owner: &str, repo: &str, sha: &str, analysis_key: &str) -> String {
         .collect()
 }
 
+/// Differential harness: pins the exact numbers this service sells.
+///
+/// Lives next to the analyzer rather than in `golden.rs` because it exercises
+/// the extraction and counting path end to end, not an HTTP response shape.
+#[cfg(test)]
+mod difftest;
+
 #[cfg(test)]
 mod tests {
     use super::{analysis_key, effective_ignored_dirs, report_id, should_ignore};
