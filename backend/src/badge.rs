@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::{
     api::AppState,
+    coordinator::{job_is_finished, AnalysisCoordinator},
     models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report},
-    store::Store,
 };
 
 #[derive(serde::Deserialize)]
@@ -113,7 +113,7 @@ async fn serve_badge(
     let report = match state.coordinator.submit(request).await {
         Ok(AnalyzeResponse::Cached { report, .. }) => report,
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
-            match wait_for_job(state.coordinator.store(), job_id, Duration::from_secs(30)).await {
+            match wait_for_job(&state.coordinator, job_id, Duration::from_secs(30)).await {
                 Some(report) => report,
                 None => {
                     return svg_response(render_pending_for_params(&params), "no-cache, no-store")
@@ -128,25 +128,27 @@ async fn serve_badge(
     svg_response(svg, cache)
 }
 
-async fn wait_for_job(store: &Store, job_id: Uuid, timeout: Duration) -> Option<Report> {
-    let deadline = tokio::time::Instant::now() + timeout;
-    loop {
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        if tokio::time::Instant::now() >= deadline {
-            return None;
-        }
-        match store.job(job_id).await {
-            Ok(Some(job)) => match job.status {
-                JobStatus::Completed => {
-                    let report_id = job.report_id?;
-                    return store.report(&report_id).await.ok().flatten();
-                }
-                JobStatus::Failed => return None,
-                _ => {}
-            },
-            _ => return None,
-        }
+/// Blocks the badge request until its analysis finishes, or gives up and lets
+/// the caller render the pending badge.
+///
+/// The wait is event-driven: the first status check is immediate (an already
+/// finished job used to cost a mandatory 500ms sleep) and the job's own worker
+/// wakes this task the instant it commits a result, instead of this task
+/// rediscovering it on the next 500ms database poll.
+async fn wait_for_job(
+    coordinator: &AnalysisCoordinator,
+    job_id: Uuid,
+    timeout: Duration,
+) -> Option<Report> {
+    let job = coordinator
+        .await_job(job_id, timeout, |job| job_is_finished(job.status))
+        .await
+        .ok()??;
+    if job.status != JobStatus::Completed {
+        return None;
     }
+    let report_id = job.report_id?;
+    coordinator.store().report(&report_id).await.ok().flatten()
 }
 
 fn svg_response(body: String, cache_control: &'static str) -> Response {
