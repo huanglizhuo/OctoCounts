@@ -1,16 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-08-03T05:52:04.248Z
-microsoft/AI-For-Beginners
-usekaneo/kaneo
+# GitHub Trending daily snapshot generated 2026-08-04T05:23:57.932Z
 lyogavin/airllm
-iv-org/invidious
-codecrafters-io/build-your-own-x
 zhaoxuya520/reverse-skill
-different-ai/openwork
-microsoft/generative-ai-for-beginners
-Panniantong/Agent-Reach
-TencentCloud/TencentDB-Agent-Memory
-mvanhorn/last30days-skill
-NomaDamas/k-skill
-HarbourMasters/Lighthouse
-antirez/ds4
+firecrawl/pdf-inspector
 esengine/DeepSeek-Reasonix
+TencentCloud/TencentDB-Agent-Memory
+microsoft/AI-For-Beginners
+microsoft/generative-ai-for-beginners
+donnemartin/system-design-primer
+antirez/ds4
+shiyu-coder/Kronos
+Panniantong/Agent-Reach
+Alishahryar1/free-claude-code
+iv-org/invidious
+livekit/agents
+usekaneo/kaneo
+jamiepine/voicebox
