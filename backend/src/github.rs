@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use moka::{future::Cache, policy::EvictionPolicy};
 use reqwest::{header, Client, StatusCode};
 use serde::Deserialize;
@@ -5,6 +7,18 @@ use thiserror::Error;
 use url::Url;
 
 use crate::models::{RepoRef, RepositoryProvider};
+
+/// How long a resolved `ref -> commit sha` mapping stays trustworthy.
+///
+/// Branch refs move. Without an expiry the entry for `main` is pinned to the
+/// first commit we ever saw, so every later request replays a stale report and
+/// only `force_refresh` can break the loop. Tags and commit shas are immutable,
+/// but they are keyed the same way and re-resolving them is one cheap API call,
+/// so a single short TTL covers both. 60s keeps the burst-protection value of
+/// the cache (a page that fires several requests still resolves once) while
+/// bounding staleness to something a user would not notice.
+const REF_CACHE_TTL: Duration = Duration::from_secs(60);
+const REF_CACHE_CAPACITY: u64 = 10_000;
 
 #[derive(Debug, Error)]
 pub enum GitHubError {
@@ -64,6 +78,14 @@ struct RepoTarget {
     path: String,
 }
 
+fn build_ref_cache(ttl: Duration) -> Cache<(String, Option<String>), RepoRef> {
+    Cache::builder()
+        .max_capacity(REF_CACHE_CAPACITY)
+        .time_to_live(ttl)
+        .eviction_policy(EvictionPolicy::lru())
+        .build()
+}
+
 impl GitHubClient {
     pub fn new() -> anyhow::Result<Self> {
         let mut headers = header::HeaderMap::new();
@@ -84,14 +106,9 @@ impl GitHubClient {
             );
         }
 
-        let ref_cache = Cache::builder()
-            .max_capacity(10_000)
-            .eviction_policy(EvictionPolicy::lru())
-            .build();
-
         Ok(Self {
             client: Client::builder().default_headers(headers).build()?,
-            ref_cache,
+            ref_cache: build_ref_cache(REF_CACHE_TTL),
         })
     }
 
@@ -355,7 +372,47 @@ impl GitHubClient {
 
 #[cfg(test)]
 mod tests {
-    use super::GitHubClient;
+    use super::{build_ref_cache, GitHubClient, RepoRef, RepositoryProvider, REF_CACHE_TTL};
+    use std::time::Duration;
+
+    fn sample_ref(sha: &str) -> RepoRef {
+        RepoRef {
+            provider: RepositoryProvider::GitHub,
+            owner: "tokio-rs".to_string(),
+            repo: "axum".to_string(),
+            ref_name: "main".to_string(),
+            commit_sha: sha.to_string(),
+            html_url: "https://github.com/tokio-rs/axum".to_string(),
+        }
+    }
+
+    /// A moving branch must eventually be re-resolved without `force_refresh`,
+    /// which is only true if the cache carries an expiry at all.
+    #[test]
+    fn ref_cache_has_a_bounded_lifetime() {
+        assert!(REF_CACHE_TTL > Duration::ZERO);
+        assert!(REF_CACHE_TTL <= Duration::from_secs(300));
+    }
+
+    #[tokio::test]
+    async fn ref_cache_entries_expire_so_moved_branches_are_re_resolved() {
+        let cache = build_ref_cache(Duration::from_millis(50));
+        let key = ("https://github.com/tokio-rs/axum".to_string(), None);
+
+        cache.insert(key.clone(), sample_ref("old")).await;
+        assert_eq!(
+            cache.get(&key).await.map(|value| value.commit_sha),
+            Some("old".to_string())
+        );
+
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        cache.run_pending_tasks().await;
+
+        assert!(
+            cache.get(&key).await.is_none(),
+            "expired entry was still served; the branch would stay pinned to a stale sha"
+        );
+    }
 
     #[test]
     fn parses_https_urls() {
