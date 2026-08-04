@@ -1,8 +1,12 @@
 use std::{
     collections::HashSet,
     fs,
-    io::Cursor,
+    io::{self, Read},
     path::{Component, Path, PathBuf},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
@@ -37,19 +41,34 @@ const IGNORED_DIRS: &[&str] = &[
     "vendor",
 ];
 
-#[derive(Clone)]
 pub struct AnalysisInput {
     pub repo_ref: RepoRef,
-    pub archive: bytes::Bytes,
+    /// The archive as a blocking stream rather than a buffer. Read on the
+    /// blocking thread the analysis already runs on, so the download and the
+    /// extraction overlap and the whole tarball is never resident.
+    pub archive: Box<dyn Read + Send>,
     pub options: AnalysisOptions,
     pub analysis_key: String,
+}
+
+/// Why an analysis did not produce a report.
+///
+/// The size limit is called out separately because it is the user's problem,
+/// not ours: it has its own API error code and status. Everything else is an
+/// internal failure the caller reports generically.
+#[derive(Debug, thiserror::Error)]
+pub enum AnalysisError {
+    #[error("repository archive is too large")]
+    ArchiveTooLarge,
+    #[error(transparent)]
+    Failed(#[from] anyhow::Error),
 }
 
 pub fn max_archive_bytes() -> u64 {
     MAX_ARCHIVE_BYTES
 }
 
-pub async fn analyze(input: AnalysisInput) -> anyhow::Result<Report> {
+pub async fn analyze(input: AnalysisInput) -> Result<Report, AnalysisError> {
     timeout(
         JOB_TIMEOUT,
         tokio::task::spawn_blocking(move || analyze_blocking(input)),
@@ -59,7 +78,17 @@ pub async fn analyze(input: AnalysisInput) -> anyhow::Result<Report> {
     .context("analysis task failed")?
 }
 
-fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
+fn analyze_blocking(input: AnalysisInput) -> Result<Report, AnalysisError> {
+    analyze_blocking_with_limit(input, MAX_ARCHIVE_BYTES)
+}
+
+/// Split out from [`analyze_blocking`] so the limit can be driven down to
+/// fixture size in tests; a test that had to produce two gigabytes to check the
+/// cap would never be run.
+fn analyze_blocking_with_limit(
+    input: AnalysisInput,
+    max_archive_bytes: u64,
+) -> Result<Report, AnalysisError> {
     let AnalysisInput {
         repo_ref,
         archive,
@@ -69,11 +98,25 @@ fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
     let started = Instant::now();
     let temp_dir = TempDir::new().context("failed to create temp directory")?;
     let extract_root = temp_dir.path().join("repo");
-    fs::create_dir(&extract_root)?;
+    fs::create_dir(&extract_root).context("failed to create the extraction directory")?;
 
     let ignored_dirs = effective_ignored_dirs(&options);
-    extract_archive(&archive, &extract_root, &ignored_dirs)?;
-    drop(archive);
+
+    // The limit is enforced as the bytes arrive, not after the download
+    // finishes, so a 3 GB repository is abandoned in the first seconds instead
+    // of being paid for in full and then rejected. Once the cap trips, the
+    // failure surfaces as an ordinary I/O error somewhere inside gzip or tar,
+    // so the reader also records *why* it failed.
+    let oversized = Arc::new(AtomicBool::new(false));
+    let limited = LimitedReader::new(archive, max_archive_bytes, Arc::clone(&oversized));
+
+    extract_archive(limited, &extract_root, &ignored_dirs).map_err(|error| {
+        if oversized.load(Ordering::Relaxed) {
+            AnalysisError::ArchiveTooLarge
+        } else {
+            AnalysisError::Failed(error)
+        }
+    })?;
 
     let languages = run_tokei(&extract_root, &ignored_dirs);
     let (language_reports, total) = normalize_languages(&languages, &options);
@@ -112,12 +155,56 @@ fn analyze_blocking(input: AnalysisInput) -> anyhow::Result<Report> {
     Ok(report)
 }
 
-fn extract_archive(
-    archive_bytes: &[u8],
+/// Caps how many bytes may be pulled from the archive stream.
+///
+/// Reads one byte past the limit deliberately: an archive of exactly
+/// `MAX_ARCHIVE_BYTES` is allowed, so the only way to know the stream is too
+/// long is to see a byte beyond it. The flag exists because the error has to
+/// travel back through `GzDecoder` and `tar`, which flatten everything into
+/// `io::Error`; by the time it reaches the caller it is no longer
+/// distinguishable from a truncated download.
+struct LimitedReader<R> {
+    inner: R,
+    limit: u64,
+    consumed: u64,
+    oversized: Arc<AtomicBool>,
+}
+
+impl<R: Read> LimitedReader<R> {
+    fn new(inner: R, limit: u64, oversized: Arc<AtomicBool>) -> Self {
+        Self {
+            inner,
+            limit,
+            consumed: 0,
+            oversized,
+        }
+    }
+}
+
+impl<R: Read> Read for LimitedReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let allowance = self.limit.saturating_sub(self.consumed).saturating_add(1);
+        let cap = allowance.min(buf.len() as u64) as usize;
+        let read = self.inner.read(&mut buf[..cap])?;
+        self.consumed += read as u64;
+
+        if self.consumed > self.limit {
+            self.oversized.store(true, Ordering::Relaxed);
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "repository archive is too large",
+            ));
+        }
+        Ok(read)
+    }
+}
+
+fn extract_archive<R: Read>(
+    source: R,
     destination: &Path,
     ignored_dirs: &[String],
 ) -> anyhow::Result<()> {
-    let decoder = GzDecoder::new(Cursor::new(archive_bytes));
+    let decoder = GzDecoder::new(source);
     let mut archive = Archive::new(decoder);
     let mut extracted_bytes = 0_u64;
     let mut file_count = 0_usize;

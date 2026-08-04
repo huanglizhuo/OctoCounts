@@ -306,8 +306,11 @@ fn api_options() -> AnalysisOptions {
     serde_json::from_str("{}").unwrap()
 }
 
-fn analyze_fixture(archive: bytes::Bytes, options: AnalysisOptions) -> Report {
-    analyze_blocking(AnalysisInput {
+fn fixture_input(
+    archive: Box<dyn std::io::Read + Send>,
+    options: AnalysisOptions,
+) -> AnalysisInput {
+    AnalysisInput {
         repo_ref: RepoRef {
             provider: RepositoryProvider::GitHub,
             owner: "octocounts".to_string(),
@@ -319,7 +322,14 @@ fn analyze_fixture(archive: bytes::Bytes, options: AnalysisOptions) -> Report {
         archive,
         options,
         analysis_key: "difftest".to_string(),
-    })
+    }
+}
+
+fn analyze_fixture(archive: bytes::Bytes, options: AnalysisOptions) -> Report {
+    analyze_blocking(fixture_input(
+        Box::new(std::io::Cursor::new(archive)),
+        options,
+    ))
     .expect("fixture analysis failed")
 }
 
@@ -597,10 +607,13 @@ fn real_repositories_are_counted_identically() {
     };
 
     for path in paths.split(':').filter(|path| !path.is_empty()) {
-        let archive = bytes::Bytes::from(std::fs::read(path).expect("failed to read tarball"));
-        let bytes = archive.len();
+        // Streamed from disk rather than slurped, so peak RSS reflects what the
+        // service now holds: a buffer, not the whole tarball.
+        let file = std::fs::File::open(path).expect("failed to open tarball");
+        let bytes = file.metadata().map(|meta| meta.len()).unwrap_or_default();
         let started = std::time::Instant::now();
-        let report = analyze_fixture(archive, api_options());
+        let report = analyze_blocking(fixture_input(Box::new(file), api_options()))
+            .expect("analysis failed");
         let elapsed = started.elapsed();
 
         println!("=== {path} ({bytes} archive bytes) ===");
@@ -694,4 +707,111 @@ fn concurrent_real_repositories_wall_clock() {
             wall.as_millis()
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Streaming
+// ---------------------------------------------------------------------------
+
+/// Serves `body` once over HTTP on an ephemeral port and returns its URL. Enough
+/// of a server to exercise the real download path; it answers a single request
+/// and stops.
+async fn serve_once(body: Vec<u8>) -> (String, tokio::task::JoinHandle<()>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let handle = tokio::spawn(async move {
+        let Ok((mut socket, _)) = listener.accept().await else {
+            return;
+        };
+        // Drain the request line and headers; the body of a GET is empty.
+        let mut scratch = [0_u8; 4096];
+        let _ = socket.read(&mut scratch).await;
+
+        // No Content-Length: codeload does not send one either, which is why
+        // the pre-flight check cannot be the real limit.
+        let head = "HTTP/1.1 200 OK\r\nContent-Type: application/gzip\r\nConnection: close\r\n\r\n";
+        if socket.write_all(head.as_bytes()).await.is_err() {
+            return;
+        }
+        // Write in chunks so the reader really does see a stream.
+        for chunk in body.chunks(16 * 1024) {
+            if socket.write_all(chunk).await.is_err() {
+                return;
+            }
+        }
+        let _ = socket.shutdown().await;
+    });
+
+    (format!("http://{addr}/archive.tar.gz"), handle)
+}
+
+/// End to end over a real socket: an archive that arrives in pieces must produce
+/// exactly the report the same bytes produce from memory.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_streamed_archive_counts_the_same_as_a_buffered_one() {
+    let archive = web_app();
+    let expected = snapshot(&analyze_fixture(archive.clone(), api_options()));
+
+    let (url, server) = serve_once(archive.to_vec()).await;
+    let client = crate::github::GitHubClient::new().unwrap();
+    let reader = client
+        .stream_url_for_test(url, super::MAX_ARCHIVE_BYTES)
+        .await
+        .expect("streaming download failed");
+
+    let report = tokio::task::spawn_blocking(move || {
+        analyze_blocking(fixture_input(reader, api_options()))
+    })
+    .await
+    .unwrap()
+    .expect("streamed analysis failed");
+
+    assert_eq!(snapshot(&report), expected);
+    server.await.unwrap();
+}
+
+/// The limit has to bite while the bytes are arriving. Previously the whole
+/// archive was downloaded and only then measured, so an oversized repository
+/// cost a full transfer before being refused.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_oversized_archive_is_refused_mid_stream() {
+    let archive = web_app();
+    let limit = (archive.len() / 2) as u64;
+
+    let (url, server) = serve_once(archive.to_vec()).await;
+    let client = crate::github::GitHubClient::new().unwrap();
+    let reader = client
+        .stream_url_for_test(url, u64::MAX)
+        .await
+        .expect("streaming download failed");
+
+    let outcome = tokio::task::spawn_blocking(move || {
+        super::analyze_blocking_with_limit(fixture_input(reader, api_options()), limit)
+    })
+    .await
+    .unwrap();
+
+    assert!(
+        matches!(outcome, Err(super::AnalysisError::ArchiveTooLarge)),
+        "expected an ArchiveTooLarge failure, got {outcome:?}"
+    );
+    server.await.unwrap();
+}
+
+/// An archive of exactly the limit is allowed; the limit is a ceiling, not a
+/// budget the archive has to stay under.
+#[test]
+fn an_archive_of_exactly_the_limit_is_accepted() {
+    let archive = rust_project();
+    let expected = snapshot(&analyze_fixture(archive.clone(), api_options()));
+
+    let report = super::analyze_blocking_with_limit(
+        fixture_input(Box::new(std::io::Cursor::new(archive.clone())), api_options()),
+        archive.len() as u64,
+    )
+    .expect("an archive of exactly the limit must be accepted");
+
+    assert_eq!(snapshot(&report), expected);
 }

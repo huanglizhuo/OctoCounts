@@ -1964,6 +1964,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokei",
  "tokio",
+ "tokio-util",
  "tower",
  "tower-http",
  "tracing",

@@ -4,9 +4,9 @@ use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 use crate::{
-    analyzer::{self, AnalysisInput},
+    analyzer::{self, AnalysisError, AnalysisInput},
     error::ApiError,
-    github::GitHubClient,
+    github::{GitHubClient, GitHubError},
     indexnow::IndexNowService,
     models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, ApiErrorBody, RepoRef},
     store::{JobKey, Store},
@@ -118,7 +118,7 @@ impl AnalysisCoordinator {
 
             let archive = match coordinator
                 .github
-                .download_archive(
+                .archive_reader(
                     &repo_ref.provider,
                     &repo_ref.owner,
                     &repo_ref.repo,
@@ -151,6 +151,20 @@ impl AnalysisCoordinator {
             .await
             {
                 Ok(report) => complete_job(&coordinator, job_id, report, source).await,
+                // The size limit now trips mid-stream rather than after the
+                // download, but it is the same user-facing failure, so it keeps
+                // reporting through the same error code.
+                Err(AnalysisError::ArchiveTooLarge) => {
+                    tracing::warn!("archive exceeded the size limit while streaming");
+                    let api_error = ApiError::from(GitHubError::TooLarge);
+                    mark_job_failed(
+                        &coordinator.store,
+                        job_id,
+                        &api_error.body().code,
+                        &api_error.body().message,
+                    )
+                    .await;
+                }
                 Err(error) => {
                     tracing::warn!(%error, "analysis failed");
                     mark_job_failed(

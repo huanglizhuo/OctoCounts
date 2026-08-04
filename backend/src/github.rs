@@ -1,9 +1,11 @@
 use std::time::Duration;
 
+use futures::TryStreamExt;
 use moka::{future::Cache, policy::EvictionPolicy};
 use reqwest::{header, Client, StatusCode};
 use serde::Deserialize;
 use thiserror::Error;
+use tokio_util::io::{StreamReader, SyncIoBridge};
 use url::Url;
 
 use crate::models::{RepoRef, RepositoryProvider};
@@ -599,14 +601,26 @@ impl GitHubClient {
         }
     }
 
-    pub async fn download_archive(
+    /// Opens the repository archive as a blocking reader instead of buffering it.
+    ///
+    /// The returned reader must be consumed on a blocking thread
+    /// (`spawn_blocking`), which is where the analyzer already does its work. It
+    /// pulls from the live HTTP response, so extraction proceeds while the rest
+    /// of the archive is still arriving and the process never holds more than a
+    /// buffer's worth of the tarball.
+    ///
+    /// Only the response head is inspected here. The hard size limit is applied
+    /// by the analyzer as it reads, because that is where the byte budget and
+    /// the temp directory live; `max_bytes` is used solely for the free
+    /// `Content-Length` early-out, which codeload usually does not offer.
+    pub async fn archive_reader(
         &self,
         provider: &RepositoryProvider,
         owner: &str,
         repo: &str,
         sha: &str,
         max_bytes: u64,
-    ) -> Result<bytes::Bytes, GitHubError> {
+    ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
         let url = match provider {
             RepositoryProvider::GitHub => {
                 format!("https://codeload.github.com/{owner}/{repo}/tar.gz/{sha}")
@@ -617,6 +631,27 @@ impl GitHubClient {
                 format!("https://gitlab.com/api/v4/projects/{encoded_path}/repository/archive.tar.gz?sha={sha}")
             }
         };
+        self.stream_url(url, max_bytes).await
+    }
+
+    /// Test access to [`Self::stream_url`], so the streaming path can be
+    /// exercised against a local server rather than codeload.
+    #[cfg(test)]
+    pub async fn stream_url_for_test(
+        &self,
+        url: String,
+        max_bytes: u64,
+    ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
+        self.stream_url(url, max_bytes).await
+    }
+
+    /// The transport half of [`Self::archive_reader`], split out so tests can
+    /// point it at a local server without going through codeload.
+    async fn stream_url(
+        &self,
+        url: String,
+        max_bytes: u64,
+    ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
         let response = self.client.get(url).send().await?;
         match response.status() {
             StatusCode::OK => {}
@@ -637,11 +672,8 @@ impl GitHubClient {
             }
         }
 
-        let bytes = response.bytes().await?;
-        if bytes.len() as u64 > max_bytes {
-            return Err(GitHubError::TooLarge);
-        }
-        Ok(bytes)
+        let stream = response.bytes_stream().map_err(std::io::Error::other);
+        Ok(Box::new(SyncIoBridge::new(StreamReader::new(stream))))
     }
 }
 
