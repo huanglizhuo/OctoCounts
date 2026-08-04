@@ -813,14 +813,13 @@ impl Store {
             ORDER BY page.created_at DESC
             "#,
         )
-        // Deliberately the same cap the old implementation had. `distinct_reports`
-        // clamped its limit to 500, so although the sitemap handler asks for
-        // 45,000 entries it has only ever emitted 500. That is almost certainly
-        // not intended -- it is an SEO endpoint whose whole job is to enumerate
-        // every canonical URL -- but raising it is a product decision that would
-        // change the response, so it stays here and gets reported rather than
-        // being quietly fixed inside a performance change.
-        .bind(limit.clamp(0, LEGACY_LIST_LIMIT))
+        // The sitemap honours the limit its handler actually asks for. It used to
+        // go through `distinct_reports`, whose `clamp(0, 500)` meant a handler
+        // requesting 45,000 entries emitted 500 -- an SEO endpoint whose whole job
+        // is to enumerate canonical URLs was publishing about 1% of them. B2 made
+        // the query cheap enough (70ms -> 8ms, no body reads) to afford the full
+        // list; `SITEMAP_MAX_ENTRIES` is the backstop.
+        .bind(limit.clamp(0, SITEMAP_MAX_ENTRIES))
         .fetch_all(&self.pool)
         .await?;
 
@@ -1561,7 +1560,16 @@ const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 
 /// The row cap the pre-batch-B `distinct_reports` applied to every list query.
 /// Preserved verbatim so the rewritten queries return the same number of rows.
+///
+/// Still in force for the paginated SEO lists, which are browsed a page at a
+/// time and have no reason to return more. The sitemap escapes it deliberately;
+/// see [`SITEMAP_MAX_ENTRIES`].
 const LEGACY_LIST_LIMIT: i64 = 500;
+
+/// Backstop for `sitemap_entries`. The handler asks for 45,000; the sitemap
+/// protocol caps a single file at 50,000 URLs, so this sits between the two and
+/// keeps a runaway request from trying to serialize the entire table.
+const SITEMAP_MAX_ENTRIES: i64 = 45_000;
 
 /// How close to the row cap the planner's estimate may get before cleanup stops
 /// trusting it. `reltuples` drifts between autovacuum runs, so it is only used to
@@ -2565,10 +2573,43 @@ mod tests {
         assert_eq!(
             clamped.len(),
             3,
-            "the inherited 500-row cap must stay in force; see LEGACY_LIST_LIMIT"
+            "an absurd limit is clamped to SITEMAP_MAX_ENTRIES, not rejected"
         );
         assert_eq!(all[0].provider, RepositoryProvider::GitHub);
         assert_eq!(all[0].lastmod, all[0].lastmod.min(Utc::now().date_naive()));
+        store.drop_schema().await;
+    }
+
+    /// The cap that used to silence this endpoint. `distinct_reports` clamped
+    /// every list to 500 rows, so the sitemap handler's request for 45,000 URLs
+    /// yielded 500. Three fixture repositories cannot tell 500 from 45,000, so
+    /// this seeds past the old ceiling and demands the rows come back.
+    #[tokio::test]
+    async fn sitemap_entries_are_not_capped_at_the_legacy_list_limit() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let legacy_cap = super::LEGACY_LIST_LIMIT;
+        let repositories = legacy_cap + 1;
+        for index in 0..repositories {
+            let mut report = test_report(&format!("report-uncapped-{index}"), &owner, 10);
+            report.repository.name = format!("repo{index:04}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+        }
+
+        let full = store.sitemap_entries(45_000).await.unwrap();
+        let clamped = store.sitemap_entries(i64::MAX).await.unwrap();
+
+        assert_eq!(
+            full.len() as i64,
+            repositories,
+            "the sitemap must emit every repository, not the first {legacy_cap}"
+        );
+        assert_eq!(clamped.len() as i64, repositories);
         store.drop_schema().await;
     }
 
