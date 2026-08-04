@@ -608,3 +608,90 @@ fn real_repositories_are_counted_identically() {
         println!("{}", snapshot(&report));
     }
 }
+
+/// Two analyses running at once must produce exactly what each produces alone.
+/// The counting pool is process-wide and shared between them, so this is where a
+/// pool that deadlocks, oversubscribes, or leaks state between jobs shows up.
+#[test]
+fn concurrent_analyses_do_not_interfere() {
+    let expected_web = snapshot(&analyze_fixture(web_app(), api_options()));
+    let expected_rust = snapshot(&analyze_fixture(rust_project(), api_options()));
+
+    let handles: Vec<_> = (0..4)
+        .map(|index| {
+            std::thread::spawn(move || {
+                if index % 2 == 0 {
+                    (true, snapshot(&analyze_fixture(web_app(), api_options())))
+                } else {
+                    (
+                        false,
+                        snapshot(&analyze_fixture(rust_project(), api_options())),
+                    )
+                }
+            })
+        })
+        .collect();
+
+    for handle in handles {
+        let (is_web, actual) = handle.join().expect("an analysis thread panicked");
+        let expected = if is_web { &expected_web } else { &expected_rust };
+        assert_eq!(&actual, expected);
+    }
+}
+
+/// Wall clock for `n` analyses running at once. Same setup as
+/// `real_repositories_are_counted_identically`, plus `OCTOCOUNTS_BENCH_JOBS`
+/// (default 2) to say how many run concurrently.
+///
+/// This is the measurement that decided against giving tokei a private rayon
+/// pool sized `cores / ANALYSIS_CONCURRENCY`; see
+/// `concurrent_analyses_do_not_interfere` for what is actually guaranteed.
+///
+/// ```text
+/// OCTOCOUNTS_BENCH_TARBALLS=/tmp/three.tar.gz OCTOCOUNTS_BENCH_JOBS=2 \
+///   cargo test --release analyzer::difftest::concurrent_real -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "needs repository tarballs supplied via OCTOCOUNTS_BENCH_TARBALLS"]
+fn concurrent_real_repositories_wall_clock() {
+    let Ok(paths) = std::env::var("OCTOCOUNTS_BENCH_TARBALLS") else {
+        panic!("set OCTOCOUNTS_BENCH_TARBALLS to a colon-separated list of .tar.gz paths");
+    };
+    let jobs: usize = std::env::var("OCTOCOUNTS_BENCH_JOBS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(2);
+
+    for path in paths.split(':').filter(|path| !path.is_empty()) {
+        let archive = bytes::Bytes::from(std::fs::read(path).expect("failed to read tarball"));
+        let started = std::time::Instant::now();
+        let handles: Vec<_> = (0..jobs)
+            .map(|_| {
+                let archive = archive.clone();
+                std::thread::spawn(move || {
+                    let job_started = std::time::Instant::now();
+                    let report = analyze_fixture(archive, api_options());
+                    (job_started.elapsed(), snapshot(&report))
+                })
+            })
+            .collect();
+
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("an analysis thread panicked"))
+            .collect();
+        let wall = started.elapsed();
+
+        for (_, actual) in &results {
+            assert_eq!(actual, &results[0].1, "concurrent analyses disagreed");
+        }
+        let per_job: Vec<u128> = results
+            .iter()
+            .map(|(elapsed, _)| elapsed.as_millis())
+            .collect();
+        println!(
+            "=== {path} | {jobs} concurrent | wall {} ms | per job {per_job:?} ms",
+            wall.as_millis()
+        );
+    }
+}
