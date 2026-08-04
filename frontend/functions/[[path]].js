@@ -2,7 +2,7 @@ import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
 const API_BASE = "https://api.octocounts.com";
 const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
-const STATIC_SITEMAP_LASTMOD = "2026-07-30";
+const STATIC_SITEMAP_LASTMOD = "2026-08-04";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/stats", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -172,12 +172,18 @@ async function listPageResponse(context, kind, url) {
   const pageMeta = listPageMeta(kind);
   const title = pageMeta.title;
   const description = pageMeta.description;
-  const body = payload.reports
+  const rows = payload.reports
     .map(
       (report, index) =>
         `<li><span>${index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
     )
     .join("");
+  // These pages are in the sitemap and marked index,follow. If the API is
+  // unreachable the list comes back empty, and an empty <ul> leaves a crawler
+  // roughly fifteen words of boilerplate to work with -- an indexed page that
+  // says nothing. Answer whatever the page is about instead, and keep the
+  // internal links so the crawl continues.
+  const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -202,10 +208,38 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><ul>${body}</ul></section>`,
+      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=3600"
   );
+}
+
+/// Substantive content for when the list is empty.
+///
+/// Sized as a self-contained block that answers the page's own question without
+/// needing the surrounding page, which is the shape answer engines quote. The
+/// navigation is repeated here because this is the state in which a crawler has
+/// nothing else on the page to follow.
+function listPageFallback(kind) {
+  const intro = {
+    recent:
+      "This page lists the public GitHub repositories most recently measured by OctoCounts. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+    popular:
+      "This page ranks the OctoCounts reports that are viewed most often. Each entry links to a full source line count for a public GitHub repository, giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+    monoliths:
+      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by total source lines. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+  }[kind];
+
+  return `<p>${intro}</p>
+    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. Counting any public GitHub repository is free and needs no account &mdash; paste a repository URL on the <a href="/">OctoCounts home page</a>.</p>
+    <p>The live ranking for this page is loading. In the meantime:</p>
+    <nav aria-label="Related OctoCounts pages"><ul>
+      <li><a href="/recent">Recently analyzed repositories</a></li>
+      <li><a href="/popular">Popular SLOC reports</a></li>
+      <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
+      <li><a href="/trending">Trending GitHub repositories today</a></li>
+      <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
+    </ul></nav>`;
 }
 
 async function trendingPageResponse(context) {
@@ -256,6 +290,9 @@ async function statsPageResponse(context) {
   const stats = response.ok ? await response.json() : null;
   const title = "OctoCounts public growth stats";
   const description = "Aggregate OctoCounts report totals, repository coverage, source breakdown, language totals, and largest public repositories.";
+  // An indexed page must never bottom out at a single "unavailable" sentence:
+  // that is all a crawler would have to cite. When the numbers are missing,
+  // explain what the page measures and where the figures come from instead.
   const totals = stats?.totals
     ? `<ul>
       <li>${formatNumber(stats.totals.reportsGenerated)} reports generated</li>
@@ -263,7 +300,14 @@ async function statsPageResponse(context) {
       <li>${formatNumber(stats.totals.linesCounted)} total lines counted</li>
       <li>${formatNumber(stats.totals.languagesDetected)} languages detected</li>
     </ul>`
-    : "<p>Stats are temporarily unavailable.</p>";
+    : `<p>This page publishes OctoCounts' own operating totals: how many source line count reports have been generated, how many distinct public GitHub repositories have been analyzed, how many lines have been counted in total, how many programming languages have been detected, which client each analysis arrived from, and the largest repositories measured so far. The figures are aggregate only and contain no user-level analytics.</p>
+    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. The live figures are loading; the same underlying reports are browsable directly:</p>
+    <nav aria-label="Related OctoCounts pages"><ul>
+      <li><a href="/recent">Recently analyzed repositories</a></li>
+      <li><a href="/popular">Popular SLOC reports</a></li>
+      <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
+      <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
+    </ul></nav>`;
 
   return htmlResponse(
     injectHeadAndNoscript(index, {

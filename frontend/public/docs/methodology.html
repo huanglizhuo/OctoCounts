@@ -49,7 +49,7 @@
       "@type": "TechArticle",
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
-      "dateModified": "2026-07-13",
+      "dateModified": "2026-08-04",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -99,9 +99,12 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Methodology</nav>
     <main>
-      <p class="meta">Updated July 13, 2026</p>
+      <p class="meta">Updated August 4, 2026</p>
       <h1>OctoCounts Methodology</h1>
       <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
+
+      <h2>What is SLOC?</h2>
+      <p>SLOC, or source lines of code, is a measure of software size counted as the number of lines in a project's source files. A SLOC count normally separates three kinds of line: <strong>code</strong> lines carrying executable statements or declarations, <strong>comment</strong> lines carrying documentation, and <strong>blank</strong> lines. "Lines of code" without qualification usually means the code figure alone, while "total lines" means all three added together. Because the ratio between them varies widely by language and project, a SLOC report is only comparable when the counting rules are stated. OctoCounts reports all three figures separately for every language, counted with <a href="https://github.com/XAMPPRocky/tokei">tokei</a> at a pinned commit, so any two reports can be compared directly.</p>
 
       <h2>Counting Pipeline</h2>
       <ol>
