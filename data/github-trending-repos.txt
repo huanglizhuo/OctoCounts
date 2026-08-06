@@ -1,19 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-08-05T05:24:13.138Z
+# GitHub Trending daily snapshot generated 2026-08-06T05:26:03.357Z
+cloudflare/computer
+huangruiteng/loopx
 TencentCloud/TencentDB-Agent-Memory
-zhaoxuya520/reverse-skill
+donnemartin/system-design-primer
 firecrawl/pdf-inspector
-uber/ADR
-obra/superpowers
-microsoft/generative-ai-for-beginners
-cypress-io/cypress
-lyogavin/airllm
-webpack/webpack
-gabime/spdlog
-denoland/deno
-usekaneo/kaneo
-livekit/agents
-angular/angular
-tailwindlabs/tailwindcss
-browser-use/video-use
 esengine/DeepSeek-Reasonix
-EveryInc/compound-engineering-plugin
+addyosmani/agent-skills
+obra/superpowers
+roboflow/supervision
+vercel/next.js
+tailwindlabs/tailwindcss
+uber/ADR
+lyogavin/airllm
