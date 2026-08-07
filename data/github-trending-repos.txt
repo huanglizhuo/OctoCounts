@@ -1,14 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-08-06T05:26:03.357Z
-cloudflare/computer
-huangruiteng/loopx
+# GitHub Trending daily snapshot generated 2026-08-07T04:32:02.289Z
 TencentCloud/TencentDB-Agent-Memory
-donnemartin/system-design-primer
-firecrawl/pdf-inspector
-esengine/DeepSeek-Reasonix
 addyosmani/agent-skills
+cloudflare/computer
+mattpocock/skills
+goauthentik/authentik
+huangruiteng/loopx
+google/guava
+TapXWorld/ChinaTextbook
+Significant-Gravitas/AutoGPT
+tirth8205/code-review-graph
+esengine/DeepSeek-Reasonix
 obra/superpowers
-roboflow/supervision
-vercel/next.js
-tailwindlabs/tailwindcss
-uber/ADR
-lyogavin/airllm
+firecrawl/pdf-inspector
