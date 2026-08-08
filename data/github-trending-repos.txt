@@ -1,14 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-08-07T04:32:02.289Z
-TencentCloud/TencentDB-Agent-Memory
+# GitHub Trending daily snapshot generated 2026-08-08T03:42:10.117Z
+PrimeIntellect-ai/prime-agent
 addyosmani/agent-skills
 cloudflare/computer
 mattpocock/skills
-goauthentik/authentik
-huangruiteng/loopx
-google/guava
-TapXWorld/ChinaTextbook
-Significant-Gravitas/AutoGPT
-tirth8205/code-review-graph
-esengine/DeepSeek-Reasonix
 obra/superpowers
-firecrawl/pdf-inspector
+goauthentik/authentik
+semantica-agi/semantica
+666ghj/MiroFish
+chenyme/grok2api
+jdx/mise
+Significant-Gravitas/AutoGPT
+google/guava
+unclebob/swarm-forge
+denoland/celld
+K2SOsint/Legendary_OSINT
+pranshuparmar/witr
+google/skills
