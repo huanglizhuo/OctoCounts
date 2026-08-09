@@ -120,10 +120,10 @@ async function checkPageStatus() {
       } else {
         setTabStatus('active');
       }
-      // The content script tried every mount strategy and found no trustworthy
-      // insertion point. This is the one "no card" case worth reporting.
-      if (status.mountState === 'mount_failed') {
-        await showMountFailure(tab, 'mount_failed');
+      // A missing trustworthy mount point or visibility signal both indicate
+      // that GitHub changed a page contract the extension depends on.
+      if (status.mountState === 'mount_failed' || status.mountState === 'visibility_unknown') {
+        await showMountFailure(tab, status.mountState);
       }
     } else {
       setTabStatus('idle');
@@ -155,7 +155,7 @@ function isRepoTabUrl(url) {
 
 async function showMountFailure(tab, reason) {
   let diagnostics = null;
-  if (reason === 'mount_failed') {
+  if (reason === 'mount_failed' || reason === 'visibility_unknown') {
     try {
       diagnostics = await chrome.tabs.sendMessage(tab.id, { type: 'GET_MOUNT_DIAGNOSTICS' });
     } catch (_) {}

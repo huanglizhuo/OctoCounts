@@ -13,6 +13,12 @@ const LEGACY_PRIVATE_SELECTORS = [
 ];
 
 const NON_PUBLIC_LABELS = new Set(['private', 'internal']);
+const PUBLIC_LABELS = new Set(['public']);
+const VISIBILITY_BADGE_SELECTOR = [
+  '[data-testid="repo-visibility-label"]',
+  '[data-testid="visibility-badge"]',
+  '.Label--secondary',
+].join(', ');
 
 export function isRepoPage(root = document) {
   if (window.self !== window.top) return false;
@@ -22,53 +28,70 @@ export function isRepoPage(root = document) {
 }
 
 export function isPublicRepoPage(root = document) {
-  return isRepoPage(root) && !isPrivateRepo(root);
+  return isRepoPage(root) && getRepoVisibility(root) === 'public';
 }
 
 /**
  * Single private/internal check for the whole extension.
  *
- * Order matters: the embedded React payload and the octolytics meta tag are
- * data GitHub ships with the page regardless of styling, so they decide first.
- * The DOM-label checks below them can only ever add a positive — they are a
- * safety net for pages without embedded data, not the primary signal.
+ * The embedded React payload and octolytics meta tag are independent of CSS,
+ * while DOM labels cover pages where those data signals are absent. The shared
+ * tri-state resolver gives private evidence precedence across every source.
  */
 export function isPrivateRepo(root = document) {
+  return getRepoVisibility(root) === 'private';
+}
+
+/**
+ * Return a tri-state result so callers can fail closed when GitHub changes its
+ * DOM or embedded payload again. A positive private/internal signal always
+ * wins over public data, which may be stale during React hydration.
+ */
+export function getRepoVisibility(root = document) {
+  let publicSignal = false;
   const payload = readEmbeddedPayload(root);
   if (payload) {
-    const repo = repoFromPayload(payload);
-    if (repo) {
-      if (repo.isPrivate === true || repo.private === true) return true;
+    const nwo = root.querySelector(
+      'meta[name="octolytics-dimension-repository_nwo"]'
+    )?.content?.trim().toLowerCase() || '';
+    for (const { repo, canProvePublic } of repoCandidatesFromPayload(payload, nwo)) {
+      if (repo.isPrivate === true || repo.private === true) return 'private';
       const visibility = String(repo.visibility || '').toUpperCase();
-      if (visibility === 'PRIVATE' || visibility === 'INTERNAL') return true;
-      if (repo.isPrivate === false || visibility === 'PUBLIC') return false;
+      if (visibility === 'PRIVATE' || visibility === 'INTERNAL') return 'private';
+      if (canProvePublic && (
+        repo.isPrivate === false || repo.private === false || visibility === 'PUBLIC'
+      )) {
+        publicSignal = true;
+      }
     }
   }
 
   const meta = root.querySelector(
     'meta[name="octolytics-dimension-repository_is_private"]'
   )?.content;
-  if (meta === 'true') return true;
-  if (meta === 'false') return false;
+  if (meta === 'true') return 'private';
+  if (meta === 'false') publicSignal = true;
 
-  if (LEGACY_PRIVATE_SELECTORS.some(selector => root.querySelector(selector))) return true;
+  if (LEGACY_PRIVATE_SELECTORS.some(selector => root.querySelector(selector))) return 'private';
 
   // Visibility badge next to the repo name, text-guarded so unrelated
   // secondary labels elsewhere on the page cannot trigger it.
-  for (const label of root.querySelectorAll('.Label--secondary, [data-testid="visibility-badge"]')) {
-    if (NON_PUBLIC_LABELS.has(label.textContent.trim().toLowerCase())) return true;
+  for (const label of root.querySelectorAll(VISIBILITY_BADGE_SELECTOR)) {
+    const text = label.textContent.trim().toLowerCase();
+    if (NON_PUBLIC_LABELS.has(text)) return 'private';
+    if (PUBLIC_LABELS.has(text)) publicSignal = true;
   }
 
   // Lock icon, scoped to the repo header so nav items cannot match.
   const header = repoHeader(root);
-  if (header?.querySelector('.octicon-lock')) return true;
+  if (header?.querySelector('.octicon-lock')) return 'private';
   if (header) {
     for (const label of header.querySelectorAll('.Label, [data-view-component="true"]')) {
-      if (NON_PUBLIC_LABELS.has(label.textContent.trim().toLowerCase())) return true;
+      if (NON_PUBLIC_LABELS.has(label.textContent.trim().toLowerCase())) return 'private';
     }
   }
 
-  return false;
+  return publicSignal ? 'public' : 'unknown';
 }
 
 export function parseRepoInfo() {
@@ -131,12 +154,66 @@ function detectFork(payload) {
 }
 
 function repoFromPayload(payload) {
-  if (!payload) return null;
-  return payload.repository
-    || payload.repo
-    || payload.codeViewRepoRoute?.repository
-    || payload.codeViewRepoRoute?.repo
-    || null;
+  return repoCandidatesFromPayload(payload)[0]?.repo || null;
+}
+
+function repoCandidatesFromPayload(payload, expectedNwo = '') {
+  if (!payload) return [];
+
+  const candidates = [];
+  const seen = new Map();
+  const add = (repo, canProvePublic = false) => {
+    if (!repo || typeof repo !== 'object') return;
+    const previous = seen.get(repo);
+    if (previous) {
+      if (canProvePublic) previous.canProvePublic = true;
+      return;
+    }
+    const candidate = { repo, canProvePublic };
+    seen.set(repo, candidate);
+    candidates.push(candidate);
+  };
+
+  // Known locations are kept explicit for readability and deterministic
+  // precedence. GitHub moved these from codeViewRepoRoute in August 2026.
+  add(payload.repository, true);
+  add(payload.repo, true);
+  add(payload.codeViewRepoRoute?.repository, true);
+  add(payload.codeViewRepoRoute?.repo, true);
+  add(payload.codeViewLayoutRoute?.repository, true);
+  add(payload.codeViewLayoutRoute?.repo, true);
+  add(payload.sidebarAbout?.repository, true);
+  add(payload.sidebarAbout?.repo, true);
+
+  // Bounded structural fallback: future route wrappers may move, but GitHub's
+  // repository objects still sit under a repo/repository key. This intentionally
+  // does not treat arbitrary nested objects as repository visibility signals.
+  const visit = (value, depth = 0) => {
+    if (!value || typeof value !== 'object' || depth > 8) return;
+    if (Array.isArray(value)) {
+      for (const item of value.slice(0, 100)) visit(item, depth + 1);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'repo' || key === 'repository') {
+        add(child, repoMatchesNwo(child, expectedNwo));
+      }
+      visit(child, depth + 1);
+    }
+  };
+  visit(payload);
+
+  return candidates;
+}
+
+function repoMatchesNwo(repo, expectedNwo) {
+  if (!repo || !expectedNwo) return false;
+  const direct = repo.nameWithOwner || repo.nwo || repo.fullName || repo.full_name;
+  if (direct) return String(direct).toLowerCase() === expectedNwo;
+
+  const name = repo.name;
+  const owner = repo.ownerLogin || repo.owner?.login || repo.owner?.name;
+  return !!(name && owner && `${owner}/${name}`.toLowerCase() === expectedNwo);
 }
 
 function repoHeader(root) {

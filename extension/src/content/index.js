@@ -1,4 +1,4 @@
-import { isRepoPage, isPrivateRepo, parseRepoInfo } from './detect.js';
+import { getRepoVisibility, isRepoPage, isPrivateRepo, parseRepoInfo } from './detect.js';
 import { resolveSidebar, collectDomFingerprint, fingerprintHash } from './github-dom.js';
 import { mountCard, unmountCard, getCardActivity } from './card.js';
 import { unmountPanel } from './panel.js';
@@ -11,6 +11,7 @@ import { unmountPanel } from './panel.js';
 const STATE = {
   NOT_REPO: 'not_repo',
   PRIVATE: 'private',
+  VISIBILITY_UNKNOWN: 'visibility_unknown',
   SKIPPED_FORK: 'skipped_fork',
   DISABLED_BY_USER: 'disabled_by_user',
   PENDING: 'pending',
@@ -59,8 +60,13 @@ async function run() {
       return;
     }
 
-    if (isPrivateRepo()) {
+    const visibility = getRepoVisibility();
+    if (visibility === 'private') {
       resetContext(STATE.PRIVATE);
+      return;
+    }
+    if (visibility !== 'public') {
+      resetContext(STATE.VISIBILITY_UNKNOWN);
       return;
     }
 
@@ -264,6 +270,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({
       isRepoPage: onRepoPage,
       isPrivateRepo: onRepoPage && isPrivateRepo(),
+      visibility: onRepoPage ? getRepoVisibility() : 'unknown',
       owner: info.owner ?? null,
       repo: info.repo ?? null,
       mountState: onRepoPage ? mountState : STATE.NOT_REPO,

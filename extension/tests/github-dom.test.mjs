@@ -15,7 +15,7 @@ import {
   fingerprintHash,
   LANGUAGE_HEADINGS,
 } from '../src/content/github-dom.js';
-import { isPrivateRepo } from '../src/content/detect.js';
+import { getRepoVisibility, isPrivateRepo } from '../src/content/detect.js';
 
 const FIXTURES = new URL('./fixtures/', import.meta.url);
 
@@ -232,6 +232,68 @@ test('the legacy visibility badge is still honoured without embedded data', () =
     </div></body></html>
   `);
   assert.equal(isPrivateRepo(document), true);
+});
+
+test('current GitHub private-repo signals are recognised', () => {
+  const { document } = parseHTML(`
+    <html><head>
+      <meta name="octolytics-dimension-repository_nwo" content="octo/secret">
+      <script type="application/json" data-target="react-app.embeddedData">
+        {"payload":{"codeViewLayoutRoute":{"repo":{"name":"secret","ownerLogin":"octo","private":true}},"sidebarAbout":{"repo":{"name":"secret","ownerLogin":"octo","isPrivate":true}}}}
+      </script>
+    </head><body>
+      <div id="repository-container-header"></div>
+      <div id="repo-title-component">
+        <span data-component="Label" data-variant="secondary" data-testid="repo-visibility-label">Private</span>
+      </div>
+    </body></html>
+  `);
+
+  assert.equal(getRepoVisibility(document), 'private');
+  assert.equal(isPrivateRepo(document), true);
+});
+
+test('a positive private signal wins over stale public data', () => {
+  const { document } = parseHTML(`
+    <html><head>
+      <script type="application/json" data-target="react-app.embeddedData">
+        {"payload":{"repo":{"visibility":"PUBLIC"}}}
+      </script>
+    </head><body>
+      <div id="repo-title-component">
+        <span data-testid="repo-visibility-label">Private</span>
+      </div>
+    </body></html>
+  `);
+
+  assert.equal(getRepoVisibility(document), 'private');
+});
+
+test('repository visibility is public only when positively identified', () => {
+  const { document: publicDocument } = parseHTML(`
+    <html><body><div id="repo-title-component">
+      <span data-testid="repo-visibility-label">Public</span>
+    </div></body></html>
+  `);
+  const { document: unknownDocument } = parseHTML(`
+    <html><body><div id="repository-container-header"><a href="/octo/demo">demo</a></div></body></html>
+  `);
+
+  assert.equal(getRepoVisibility(publicDocument), 'public');
+  assert.equal(getRepoVisibility(unknownDocument), 'unknown');
+});
+
+test('an unrelated public repository in embedded data cannot prove this page is public', () => {
+  const { document } = parseHTML(`
+    <html><head>
+      <meta name="octolytics-dimension-repository_nwo" content="octo/secret">
+      <script type="application/json" data-target="react-app.embeddedData">
+        {"payload":{"futureSidebar":{"repo":{"name":"demo","ownerLogin":"someone-else","private":false}}}}
+      </script>
+    </head><body><div id="repository-container-header"></div></body></html>
+  `);
+
+  assert.equal(getRepoVisibility(document), 'unknown');
 });
 
 /* ── diagnostics ─────────────────────────────────────────────────────────── */
