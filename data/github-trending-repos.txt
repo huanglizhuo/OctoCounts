@@ -1,18 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-08-08T03:42:10.117Z
+# GitHub Trending daily snapshot generated 2026-08-09T03:51:55.180Z
 PrimeIntellect-ai/prime-agent
 addyosmani/agent-skills
-cloudflare/computer
-mattpocock/skills
-obra/superpowers
-goauthentik/authentik
-semantica-agi/semantica
-666ghj/MiroFish
-chenyme/grok2api
-jdx/mise
-Significant-Gravitas/AutoGPT
-google/guava
-unclebob/swarm-forge
-denoland/celld
-K2SOsint/Legendary_OSINT
-pranshuparmar/witr
+TapXWorld/ChinaTextbook
 google/skills
+mattpocock/skills
+goauthentik/authentik
+TauricResearch/TradingAgents
+google/guava
+LadybirdBrowser/ladybird
+denoland/celld
+litu54/DevOps-Interview-Guide
+bannedbook/fanqiang
