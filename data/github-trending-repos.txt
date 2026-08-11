@@ -1,13 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-08-10T04:05:56.041Z
-PrimeIntellect-ai/prime-agent
-vitali87/code-graph-rag
+# GitHub Trending daily snapshot generated 2026-08-11T03:53:36.151Z
+semantica-agi/semantica
 msitarzewski/agency-agents
-pranshuparmar/witr
-google-deepmind/weathernext
+NanmiCoder/MediaCrawler
 addyosmani/agent-skills
-ZhuLinsen/daily_stock_analysis
-goauthentik/authentik
-google/skills
-Comfy-Org/ComfyUI
-harveyai/harvey-labs
+paperclipai/paperclip
+PrimeIntellect-ai/prime-agent
+LadybirdBrowser/ladybird
+ruvnet/RuView
+danielmiessler/LifeOS
+firecrawl/firecrawl
+TauricResearch/TradingAgents
+google-deepmind/weathernext
+vitali87/code-graph-rag
 pingdotgg/t3code
+Comfy-Org/ComfyUI
+opa334/Dopamine
