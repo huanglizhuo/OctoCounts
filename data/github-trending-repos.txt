@@ -1,17 +1,19 @@
-# GitHub Trending daily snapshot generated 2026-08-11T03:53:36.151Z
-semantica-agi/semantica
+# GitHub Trending daily snapshot generated 2026-08-12T04:16:21.097Z
+cathrynlavery/diagram-design
 msitarzewski/agency-agents
-NanmiCoder/MediaCrawler
+semantica-agi/semantica
+nvm-sh/nvm
 addyosmani/agent-skills
-paperclipai/paperclip
-PrimeIntellect-ai/prime-agent
-LadybirdBrowser/ladybird
-ruvnet/RuView
-danielmiessler/LifeOS
-firecrawl/firecrawl
-TauricResearch/TradingAgents
-google-deepmind/weathernext
+ZhuLinsen/daily_stock_analysis
 vitali87/code-graph-rag
-pingdotgg/t3code
-Comfy-Org/ComfyUI
-opa334/Dopamine
+anthropics/skills
+3b1b/manim
+HKUDS/DeepTutor
+stablyai/orca
+paperclipai/paperclip
+huggingface/transformers
+harveyai/harvey-labs
+jaywcjlove/awesome-mac
+calesthio/OpenMontage
+practical-tutorials/project-based-learning
+PrimeIntellect-ai/prime-agent
