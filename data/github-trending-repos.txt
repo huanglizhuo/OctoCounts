@@ -1,19 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-08-12T04:16:21.097Z
+# GitHub Trending daily snapshot generated 2026-08-13T04:19:29.741Z
 cathrynlavery/diagram-design
-msitarzewski/agency-agents
+macro-inc/macro
 semantica-agi/semantica
-nvm-sh/nvm
-addyosmani/agent-skills
-ZhuLinsen/daily_stock_analysis
-vitali87/code-graph-rag
-anthropics/skills
-3b1b/manim
-HKUDS/DeepTutor
 stablyai/orca
+msitarzewski/agency-agents
+shiyu-coder/Kronos
+NanmiCoder/MediaCrawler
+hugohe3/ppt-master
+infiniflow/ragflow
 paperclipai/paperclip
-huggingface/transformers
-harveyai/harvey-labs
-jaywcjlove/awesome-mac
-calesthio/OpenMontage
-practical-tutorials/project-based-learning
-PrimeIntellect-ai/prime-agent
+NVIDIA-NeMo/Switchyard
+ZuodaoTech/everyone-can-use-english
+smicallef/spiderfoot
+localsend/localsend
+Lightricks/LTX-2
+embabel/embabel-agent
+cactus-compute/needle
