@@ -1,18 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-08-13T04:19:29.741Z
+# GitHub Trending daily snapshot generated 2026-08-14T04:17:32.088Z
 cathrynlavery/diagram-design
-macro-inc/macro
 semantica-agi/semantica
-stablyai/orca
-msitarzewski/agency-agents
-shiyu-coder/Kronos
-NanmiCoder/MediaCrawler
-hugohe3/ppt-master
-infiniflow/ragflow
-paperclipai/paperclip
-NVIDIA-NeMo/Switchyard
-ZuodaoTech/everyone-can-use-english
-smicallef/spiderfoot
-localsend/localsend
-Lightricks/LTX-2
-embabel/embabel-agent
+anthropics/skills
 cactus-compute/needle
+altic-dev/FluidVoice
+unslothai/unsloth
+macro-inc/macro
+megadose/holehe
+smicallef/spiderfoot
+NVIDIA-NeMo/Switchyard
+holaboss-ai/holaOS
+kepano/obsidian-skills
+3b1b/manim
+msitarzewski/agency-agents
+Lightricks/LTX-2
+lightningpixel/modly
+infiniflow/ragflow
