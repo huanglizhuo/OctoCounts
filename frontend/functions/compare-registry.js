@@ -24,6 +24,21 @@ export const COMPARE_REGISTRY = [
   { slug: "mongodb-vs-postgres", name: "MongoDB vs PostgreSQL", left: { owner: "mongodb", repo: "mongo" }, right: { owner: "postgres", repo: "postgres" } },
   { slug: "grafana-vs-kibana", name: "Grafana vs Kibana", left: { owner: "grafana", repo: "grafana" }, right: { owner: "elastic", repo: "kibana" } },
   { slug: "terraform-vs-ansible", name: "Terraform vs Ansible", left: { owner: "hashicorp", repo: "terraform" }, right: { owner: "ansible", repo: "ansible" } },
+  { slug: "nextjs-vs-vite", name: "Next.js vs Vite", left: { owner: "vercel", repo: "next.js" }, right: { owner: "vitejs", repo: "vite" } },
+  { slug: "angular-vs-vue", name: "Angular vs Vue", left: { owner: "angular", repo: "angular" }, right: { owner: "vuejs", repo: "core" } },
+  { slug: "svelte-vs-vue", name: "Svelte vs Vue", left: { owner: "sveltejs", repo: "svelte" }, right: { owner: "vuejs", repo: "core" } },
+  { slug: "neovim-vs-vscode", name: "Neovim vs VS Code", left: { owner: "neovim", repo: "neovim" }, right: { owner: "microsoft", repo: "vscode" } },
+  { slug: "kubernetes-vs-docker-compose", name: "Kubernetes vs Docker Compose", left: { owner: "kubernetes", repo: "kubernetes" }, right: { owner: "docker", repo: "compose" } },
+  { slug: "kubernetes-vs-terraform", name: "Kubernetes vs Terraform", left: { owner: "kubernetes", repo: "kubernetes" }, right: { owner: "hashicorp", repo: "terraform" } },
+  { slug: "prometheus-vs-grafana", name: "Prometheus vs Grafana", left: { owner: "prometheus", repo: "prometheus" }, right: { owner: "grafana", repo: "grafana" } },
+  { slug: "nestjs-vs-fastify", name: "NestJS vs Fastify", left: { owner: "nestjs", repo: "nest" }, right: { owner: "fastify", repo: "fastify" } },
+  { slug: "prettier-vs-eslint", name: "Prettier vs ESLint", left: { owner: "prettier", repo: "prettier" }, right: { owner: "eslint", repo: "eslint" } },
+  { slug: "godot-vs-bevy", name: "Godot vs Bevy", left: { owner: "godotengine", repo: "godot" }, right: { owner: "bevyengine", repo: "bevy" } },
+  { slug: "bootstrap-vs-tailwind", name: "Bootstrap vs Tailwind CSS", left: { owner: "twbs", repo: "bootstrap" }, right: { owner: "tailwindlabs", repo: "tailwindcss" } },
+  { slug: "django-vs-rails", name: "Django vs Ruby on Rails", left: { owner: "django", repo: "django" }, right: { owner: "rails", repo: "rails" } },
+  { slug: "laravel-vs-django", name: "Laravel vs Django", left: { owner: "laravel", repo: "laravel" }, right: { owner: "django", repo: "django" } },
+  { slug: "bun-vs-node", name: "Bun vs Node.js", left: { owner: "oven-sh", repo: "bun" }, right: { owner: "nodejs", repo: "node" } },
+  { slug: "bun-vs-deno", name: "Bun vs Deno", left: { owner: "oven-sh", repo: "bun" }, right: { owner: "denoland", repo: "deno" } },
 ];
 
 export function findCuratedComparison(slug) {

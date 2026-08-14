@@ -51,3 +51,8 @@ mongodb/mongo
 supabase/supabase
 langchain-ai/langchain
 openai/openai-python
+twbs/bootstrap
+django/django
+rails/rails
+laravel/laravel
+oven-sh/bun

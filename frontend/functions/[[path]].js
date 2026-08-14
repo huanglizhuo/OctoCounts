@@ -292,7 +292,9 @@ async function statsPageResponse(context) {
   const description = "Aggregate OctoCounts report totals, repository coverage, source breakdown, language totals, and largest public repositories.";
   // An indexed page must never bottom out at a single "unavailable" sentence:
   // that is all a crawler would have to cite. When the numbers are missing,
-  // explain what the page measures and where the figures come from instead.
+  // explain what the page measures and where the figures come from instead —
+  // and when the numbers are present, a bare four-item list still says nothing
+  // about what they measure, so the explanation and links render in both states.
   const totals = stats?.totals
     ? `<ul>
       <li>${formatNumber(stats.totals.reportsGenerated)} reports generated</li>
@@ -300,8 +302,9 @@ async function statsPageResponse(context) {
       <li>${formatNumber(stats.totals.linesCounted)} total lines counted</li>
       <li>${formatNumber(stats.totals.languagesDetected)} languages detected</li>
     </ul>`
-    : `<p>This page publishes OctoCounts' own operating totals: how many source line count reports have been generated, how many distinct public GitHub repositories have been analyzed, how many lines have been counted in total, how many programming languages have been detected, which client each analysis arrived from, and the largest repositories measured so far. The figures are aggregate only and contain no user-level analytics.</p>
-    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. The live figures are loading; the same underlying reports are browsable directly:</p>
+    : `<p>The live figures are loading. OctoCounts is a free source lines of code counter for public GitHub repositories; the totals above are drawn from every report it has generated.</p>`;
+  const body = `<p>This page publishes OctoCounts' own operating totals: how many source line count reports have been generated, how many distinct public GitHub repositories have been analyzed, how many lines have been counted in total, how many programming languages have been detected, which client each analysis arrived from, and the largest repositories measured so far. The figures are aggregate only and contain no user-level analytics.</p>
+    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. The same underlying reports are browsable directly:</p>
     <nav aria-label="Related OctoCounts pages"><ul>
       <li><a href="/recent">Recently analyzed repositories</a></li>
       <li><a href="/popular">Popular SLOC reports</a></li>
@@ -325,7 +328,7 @@ async function statsPageResponse(context) {
         measurementTechnique: "Aggregate public OctoCounts report activity",
         variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
       },
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}</section>`,
+      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${body}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=3600"
   );
@@ -606,6 +609,11 @@ function listPageMeta(kind) {
 
 function injectReport(index, report, apiBaseUrl) {
   const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
+  // Answer engines quote self-contained opening sections; the citation alone
+  // (~45 words) is the quotable core and this lead brings the section to the
+  // ~150-word band that correlates with citation, covering method and
+  // reproducibility without depending on the rest of the page.
+  const lead = `<p>OctoCounts produced this report by resolving ${escapeHtml(report.repoFullName)} to commit ${escapeHtml(report.commitSha.slice(0, 12))}, downloading the repository source archive, and counting every source file with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options, so counting the same revision again reproduces exactly these numbers.</p>`;
   const rows = report.languages
     .map(
       (language) => `<tr><td>${escapeHtml(language.name)}</td><td>${language.stats.files}</td><td>${language.stats.lines}</td><td>${language.stats.code}</td><td>${language.stats.comments}</td><td>${language.stats.blanks}</td></tr>`
@@ -624,7 +632,7 @@ function injectReport(index, report, apiBaseUrl) {
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
-  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p>${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p>${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,

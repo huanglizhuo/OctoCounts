@@ -1,0 +1,44 @@
+name: Refresh llms.txt Last-Updated
+
+# llms.txt / llms-full.txt carry a Last-Updated header that answer engines use
+# as a freshness signal. Any deploy that changes the site content should carry
+# a current date, so bump it automatically whenever a push to main touches the
+# frontend.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-llms-lastupdated
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Bump Last-Updated header
+        run: node scripts/refresh-llms-lastupdated.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/llms.txt frontend/public/llms-full.txt
+          if git diff --cached --quiet; then
+            echo "llms.txt Last-Updated already current"
+          else
+            git commit -m "chore: refresh llms.txt Last-Updated"
+            git push origin HEAD:main
+          fi
