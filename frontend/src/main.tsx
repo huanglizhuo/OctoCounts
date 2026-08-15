@@ -1161,7 +1161,15 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
     <div className="runner">
       {report && showSticky ? (
         <div className="sticky-bar" role="region" aria-label={t("stickyBar.ariaLabel")}>
-          <span className="sticky-repo">{report.repository.owner}/{report.repository.name}</span>
+          <span className="sticky-repo">
+            {report.repository.owner}/{report.repository.name}
+            {typeof (liveStars ?? report.repository.stars ?? null) === "number" ? (
+              <span className="repo-stars" aria-label={`${formatCompactNumber((liveStars ?? report.repository.stars)!)} stars`}>
+                <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.61a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.17a.75.75 0 0 1-1.09.79L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.17L.83 6.36a.75.75 0 0 1 .42-1.28l4.2-.6L6.66.66A.75.75 0 0 1 8 .25Z"/></svg>
+                {formatCompactNumber((liveStars ?? report.repository.stars)!)}
+              </span>
+            ) : null}
+          </span>
           <span className="sticky-stats">
             {t("stickyBar.lines", { count: report.total.lines, lines: formatNumber(report.total.lines) })}
             {" · "}
@@ -1238,7 +1246,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
               <button className="copybtn" onClick={onReset}>{t("runner.clear")}</button>
             </div>
           </div>
-          <TrustDetails report={report} />
+          <TrustDetails report={report} stars={liveStars ?? report.repository.stars ?? null} />
           <details className="run-details">
             <summary>{t("runner.runDetails")}</summary>
             <RunnerLog status={status} report={report} error={error} />
@@ -1316,13 +1324,14 @@ function ReportGrowthActions({
   );
 }
 
-function TrustDetails({ report }: { report: Report }) {
+function TrustDetails({ report, stars }: { report: Report; stars?: number | null }) {
   const { t } = useTranslation();
   const details = [
     { label: t("trust.commit"), value: report.commitSha },
     { label: t("trust.ref"), value: report.refName },
     { label: t("trust.counter"), value: report.tokeiVersion },
     { label: t("trust.cache"), value: report.cached ? t("runner.cacheHit") : t("runner.freshRun") },
+    ...(typeof stars === "number" ? [{ label: t("trust.stars"), value: formatCompactNumber(stars) }] : []),
     { label: t("trust.profile"), value: t(`analysisOptions.profiles.${report.analysisOptions.profile}`) },
     { label: t("trust.ignored"), value: [...defaultIgnoredDirs, ...report.analysisOptions.ignoredDirs].join(", ") },
     { label: t("trust.languages"), value: report.analysisOptions.ignoredLanguages.join(", ") || t("trust.none") },

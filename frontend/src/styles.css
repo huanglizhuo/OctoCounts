@@ -2261,6 +2261,23 @@ table.report tr.totals td.lang {
   color: var(--accent-2);
 }
 
+/* Star badge next to the repo name in the sticky report bar. */
+.repo-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--fg-mute);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.repo-stars svg {
+  color: var(--accent-2);
+}
+
 .share-ref {
   color: var(--fg-mute);
   font-size: 15px;

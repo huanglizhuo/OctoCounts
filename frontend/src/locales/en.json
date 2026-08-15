@@ -160,6 +160,7 @@
     "ref": "Ref",
     "counter": "Counter",
     "cache": "Cache",
+    "stars": "Stars",
     "profile": "Profile",
     "ignored": "Ignored dirs",
     "languages": "Ignored languages",
