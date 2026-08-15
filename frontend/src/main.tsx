@@ -1084,6 +1084,23 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   const [copiedCta, setCopiedCta] = useState<"badge" | "url" | null>(null);
 
   const isWorking = status === "queued" || status === "running";
+  // The report body carries the star snapshot from analysis time; a cached
+  // report can be months old, so the share card refreshes through the server
+  // (which holds the GitHub token and a short cache) before rendering. On any
+  // failure it silently falls back to the snapshot, and to no badge at all
+  // when neither is present.
+  const [liveStars, setLiveStars] = useState<number | null>(null);
+  useEffect(() => {
+    setLiveStars(null);
+    if (!report) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 800);
+    const query = `owner=${encodeURIComponent(report.repository.owner)}&repo=${encodeURIComponent(report.repository.name)}`;
+    fetchJson<{ stars: number | null }>(`/api/repo-info?${query}`, { signal: controller.signal })
+      .then((payload) => { if (typeof payload.stars === "number") setLiveStars(payload.stars); })
+      .catch(() => {});
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  }, [report]);
   const [elapsedSec, setElapsedSec] = useState(0);
   useEffect(() => {
     if (!isWorking) {
@@ -1227,7 +1244,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <RunnerLog status={status} report={report} error={error} />
           </details>
           <div className="share-export-host" aria-hidden="true">
-            <ShareTickerCard ref={shareCardRef} report={report} />
+            <ShareTickerCard ref={shareCardRef} report={report} stars={liveStars ?? report.repository.stars ?? null} />
           </div>
           {showSharePreview ? (
             <section className="share-preview" aria-label={t("sharePreview.pngExportPreview")}>
@@ -1236,7 +1253,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
                 <span className="sub">{t("sharePreview.pngExportPreview")}</span>
               </div>
               <div className="share-preview-frame">
-                <ShareTickerCard report={report} />
+                <ShareTickerCard report={report} stars={liveStars ?? report.repository.stars ?? null} />
               </div>
             </section>
           ) : null}
@@ -1348,7 +1365,7 @@ function RunnerLog({ status, report, error, elapsedSec = 0 }: { status: AppStatu
   );
 }
 
-const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(function ShareTickerCard({ report }, ref) {
+const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report; stars?: number | null }>(function ShareTickerCard({ report, stars }, ref) {
   const { t } = useTranslation();
   const rows = tickerRows(report).slice(0, 6);
   const hasMoreLanguages = report.languages.length > rows.length;
@@ -1361,7 +1378,15 @@ const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report }>(fun
           <span>{t("shareCard.title")}</span>
         </div>
         <div className="share-body">
-          <div className="share-kicker">{report.repository.owner}/{report.repository.name}</div>
+          <div className="share-kicker-row">
+            <div className="share-kicker">{report.repository.owner}/{report.repository.name}</div>
+            {typeof stars === "number" ? (
+              <span className="share-stars" aria-label={`${formatCompactNumber(stars)} stars`}>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.61a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.17a.75.75 0 0 1-1.09.79L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.17L.83 6.36a.75.75 0 0 1 .42-1.28l4.2-.6L6.66.66A.75.75 0 0 1 8 .25Z"/></svg>
+                {formatCompactNumber(stars)}
+              </span>
+            ) : null}
+          </div>
           <div className="share-ref">{report.refName} / {report.commitSha.slice(0, 12)}</div>
           <div className="share-total">
             <span>{t("shareCard.totalLoc")}</span>

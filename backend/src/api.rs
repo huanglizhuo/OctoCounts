@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use axum::{
-    extract::{Path, RawQuery, State},
-    http::{header, HeaderMap, HeaderValue},
+    extract::{Path, Query, RawQuery, State},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -12,7 +12,7 @@ use crate::{
     cache::AppCaches,
     coordinator::{job_is_finished, AnalysisCoordinator},
     error::ApiError,
-    models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus},
+    models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus, RepositoryProvider},
 };
 
 #[derive(Clone)]
@@ -142,6 +142,49 @@ pub async fn report(
         body,
     )
         .into_response())
+}
+
+/// Live star count for a repository, for share-card refreshes. The report body
+/// carries the snapshot taken at analysis time; cached reports can be months
+/// old, and a share PNG propagates whatever number it was drawn with, so the
+/// client refreshes through this endpoint (server-side token, short cache)
+/// before rendering. `stars: null` means unknown — the client falls back to the
+/// snapshot or hides the badge.
+pub async fn repo_info(
+    State(state): State<AppState>,
+    Query(params): Query<RepoInfoQuery>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let provider = match params.provider.as_deref() {
+        Some("gitlab") | Some("gitLab") | Some("GitLab") => RepositoryProvider::GitLab,
+        _ => RepositoryProvider::GitHub,
+    };
+
+    if !is_repo_part(&params.owner) || !is_repo_part(&params.repo) {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "invalid_repository",
+            "owner and repo query parameters are required",
+        ));
+    }
+
+    let stars = state
+        .coordinator
+        .github()
+        .repo_stars(&provider, &params.owner, &params.repo)
+        .await;
+
+    Ok(Json(serde_json::json!({ "stars": stars })))
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct RepoInfoQuery {
+    pub owner: String,
+    pub repo: String,
+    pub provider: Option<String>,
+}
+
+fn is_repo_part(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 100 && value.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
 }
 
 pub async fn stats(

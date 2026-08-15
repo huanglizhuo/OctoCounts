@@ -34,7 +34,7 @@ export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mc
 
 export type Report = {
   id: string;
-  repository: { owner: string; name: string; htmlUrl: string; provider?: RepositoryProvider };
+  repository: { owner: string; name: string; htmlUrl: string; provider?: RepositoryProvider; stars?: number | null };
   refName: string;
   commitSha: string;
   generatedAt: string;

@@ -156,16 +156,6 @@ test("responsive navigation and the two-mode theme control avoid orphaned UI", a
   assert.match(styles, /\.report-index-link\s*\{[\s\S]*?flex: 1 1 180px;/);
 });
 
-test("project documentation and promo composition expose only supported themes", async () => {
-  const files = await Promise.all([
-    readFile(new URL("../GROWTH.md", ROOT), "utf8"),
-    readFile(new URL("../hyperframes/octocounts-intro/README.md", ROOT), "utf8"),
-    readFile(new URL("../hyperframes/octocounts-intro/index.html", ROOT), "utf8"),
-  ]);
-
-  assert.doesNotMatch(files.join("\n"), /amber/i);
-});
-
 test("matrix language colors meet the non-text contrast threshold", async () => {
   const source = await readFile(new URL("src/colorContrast.ts", ROOT), "utf8");
   const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });

@@ -295,6 +295,7 @@ fn report(
             owner: owner.to_string(),
             name: name.to_string(),
             html_url: format!("https://github.com/{owner}/{name}"),
+            stars: None,
         },
         ref_name: "main".to_string(),
         commit_sha: commit_sha.to_string(),

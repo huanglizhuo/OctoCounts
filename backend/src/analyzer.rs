@@ -135,6 +135,7 @@ fn analyze_blocking_with_limit(
             owner: repo_ref.owner,
             name: repo_ref.repo,
             html_url: repo_ref.html_url,
+            stars: repo_ref.stars,
         },
         ref_name: repo_ref.ref_name,
         commit_sha: repo_ref.commit_sha,

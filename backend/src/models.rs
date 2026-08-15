@@ -84,9 +84,14 @@ pub struct Repository {
     pub html_url: String,
     #[serde(default = "default_provider")]
     pub provider: RepositoryProvider,
+    /// Star count observed when the ref was resolved. A snapshot tied to the
+    /// analysis, like every other figure in the report; absent on reports
+    /// stored before the field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stars: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum RepositoryProvider {
     #[serde(rename = "github", alias = "gitHub", alias = "GitHub")]
     GitHub,
@@ -223,6 +228,7 @@ pub struct RepoRef {
     pub ref_name: String,
     pub commit_sha: String,
     pub html_url: String,
+    pub stars: Option<u64>,
 }
 
 fn default_true() -> bool {

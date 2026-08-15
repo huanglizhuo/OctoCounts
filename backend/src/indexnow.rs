@@ -306,6 +306,7 @@ mod tests {
                 owner: "octo".to_string(),
                 name: "count".to_string(),
                 html_url: "https://github.com/octo/count".to_string(),
+                stars: None,
             },
             ref_name: "main".to_string(),
             commit_sha: "abc123".to_string(),

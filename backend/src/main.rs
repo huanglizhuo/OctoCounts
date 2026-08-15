@@ -100,6 +100,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
         .route("/api/stats", get(api::stats))
+        .route("/api/repo-info", get(api::repo_info))
         .route("/api/seo/report", get(seo::report))
         .route("/api/seo/recent", get(seo::recent))
         .route("/api/seo/popular", get(seo::popular))

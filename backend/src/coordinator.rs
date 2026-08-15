@@ -161,6 +161,10 @@ impl AnalysisCoordinator {
         &self.store
     }
 
+    pub fn github(&self) -> &GitHubClient {
+        &self.github
+    }
+
     /// Waits until `settled` accepts the job, `timeout` elapses, or the job is
     /// gone.
     ///

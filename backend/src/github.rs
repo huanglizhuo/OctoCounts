@@ -36,7 +36,7 @@ const GRAPHQL_ENDPOINT: &str = "https://api.github.com/graphql";
 const REF_QUERY: &str = "\
 query($owner:String!,$name:String!,$expression:String!,$hasRef:Boolean!){\
 repository(owner:$owner,name:$name){\
-isPrivate url \
+isPrivate url stargazerCount \
 defaultBranchRef{name target{oid}} \
 object(expression:$expression)@include(if:$hasRef){__typename oid}}}";
 
@@ -62,6 +62,7 @@ pub enum GitHubError {
 pub struct GitHubClient {
     client: Client,
     ref_cache: Cache<(String, Option<String>), RepoRef>,
+    stars_cache: Cache<(RepositoryProvider, String, String), Option<u64>>,
     /// GitHub's GraphQL API rejects unauthenticated requests outright, and
     /// `GITHUB_TOKEN` is optional in this deployment, so the fast path is only
     /// attempted when there is a token to attempt it with.
@@ -73,6 +74,8 @@ struct RepoResponse {
     default_branch: String,
     html_url: String,
     private: bool,
+    #[serde(default)]
+    stargazers_count: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,6 +90,8 @@ struct GitLabProjectResponse {
     default_branch: String,
     web_url: String,
     visibility: String,
+    #[serde(default)]
+    star_count: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,6 +118,8 @@ struct GraphQlData {
 struct GraphQlRepository {
     is_private: bool,
     url: String,
+    #[serde(default)]
+    stargazer_count: Option<u64>,
     #[serde(default)]
     default_branch_ref: Option<GraphQlRef>,
     /// Absent when `hasRef` was false, null when the expression resolved to
@@ -158,6 +165,7 @@ enum GraphQlOutcome {
     Resolved {
         html_url: String,
         ref_name: String,
+        stars: Option<u64>,
         commit_sha: String,
     },
     Failed(GraphQlFailure),
@@ -210,6 +218,7 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
             GraphQlOutcome::Resolved {
                 html_url: repository.url,
                 ref_name: ref_name.to_string(),
+                stars: repository.stargazer_count,
                 commit_sha: object.oid,
             }
         }
@@ -230,6 +239,7 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
                     .as_ref()
                     .map(|branch| branch.name.clone())
                     .unwrap_or_default(),
+                stars: repository.stargazer_count,
                 commit_sha: target.oid.clone(),
             }
         }
@@ -269,6 +279,17 @@ fn build_ref_cache(ttl: Duration) -> Cache<(String, Option<String>), RepoRef> {
         .build()
 }
 
+/// Star counts drift continuously, so the refresh cache is short; failures
+/// (None) are cached too, so an unreachable API does not become a request
+/// amplifier.
+fn build_stars_cache() -> Cache<(RepositoryProvider, String, String), Option<u64>> {
+    Cache::builder()
+        .max_capacity(REF_CACHE_CAPACITY)
+        .time_to_live(Duration::from_secs(600))
+        .eviction_policy(EvictionPolicy::lru())
+        .build()
+}
+
 impl GitHubClient {
     pub fn new() -> anyhow::Result<Self> {
         Self::with_token(std::env::var("GITHUB_TOKEN").ok())
@@ -300,8 +321,56 @@ impl GitHubClient {
         Ok(Self {
             client: Client::builder().default_headers(headers).build()?,
             ref_cache: build_ref_cache(REF_CACHE_TTL),
+            stars_cache: build_stars_cache(),
             has_token,
         })
+    }
+
+    /// Current star count for a repository, cached briefly so share-card
+    /// refreshes do not hammer the GitHub API. `None` means unknown (missing
+    /// field, rate limit, or transport failure) — never zero.
+    pub async fn repo_stars(
+        &self,
+        provider: &RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> Option<u64> {
+        let cache_key = (provider.clone(), owner.to_string(), repo.to_string());
+        if let Some(cached) = self.stars_cache.get(&cache_key).await {
+            return cached;
+        }
+
+        let stars = match provider {
+            RepositoryProvider::GitHub => {
+                let url = format!("https://api.github.com/repos/{owner}/{repo}");
+                let response = self.client.get(url).send().await.ok()?;
+                if !matches!(response.status(), StatusCode::OK) {
+                    return None;
+                }
+                response
+                    .json::<RepoResponse>()
+                    .await
+                    .ok()?
+                    .stargazers_count
+            }
+            RepositoryProvider::GitLab => {
+                let full_path = format!("{owner}/{repo}");
+                let path = urlencoding::encode(&full_path);
+                let url = format!("https://gitlab.com/api/v4/projects/{path}");
+                let response = self.client.get(url).send().await.ok()?;
+                if !matches!(response.status(), StatusCode::OK) {
+                    return None;
+                }
+                response
+                    .json::<GitLabProjectResponse>()
+                    .await
+                    .ok()?
+                    .star_count
+            }
+        };
+
+        self.stars_cache.insert(cache_key, stars).await;
+        stars
     }
 
     fn parse_repo_url(input: &str) -> Result<RepoTarget, GitHubError> {
@@ -416,6 +485,7 @@ impl GitHubClient {
                 GraphQlOutcome::Resolved {
                     html_url,
                     ref_name,
+                    stars,
                     commit_sha,
                 } => {
                     let repo_ref = RepoRef {
@@ -425,6 +495,7 @@ impl GitHubClient {
                         ref_name,
                         commit_sha,
                         html_url,
+                        stars,
                     };
                     self.ref_cache.insert(cache_key, repo_ref.clone()).await;
                     return Ok(repo_ref);
@@ -460,6 +531,7 @@ impl GitHubClient {
             ref_name,
             commit_sha,
             html_url: repo_body.html_url,
+            stars: repo_body.stargazers_count,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
         Ok(repo_ref)
@@ -556,6 +628,7 @@ impl GitHubClient {
             ref_name,
             commit_sha,
             html_url: project_body.web_url,
+            stars: project_body.star_count,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
         Ok(repo_ref)
@@ -693,6 +766,7 @@ mod tests {
             ref_name: "main".to_string(),
             commit_sha: sha.to_string(),
             html_url: "https://github.com/tokio-rs/axum".to_string(),
+            stars: None,
         }
     }
 
@@ -754,6 +828,7 @@ mod tests {
             GraphQlOutcome::Resolved {
                 html_url: "https://github.com/tokio-rs/axum".to_string(),
                 ref_name: "main".to_string(),
+                stars: None,
                 commit_sha: "a5116d6b1bcabdfd7039279e4957b4a9c0b50587".to_string(),
             }
         );
@@ -778,6 +853,7 @@ mod tests {
             GraphQlOutcome::Resolved {
                 html_url: "https://github.com/torvalds/linux".to_string(),
                 ref_name: "v6.6".to_string(),
+                stars: None,
                 commit_sha: "ffc253263a1375a65fa6c9f62a893e9767fbebfa".to_string(),
             }
         );

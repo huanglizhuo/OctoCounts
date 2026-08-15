@@ -2225,6 +2225,14 @@ table.report tr.totals td.lang {
   min-height: 0;
 }
 
+.share-kicker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+
 .share-kicker {
   color: var(--fg);
   font-size: 26px;
@@ -2233,6 +2241,24 @@ table.report tr.totals td.lang {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* GitHub-style star badge on the share card: inline SVG so html-to-image
+   renders it without loading any external resource. */
+.share-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-mute);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.share-stars svg {
+  color: var(--accent-2);
 }
 
 .share-ref {
