@@ -1094,7 +1094,12 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
     setLiveStars(null);
     if (!report) return;
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 800);
+    // 800ms was too tight from a cold browser: DNS + TLS + the Cloudflare
+    // edge/tunnel path plus a cold GitHub fetch measured 0.8-1.4s end to end,
+    // so the refresh aborted and the badge fell back to (often absent)
+    // snapshots. The fetch is non-blocking; the share export happens well
+    // after load, so a generous budget costs nothing.
+    const timeout = window.setTimeout(() => controller.abort(), 2500);
     const query = `owner=${encodeURIComponent(report.repository.owner)}&repo=${encodeURIComponent(report.repository.name)}`;
     fetchJson<{ stars: number | null }>(`/api/repo-info?${query}`, { signal: controller.signal })
       .then((payload) => { if (typeof payload.stars === "number") setLiveStars(payload.stars); })
