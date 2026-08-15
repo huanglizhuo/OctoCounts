@@ -1,18 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-08-14T04:17:32.088Z
+# GitHub Trending daily snapshot generated 2026-08-15T03:03:24.717Z
 cathrynlavery/diagram-design
-semantica-agi/semantica
-anthropics/skills
 cactus-compute/needle
-altic-dev/FluidVoice
-unslothai/unsloth
-macro-inc/macro
 megadose/holehe
+macro-inc/macro
 smicallef/spiderfoot
-NVIDIA-NeMo/Switchyard
+citrolabs/ego-lite
 holaboss-ai/holaOS
-kepano/obsidian-skills
-3b1b/manim
-msitarzewski/agency-agents
-Lightricks/LTX-2
+github/spec-kit
 lightningpixel/modly
 infiniflow/ragflow
+cursor/plugins
+deepseek-ai/awesome-deepseek-agent
+semantica-agi/semantica
+rustdesk/rustdesk
+OpenCut-app/OpenCut
+unslothai/unsloth
+ToolJet/ToolJet
