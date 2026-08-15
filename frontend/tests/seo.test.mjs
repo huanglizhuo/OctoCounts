@@ -293,6 +293,8 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.match(html, /"name":"How many lines of code does octo-org\/octo-repo have\?"/);
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
+    assert.match(html, /\/compare\/rust-vs-go/);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=86400, stale-while-revalidate=604800");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -538,7 +540,7 @@ test("curated comparison SSR renders balanced citable content", async () => {
     }
 
     assert.equal(response.status, 200, slug);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=3600", slug);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", slug);
     assert.ok(html.includes(`<title>${name}: source lines of code compared | OctoCounts</title>`), `${slug} title`);
     assert.ok(html.includes(`<link rel="canonical" href="https://octocounts.com/compare/${slug}" />`), `${slug} canonical`);
     assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" \/>/);

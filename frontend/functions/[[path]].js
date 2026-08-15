@@ -159,7 +159,7 @@ async function reportResponse(context, route) {
   }
 
   const report = await response.json();
-  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=300, stale-while-revalidate=3600");
+  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=86400, stale-while-revalidate=604800");
 }
 
 async function listPageResponse(context, kind, url) {
@@ -210,7 +210,7 @@ async function listPageResponse(context, kind, url) {
       },
       noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
     }),
-    "public, s-maxage=300, stale-while-revalidate=3600"
+    "public, s-maxage=900, stale-while-revalidate=3600"
   );
 }
 
@@ -330,7 +330,7 @@ async function statsPageResponse(context) {
       },
       noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${body}</section>`,
     }),
-    "public, s-maxage=300, stale-while-revalidate=3600"
+    "public, s-maxage=900, stale-while-revalidate=3600"
   );
 }
 
@@ -383,7 +383,7 @@ async function curatedCompareResponse(context, entry) {
   }
 
   const [left, right] = await Promise.all([leftResponse.json(), rightResponse.json()]);
-  return htmlResponse(injectCuratedCompare(index, entry, left, right), "public, s-maxage=300, stale-while-revalidate=3600");
+  return htmlResponse(injectCuratedCompare(index, entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
 }
 
 function seoReportUrl(context, target) {
@@ -607,6 +607,36 @@ function listPageMeta(kind) {
   };
 }
 
+/// Curated comparisons relevant to a report's dominant language, so every
+/// long-tail /github/* page links into the compare corpus with topical
+/// anchors instead of an identical link list on every page.
+function relatedComparisons(topLanguageName) {
+  const byLanguage = {
+    JavaScript: ["react-vs-vue", "nextjs-vs-vite", "vite-vs-webpack", "angular-vs-vue"],
+    TypeScript: ["nextjs-vs-vite", "angular-vs-vue", "svelte-vs-vue", "react-vs-vue"],
+    Rust: ["rust-vs-go", "electron-vs-tauri", "deno-vs-node"],
+    Go: ["rust-vs-go", "deno-vs-node", "kubernetes-vs-terraform"],
+    Python: ["tensorflow-vs-pytorch", "django-vs-rails", "laravel-vs-django"],
+    "C++": ["tensorflow-vs-pytorch", "electron-vs-tauri", "godot-vs-bevy"],
+    "C": ["neovim-vs-vscode", "mongodb-vs-postgres"],
+    Java: ["mongodb-vs-postgres", "kubernetes-vs-docker-compose", "kubernetes-vs-terraform"],
+    Kotlin: ["react-native-vs-flutter"],
+    Dart: ["react-native-vs-flutter"],
+    Ruby: ["django-vs-rails", "laravel-vs-django"],
+    PHP: ["laravel-vs-django", "django-vs-rails"],
+    Shell: ["deno-vs-node", "bun-vs-node"],
+    Zig: ["rust-vs-go", "bun-vs-deno"],
+    Lua: ["neovim-vs-vscode", "godot-vs-bevy"],
+    HTML: ["bootstrap-vs-tailwind"],
+    CSS: ["bootstrap-vs-tailwind"],
+  };
+  const slugs = byLanguage[topLanguageName] || [];
+  return slugs
+    .map((slug) => COMPARE_REGISTRY.find((entry) => entry.slug === slug))
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 function injectReport(index, report, apiBaseUrl) {
   const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
   // Answer engines quote self-contained opening sections; the citation alone
@@ -623,11 +653,20 @@ function injectReport(index, report, apiBaseUrl) {
   const faqHtml = `<section><h2>Report FAQ</h2>${faq
     .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
     .join("")}</section>`;
+  // Contextual links out of every report page: crawlers get a path from any
+  // long-tail /github/* URL into the curated compare corpus (and vice versa),
+  // and each link is relevant to the repository's dominant language.
+  const relatedCompare = relatedComparisons(report.topLanguage?.name);
+  const relatedCompareHtml = relatedCompare.length
+    ? `<li>${relatedCompare
+        .map((entry) => `<a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a>`)
+        .join(" · ")}</li>`
+    : "";
   const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
     <li><a href="/trending">Trending GitHub repositories</a></li>
-    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>${relatedCompareHtml}
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
