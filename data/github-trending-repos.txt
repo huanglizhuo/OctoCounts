@@ -1,18 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-08-15T03:03:24.717Z
+# GitHub Trending daily snapshot generated 2026-08-16T03:11:32.377Z
+cordiverse/cordis
 cathrynlavery/diagram-design
-cactus-compute/needle
-megadose/holehe
-macro-inc/macro
-smicallef/spiderfoot
-citrolabs/ego-lite
-holaboss-ai/holaOS
-github/spec-kit
-lightningpixel/modly
-infiniflow/ragflow
 cursor/plugins
-deepseek-ai/awesome-deepseek-agent
-semantica-agi/semantica
-rustdesk/rustdesk
-OpenCut-app/OpenCut
+cactus-compute/needle
 unslothai/unsloth
+public-apis/public-apis
+MakazhanAlpamys/Soup
+github/spec-kit
+megadose/holehe
+altic-dev/FluidVoice
 ToolJet/ToolJet
+HKUDS/CLI-Anything
+citrolabs/ego-lite
