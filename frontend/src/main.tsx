@@ -1,14 +1,36 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Moon, Play, RotateCcw, Sun } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
 import React, { FormEvent, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import i18n from "./i18n";
+import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
+import { Topbar, publicReportLinks } from "./Topbar";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
+// Marketing/tool pages are separate chunks; the home bundle no longer carries them.
+const StatsPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.StatsPage })));
+const ReportListPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ReportListPage })));
+const TrendingPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.TrendingPage })));
+const ComparePage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ComparePage })));
+const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.DiffPage })));
+// Below-the-fold tool sections on the home page — deferred anyway, so lazy.
+const CompareRepos = React.lazy(() => import("./compare").then((m) => ({ default: m.CompareRepos })));
+const DiffRefs = React.lazy(() => import("./compare").then((m) => ({ default: m.DiffRefs })));
+
+function PageFallback() {
+  return <div className="growth-state" role="status">Loading…</div>;
+}
+
+function RoutedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<PageFallback />}>
+      {children}
+    </Suspense>
+  );
+}
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import initialReportData from "./initialReport.json";
@@ -28,9 +50,10 @@ import {
   tickerRows,
   visibleLanguageColor,
 } from "./reportUtils";
-import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, Report, Scheme, SortKey, Stats } from "./types";
+import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, Report, SortKey, Stats } from "./types";
 import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
+import { SchemeProvider, ThemeSwitch, useScheme } from "./scheme";
 
 const queryClient = new QueryClient();
 const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
@@ -42,44 +65,10 @@ const samples = [
   { label: "vscode", repoUrl: "https://github.com/microsoft/vscode", refName: "" },
 ];
 
-const publicReportLinks = [
-  { href: "/stats", key: "stats", command: "stats" },
-  { href: "/recent", key: "recent", command: "tail -f" },
-  { href: "/popular", key: "popular", command: "sort --hits" },
-  { href: "/trending", key: "trending", command: "watch --daily" },
-  { href: "/hall-of-monoliths", key: "hall", command: "top --lines" },
-];
-
 const RECENT_KEY = "octocounts.recentRepos";
 const RECENT_MAX = 5;
-const THEME_KEY = "octocounts.theme";
 
 type RecentEntry = { repoUrl: string; refName: string; label: string };
-
-function systemScheme(): Scheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper";
-}
-
-function readStoredScheme(): Scheme | null {
-  try {
-    const value = localStorage.getItem(THEME_KEY);
-    return value === "matrix" || value === "paper" ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function preferredScheme(): Scheme {
-  return readStoredScheme() ?? systemScheme();
-}
-
-function persistScheme(scheme: Scheme) {
-  try {
-    localStorage.setItem(THEME_KEY, scheme);
-  } catch {
-    /* storage unavailable — theme still applies for the current page */
-  }
-}
 
 function loadRecentRepos(): RecentEntry[] {
   try {
@@ -132,19 +121,7 @@ function DeferredContent({ children, minHeight = 1, rootMargin = "300px" }: { ch
   return <div className="deferred-slot" ref={ref} style={{ minHeight }}>{isNear ? children : null}</div>;
 }
 
-// Tracks html[data-scheme] so components can react to theme toggles without prop drilling.
-function useScheme(): Scheme {
-  const [scheme, setScheme] = useState<Scheme>(() => (document.documentElement.dataset.scheme === "paper" ? "paper" : "matrix"));
-  useEffect(() => {
-    const root = document.documentElement;
-    const observer = new MutationObserver(() => {
-      setScheme(root.dataset.scheme === "paper" ? "paper" : "matrix");
-    });
-    observer.observe(root, { attributes: true, attributeFilter: ["data-scheme"] });
-    return () => observer.disconnect();
-  }, []);
-  return scheme;
-}
+// Tracks html[data-scheme] was replaced by the SchemeProvider context — see scheme.tsx.
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
 const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
 const defaultAnalysisOptions: AnalysisOptions = {
@@ -161,16 +138,15 @@ const seedReport = normalizeReport(initialReportData as unknown as Report);
 function App() {
   const { t, i18n } = useTranslation();
   const routePath = window.location.pathname;
-  if (routePath === "/stats") return <StatsPage />;
-  if (routePath === "/recent") return <ReportListPage kind="recent" />;
-  if (routePath === "/popular") return <ReportListPage kind="popular" />;
-  if (routePath === "/trending") return <TrendingPage />;
-  if (routePath === "/hall-of-monoliths") return <ReportListPage kind="monoliths" />;
-  if (routePath === "/compare" || routePath.startsWith("/compare/")) return <ComparePage />;
-  if (routePath === "/diff") return <DiffPage />;
+  if (routePath === "/stats") return <RoutedPage><StatsPage /></RoutedPage>;
+  if (routePath === "/recent") return <RoutedPage><ReportListPage kind="recent" /></RoutedPage>;
+  if (routePath === "/popular") return <RoutedPage><ReportListPage kind="popular" /></RoutedPage>;
+  if (routePath === "/trending") return <RoutedPage><TrendingPage /></RoutedPage>;
+  if (routePath === "/hall-of-monoliths") return <RoutedPage><ReportListPage kind="monoliths" /></RoutedPage>;
+  if (routePath === "/compare" || routePath.startsWith("/compare/")) return <RoutedPage><ComparePage /></RoutedPage>;
+  if (routePath === "/diff") return <RoutedPage><DiffPage /></RoutedPage>;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
-  const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
   const [refName, setRefName] = useState(() => initialRequest.refName);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => defaultAnalysisOptions);
@@ -285,15 +261,6 @@ function App() {
   };
 
   useEffect(() => {
-    document.documentElement.dataset.scheme = scheme;
-    persistScheme(scheme);
-  }, [scheme]);
-
-  useEffect(() => {
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
-
-  useEffect(() => {
     syncPageMetadata({ report, repoUrl, refName, defaultTitle: t("app.title"), defaultDescription: t("app.description") });
   }, [report, repoUrl, refName, t, i18n.language]);
 
@@ -310,7 +277,7 @@ function App() {
         <Topbar />
         <section className="hero" aria-label={t("hero.title")}>
           <div className="hero-left">
-            <TopActions scheme={scheme} setScheme={setScheme} status={status} />
+            <TopActions status={status} />
             <h1 className="title">
               <Trans i18nKey="hero.title" components={{ 1: <span className="glow" /> }} />
             </h1>
@@ -344,18 +311,9 @@ function App() {
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {report && <BadgeEmbed report={report} refName={refName} />}
             <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
-              <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "hero" })}>
-                <ChromeIcon size={15} />
-                {t("hero.installChrome")}
-              </a>
-              <a className="copybtn install-btn secondary-install" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "hero" })}>
-                <EdgeIcon size={14} />
-                {t("hero.installEdge")}
-              </a>
-              <a className="copybtn install-btn secondary-install" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "hero" })}>
-                <FirefoxIcon size={14} />
-                {t("hero.installFirefox")}
-              </a>
+              <StoreLink store="chrome" placement="hero" className="btn install-btn" size={15}>{t("hero.installChrome")}</StoreLink>
+              <StoreLink store="edge" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installEdge")}</StoreLink>
+              <StoreLink store="firefox" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installFirefox")}</StoreLink>
               <span>{t("hero.sidebarHint")}</span>
             </div>
             <div className="quick-rows" role="group" aria-label={t("hero.ariaSamples")}>
@@ -444,7 +402,7 @@ function App() {
             <h2>{t("compare.title")}</h2>
             <span className="sub">{t("compare.subtitle")}</span>
           </div>
-          <DeferredContent minHeight={420}><CompareRepos /></DeferredContent>
+          <DeferredContent minHeight={420}><Suspense fallback={null}><CompareRepos /></Suspense></DeferredContent>
         </section>
 
         <section>
@@ -452,7 +410,7 @@ function App() {
             <h2>{t("diff.title")}</h2>
             <span className="sub">{t("diff.subtitle")}</span>
           </div>
-          <DeferredContent minHeight={420}><DiffRefs /></DeferredContent>
+          <DeferredContent minHeight={420}><Suspense fallback={null}><DiffRefs /></Suspense></DeferredContent>
         </section>
 
         <section>
@@ -523,326 +481,6 @@ function App() {
   );
 }
 
-type SeoReportSummary = {
-  provider: "github" | "gitlab";
-  owner: string;
-  repo: string;
-  repoFullName: string;
-  htmlUrl: string;
-  publicPath: string;
-  generatedAt: string;
-  refName: string;
-  total: Stats;
-  topLanguage?: { name: string; code: number; percent: number };
-};
-
-type SeoListResponse = {
-  page: number;
-  limit: number;
-  reports: SeoReportSummary[];
-};
-
-type TrendingRepository = {
-  rank: number;
-  owner: string;
-  name: string;
-  fullName: string;
-  description: string;
-  language: string | null;
-  starsToday: number;
-  totalStars: number;
-  htmlUrl: string;
-  publicPath: string;
-};
-
-type TrendingSnapshot = {
-  source: string;
-  period: "daily";
-  generatedAt: string;
-  date: string;
-  repositories: TrendingRepository[];
-};
-
-function MarketingShell({ children }: { children: React.ReactNode }) {
-  const { t, i18n } = useTranslation();
-  const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
-
-  useEffect(() => {
-    initAnalytics();
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.dataset.scheme = scheme;
-    persistScheme(scheme);
-  }, [scheme]);
-
-  useEffect(() => {
-    document.documentElement.lang = i18n.language;
-  }, [i18n.language]);
-
-  return (
-    <>
-      <a className="skip-link" href="#main">Skip to content</a>
-      <div className="crt flicker" />
-      <main id="main" className="page growth-page">
-        <Topbar />
-        <div className="marketing-controls">
-          <ThemeSwitch scheme={scheme} setScheme={setScheme} />
-        </div>
-        {children}
-        <footer>
-          <span>{t("growth.footerTagline")}</span>
-          <span>
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
-          </span>
-          <LanguageSwitcher />
-        </footer>
-      </main>
-    </>
-  );
-}
-
-function StatsPage() {
-  const { t } = useTranslation();
-  const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats });
-  const stats = query.data;
-
-  return (
-    <MarketingShell>
-      <section className="growth-hero" aria-label={t("growth.stats.ariaLabel")}>
-        <span className="chart-tag">{t("growth.stats.kicker")}</span>
-        <h1>{t("growth.stats.title")}</h1>
-        <p>{t("growth.stats.subtitle")}</p>
-      </section>
-
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {stats ? <StatsDashboard stats={stats} /> : null}
-    </MarketingShell>
-  );
-}
-
-function StatsDashboard({ stats }: { stats: GrowthStats }) {
-  const { t } = useTranslation();
-  const totals = [
-    { label: t("growth.metrics.reportsGenerated"), value: stats.totals.reportsGenerated },
-    { label: t("growth.metrics.repositoriesAnalyzed"), value: stats.totals.repositoriesAnalyzed },
-    { label: t("growth.metrics.linesCounted"), value: stats.totals.linesCounted },
-    { label: t("growth.metrics.languagesDetected"), value: stats.totals.languagesDetected },
-  ];
-  const windows = [
-    { label: t("growth.metrics.reportsToday"), value: stats.windows.reportsToday },
-    { label: t("growth.metrics.reports7d"), value: stats.windows.reports7d },
-    { label: t("growth.metrics.reports30d"), value: stats.windows.reports30d },
-    { label: t("growth.metrics.newRepos30d"), value: stats.windows.repositories30d },
-  ];
-
-  return (
-    <>
-      <section className="growth-metrics" aria-label={t("growth.metrics.totalsAria")}>
-        {totals.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
-      </section>
-      <section className="growth-metrics compact" aria-label={t("growth.metrics.windowsAria")}>
-        {windows.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
-      </section>
-      <section className="growth-grid">
-        <GrowthPanel title={t("growth.panels.sources.title")} subtitle={t("growth.panels.sources.subtitle")}>
-          <RankedBars rows={stats.sources.map((row) => ({ label: sourceLabel(row.source), value: row.reports }))} />
-        </GrowthPanel>
-        <GrowthPanel title={t("growth.panels.languages.title")} subtitle={t("growth.panels.languages.subtitle")}>
-          <RankedBars rows={stats.languages.map((row) => ({ label: row.language, value: row.code }))} />
-        </GrowthPanel>
-      </section>
-      <section>
-        <div className="section-h">
-          <h2>{t("growth.sections.largest.title")}</h2>
-          <span className="sub">{t("growth.sections.largest.subtitle")}</span>
-        </div>
-        <GrowthRepoGrid reports={stats.topRepositories} />
-      </section>
-      <section>
-        <div className="section-h">
-          <h2>{t("growth.sections.recent.title")}</h2>
-          <span className="sub">{t("growth.sections.recent.subtitle")}</span>
-        </div>
-        <GrowthRepoGrid reports={stats.recentRepositories} />
-      </section>
-    </>
-  );
-}
-
-function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) {
-  const { t } = useTranslation();
-  const endpoint = kind === "monoliths" ? "/api/seo/monoliths" : `/api/seo/${kind}`;
-  const query = useQuery({
-    queryKey: ["seo-list", kind],
-    queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36`),
-  });
-  const copy = listPageCopy(kind, t);
-
-  return (
-    <MarketingShell>
-      <section className="growth-hero list-hero" aria-label={copy.title}>
-        <span className="chart-tag">{copy.kicker}</span>
-        <h1>{copy.title}</h1>
-        <p>{copy.subtitle}</p>
-      </section>
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {query.data ? <SeoReportGrid reports={query.data.reports} /> : null}
-    </MarketingShell>
-  );
-}
-
-function TrendingPage() {
-  const { t } = useTranslation();
-  const query = useQuery({
-    queryKey: ["github-trending", "daily"],
-    queryFn: async () => {
-      const response = await fetch("/github-trending.json");
-      if (!response.ok) throw new Error(`Trending snapshot returned ${response.status}`);
-      return response.json() as Promise<TrendingSnapshot>;
-    },
-    staleTime: 60 * 60 * 1000,
-  });
-
-  return (
-    <MarketingShell>
-      <section className="growth-hero list-hero" aria-label={t("growth.pages.trending.title")}>
-        <span className="chart-tag">{t("growth.pages.trending.kicker")}</span>
-        <h1>{t("growth.pages.trending.title")}</h1>
-        <p>{t("growth.pages.trending.subtitle")}</p>
-        {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
-      </section>
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {query.data ? <TrendingRepoGrid repositories={query.data.repositories} /> : null}
-    </MarketingShell>
-  );
-}
-
-function TrendingRepoGrid({ repositories }: { repositories: TrendingRepository[] }) {
-  const { t } = useTranslation();
-  if (repositories.length === 0) {
-    return <p className="growth-empty">{t("growth.empty")}</p>;
-  }
-  return (
-    <div className="growth-repo-grid">
-      {repositories.map((repo) => (
-        <a className="growth-repo-card" href={repo.publicPath} key={repo.fullName}>
-          <span className="chart-tag">#{repo.rank} · {repo.language ?? "mixed"}</span>
-          <strong>{repo.fullName}</strong>
-          <span>{repo.description || "GitHub Trending repository"}</span>
-          <em>+{formatNumber(repo.starsToday)} stars today · {formatNumber(repo.totalStars)} total</em>
-        </a>
-      ))}
-    </div>
-  );
-}
-
-function ComparePage() {
-  const { t } = useTranslation();
-  return (
-    <MarketingShell>
-      <section className="growth-hero tool-hero" aria-label={t("compare.title")}>
-        <span className="chart-tag">{t("compare.subtitle")}</span>
-        <h1>{t("compare.title")}</h1>
-        <p>{t("compare.help")}</p>
-      </section>
-      <CompareRepos showHelp={false} />
-    </MarketingShell>
-  );
-}
-
-function DiffPage() {
-  const { t } = useTranslation();
-  return (
-    <MarketingShell>
-      <section className="growth-hero tool-hero" aria-label={t("diff.title")}>
-        <span className="chart-tag">{t("diff.subtitle")}</span>
-        <h1>{t("diff.title")}</h1>
-        <p>{t("diff.help")}</p>
-      </section>
-      <DiffRefs showHelp={false} />
-    </MarketingShell>
-  );
-}
-
-function GrowthMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="growth-metric">
-      <span>{label}</span>
-      <strong>{formatCompactNumber(value)}</strong>
-      <em>{formatNumber(value)}</em>
-    </div>
-  );
-}
-
-function GrowthPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <div className="growth-panel">
-      <div className="section-h">
-        <h2>{title}</h2>
-        <span className="sub">{subtitle}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> }) {
-  const max = Math.max(...rows.map((row) => row.value), 1);
-  return (
-    <div className="ranked-bars">
-      {rows.length ? rows.map((row) => (
-        <div className="ranked-row" key={row.label}>
-          <span>{row.label}</span>
-          <i><b style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} /></i>
-          <em>{formatCompactNumber(row.value)}</em>
-        </div>
-      )) : <p className="growth-empty">{i18n.t("growth.empty")}</p>}
-    </div>
-  );
-}
-
-function GrowthRepoGrid({ reports }: { reports: GrowthRepositoryStat[] }) {
-  const { t } = useTranslation();
-  if (reports.length === 0) {
-    return <p className="growth-empty">{t("growth.empty")}</p>;
-  }
-  return (
-    <div className="growth-repo-grid">
-      {reports.map((report) => (
-        <a className="growth-repo-card" href={report.publicPath} key={`${report.provider}:${report.owner}/${report.repo}`}>
-          <span className="chart-tag">{String(report.provider)}</span>
-          <strong>{report.owner}/{report.repo}</strong>
-          <span>{report.topLanguage ?? "mixed"} · {formatNumber(report.total.code)} code</span>
-          <em>{new Date(report.generatedAt).toLocaleDateString()}</em>
-        </a>
-      ))}
-    </div>
-  );
-}
-
-function SeoReportGrid({ reports }: { reports: SeoReportSummary[] }) {
-  const { t } = useTranslation();
-  if (reports.length === 0) {
-    return <p className="growth-empty">{t("growth.empty")}</p>;
-  }
-  return (
-    <div className="growth-repo-grid">
-      {reports.map((report) => (
-        <a className="growth-repo-card" href={report.publicPath} key={`${report.provider}:${report.owner}/${report.repo}`}>
-          <span className="chart-tag">{report.provider}</span>
-          <strong>{report.repoFullName}</strong>
-          <span>{report.topLanguage?.name ?? "mixed"} · {formatNumber(report.total.code)} code</span>
-          <em>{new Date(report.generatedAt).toLocaleDateString()}</em>
-        </a>
-      ))}
-    </div>
-  );
-}
-
 function PublicReportIndex() {
   const { t } = useTranslation();
   const { ref, isNear } = useNearViewport<HTMLElement>();
@@ -873,58 +511,6 @@ function PublicReportIndex() {
       </nav>
     </section>
   );
-}
-
-function GrowthLoading() {
-  const { t } = useTranslation();
-  return <section className="growth-state"><Loader2 className="spin" size={18} /> {t("growth.loading")}</section>;
-}
-
-function GrowthError({ onRetry }: { onRetry?: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <section className="growth-state">
-      {t("growth.error")}
-      {onRetry ? <button type="button" className="copybtn retry-btn" onClick={onRetry}>{t("error.retry")}</button> : null}
-    </section>
-  );
-}
-
-function sourceLabel(source: string) {
-  const labels: Record<string, string> = {
-    github_action: "GitHub Action",
-    cli: "CLI",
-    mcp: "MCP",
-    api: "API",
-    extension: "Extension",
-    seed: "Seed",
-    github_trending: "GitHub Trending",
-    web: "Web",
-    unknown: "Unknown",
-  };
-  return labels[source] ?? source;
-}
-
-function listPageCopy(kind: "recent" | "popular" | "monoliths", t: (key: string) => string) {
-  if (kind === "popular") {
-    return {
-      kicker: t("growth.pages.popular.kicker"),
-      title: t("growth.pages.popular.title"),
-      subtitle: t("growth.pages.popular.subtitle"),
-    };
-  }
-  if (kind === "monoliths") {
-    return {
-      kicker: t("growth.pages.hall.kicker"),
-      title: t("growth.pages.hall.title"),
-      subtitle: t("growth.pages.hall.subtitle"),
-    };
-  }
-  return {
-    kicker: t("growth.pages.recent.kicker"),
-    title: t("growth.pages.recent.title"),
-    subtitle: t("growth.pages.recent.subtitle"),
-  };
 }
 
 function DeveloperTools() {
@@ -1003,76 +589,48 @@ function LanguageSwitcher() {
   );
 }
 
-function Topbar() {
-  const { t } = useTranslation();
-  const path = window.location.pathname;
-  const isActive = (href: string) => path === href || (href === "/stats" && path.startsWith("/stats"));
-  const reportsActive = publicReportLinks.slice(1).some((item) => isActive(item.href));
+
+// Single builder for extension store links: href + tracking + noreferrer in one place.
+function StoreLink({ store, placement, size = 15, className, children }: { store: "chrome" | "edge" | "firefox"; placement: string; size?: number; className: string; children?: React.ReactNode }) {
+  const href = store === "chrome" ? extensionInfo.chromeWebStoreUrl : store === "edge" ? extensionInfo.edgeAddOnsUrl : extensionInfo.firefoxAddOnsUrl;
+  const Icon = store === "chrome" ? ChromeIcon : store === "edge" ? EdgeIcon : FirefoxIcon;
   return (
-    <header className="topbar">
-      <a className="brand" href="/" aria-label={t("topbar.brandName")}>
-        <div className="logo"><img src="/octocounts-logo-96.webp" alt={t("topbar.brandName") + " logo"} width="96" height="96" /></div>
-        <div>
-          <span className="brand-name">{t("topbar.brandName")}</span>
-        </div>
-      </a>
-      <div className="topbar-links">
-        <a className={`github-link signal-link ${isActive("/stats") ? "active" : ""}`} href="/stats" aria-current={isActive("/stats") ? "page" : undefined}>
-          <span>{t("growth.nav.stats.label")}</span>
-        </a>
-        <nav className={`report-rail ${reportsActive ? "active" : ""}`} aria-label={t("growth.navAria")}>
-          {publicReportLinks.slice(1).map((item) => (
-            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
-              {t(`growth.nav.${item.key}.label`)}
-            </a>
-          ))}
-        </nav>
-        <a className="github-link install-link" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.chrome")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "topbar" })}>
-          <ChromeIcon size={18} aria-hidden="true" />
-          <span>{t("topbar.chrome")}</span>
-        </a>
-        <a className="github-link install-link" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.edge")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "topbar" })}>
-          <EdgeIcon size={18} />
-          <span>{t("topbar.edge")}</span>
-        </a>
-        <a className="github-link install-link" href={extensionInfo.firefoxAddOnsUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.firefox")} onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "firefox", placement: "topbar" })}>
-          <FirefoxIcon size={18} aria-hidden="true" />
-          <span>{t("topbar.firefox")}</span>
-        </a>
-        <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>
-          <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg>
-        </a>
-      </div>
-    </header>
+    <a className={className} href={href} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store, placement })}>
+      <Icon size={size} aria-hidden="true" />
+      {children}
+    </a>
   );
 }
 
-function TopActions({ scheme, setScheme, status }: { scheme: Scheme; setScheme: (scheme: Scheme) => void; status: AppStatus }) {
+function StarBadge({ stars, size = 11, className }: { stars: number; size?: number; className?: string }) {
+  return (
+    <span className={className} aria-label={`${formatCompactNumber(stars)} stars`}>
+      <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.61a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.17a.75.75 0 0 1-1.09.79L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.17L.83 6.36a.75.75 0 0 1 .42-1.28l4.2-.6L6.66.66A.75.75 0 0 1 8 .25Z"/></svg>
+      {formatCompactNumber(stars)}
+    </span>
+  );
+}
+
+// Copy-with-feedback state shared by the badge/url/report copy buttons.
+function useCopied(timeoutMs = 1800) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  const showCopied = (key: string) => {
+    setCopiedKey(key);
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopiedKey(null), timeoutMs);
+  };
+  return { copiedKey, showCopied };
+}
+
+function TopActions({ status }: { status: AppStatus }) {
   const { t } = useTranslation();
   return (
     <div className="top-actions">
-      <ThemeSwitch scheme={scheme} setScheme={setScheme} />
+      <ThemeSwitch />
       <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
     </div>
-  );
-}
-
-function ThemeSwitch({ scheme, setScheme }: { scheme: Scheme; setScheme: (scheme: Scheme) => void }) {
-  const { t } = useTranslation();
-  const isNight = scheme === "matrix";
-  const label = t(isNight ? "theme.switchToDay" : "theme.switchToNight");
-  return (
-    <button
-      className="theme-toggle"
-      type="button"
-      onClick={() => setScheme(isNight ? "paper" : "matrix")}
-      aria-label={label}
-      aria-pressed={isNight}
-      title={label}
-    >
-      {isNight ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
-      <span className="visually-hidden">{label}</span>
-    </button>
   );
 }
 
@@ -1081,7 +639,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [copiedCta, setCopiedCta] = useState<"badge" | "url" | null>(null);
+  const { copiedKey: copiedCta, showCopied: showCopiedCta } = useCopied();
 
   const isWorking = status === "queued" || status === "running";
   // The report body carries the star snapshot from analysis time; a cached
@@ -1157,10 +715,6 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
     }
   };
 
-  const showCopiedCta = (kind: "badge" | "url") => {
-    setCopiedCta(kind);
-    window.setTimeout(() => setCopiedCta((current) => current === kind ? null : current), 1800);
-  };
 
   return (
     <div className="runner">
@@ -1169,10 +723,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
           <span className="sticky-repo">
             {report.repository.owner}/{report.repository.name}
             {typeof (liveStars ?? report.repository.stars ?? null) === "number" ? (
-              <span className="repo-stars" aria-label={`${formatCompactNumber((liveStars ?? report.repository.stars)!)} stars`}>
-                <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.61a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.17a.75.75 0 0 1-1.09.79L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.17L.83 6.36a.75.75 0 0 1 .42-1.28l4.2-.6L6.66.66A.75.75 0 0 1 8 .25Z"/></svg>
-                {formatCompactNumber((liveStars ?? report.repository.stars)!)}
-              </span>
+              <StarBadge className="repo-stars" size={11} stars={(liveStars ?? report.repository.stars)!} />
             ) : null}
           </span>
           <span className="sticky-stats">
@@ -1285,7 +836,7 @@ function ReportGrowthActions({
   onExportPng,
 }: {
   report: Report;
-  copiedCta: "badge" | "url" | null;
+  copiedCta: string | null;
   isExporting: boolean;
   onCopyBadge: () => void;
   onCopyUrl: () => void;
@@ -1316,14 +867,8 @@ function ReportGrowthActions({
           <Download size={14} />
           {t("reportCta.exportPng")}
         </button>
-        <a className="copybtn install-btn secondary-install" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "report_cta" })}>
-          <ChromeIcon size={14} />
-          {t("reportCta.installChrome")}
-        </a>
-        <a className="copybtn install-btn secondary-install" href={extensionInfo.edgeAddOnsUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "edge", placement: "report_cta" })}>
-          <EdgeIcon size={14} />
-          {t("reportCta.installEdge")}
-        </a>
+        <StoreLink store="chrome" placement="report_cta" className="copybtn install-btn secondary-install" size={14}>{t("reportCta.installChrome")}</StoreLink>
+        <StoreLink store="edge" placement="report_cta" className="copybtn install-btn secondary-install" size={14}>{t("reportCta.installEdge")}</StoreLink>
       </div>
     </div>
   );
@@ -1395,10 +940,7 @@ const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report; stars
           <div className="share-kicker-row">
             <div className="share-kicker">{report.repository.owner}/{report.repository.name}</div>
             {typeof stars === "number" ? (
-              <span className="share-stars" aria-label={`${formatCompactNumber(stars)} stars`}>
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.61a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.17a.75.75 0 0 1-1.09.79L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.17L.83 6.36a.75.75 0 0 1 .42-1.28l4.2-.6L6.66.66A.75.75 0 0 1 8 .25Z"/></svg>
-                {formatCompactNumber(stars)}
-              </span>
+              <StarBadge className="share-stars" size={15} stars={stars} />
             ) : null}
           </div>
           <div className="share-ref">{report.refName} / {report.commitSha.slice(0, 12)}</div>
@@ -1445,7 +987,7 @@ function ShareStat({ color, label, value }: { color: string; label: string; valu
 
 function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
+  const { copiedKey: copied, showCopied } = useCopied(2000);
 
   if (normalizedProvider(report) !== "github") {
     return null;
@@ -1460,8 +1002,7 @@ function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
   const handleCopy = () => {
     copyText(markdown);
     trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report" });
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    showCopied("badge");
   };
 
   return (
@@ -1512,271 +1053,6 @@ function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOption
 
 function csvList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
-  const { t } = useTranslation();
-  const initialCompare = useMemo(() => initialCompareFromLocation(), []);
-  const [leftRepo, setLeftRepo] = useState(initialCompare.leftRepo);
-  const [leftRef, setLeftRef] = useState(initialCompare.leftRef);
-  const [rightRepo, setRightRepo] = useState(initialCompare.rightRepo);
-  const [rightRef, setRightRef] = useState(initialCompare.rightRef);
-  const [leftReport, setLeftReport] = useState<Report | null>(null);
-  const [rightReport, setRightReport] = useState<Report | null>(null);
-  const [compareStatus, setCompareStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
-  const [compareError, setCompareError] = useState("");
-
-  const runCompare = async () => {
-    trackEvent("compare_run", { mode: "repos", leftProvider: providerFromRepoUrl(leftRepo), rightProvider: providerFromRepoUrl(rightRepo) });
-    setCompareStatus("running");
-    setCompareError("");
-    try {
-      const [left, right] = await Promise.all([
-        analyzeAndWait(leftRepo, leftRef),
-        analyzeAndWait(rightRepo, rightRef),
-      ]);
-      setLeftReport(left);
-      setRightReport(right);
-      setCompareStatus("completed");
-    } catch (error) {
-      setCompareError(error instanceof Error ? error.message : t("error.requestFailed"));
-      setCompareStatus("failed");
-    }
-  };
-
-  return (
-    <div className="compare-panel">
-      {showHelp ? <p className="compare-help">{t("compare.help")}</p> : null}
-      <form className="compare-form" onSubmit={(event) => { event.preventDefault(); void runCompare(); }}>
-        <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
-        <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
-        <button className="btn compare-run" disabled={compareStatus === "running"}>
-          {compareStatus === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-          {t("compare.run")}
-        </button>
-      </form>
-      <div className="compare-share-row">
-        <code>{buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)}</code>
-        <button className="copybtn" type="button" onClick={() => { copyText(buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)); trackEvent(AnalyticsEvents.shareClicked, { share_type: "compare_url" }); }}>
-          <Clipboard size={14} />
-          {t("compare.copyUrl")}
-        </button>
-      </div>
-      {compareStatus === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
-      {compareStatus === "failed" ? (
-        <div className="compare-error">
-          <span>{compareError}</span>
-          <button type="button" className="copybtn retry-btn" onClick={() => void runCompare()}>{t("error.retry")}</button>
-        </div>
-      ) : null}
-      {leftReport && rightReport ? <CompareResults left={leftReport} right={rightReport} /> : null}
-    </div>
-  );
-}
-
-function CompareInput({
-  label,
-  repo,
-  refName,
-  setRepo,
-  setRef,
-}: {
-  label: string;
-  repo: string;
-  refName: string;
-  setRepo: (value: string) => void;
-  setRef: (value: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <fieldset className="compare-field">
-      <legend>{label}</legend>
-      <label>
-        <span>{t("compare.repoUrl")}</span>
-        <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" aria-label={label} />
-      </label>
-      <label>
-        <span>{t("compare.ref")}</span>
-        <input value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} aria-label={`${label} ref`} />
-      </label>
-    </fieldset>
-  );
-}
-
-function CompareResults({ left, right }: { left: Report; right: Report }) {
-  const { t } = useTranslation();
-  const scheme = useScheme();
-  const topLeft = left.languages[0]?.name ?? t("charts.noData");
-  const topRight = right.languages[0]?.name ?? t("charts.noData");
-  const rows = [
-    { label: t("summary.files"), left: left.total.files, right: right.total.files },
-    { label: t("summary.lines"), left: left.total.lines, right: right.total.lines },
-    { label: t("summary.code"), left: left.total.code, right: right.total.code },
-    { label: t("summary.comments"), left: left.total.comments, right: right.total.comments },
-    { label: t("summary.blanks"), left: left.total.blanks, right: right.total.blanks },
-    { label: t("compare.languages"), left: left.languages.length, right: right.languages.length },
-  ];
-  const languageRows = compareLanguages(left, right).slice(0, 8);
-
-  return (
-    <div className="compare-results">
-      <div className="compare-head">
-        <div>
-          <span>{left.repository.owner}/{left.repository.name}</span>
-          <strong>{topLeft}</strong>
-        </div>
-        <div>
-          <span>{right.repository.owner}/{right.repository.name}</span>
-          <strong>{topRight}</strong>
-        </div>
-      </div>
-      <div className="compare-table-wrap">
-        <table className="compare-table">
-          <thead>
-            <tr>
-              <th>{t("compare.metric")}</th>
-              <th>{t("compare.left")}</th>
-              <th>{t("compare.right")}</th>
-              <th>{t("compare.delta")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.label}>
-                <td>{row.label}</td>
-                <td>{formatNumber(row.left)}</td>
-                <td>{formatNumber(row.right)}</td>
-                <td className={row.right - row.left >= 0 ? "pos" : "neg"}>{formatSignedNumber(row.right - row.left)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="compare-language-grid">
-        {languageRows.map((row) => (
-          <div className="compare-lang" key={row.name}>
-            <span className="key-sw" style={{ background: visibleLanguageColor(languageColor(row.name), scheme) }} />
-            <strong>{row.name}</strong>
-            <span>{formatNumber(row.left)}</span>
-            <span>{formatNumber(row.right)}</span>
-            <em className={row.delta >= 0 ? "pos" : "neg"}>{formatSignedNumber(row.delta)}</em>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
-  const { t } = useTranslation();
-  const initialDiff = useMemo(() => initialDiffFromLocation(), []);
-  const [repo, setRepo] = useState(initialDiff.repo);
-  const [baseRef, setBaseRef] = useState(initialDiff.base);
-  const [headRef, setHeadRef] = useState(initialDiff.head);
-  const [baseReport, setBaseReport] = useState<Report | null>(null);
-  const [headReport, setHeadReport] = useState<Report | null>(null);
-  const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
-  const [error, setError] = useState("");
-
-  const runDiff = async () => {
-    trackEvent("compare_run", { mode: "diff", provider: providerFromRepoUrl(repo) });
-    setStatus("running");
-    setError("");
-    try {
-      const [base, head] = await Promise.all([
-        analyzeAndWait(repo, baseRef),
-        analyzeAndWait(repo, headRef),
-      ]);
-      setBaseReport(base);
-      setHeadReport(head);
-      setStatus("completed");
-    } catch (err) {
-      setStatus("failed");
-      setError(err instanceof Error ? err.message : t("error.requestFailed"));
-    }
-  };
-
-  return (
-    <div className="compare-panel diff-panel">
-      {showHelp ? <p className="compare-help">{t("diff.help")}</p> : null}
-      <form className="compare-form diff-form" onSubmit={(event) => { event.preventDefault(); void runDiff(); }}>
-        <fieldset className="compare-field">
-          <legend>{t("diff.repo")}</legend>
-          <label>
-            <span>{t("compare.repoUrl")}</span>
-            <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
-          </label>
-        </fieldset>
-        <fieldset className="compare-field">
-          <legend>{t("diff.refs")}</legend>
-          <label>
-            <span>{t("diff.base")}</span>
-            <input value={baseRef} onChange={(event) => setBaseRef(event.target.value)} placeholder={t("diff.base")} />
-          </label>
-          <label>
-            <span>{t("diff.head")}</span>
-            <input value={headRef} onChange={(event) => setHeadRef(event.target.value)} placeholder={t("diff.head")} />
-          </label>
-        </fieldset>
-        <button className="btn compare-run" disabled={status === "running"}>
-          {status === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-          {t("diff.run")}
-        </button>
-      </form>
-      <div className="compare-share-row">
-        <code>{buildDiffUrl(repo, baseRef, headRef)}</code>
-        <button className="copybtn" type="button" onClick={() => { copyText(buildDiffUrl(repo, baseRef, headRef)); trackEvent(AnalyticsEvents.shareClicked, { share_type: "diff_url" }); }}>
-          <Clipboard size={14} />
-          {t("compare.copyUrl")}
-        </button>
-      </div>
-      {status === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
-      {status === "failed" ? (
-        <div className="compare-error">
-          <span>{error}</span>
-          <button type="button" className="copybtn retry-btn" onClick={() => void runDiff()}>{t("error.retry")}</button>
-        </div>
-      ) : null}
-      {baseReport && headReport ? <CompareResults left={baseReport} right={headReport} /> : null}
-    </div>
-  );
-}
-
-async function analyzeAndWait(repoUrl: string, refName: string) {
-  const result = await analyzeRepository({ repoUrl, refName, forceRefresh: false });
-  if (result.kind === "cached") return result.report;
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    await delay(attempt < 5 ? 1_200 : 2_500);
-    const job = await fetchJson<JobRecord>(`/api/jobs/${result.jobId}`);
-    if (job.status === "failed") {
-      throw new Error(job.error?.message ?? "analysis failed");
-    }
-    if (job.status === "completed" && job.reportId) {
-      return fetchJson<Report>(`/api/reports/${job.reportId}`);
-    }
-  }
-  throw new Error("analysis timed out");
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function compareLanguages(left: Report, right: Report) {
-  const names = new Set([...left.languages.map((row) => row.name), ...right.languages.map((row) => row.name)]);
-  return [...names]
-    .map((name) => {
-      const leftCode = left.languages.find((row) => row.name === name)?.stats.code ?? 0;
-      const rightCode = right.languages.find((row) => row.name === name)?.stats.code ?? 0;
-      return { name, left: leftCode, right: rightCode, delta: rightCode - leftCode };
-    })
-    .sort((a, b) => Math.max(b.left, b.right) - Math.max(a.left, a.right));
-}
-
-function formatSignedNumber(value: number) {
-  if (value === 0) return "0";
-  return `${value > 0 ? "+" : "-"}${formatNumber(Math.abs(value))}`;
 }
 
 function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: string; report: Report | null }) {
@@ -1848,18 +1124,9 @@ function BadgeWall() {
 }
 
 function parseGitHubRepo(value: string) {
-  try {
-    const normalized = value.trim().startsWith("git@github.com:")
-      ? value.trim().replace("git@github.com:", "https://github.com/")
-      : value.trim();
-    const url = new URL(normalized);
-    if (url.hostname !== "github.com") return null;
-    const [owner, repo] = url.pathname.split("/").filter(Boolean);
-    if (!owner || !repo) return null;
-    return { owner, repo: repo.replace(/\.git$/, "") };
-  } catch {
-    return null;
-  }
+  const parsed = parsePublicRepo(value);
+  if (!parsed || parsed.host !== "github.com") return null;
+  return { owner: parsed.owner, repo: parsed.repo };
 }
 
 function parsePublicRepo(value: string) {
@@ -1892,68 +1159,6 @@ function initialRequestFromLocation() {
   if (route) return route;
 
   return { repoUrl: "", refName: "" };
-}
-
-function initialCompareFromLocation() {
-  if (window.location.pathname.startsWith("/compare/")) {
-    // Curated comparison pages (functions/[[path]].js) embed the pair as JSON.
-    const prefill = curatedComparePrefill();
-    return {
-      leftRepo: prefill?.left || defaultRepoUrl,
-      leftRef: prefill?.leftRef || "",
-      rightRepo: prefill?.right || "https://github.com/tokio-rs/axum",
-      rightRef: prefill?.rightRef || "",
-    };
-  }
-  if (window.location.pathname !== "/compare") {
-    return {
-      leftRepo: defaultRepoUrl,
-      leftRef: defaultRefName,
-      rightRepo: "https://github.com/tokio-rs/axum",
-      rightRef: "",
-    };
-  }
-  const params = new URLSearchParams(window.location.search);
-  return {
-    leftRepo: params.get("left") || defaultRepoUrl,
-    leftRef: params.get("leftRef") || defaultRefName,
-    rightRepo: params.get("right") || "https://github.com/tokio-rs/axum",
-    rightRef: params.get("rightRef") || "",
-  };
-}
-
-function curatedComparePrefill(): { left?: string; right?: string; leftRef?: string; rightRef?: string } | null {
-  const element = document.getElementById("octocounts-compare-prefill");
-  if (!element?.textContent) return null;
-  try {
-    return JSON.parse(element.textContent) as { left?: string; right?: string; leftRef?: string; rightRef?: string };
-  } catch {
-    return null;
-  }
-}
-
-function initialDiffFromLocation() {
-  if (window.location.pathname !== "/diff") {
-    return { repo: defaultRepoUrl, base: defaultRefName, head: "main" };
-  }
-  const params = new URLSearchParams(window.location.search);
-  return {
-    repo: params.get("repo") || defaultRepoUrl,
-    base: params.get("base") || defaultRefName,
-    head: params.get("head") || "main",
-  };
-}
-
-function buildCompareUrl(leftRepo: string, rightRepo: string, leftRef: string, rightRef: string) {
-  const params = new URLSearchParams({ left: leftRepo.trim(), right: rightRepo.trim() });
-  if (leftRef.trim()) params.set("leftRef", leftRef.trim());
-  if (rightRef.trim()) params.set("rightRef", rightRef.trim());
-  return `${window.location.origin}/compare?${params.toString()}`;
-}
-
-function buildDiffUrl(repo: string, base: string, head: string) {
-  const params = new URLSearchParams({ repo: repo.trim(), base: base.trim(), head: head.trim() });
-  return `${window.location.origin}/diff?${params.toString()}`;
 }
 
 function normalizeReport(report: Report): Report {
@@ -2036,36 +1241,20 @@ function syncPageMetadata({
     const description = path === "/compare"
       ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
       : "Compare source line count changes between two branches, tags, or commits in a public repository.";
-    document.title = title;
-    setMeta("name", "description", description);
     // Server-side injection (functions/[[path]].js) makes these indexable;
     // keep the client-side value aligned so hydration does not flip them to noindex.
-    setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1");
-    setMeta("property", "og:title", title);
-    setMeta("property", "og:description", description);
-    setMeta("property", "og:url", window.location.href);
-    setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
-    setMeta("name", "twitter:title", title);
-    setMeta("name", "twitter:description", description);
-    setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
-    setCanonical(`${window.location.origin}${path}`);
+    applyPageMetadata({ title, description, canonical: `${window.location.origin}${path}` });
     return;
   }
 
   const isPublicReportPath = path.startsWith("/github/") || path.startsWith("/gitlab/");
   if (!isPublicReportPath) {
-    const canonical = `${window.location.origin}/`;
-    document.title = defaultTitle;
-    setMeta("name", "description", defaultDescription);
-    setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1");
-    setMeta("property", "og:title", defaultTitle);
-    setMeta("property", "og:description", defaultDescription);
-    setMeta("property", "og:url", canonical);
-    setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
-    setMeta("name", "twitter:title", defaultTitle);
-    setMeta("name", "twitter:description", defaultDescription);
-    setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
-    setCanonical(canonical);
+    applyPageMetadata({
+      title: defaultTitle,
+      description: defaultDescription,
+      canonical: `${window.location.origin}/`,
+      extraRobots: ",max-video-preview:-1",
+    });
     return;
   }
 
@@ -2083,17 +1272,7 @@ function syncPageMetadata({
       ? buildCanonicalUrlForParsedRepo(parsed, repoUrl, effectiveRef)
       : window.location.origin + "/";
 
-  document.title = title;
-  setMeta("name", "description", description);
-  setMeta("name", "robots", "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1");
-  setMeta("property", "og:title", title);
-  setMeta("property", "og:description", description);
-  setMeta("property", "og:url", canonical);
-  setMeta("property", "og:image", `${window.location.origin}/og-image.jpg`);
-  setMeta("name", "twitter:title", title);
-  setMeta("name", "twitter:description", description);
-  setMeta("name", "twitter:image", `${window.location.origin}/og-image.jpg`);
-  setCanonical(canonical);
+  applyPageMetadata({ title, description, canonical, extraRobots: ",max-video-preview:-1" });
 }
 
 function buildCanonicalReportUrl(report: Report, ref: string) {
@@ -2116,6 +1295,28 @@ function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string; h
   const params = new URLSearchParams({ q: repoUrl.trim() });
   if (ref.trim()) params.set("ref", ref.trim());
   return `${window.location.origin}/?${params.toString()}`;
+}
+
+// Applies title/description/og/twitter/canonical in one call; the per-branch
+// og/twitter boilerplate used to be copy-pasted three times through this file.
+function applyPageMetadata({ title, description, canonical, extraRobots }: { title: string; description: string; canonical: string; extraRobots?: string }) {
+  if (document.title === title) return; // most calls are no-ops while typing in the repo input
+  document.title = title;
+  const robots = `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
+  const image = `${window.location.origin}/og-image.jpg`;
+  const metas: Array<["name" | "property", string, string]> = [
+    ["name", "description", description],
+    ["name", "robots", robots],
+    ["property", "og:title", title],
+    ["property", "og:description", description],
+    ["property", "og:url", canonical],
+    ["property", "og:image", image],
+    ["name", "twitter:title", title],
+    ["name", "twitter:description", description],
+    ["name", "twitter:image", image],
+  ];
+  for (const [attr, key, content] of metas) setMeta(attr, key, content);
+  setCanonical(canonical);
 }
 
 function setMeta(attr: "name" | "property", key: string, content: string) {
@@ -2288,7 +1489,7 @@ function Charts({ report }: { report: Report }) {
 function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: number; hovered: string | null; onHover: (label: string | null) => void }) {
   const { t } = useTranslation();
   const exactTotal = formatNumber(total);
-  const slices = pieSlices(items);
+  const slices = useMemo(() => pieSlices(items), [items]);
   return (
     <>
       <div className="donut-wrap" role="img" aria-label={t("charts.languageShare")}>
@@ -2476,8 +1677,13 @@ function NumberCell({ value }: { value: number }) {
   return <td>{formatNumber(value)}</td>;
 }
 
-createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <App />
-  </QueryClientProvider>,
-);
+// Wait for the locale bundle (lazy zh chunk) before first render.
+void i18nReady.then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <SchemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </SchemeProvider>,
+  );
+});

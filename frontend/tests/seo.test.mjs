@@ -111,6 +111,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
   const extensionSection = await readFile(new URL("src/BrowserExtensionSection.tsx", ROOT), "utf8");
   const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const topbar = await readFile(new URL("src/Topbar.tsx", ROOT), "utf8");
 
   assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
   assert.match(html, /preload" as="font" href="\/fonts\/jetbrains-mono-800-latin\.woff2"/);
@@ -122,12 +123,12 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(styles, /@keyframes pipe-packet\s*{[\s\S]*?transform:/);
   assert.match(extensionSection, /card-768\.webp 768w/);
   assert.match(extensionSection, /loading="lazy" width="1280" height="800"/);
-  assert.match(main, /octocounts-logo-96\.webp/);
+  assert.match(topbar, /octocounts-logo-96\.webp/);
   assert.match(main, /width="180" height="20"/);
   assert.match(main, /path\.startsWith\("\/github\/"\) \|\| path\.startsWith\("\/gitlab\/"\)/);
-  assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?setCanonical\(canonical\);[\s\S]*?return;/);
-  assert.match(main, /DeferredContent minHeight=\{820\} rootMargin="100px"><Charts/);
-  assert.match(main, /DeferredContent minHeight=\{420\}><CompareRepos/);
+  assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?applyPageMetadata\(\{[\s\S]*?return;/);
+  assert.match(main, /minHeight=\{820\} rootMargin="100px"><Charts/);
+  assert.match(main, /Suspense fallback=\{null\}><CompareRepos/);
 });
 
 test("paper panels stay flat and advanced option checkboxes use the theme UI", async () => {
@@ -142,6 +143,7 @@ test("paper panels stay flat and advanced option checkboxes use the theme UI", a
 test("responsive navigation and the two-mode theme control avoid orphaned UI", async () => {
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
   const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const scheme = await readFile(new URL("src/scheme.tsx", ROOT), "utf8");
   const types = await readFile(new URL("src/types.ts", ROOT), "utf8");
 
   const english = await readFile(new URL("src/locales/en.json", ROOT), "utf8");
@@ -149,8 +151,8 @@ test("responsive navigation and the two-mode theme control avoid orphaned UI", a
 
   assert.match(types, /type Scheme = "matrix" \| "paper"/);
   assert.doesNotMatch(`${styles}\n${main}\n${types}\n${english}\n${chinese}`, /amber/i);
-  assert.match(main, /onClick=\{\(\) => setScheme\(isNight \? "paper" : "matrix"\)\}/);
-  assert.match(main, /aria-pressed=\{isNight\}/);
+  assert.match(scheme, /onClick=\{\(\) => setScheme\(isNight \? "paper" : "matrix"\)\}/);
+  assert.match(scheme, /aria-pressed=\{isNight\}/);
   assert.match(styles, /@media \(max-width: 1180px\)\s*\{[\s\S]*?\.topbar\s*\{[\s\S]*?max-height: none;/);
   assert.match(styles, /\.report-index-grid\s*\{[\s\S]*?display: flex;[\s\S]*?flex-wrap: wrap;/);
   assert.match(styles, /\.report-index-link\s*\{[\s\S]*?flex: 1 1 180px;/);
