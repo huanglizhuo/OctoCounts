@@ -1,14 +1,8 @@
-# GitHub Trending daily snapshot generated 2026-08-16T03:11:32.377Z
+# GitHub Trending daily snapshot generated 2026-08-17T03:11:42.179Z
 cordiverse/cordis
-cathrynlavery/diagram-design
-cursor/plugins
-cactus-compute/needle
+basecamp/omarchy
 unslothai/unsloth
+OpenCut-app/OpenCut
 public-apis/public-apis
-MakazhanAlpamys/Soup
-github/spec-kit
-megadose/holehe
-altic-dev/FluidVoice
 ToolJet/ToolJet
-HKUDS/CLI-Anything
-citrolabs/ego-lite
+cactus-compute/needle
