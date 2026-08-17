@@ -342,12 +342,30 @@ impl GitHubClient {
     /// [`GitHubError::Request`]; everything retryable that survives the
     /// schedule becomes [`GitHubError::UpstreamUnavailable`].
     async fn get_with_retry(&self, url: &str) -> Result<reqwest::Response, GitHubError> {
+        self.send_get_with_retry(url).await
+    }
+
+    /// The retry engine shared by JSON calls and the archive stream: only the
+    /// request/response handshake is retried. Once a 200 body starts streaming
+    /// it is never restarted — a mid-stream failure surfaces as a read error
+    /// on the consumer side instead.
+    async fn send_get_with_retry(&self, url: &str) -> Result<reqwest::Response, GitHubError> {
         let mut delays = UPSTREAM_RETRY_DELAYS.iter();
+        // A 429 is retried like a 5xx (during incidents codeload sheds load
+        // nondeterministically, so the next attempt often passes), but if the
+        // limit holds the response is returned untouched so callers classify
+        // it as rate limiting rather than an outage.
+        let mut last_rate_limited: Option<reqwest::Response> = None;
         loop {
-            let retry = match self.client.get(url).send().await {
+            match self.client.get(url).send().await {
                 Ok(response) => {
-                    if response.status().is_server_error() {
-                        tracing::warn!(status = %response.status(), "upstream 5xx; retrying");
+                    let status = response.status();
+                    if status.is_server_error() {
+                        tracing::warn!(%status, "upstream 5xx; retrying");
+                        true
+                    } else if status == StatusCode::TOO_MANY_REQUESTS {
+                        tracing::warn!(%status, "upstream rate limited; retrying");
+                        last_rate_limited = Some(response);
                         true
                     } else {
                         return Ok(response);
@@ -364,8 +382,10 @@ impl GitHubClient {
             };
             match delays.next() {
                 Some(delay) => tokio::time::sleep(*delay).await,
-                None if retry => return Err(GitHubError::UpstreamUnavailable),
-                None => unreachable!("retry loop always returns when no delay remains"),
+                None => match last_rate_limited {
+                    Some(response) => return Ok(response),
+                    None => return Err(GitHubError::UpstreamUnavailable),
+                },
             }
         }
     }
@@ -777,7 +797,7 @@ impl GitHubClient {
         url: String,
         max_bytes: u64,
     ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
-        let response = self.client.get(url).send().await?;
+        let response = self.send_get_with_retry(&url).await?;
         match response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
@@ -817,6 +837,49 @@ mod tests {
     /// Local axum server counting requests, answering 503 until `ok_after`
     /// requests have arrived, then 200. Lets `get_with_retry` be exercised
     /// end to end without GitHub or codeload.
+    /// Variant of [`flaky_server`] answering 429 instead of 503, mirroring
+    /// how codeload sheds load during incidents.
+    async fn throttled_server(ok_after: u32) -> (String, Arc<AtomicU32>) {
+        use axum::routing::get;
+        let hits = Arc::new(AtomicU32::new(0));
+        let state = hits.clone();
+        let app = axum::Router::new().route(
+            "/repos/x",
+            get(move || {
+                let seen = state.fetch_add(1, Ordering::SeqCst) + 1;
+                async move {
+                    if seen >= ok_after {
+                        axum::Json(serde_json::json!({"stargazers_count": 42})).into_response()
+                    } else {
+                        (axum::http::StatusCode::TOO_MANY_REQUESTS, "slow down").into_response()
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        (format!("http://{addr}/repos/x"), hits)
+    }
+
+    #[tokio::test]
+    async fn get_with_retry_survives_a_transient_429() {
+        let (url, hits) = throttled_server(2).await; // 429, then 200
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url).await.unwrap();
+        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn get_with_retry_returns_the_429_when_the_limit_holds() {
+        let (url, hits) = throttled_server(u32::MAX).await; // always 429
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url).await.unwrap();
+        assert_eq!(response.status().as_u16(), 429);
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+    }
+
     async fn flaky_server(ok_after: u32) -> (String, Arc<AtomicU32>) {
         use axum::routing::get;
         let hits = Arc::new(AtomicU32::new(0));
