@@ -276,6 +276,7 @@
     "invalidUrl": "请输入公开的 github.com 仓库链接。",
     "refNotFound": "未找到请求的分支、标签或提交。",
     "rateLimited": "已达到 GitHub API 限流。",
+    "githubUnavailable": "代码托管服务当前故障中——问题出在 GitHub/GitLab 一侧，不是本服务的问题。可查看其状态页，几分钟后重试。",
     "tooLarge": "该仓库当前过大，无法分析。",
     "notFound": "未找到仓库，或仓库不是公开的。",
     "githubRequestFailed": "GitHub 请求失败。",
@@ -294,6 +295,12 @@
     "github_request_failed": "GitHub 没有返回可用的归档或仓库响应。请稍后重试。",
     "analysis_failed": "归档已下载，但计数步骤失败。请重试一次；如果持续出现，可能是该仓库触发了分析器边界情况。",
     "default": "请重试分析，或检查仓库链接和引用。"
+  },
+  "githubStatus": {
+    "degradedHint": "恢复前分析可能会失败。",
+    "official": "GitHub 官方状态：",
+    "officialOperational": "GitHub 状态页当前报告服务正常；本次失败可能是瞬时故障。",
+    "link": "查看 GitHub 状态"
   },
   "languageSwitcher": {
     "label": "语言"

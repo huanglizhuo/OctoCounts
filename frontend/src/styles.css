@@ -3596,3 +3596,25 @@ table.report td.lang {
     text-align: left;
   }
 }
+
+/* Host-status supplements: official GitHub status shown next to an
+   upstream-failure error, and as a heads-up above the input form while
+   GitHub self-reports a disruption. */
+.host-status-line {
+  margin: 8px 0 0;
+  color: var(--fg-dim);
+}
+
+.host-status-line a,
+.host-status-hint a {
+  color: var(--fg);
+}
+
+.host-status-hint {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--warn, #e6a23c) 45%, var(--rule));
+  background: color-mix(in srgb, var(--warn, #e6a23c) 8%, var(--bg-2));
+  color: var(--fg-dim);
+  font-size: var(--text-sm, 0.9em);
+}

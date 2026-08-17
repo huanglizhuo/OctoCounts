@@ -62,6 +62,7 @@ function apiErrorMessage(body: unknown, fallback: string) {
   if (code === "invalid_url") return i18n.t("error.invalidUrl");
   if (code === "ref_not_found") return i18n.t("error.refNotFound");
   if (code === "rate_limited") return i18n.t("error.rateLimited");
+  if (code === "github_unavailable") return i18n.t("error.githubUnavailable");
   if (code === "too_large") return i18n.t("error.tooLarge");
   if (code === "not_found") return i18n.t("error.notFound");
   if (code === "github_request_failed") return i18n.t("error.githubRequestFailed");

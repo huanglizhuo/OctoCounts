@@ -285,6 +285,7 @@
     "invalidUrl": "Enter a public github.com repository URL.",
     "refNotFound": "The requested branch, tag, or commit was not found.",
     "rateLimited": "GitHub API rate limit was reached.",
+    "githubUnavailable": "The repository host is currently unavailable — the problem is on GitHub/GitLab's side, not this service. Check their status page and try again in a few minutes.",
     "tooLarge": "This repository is too large to analyze right now.",
     "notFound": "Repository was not found or is not public.",
     "githubRequestFailed": "GitHub request failed.",
@@ -303,6 +304,12 @@
     "github_request_failed": "GitHub did not return a usable archive or repository response. Retry after a short wait.",
     "analysis_failed": "The archive downloaded, but the counting step failed. Retry once; if it repeats, the repository may hit an analyzer edge case.",
     "default": "Retry the analysis, or check the repository URL and ref."
+  },
+  "githubStatus": {
+    "degradedHint": "analyses may fail until it recovers.",
+    "official": "GitHub's official status:",
+    "officialOperational": "GitHub's status page currently reports normal operation; the failure may be transient.",
+    "link": "View GitHub status"
   },
   "languageSwitcher": {
     "label": "Language"

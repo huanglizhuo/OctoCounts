@@ -6,6 +6,7 @@ import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
+import { useGithubStatus } from "./githubStatus";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
 
@@ -174,6 +175,10 @@ function App() {
     initAnalytics();
   }, []);
 
+  // Shown only while GitHub self-reports a disruption, so users hitting a
+  // failed analysis see the cause before they submit, not after.
+  const hostStatus = useGithubStatus();
+
   const [recentRepos, setRecentRepos] = useState<RecentEntry[]>(() => loadRecentRepos());
   useEffect(() => {
     if (!report || report === seedReport) return;
@@ -284,6 +289,12 @@ function App() {
             <p className="subtitle">
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
+            {hostStatus && hostStatus.indicator !== "operational" ? (
+              <p className="host-status-hint" role="status">
+                {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}
+                <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
+              </p>
+            ) : null}
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
               <input
@@ -901,6 +912,11 @@ function TrustDetails({ report, stars }: { report: Report; stars?: number | null
 
 function ErrorState({ code, message, onRetry }: { code?: string; message: string | null; onRetry?: () => void }) {
   const { t } = useTranslation();
+  // Fetched unconditionally (it is a single cached request) but rendered only
+  // when the failure itself is attributed to the repository host, so the
+  // official status backs up our attribution instead of the user taking our
+  // word for it.
+  const hostStatus = useGithubStatus();
   const helpKey = code && i18n.exists(`errorHelp.${code}`) ? `errorHelp.${code}` : "errorHelp.default";
   return (
     <div className="error-state" role="alert">
@@ -908,6 +924,14 @@ function ErrorState({ code, message, onRetry }: { code?: string; message: string
         <span className="chart-tag">{code ?? t("error.failedCode")}</span>
         <h3>{message ?? t("runner.status.failed")}</h3>
         <p>{t(helpKey)}</p>
+        {code === "github_unavailable" ? (
+          <p className="host-status-line">
+            {hostStatus && hostStatus.indicator !== "operational"
+              ? `${t("githubStatus.official")} ${hostStatus.description} `
+              : `${t("githubStatus.officialOperational")} `}
+            <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
+          </p>
+        ) : null}
         {onRetry ? <button type="button" className="copybtn retry-btn" onClick={onRetry}>{t("error.retry")}</button> : null}
       </div>
     </div>

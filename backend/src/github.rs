@@ -54,9 +54,20 @@ pub enum GitHubError {
     TooLarge,
     #[error("requested ref was not found")]
     RefNotFound,
+    /// GitHub/GitLab itself is failing (5xx or timeouts that survive retries).
+    /// Distinct from [`GitHubError::Request`] so clients can tell an upstream
+    /// outage apart from a bug in this service.
+    #[error("the repository host is currently unavailable; please try again later")]
+    UpstreamUnavailable,
     #[error("GitHub request failed")]
     Request(#[from] reqwest::Error),
 }
+
+/// Backoff schedule for upstream GETs. Short by design: this rides out
+/// transient 5xx blips without stretching an analysis minutes past the
+/// client's patience. Exhausting the schedule turns 5xx/timeout into
+/// [`GitHubError::UpstreamUnavailable`] instead of a misleading not-found.
+const UPSTREAM_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(500), Duration::from_millis(1500)];
 
 #[derive(Clone)]
 pub struct GitHubClient {
@@ -326,6 +337,39 @@ impl GitHubClient {
         })
     }
 
+    /// GET with retries on transient upstream failures (5xx, connect and
+    /// timeout errors). Non-retryable transport errors stay
+    /// [`GitHubError::Request`]; everything retryable that survives the
+    /// schedule becomes [`GitHubError::UpstreamUnavailable`].
+    async fn get_with_retry(&self, url: &str) -> Result<reqwest::Response, GitHubError> {
+        let mut delays = UPSTREAM_RETRY_DELAYS.iter();
+        loop {
+            let retry = match self.client.get(url).send().await {
+                Ok(response) => {
+                    if response.status().is_server_error() {
+                        tracing::warn!(status = %response.status(), "upstream 5xx; retrying");
+                        true
+                    } else {
+                        return Ok(response);
+                    }
+                }
+                Err(error) => {
+                    if error.is_timeout() || error.is_connect() {
+                        tracing::warn!(%error, "upstream request failed; retrying");
+                        true
+                    } else {
+                        return Err(GitHubError::Request(error));
+                    }
+                }
+            };
+            match delays.next() {
+                Some(delay) => tokio::time::sleep(*delay).await,
+                None if retry => return Err(GitHubError::UpstreamUnavailable),
+                None => unreachable!("retry loop always returns when no delay remains"),
+            }
+        }
+    }
+
     /// Current star count for a repository, cached briefly so share-card
     /// refreshes do not hammer the GitHub API. `None` means unknown (missing
     /// field, rate limit, or transport failure) — never zero.
@@ -343,7 +387,7 @@ impl GitHubClient {
         let stars = match provider {
             RepositoryProvider::GitHub => {
                 let url = format!("https://api.github.com/repos/{owner}/{repo}");
-                let response = self.client.get(url).send().await.ok()?;
+                let response = self.get_with_retry(&url).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
                     return None;
                 }
@@ -357,7 +401,7 @@ impl GitHubClient {
                 let full_path = format!("{owner}/{repo}");
                 let path = urlencoding::encode(&full_path);
                 let url = format!("https://gitlab.com/api/v4/projects/{path}");
-                let response = self.client.get(url).send().await.ok()?;
+                let response = self.get_with_retry(&url).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
                     return None;
                 }
@@ -506,13 +550,16 @@ impl GitHubClient {
         }
 
         let repo_api = format!("https://api.github.com/repos/{owner}/{repo}");
-        let repo_response = self.client.get(repo_api).send().await?;
+        let repo_response = self.get_with_retry(&repo_api).await?;
         match repo_response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
                 return Err(GitHubError::RateLimited)
             }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
+            status if status.is_server_error() => {
+                return Err(GitHubError::UpstreamUnavailable)
+            }
             _ => return Err(GitHubError::NotFound),
         }
         let repo_body: RepoResponse = repo_response.json().await?;
@@ -596,13 +643,16 @@ impl GitHubClient {
     ) -> Result<RepoRef, GitHubError> {
         let encoded_path = urlencoding::encode(&target.path);
         let project_api = format!("https://gitlab.com/api/v4/projects/{encoded_path}");
-        let project_response = self.client.get(project_api).send().await?;
+        let project_response = self.get_with_retry(&project_api).await?;
         match project_response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
                 return Err(GitHubError::RateLimited)
             }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
+            status if status.is_server_error() => {
+                return Err(GitHubError::UpstreamUnavailable)
+            }
             _ => return Err(GitHubError::NotFound),
         }
         let project_body: GitLabProjectResponse = project_response.json().await?;
@@ -641,7 +691,7 @@ impl GitHubClient {
         ref_name: &str,
     ) -> Result<String, GitHubError> {
         let url = format!("https://api.github.com/repos/{owner}/{repo}/commits/{ref_name}");
-        let response = self.client.get(url).send().await?;
+        let response = self.get_with_retry(&url).await?;
         match response.status() {
             StatusCode::OK => {
                 let body: CommitResponse = response.json().await?;
@@ -649,6 +699,7 @@ impl GitHubClient {
             }
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => Err(GitHubError::RateLimited),
             StatusCode::NOT_FOUND => Err(GitHubError::RefNotFound),
+            status if status.is_server_error() => Err(GitHubError::UpstreamUnavailable),
             _ => Err(GitHubError::RefNotFound),
         }
     }
@@ -662,7 +713,7 @@ impl GitHubClient {
         let url = format!(
             "https://gitlab.com/api/v4/projects/{project_id}/repository/commits/{encoded_ref}"
         );
-        let response = self.client.get(url).send().await?;
+        let response = self.get_with_retry(&url).await?;
         match response.status() {
             StatusCode::OK => {
                 let body: GitLabCommitResponse = response.json().await?;
@@ -670,6 +721,7 @@ impl GitHubClient {
             }
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => Err(GitHubError::RateLimited),
             StatusCode::NOT_FOUND => Err(GitHubError::RefNotFound),
+            status if status.is_server_error() => Err(GitHubError::UpstreamUnavailable),
             _ => Err(GitHubError::RefNotFound),
         }
     }
