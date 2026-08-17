@@ -808,7 +808,56 @@ mod tests {
         build_ref_cache, interpret_graphql, GitHubClient, GraphQlFailure, GraphQlOutcome, RepoRef,
         RepositoryProvider, REF_CACHE_TTL,
     };
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
     use std::time::Duration;
+
+    use axum::response::IntoResponse;
+
+    /// Local axum server counting requests, answering 503 until `ok_after`
+    /// requests have arrived, then 200. Lets `get_with_retry` be exercised
+    /// end to end without GitHub or codeload.
+    async fn flaky_server(ok_after: u32) -> (String, Arc<AtomicU32>) {
+        use axum::routing::get;
+        let hits = Arc::new(AtomicU32::new(0));
+        let state = hits.clone();
+        let app = axum::Router::new().route(
+            "/repos/x",
+            get(move || {
+                let seen = state.fetch_add(1, Ordering::SeqCst) + 1;
+                async move {
+                    if seen >= ok_after {
+                        axum::Json(serde_json::json!({"stargazers_count": 42})).into_response()
+                    } else {
+                        (axum::http::StatusCode::SERVICE_UNAVAILABLE, "down").into_response()
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        (format!("http://{addr}/repos/x"), hits)
+    }
+
+    #[tokio::test]
+    async fn get_with_retry_rides_out_transient_5xx() {
+        let (url, hits) = flaky_server(3).await; // 503, 503, then 200
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url).await.unwrap();
+        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn get_with_retry_reports_upstream_unavailable_after_backoff() {
+        let (url, hits) = flaky_server(u32::MAX).await; // always 503
+        let client = GitHubClient::with_token(None).unwrap();
+        let error = client.get_with_retry(&url).await.unwrap_err();
+        assert!(matches!(error, super::GitHubError::UpstreamUnavailable));
+        // initial attempt + both backoff retries
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+    }
 
     fn sample_ref(sha: &str) -> RepoRef {
         RepoRef {
