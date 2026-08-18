@@ -394,6 +394,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
 function errorMessage(error) {
   const codeMap = {
     rate_limited: t('error.rateLimited'),
+    github_unavailable: t('error.githubUnavailable'),
     private_repo: t('error.privateRepo'),
     forbidden:    t('error.forbidden'),
     too_large:    t('error.tooLarge'),

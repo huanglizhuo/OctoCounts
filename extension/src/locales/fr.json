@@ -100,6 +100,7 @@
   "error": {
     "privateRepo": "Les dépôts privés ne sont pas pris en charge.",
     "rateLimited": "Limite de débit API atteinte. Réessayez plus tard.",
+    "githubUnavailable": "GitHub est actuellement indisponible — le problème vient de GitHub, pas de cette extension. Réessayez dans quelques minutes.",
     "forbidden": "La requête API OctoCounts a été bloquée ou refusée.",
     "tooLarge": "Le dépôt dépasse la limite de taille d'archive de 2 Go",
     "notFound": "Dépôt introuvable ou vide",

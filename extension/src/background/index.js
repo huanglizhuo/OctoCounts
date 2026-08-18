@@ -96,6 +96,9 @@ function classifyError(err) {
   }
 
   if (err.status === 429) return { code: 'rate_limited', status: err.status, detail: err.responseText || '' };
+  // Bare 503 (empty/unparseable body) is still the backend saying GitHub
+  // itself is down, not an OctoCounts failure.
+  if (err.status === 503) return { code: 'github_unavailable', status: err.status, detail: err.responseText || '' };
   if (err.status === 403) return { code: 'forbidden', status: err.status, detail: err.responseText || '' };
   if (err.status === 413) return { code: 'too_large', status: err.status, detail: err.responseText || '' };
   if (err.status === 404) return { code: 'not_found', status: err.status, detail: err.responseText || '' };

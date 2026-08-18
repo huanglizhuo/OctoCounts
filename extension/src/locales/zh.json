@@ -100,6 +100,7 @@
   "error": {
     "privateRepo": "不支持私有仓库。",
     "rateLimited": "API 速率限制已达到。请稍后再试。",
+    "githubUnavailable": "GitHub 当前不可用——问题出在 GitHub 一侧，不是本扩展的问题。请几分钟后重试。",
     "forbidden": "OctoCounts API 请求被阻止或禁止。",
     "tooLarge": "仓库超过 2 GB 归档大小限制",
     "notFound": "仓库未找到或为空",

@@ -100,6 +100,7 @@
   "error": {
     "privateRepo": "Los repositorios privados no están admitidos.",
     "rateLimited": "Límite de velocidad de la API alcanzado. Inténtalo de nuevo más tarde.",
+    "githubUnavailable": "GitHub no está disponible actualmente: el problema está del lado de GitHub, no de esta extensión. Inténtalo de nuevo en unos minutos.",
     "forbidden": "La solicitud a la API de OctoCounts fue bloqueada o rechazada.",
     "tooLarge": "El repositorio supera el límite de tamaño de archivo de 2 GB",
     "notFound": "Repositorio no encontrado o vacío",

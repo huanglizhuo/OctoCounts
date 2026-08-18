@@ -345,6 +345,7 @@ async function loadError() {
   const section = $('errorSection');
   const codeMap = {
     rate_limited: t('error.rateLimited'),
+    github_unavailable: t('error.githubUnavailable'),
     private_repo: t('error.privateRepo'),
     forbidden:    t('error.forbidden'),
     too_large:    t('error.tooLarge'),

@@ -100,6 +100,7 @@
   "error": {
     "privateRepo": "Private repositories are not supported.",
     "rateLimited": "API rate limit reached. Try again later.",
+    "githubUnavailable": "GitHub is currently unavailable — the problem is on GitHub's side, not this extension. Try again in a few minutes.",
     "forbidden": "OctoCounts API request was blocked or forbidden.",
     "tooLarge": "Repository exceeds the 2 GB archive size limit",
     "notFound": "Repository not found or is empty",

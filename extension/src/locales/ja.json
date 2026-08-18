@@ -100,6 +100,7 @@
   "error": {
     "privateRepo": "非公開リポジトリはサポートされていません。",
     "rateLimited": "APIのレート制限に達しました。後でもう一度お試しください。",
+    "githubUnavailable": "GitHub が現在利用できません。問題は GitHub 側にあり、この拡張機能の不具合ではありません。数分後にもう一度お試しください。",
     "forbidden": "OctoCounts APIリクエストがブロックまたは拒否されました。",
     "tooLarge": "リポジトリが2 GBのアーカイブサイズ制限を超えています",
     "notFound": "リポジトリが見つからないか、空です",
