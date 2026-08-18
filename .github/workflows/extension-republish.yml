@@ -38,16 +38,6 @@ jobs:
           echo "edge=$(ls zips/*edge*.zip)" >> "$GITHUB_OUTPUT"
           echo "chrome=$(ls zips/*chrome*.zip)" >> "$GITHUB_OUTPUT"
 
-      - name: Debug Edge secret presence
-        env:
-          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-        run: |
-          echo "client-id length: ${#EDGE_CLIENT_ID}"
-          echo "api-key length: ${#EDGE_API_KEY}"
-          echo "product-id length: ${#EDGE_PRODUCT_ID}"
-
       - name: Publish Edge zip to Add-ons
         uses: wdzeng/edge-addon@v2
         with:
