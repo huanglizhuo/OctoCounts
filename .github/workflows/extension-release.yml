@@ -18,6 +18,9 @@ jobs:
   build:
     name: Build Chrome, Edge, and Firefox extensions
     runs-on: ubuntu-latest
+    outputs:
+      chrome_zip: ${{ steps.package.outputs.chrome_zip }}
+      edge_zip: ${{ steps.package.outputs.edge_zip }}
 
     defaults:
       run:
@@ -101,3 +104,38 @@ jobs:
             extension/packages/${{ steps.package.outputs.chrome_zip }}
             extension/packages/${{ steps.package.outputs.edge_zip }}
             extension/packages/${{ steps.package.outputs.firefox_zip }}
+
+  # Store upload runs only for extension-v* tags (never for main pushes or
+  # PRs, which reuse this workflow for build checks). Both stores queue their
+  # own review after the upload; this job only proves the API accepted it.
+  publish:
+    name: Publish to Chrome Web Store & Edge Add-ons
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/extension-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish Chrome zip to the Web Store
+        uses: wdzeng/chrome-extension@v1
+        with:
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          zip-path: artifacts/${{ needs.build.outputs.chrome_zip }}/${{ needs.build.outputs.chrome_zip }}
+          publish: true
+
+      - name: Publish Edge zip to Add-ons
+        uses: wdzeng/edge-addon@v1
+        with:
+          product-id: ${{ secrets.EDGE_PRODUCT_ID }}
+          client-id: ${{ secrets.EDGE_CLIENT_ID }}
+          client-secret: ${{ secrets.EDGE_CLIENT_SECRET }}
+          zip-path: artifacts/${{ needs.build.outputs.edge_zip }}/${{ needs.build.outputs.edge_zip }}
