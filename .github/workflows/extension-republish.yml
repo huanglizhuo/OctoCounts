@@ -1,0 +1,57 @@
+name: Republish extension to stores
+description: >
+  Manual fallback for store uploads: downloads the zips attached to an
+  extension-v* GitHub release and pushes them to the stores. Used when the
+  tag run's publish job failed (e.g. a rerun raced an in-review submission)
+  without rebuilding or retagging anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to republish (e.g. extension-v0.4.5)"
+        required: true
+      chrome:
+        description: "Also republish to Chrome Web Store"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  republish:
+    name: Push release zips to the stores
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p zips
+          gh release download "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" --dir zips --pattern "*edge*.zip" --pattern "*chrome*.zip"
+          ls -l zips
+
+      - name: Resolve zip paths
+        id: zips
+        run: |
+          echo "edge=$(ls zips/*edge*.zip)" >> "$GITHUB_OUTPUT"
+          echo "chrome=$(ls zips/*chrome*.zip)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Edge zip to Add-ons
+        uses: wdzeng/edge-addon@v2
+        with:
+          product-id: ${{ secrets.EDGE_PRODUCT_ID }}
+          client-id: ${{ secrets.EDGE_CLIENT_ID }}
+          api-key: ${{ secrets.EDGE_API_KEY }}
+          zip-path: ${{ steps.zips.outputs.edge }}
+
+      - name: Publish Chrome zip to the Web Store
+        if: inputs.chrome
+        uses: wdzeng/chrome-extension@v1
+        with:
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          zip-path: ${{ steps.zips.outputs.chrome }}
