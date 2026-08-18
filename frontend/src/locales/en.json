@@ -26,7 +26,7 @@
     "analyze": "Analyze",
     "installChrome": "Chrome Web Store",
     "installEdge": "Microsoft Edge Add-ons",
-    "installFirefox": "Firefox Add-ons",
+    "installFirefox": "Firefox (GitHub download)",
     "sidebarHint": "See SLOC directly in GitHub's repo sidebar."
   },
   "samples": {
@@ -215,7 +215,7 @@
     ],
     "installChrome": "Install from Chrome Web Store",
     "installEdge": "Install from Microsoft Edge Add-ons",
-    "installFirefox": "Install from Firefox Add-ons",
+    "installFirefox": "Download for Firefox (GitHub release)",
     "viewSource": "View source",
     "previewAlt": "OctoCounts browser extension showing SLOC results on a GitHub repository"
   },
