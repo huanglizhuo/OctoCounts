@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
-import React, { FormEvent, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
@@ -56,7 +56,11 @@ import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 import { SchemeProvider, ThemeSwitch, useScheme } from "./scheme";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60_000, retry: 1 },
+  },
+});
 const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
 const BADGE_API_BASE = (import.meta.env.VITE_BADGE_API_BASE ?? "https://api.octocounts.com") as string;
 const samples = [
@@ -225,17 +229,23 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const typingTimer = useRef<number | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
+  // The typing animation lives in the RepoUrlInput component so the ~18ms
+  // per-character updates only re-render the input, not the whole page. The
+  // committed value syncs up when the demo finishes (or immediately when the
+  // user types / picks another chip, which cancels the animation).
+  const [typingTarget, setTypingTarget] = useState<string | null>(null);
+  const typingDoneRef = useRef<(() => void) | null>(null);
   const [busySample, setBusySample] = useState<string | null>(null);
-  const stopTyping = () => {
-    if (typingTimer.current !== null) {
-      window.clearInterval(typingTimer.current);
-      typingTimer.current = null;
-    }
-    setIsTyping(false);
-  };
-  useEffect(() => stopTyping, []);
+  const stopTyping = useCallback(() => {
+    typingDoneRef.current = null;
+    setTypingTarget(null);
+  }, []);
+  const finishTyping = useCallback(() => {
+    const done = typingDoneRef.current;
+    typingDoneRef.current = null;
+    setTypingTarget(null);
+    done?.();
+  }, []);
 
   const playSample = (sample: (typeof samples)[number]) => {
     trackEvent("sample_chip_clicked", { sample: sample.label, provider: providerFromRepoUrl(sample.repoUrl) });
@@ -252,22 +262,24 @@ function App() {
       runSample();
       return;
     }
-    setIsTyping(true);
     setRepoUrl("");
-    let index = 0;
-    typingTimer.current = window.setInterval(() => {
-      index += 1;
-      setRepoUrl(sample.repoUrl.slice(0, index));
-      if (index >= sample.repoUrl.length) {
-        stopTyping();
-        runSample();
-      }
-    }, 18);
+    typingDoneRef.current = () => {
+      setRepoUrl(sample.repoUrl);
+      runSample();
+    };
+    setTypingTarget(sample.repoUrl);
   };
 
+  // Page metadata only needs the settled input, not every keystroke.
+  const [debouncedRepoUrl, setDebouncedRepoUrl] = useState(repoUrl);
   useEffect(() => {
-    syncPageMetadata({ report, repoUrl, refName, defaultTitle: t("app.title"), defaultDescription: t("app.description") });
-  }, [report, repoUrl, refName, t, i18n.language]);
+    const timer = window.setTimeout(() => setDebouncedRepoUrl(repoUrl), 300);
+    return () => window.clearTimeout(timer);
+  }, [repoUrl]);
+
+  useEffect(() => {
+    syncPageMetadata({ report, repoUrl: debouncedRepoUrl, refName, defaultTitle: t("app.title"), defaultDescription: t("app.description") });
+  }, [report, debouncedRepoUrl, refName, t, i18n.language]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -297,18 +309,17 @@ function App() {
             ) : null}
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
-              <input
-                id="repo-url"
-                name="repoUrl"
-                className={isTyping ? "typing" : undefined}
+              <RepoUrlInput
                 value={repoUrl}
-                onChange={(event) => {
-                  stopTyping();
-                  setRepoUrl(event.target.value);
+                typingTarget={typingTarget}
+                onTypingDone={finishTyping}
+                onCancelTyping={stopTyping}
+                onChange={(next) => {
+                  setRepoUrl(next);
                   setRefName("main");
                 }}
                 placeholder={t("hero.placeholderUrl")}
-                aria-label={t("hero.ariaUrl")}
+                ariaLabel={t("hero.ariaUrl")}
               />
               <label className="ref">
                 {t("hero.refLabel")}
@@ -492,10 +503,68 @@ function App() {
   );
 }
 
+// Owns the demo typing animation so per-character state stays local; only the
+// committed value flows through the parent.
+function RepoUrlInput({
+  value,
+  typingTarget,
+  onTypingDone,
+  onCancelTyping,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  typingTarget: string | null;
+  onTypingDone: () => void;
+  onCancelTyping: () => void;
+  onChange: (value: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+}) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const doneRef = useRef(onTypingDone);
+  doneRef.current = onTypingDone;
+
+  useEffect(() => {
+    if (typingTarget === null) {
+      setTyped(null);
+      return;
+    }
+    let index = 0;
+    setTyped("");
+    const timer = window.setInterval(() => {
+      index += 1;
+      setTyped(typingTarget.slice(0, index));
+      if (index >= typingTarget.length) {
+        window.clearInterval(timer);
+        doneRef.current();
+      }
+    }, 18);
+    return () => window.clearInterval(timer);
+  }, [typingTarget]);
+
+  return (
+    <input
+      id="repo-url"
+      name="repoUrl"
+      className={typed !== null ? "typing" : undefined}
+      value={typed ?? value}
+      onChange={(event) => {
+        onCancelTyping();
+        setTyped(null);
+        onChange(event.target.value);
+      }}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+    />
+  );
+}
+
 function PublicReportIndex() {
   const { t } = useTranslation();
   const { ref, isNear } = useNearViewport<HTMLElement>();
-  const query = useQuery({ queryKey: ["growth-stats", "home-index"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000, enabled: isNear });
+  const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000, enabled: isNear });
   const totals = query.data?.totals;
   const statsCopy = totals
     ? t("growth.index.stats", {
@@ -590,7 +659,7 @@ function LanguageSwitcher() {
           key={loc.code}
           type="button"
           className="lang-btn"
-          aria-current={i18n.language === loc.code ? "true" : undefined}
+          aria-current={i18n.language === loc.code ? "page" : undefined}
           onClick={() => i18n.changeLanguage(loc.code)}
         >
           {loc.label}
@@ -1494,7 +1563,14 @@ function Charts({ report }: { report: Report }) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const otherLabel = t("charts.other");
   const sliceLabels = useMemo(() => new Set(visibleItems.map((item) => item.label)), [visibleItems]);
-  const sliceForLanguage = (name: string) => (sliceLabels.has(name) ? name : sliceLabels.has(otherLabel) ? otherLabel : null);
+  const sliceForLanguage = useCallback(
+    (name: string) => (sliceLabels.has(name) ? name : sliceLabels.has(otherLabel) ? otherLabel : null),
+    [sliceLabels, otherLabel],
+  );
+  const onHoverLanguage = useCallback(
+    (name: string | null) => setHoveredSlice(name === null ? null : sliceForLanguage(name)),
+    [sliceForLanguage],
+  );
 
   return (
     <div className="charts-grid">
@@ -1504,7 +1580,7 @@ function Charts({ report }: { report: Report }) {
       </div>
       <div className="chart-card table-card">
         <div className="chart-h"><span className="chart-tag">table</span>{t("charts.report")}</div>
-        <ReportTable report={report} compact hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={(name) => setHoveredSlice(name === null ? null : sliceForLanguage(name))} />
+        <ReportTable report={report} compact hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={onHoverLanguage} />
       </div>
     </div>
   );
@@ -1531,7 +1607,7 @@ function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: nu
         </svg>
         <div className="donut-center" title={t("charts.totalLinesTooltip", { count: exactTotal })}>
           <span className="mute">{t("charts.lines")}</span>
-          <strong aria-label={exactTotal}>{formatCompactNumber(total)}</strong>
+          <strong>{formatCompactNumber(total)}</strong>
         </div>
       </div>
       <ul className="visually-hidden">
@@ -1541,18 +1617,15 @@ function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: nu
       </ul>
       <div className="legend" onMouseLeave={() => onHover(null)}>
         {items.map((item) => (
-          <button
-            type="button"
+          <span
             className={`legend-row ${hovered === item.label ? "hl" : ""}`}
             key={item.label}
             onMouseEnter={() => onHover(item.label)}
-            onFocus={() => onHover(item.label)}
-            onBlur={() => onHover(null)}
           >
             <span className="key-sw" style={{ background: item.color }} />
             <span className="lname">{item.label}</span>
             <span>{formatPercent(item.value, total)}</span>
-          </button>
+          </span>
         ))}
       </div>
     </>
@@ -1605,11 +1678,13 @@ function ReportTable({ report, compact, hoveredSlice, sliceForLanguage, onHoverL
     persistSortInLocation(key, nextDir);
   };
 
-  const toggle = (name: string) => {
-    const next = new Set(expanded);
-    next.has(name) ? next.delete(name) : next.add(name);
-    setExpanded(next);
-  };
+  const toggle = useCallback((name: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  }, []);
 
   return (
     <div className={`table-wrap ${compact ? "compact" : ""}`}>
@@ -1628,7 +1703,7 @@ function ReportTable({ report, compact, hoveredSlice, sliceForLanguage, onHoverL
               <LanguageRow
                 row={row}
                 expanded={expanded.has(row.name)}
-                onToggle={() => toggle(row.name)}
+                onToggle={toggle}
                 highlighted={Boolean(hoveredSlice && sliceForLanguage?.(row.name) === hoveredSlice)}
                 onHover={onHoverLanguage}
               />
@@ -1657,13 +1732,13 @@ function SortHead({ label, active, dir, onClick, className }: { label: string; a
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <button type="button" className="sort-btn" onClick={onClick}>
-        {label} <span className="arr">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
+        {label} <span className="arr" aria-hidden="true">{active ? (dir === "asc" ? "^" : "v") : ""}</span>
       </button>
     </th>
   );
 }
 
-function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: () => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
+const LanguageRow = React.memo(function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; expanded?: boolean; child?: boolean; onToggle?: (name: string) => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
   const { t } = useTranslation();
   const scheme = useScheme();
   const hasChildren = row.children.length > 0;
@@ -1674,10 +1749,10 @@ function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: {
     <tr
       className={`${child ? "file-row" : "lang-row"} ${expandable ? "expandable" : ""} ${expanded ? "expanded" : ""} ${highlighted ? "hl-row" : ""}`}
       onMouseEnter={child ? undefined : () => onHover?.(row.name)}
-      onClick={expandable ? () => onToggle?.() : undefined}
+      onClick={expandable ? () => onToggle?.(row.name) : undefined}
     >
       <td className="lang">
-        {hasChildren ? <button className="expand" type="button" aria-label={t(expanded ? "table.collapseLanguage" : "table.expandLanguage", { language: row.name })} aria-expanded={Boolean(expanded)} onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button> : <span className="expand-spacer" />}
+        {hasChildren ? <button className="expand" type="button" aria-label={t(expanded ? "table.collapseLanguage" : "table.expandLanguage", { language: row.name })} aria-expanded={Boolean(expanded)} onClick={(e) => { e.stopPropagation(); onToggle?.(row.name); }}>{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button> : <span className="expand-spacer" />}
         <span className="swatch" style={{ color: visibleLanguageColor(languageColor(row.name), scheme) }} />
         {row.name}
         {!child && ratioTotal > 0 ? (
@@ -1695,7 +1770,7 @@ function LanguageRow({ row, expanded, child, onToggle, highlighted, onHover }: {
       <NumberCell value={row.stats.blanks} />
     </tr>
   );
-}
+});
 
 function NumberCell({ value }: { value: number }) {
   return <td>{formatNumber(value)}</td>;

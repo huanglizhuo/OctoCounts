@@ -86,6 +86,12 @@ async function handleMessage(msg) {
 }
 
 function classifyError(err) {
+  // fetchJson() aborts requests after 15s; surface that as a timeout rather
+  // than an opaque unknown error.
+  if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+    return { code: 'timeout', status: err.status, detail: err.responseText || '' };
+  }
+
   const apiError = err.body && typeof err.body === 'object' ? err.body : null;
   if (apiError?.code && apiError?.message) {
     return {

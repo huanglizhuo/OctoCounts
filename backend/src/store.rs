@@ -858,6 +858,25 @@ impl Store {
         })
     }
 
+    /// Live job counts grouped by status, for `/internal/stats`.
+    pub async fn job_status_counts(&self) -> anyhow::Result<Vec<(String, i64)>> {
+        let rows = sqlx::query("SELECT status, COUNT(*) AS count FROM jobs GROUP BY status")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.get::<String, _>("status"), row.get::<i64, _>("count")))
+            .collect())
+    }
+
+    /// Total stored reports, for `/internal/stats`.
+    pub async fn reports_count(&self) -> anyhow::Result<i64> {
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM reports")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count)
+    }
+
     /// # A fixed bug
     ///
     /// Until this change the query read `FROM reports LEFT JOIN LATERAL

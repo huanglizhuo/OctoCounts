@@ -28,6 +28,8 @@ use crate::{
     cache::AppCaches,
     coordinator::AnalysisCoordinator,
     github::GitHubClient,
+    metrics::Metrics,
+    ratelimit::RateLimits,
     models::{
         AnalysisOptions, AnalysisSource, LanguageReport, LanguageStats, Report, Repository,
         RepositoryProvider,
@@ -100,9 +102,18 @@ async fn harness() -> Option<Harness> {
     store.migrate().await.unwrap();
     seed(&store).await;
 
+    let metrics = std::sync::Arc::new(Metrics::new());
     let state = AppState {
-        coordinator: AnalysisCoordinator::new(store.clone(), GitHubClient::new().unwrap(), 1, None),
+        coordinator: AnalysisCoordinator::new(
+            store.clone(),
+            GitHubClient::new().unwrap(),
+            1,
+            None,
+            metrics.clone(),
+        ),
         caches: AppCaches::new(),
+        metrics,
+        rate_limits: RateLimits::new(),
     };
     Some(Harness {
         router: crate::build_router(state),

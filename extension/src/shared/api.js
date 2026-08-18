@@ -1,7 +1,17 @@
 const BASE = 'https://api.octocounts.com';
+const FETCH_TIMEOUT_MS = 15000;
+
+// AbortSignal.timeout() is available in all supported browsers (Chrome 103+,
+// Firefox 100+), but fall back to a manual controller if it ever is not.
+function timeoutSignal(ms) {
+  if (typeof AbortSignal?.timeout === 'function') return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new DOMException('signal timed out', 'TimeoutError')), ms);
+  return controller.signal;
+}
 
 async function fetchJson(url, opts = {}) {
-  const res = await fetch(url, opts);
+  const res = await fetch(url, { ...opts, signal: timeoutSignal(FETCH_TIMEOUT_MS) });
   const text = await res.text();
   let body = null;
   if (text) {

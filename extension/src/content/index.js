@@ -44,6 +44,10 @@ let lastResolution = null;
 
 let running = false;
 let scheduled = false;
+// Last pathname seen by onDomActivity. SPA route changes always change the
+// URL, so comparing paths first avoids a full parseRepoInfo() on every
+// mutation burst when the route has not actually changed.
+let lastPath = null;
 
 /* ── async pass: decide whether this page should get a card ───────────────── */
 
@@ -220,10 +224,25 @@ function scheduleRun() {
 // GitHub mutates the DOM constantly. Cheap path first: if the repo context has
 // not changed, only ensureMounted() runs — no settings read, no storage read.
 function onDomActivity() {
-  if (running) return;
+  // Mid-run route changes must not be dropped: run() reschedules itself when
+  // it sees `running`, so a cheap scheduleRun() here closes that gap.
+  if (running) {
+    scheduleRun();
+    return;
+  }
 
   if (!isRepoPage()) {
     if (plan) scheduleRun();
+    return;
+  }
+
+  const path = location.pathname;
+  const pathChanged = path !== lastPath;
+  lastPath = path;
+
+  if (!pathChanged && plan) {
+    // Same URL: the memoized plan is still valid, only the sync pass runs.
+    ensureMounted();
     return;
   }
 

@@ -15,6 +15,7 @@ use crate::{
     error::ApiError,
     github::{GitHubClient, GitHubError},
     indexnow::IndexNowService,
+    metrics::Metrics,
     models::{
         AnalysisSource, AnalyzeRequest, AnalyzeResponse, ApiErrorBody, JobRecord, JobStatus,
         RepoRef,
@@ -139,6 +140,7 @@ pub struct AnalysisCoordinator {
     semaphore: Arc<Semaphore>,
     indexnow: Option<IndexNowService>,
     events: Arc<JobEvents>,
+    metrics: Arc<Metrics>,
 }
 
 impl AnalysisCoordinator {
@@ -147,6 +149,7 @@ impl AnalysisCoordinator {
         github: GitHubClient,
         concurrency: usize,
         indexnow: Option<IndexNowService>,
+        metrics: Arc<Metrics>,
     ) -> Self {
         Self {
             store,
@@ -154,6 +157,7 @@ impl AnalysisCoordinator {
             semaphore: Arc::new(Semaphore::new(concurrency)),
             indexnow,
             events: Arc::new(JobEvents::default()),
+            metrics,
         }
     }
 
@@ -258,11 +262,13 @@ impl AnalysisCoordinator {
                 .await
                 .map_err(ApiError::internal)?
             {
+                self.metrics.record_cache_hit();
                 return Ok(AnalyzeResponse::Cached {
                     report_id: report.id.clone(),
                     report,
                 });
             }
+            self.metrics.record_cache_miss();
         }
 
         let (job, created) = self
@@ -463,7 +469,13 @@ mod tests {
         store.migrate().await.unwrap();
 
         Some(Harness {
-            coordinator: AnalysisCoordinator::new(store, GitHubClient::new().unwrap(), 1, None),
+            coordinator: AnalysisCoordinator::new(
+                store,
+                GitHubClient::new().unwrap(),
+                1,
+                None,
+                Arc::new(Metrics::new()),
+            ),
             admin,
             schema,
         })

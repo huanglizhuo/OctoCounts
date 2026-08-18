@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import i18n from "./i18n";
 import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
-import { analyzeRepository, ApiRequestError, fetchJson } from "./api";
+import { analyzeRepository, ApiRequestError, fetchJson, localizedErrorCodeMessage } from "./api";
 import { commandText } from "./reportUtils";
 import type { AnalysisOptions, AppStatus, JobRecord, Report } from "./types";
 
@@ -177,14 +177,5 @@ function toAnalysisError(error: unknown): AnalysisError {
 }
 
 function localizedErrorMessage(code: string | undefined, fallback: string) {
-  if (code === "private_repo") return i18n.t("error.privateRepo");
-  if (code === "invalid_url") return i18n.t("error.invalidUrl");
-  if (code === "ref_not_found") return i18n.t("error.refNotFound");
-  if (code === "rate_limited") return i18n.t("error.rateLimited");
-  if (code === "github_unavailable") return i18n.t("error.githubUnavailable");
-  if (code === "too_large") return i18n.t("error.tooLarge");
-  if (code === "not_found") return i18n.t("error.notFound");
-  if (code === "github_request_failed") return i18n.t("error.githubRequestFailed");
-  if (code === "analysis_failed") return i18n.t("error.analysisFailed");
-  return fallback || i18n.t("runner.status.failed");
+  return localizedErrorCodeMessage(code, fallback, "runner.status.failed");
 }

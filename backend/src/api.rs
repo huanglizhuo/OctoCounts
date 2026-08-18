@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
-    extract::{Path, Query, RawQuery, State},
+    extract::{ConnectInfo, Extension, Path, Query, RawQuery, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
@@ -12,19 +12,39 @@ use crate::{
     cache::AppCaches,
     coordinator::{job_is_finished, AnalysisCoordinator},
     error::ApiError,
+    metrics::Metrics,
     models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus, RepositoryProvider},
+    ratelimit::{client_ip, RateLimits},
 };
 
 #[derive(Clone)]
 pub struct AppState {
     pub coordinator: AnalysisCoordinator,
     pub caches: AppCaches,
+    pub metrics: Arc<Metrics>,
+    pub rate_limits: RateLimits,
 }
 
 pub async fn analyze(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: HeaderMap,
     Json(request): Json<AnalyzeRequest>,
 ) -> Result<Json<AnalyzeResponse>, ApiError> {
+    // Per-IP token buckets. `connect_info` is absent only in tests driving the
+    // handler without the connect-info make service; those skip limiting.
+    if let Some(ip) = client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)) {
+        if let Err(seconds) = state.rate_limits.analyze.check(&ip) {
+            return Err(ApiError::rate_limited(seconds));
+        }
+        // `force_refresh` pays for a full archive download and bypasses the
+        // report cache, so it draws from a much smaller quota of its own.
+        if request.force_refresh {
+            if let Err(seconds) = state.rate_limits.force_refresh.check(&ip) {
+                return Err(ApiError::rate_limited(seconds));
+            }
+        }
+    }
     state.coordinator.submit(request).await.map(Json)
 }
 
@@ -215,6 +235,64 @@ fn stats_cache_headers() -> HeaderMap {
     headers
 }
 
+/// Lightweight ops view: live job counts, stored reports, report-cache hit
+/// ratio, upstream 429s and uptime, all per process.
+///
+/// Protected by `INTERNAL_STATS_TOKEN` when that env var is set (send it in
+/// the `x-stats-token` header); without it the endpoint is open, since every
+/// field it exposes is non-sensitive. Not cached: it is an on-demand read for
+/// a human or a scraper, not something fronted by a CDN.
+pub async fn internal_stats(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    if let Ok(token) = std::env::var("INTERNAL_STATS_TOKEN") {
+        let token = token.trim().to_string();
+        if !token.is_empty() {
+            let provided = headers
+                .get("x-stats-token")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default();
+            if provided != token {
+                return Err(ApiError::new(
+                    StatusCode::UNAUTHORIZED,
+                    "unauthorized",
+                    "a valid x-stats-token header is required",
+                ));
+            }
+        }
+    }
+
+    let job_counts = state
+        .coordinator
+        .store()
+        .job_status_counts()
+        .await
+        .map_err(ApiError::internal)?;
+    let mut jobs = serde_json::Map::new();
+    for (status, count) in job_counts {
+        jobs.insert(status, count.into());
+    }
+
+    let reports = state
+        .coordinator
+        .store()
+        .reports_count()
+        .await
+        .map_err(ApiError::internal)?;
+
+    Ok(Json(serde_json::json!({
+        "uptime_seconds": state.metrics.uptime().as_secs(),
+        "jobs": jobs,
+        "reports": reports,
+        "report_cache": {
+            "hits": state.metrics.report_cache_hits(),
+            "misses": state.metrics.report_cache_misses(),
+        },
+        "github_429": state.coordinator.github().rate_limited_429_count(),
+    })))
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
@@ -296,11 +374,14 @@ mod tests {
         let store = Store::new(pool);
         store.migrate().await.unwrap();
 
+        let metrics = Arc::new(Metrics::new());
         let coordinator =
-            AnalysisCoordinator::new(store, GitHubClient::new().unwrap(), 1, None);
+            AnalysisCoordinator::new(store, GitHubClient::new().unwrap(), 1, None, metrics.clone());
         let state = AppState {
             coordinator: coordinator.clone(),
             caches: AppCaches::new(),
+            metrics,
+            rate_limits: RateLimits::new(),
         };
         Some(Harness {
             router: Router::new()

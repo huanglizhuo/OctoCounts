@@ -58,6 +58,12 @@ function apiErrorMessage(body: unknown, fallback: string) {
   if (!body || typeof body !== "object") return fallback || i18n.t("error.requestFailed");
 
   const code = "code" in body && typeof body.code === "string" ? body.code : "";
+  const message = "message" in body && typeof body.message === "string" ? body.message : "";
+  return localizedErrorCodeMessage(code, message || fallback, "error.requestFailed");
+}
+
+// Single source of truth for error-code → i18n mapping; shared with useAnalysisRunner.
+export function localizedErrorCodeMessage(code: string | undefined, fallback: string, fallbackKey: string) {
   if (code === "private_repo") return i18n.t("error.privateRepo");
   if (code === "invalid_url") return i18n.t("error.invalidUrl");
   if (code === "ref_not_found") return i18n.t("error.refNotFound");
@@ -67,7 +73,5 @@ function apiErrorMessage(body: unknown, fallback: string) {
   if (code === "not_found") return i18n.t("error.notFound");
   if (code === "github_request_failed") return i18n.t("error.githubRequestFailed");
   if (code === "analysis_failed") return i18n.t("error.analysisFailed");
-
-  if ("message" in body && typeof body.message === "string") return body.message;
-  return fallback || i18n.t("error.requestFailed");
+  return fallback || i18n.t(fallbackKey);
 }

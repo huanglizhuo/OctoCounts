@@ -1,4 +1,10 @@
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use futures::TryStreamExt;
 use moka::{future::Cache, policy::EvictionPolicy};
@@ -69,15 +75,31 @@ pub enum GitHubError {
 /// [`GitHubError::UpstreamUnavailable`] instead of a misleading not-found.
 const UPSTREAM_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(500), Duration::from_millis(1500)];
 
+/// Longest we will park a request waiting for an upstream rate limit to
+/// lift. Beyond this the response is handed back and the caller reports a
+/// rate limit rather than holding a connection open for minutes.
+const RATE_LIMIT_SLEEP_CAP: Duration = Duration::from_secs(60);
+
+/// How many header-directed rate-limit waits one request may take before it
+/// gives up and surfaces the rate limit to the caller.
+const MAX_RATE_LIMIT_SLEEPS: usize = 2;
+
 #[derive(Clone)]
 pub struct GitHubClient {
     client: Client,
+    /// Long-timeout twin of `client` for archive downloads, where a multi-
+    /// hundred-megabyte body legitimately outruns a JSON call's budget.
+    archive_client: Client,
     ref_cache: Cache<(String, Option<String>), RepoRef>,
     stars_cache: Cache<(RepositoryProvider, String, String), Option<u64>>,
     /// GitHub's GraphQL API rejects unauthenticated requests outright, and
     /// `GITHUB_TOKEN` is optional in this deployment, so the fast path is only
     /// attempted when there is a token to attempt it with.
     has_token: bool,
+    /// Every 429 seen from an upstream, across retries. Cheap observability
+    /// for `/internal/stats`; shared through `Arc` so clones of this client
+    /// (one per coordinator) report one number.
+    rate_limited_429: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -274,6 +296,31 @@ fn classify_graphql_errors(errors: &[GraphQlError]) -> GraphQlOutcome {
     }
 }
 
+/// How long a 429 (or rate-limiting 403) response says to wait, taken from
+/// `retry-after` (seconds) or, failing that, `x-ratelimit-reset` (epoch
+/// seconds). `None` when the response carries neither, leaving the fixed
+/// backoff schedule in charge.
+fn rate_limit_wait(response: &reqwest::Response) -> Option<Duration> {
+    let retry_after = response
+        .headers()
+        .get("retry-after")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().parse::<u64>().ok());
+    if let Some(seconds) = retry_after {
+        return Some(Duration::from_secs(seconds));
+    }
+    let reset_epoch = response
+        .headers()
+        .get("x-ratelimit-reset")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().parse::<i64>().ok())?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs() as i64;
+    Some(Duration::from_secs((reset_epoch - now).max(0) as u64))
+}
+
 #[derive(Debug, Clone)]
 struct RepoTarget {
     provider: RepositoryProvider,
@@ -330,43 +377,93 @@ impl GitHubClient {
         }
 
         Ok(Self {
-            client: Client::builder().default_headers(headers).build()?,
+            // JSON-sized calls: connect budget plus an overall budget well
+            // above a normal API round trip but short enough that a wedged
+            // upstream fails fast instead of pinning a worker.
+            client: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(30))
+                .default_headers(headers.clone())
+                .build()?,
+            // The archive path streams bodies that can run to hundreds of
+            // megabytes, so it gets a much longer overall budget — bounded,
+            // but generous enough that a slow link on a large repo is not
+            // cut off mid-download.
+            archive_client: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(600))
+                .default_headers(headers)
+                .build()?,
             ref_cache: build_ref_cache(REF_CACHE_TTL),
             stars_cache: build_stars_cache(),
             has_token,
+            rate_limited_429: Arc::new(AtomicU64::new(0)),
         })
+    }
+
+    /// How many 429 responses have been seen from upstream hosts so far.
+    pub fn rate_limited_429_count(&self) -> u64 {
+        self.rate_limited_429.load(Ordering::Relaxed)
     }
 
     /// GET with retries on transient upstream failures (5xx, connect and
     /// timeout errors). Non-retryable transport errors stay
     /// [`GitHubError::Request`]; everything retryable that survives the
     /// schedule becomes [`GitHubError::UpstreamUnavailable`].
-    async fn get_with_retry(&self, url: &str) -> Result<reqwest::Response, GitHubError> {
-        self.send_get_with_retry(url).await
-    }
-
-    /// The retry engine shared by JSON calls and the archive stream: only the
-    /// request/response handshake is retried. Once a 200 body starts streaming
-    /// it is never restarted — a mid-stream failure surfaces as a read error
-    /// on the consumer side instead.
-    async fn send_get_with_retry(&self, url: &str) -> Result<reqwest::Response, GitHubError> {
+    ///
+    /// The retry engine is shared by JSON calls and the archive stream: only
+    /// the request/response handshake is retried. Once a 200 body starts
+    /// streaming it is never restarted — a mid-stream failure surfaces as a
+    /// read error on the consumer side instead.
+    async fn get_with_retry(
+        &self,
+        url: &str,
+        long_running: bool,
+    ) -> Result<reqwest::Response, GitHubError> {
+        let client = if long_running {
+            &self.archive_client
+        } else {
+            &self.client
+        };
         let mut delays = UPSTREAM_RETRY_DELAYS.iter();
-        // A 429 is retried like a 5xx (during incidents codeload sheds load
+        // A 429 is retried (during incidents codeload sheds load
         // nondeterministically, so the next attempt often passes), but if the
         // limit holds the response is returned untouched so callers classify
-        // it as rate limiting rather than an outage.
+        // it as rate limiting rather than an outage. When the response says
+        // how long the limit lasts, that — not the fixed backoff schedule —
+        // decides the wait.
         let mut last_rate_limited: Option<reqwest::Response> = None;
+        let mut rate_limit_sleeps = 0;
         loop {
-            match self.client.get(url).send().await {
+            match client.get(url).send().await {
                 Ok(response) => {
                     let status = response.status();
                     if status.is_server_error() {
                         tracing::warn!(%status, "upstream 5xx; retrying");
-                        true
                     } else if status == StatusCode::TOO_MANY_REQUESTS {
+                        self.rate_limited_429.fetch_add(1, Ordering::Relaxed);
                         tracing::warn!(%status, "upstream rate limited; retrying");
-                        last_rate_limited = Some(response);
-                        true
+                        match rate_limit_wait(&response) {
+                            // The limit lifts later than we are willing to
+                            // wait: hand the 429 back for the caller to
+                            // classify instead of parking the request.
+                            Some(wait) if wait > RATE_LIMIT_SLEEP_CAP => {
+                                tracing::warn!(?wait, "upstream rate limit outlives the wait cap");
+                                return Ok(response);
+                            }
+                            Some(wait) => {
+                                if rate_limit_sleeps >= MAX_RATE_LIMIT_SLEEPS {
+                                    return Ok(response);
+                                }
+                                rate_limit_sleeps += 1;
+                                tracing::warn!(?wait, "sleeping for upstream rate limit");
+                                tokio::time::sleep(wait).await;
+                                continue;
+                            }
+                            // No advisory headers: fall back to the fixed
+                            // backoff schedule like a 5xx.
+                            None => last_rate_limited = Some(response),
+                        }
                     } else {
                         return Ok(response);
                     }
@@ -374,7 +471,6 @@ impl GitHubClient {
                 Err(error) => {
                     if error.is_timeout() || error.is_connect() {
                         tracing::warn!(%error, "upstream request failed; retrying");
-                        true
                     } else {
                         return Err(GitHubError::Request(error));
                     }
@@ -406,8 +502,12 @@ impl GitHubClient {
 
         let stars = match provider {
             RepositoryProvider::GitHub => {
-                let url = format!("https://api.github.com/repos/{owner}/{repo}");
-                let response = self.get_with_retry(&url).await.ok()?;
+                let url = format!(
+                    "https://api.github.com/repos/{}/{}",
+                    urlencoding::encode(owner),
+                    urlencoding::encode(repo)
+                );
+                let response = self.get_with_retry(&url, false).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
                     return None;
                 }
@@ -421,7 +521,7 @@ impl GitHubClient {
                 let full_path = format!("{owner}/{repo}");
                 let path = urlencoding::encode(&full_path);
                 let url = format!("https://gitlab.com/api/v4/projects/{path}");
-                let response = self.get_with_retry(&url).await.ok()?;
+                let response = self.get_with_retry(&url, false).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
                     return None;
                 }
@@ -569,8 +669,12 @@ impl GitHubClient {
             }
         }
 
-        let repo_api = format!("https://api.github.com/repos/{owner}/{repo}");
-        let repo_response = self.get_with_retry(&repo_api).await?;
+        let repo_api = format!(
+            "https://api.github.com/repos/{}/{}",
+            urlencoding::encode(&owner),
+            urlencoding::encode(&repo)
+        );
+        let repo_response = self.get_with_retry(&repo_api, false).await?;
         match repo_response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
@@ -663,7 +767,7 @@ impl GitHubClient {
     ) -> Result<RepoRef, GitHubError> {
         let encoded_path = urlencoding::encode(&target.path);
         let project_api = format!("https://gitlab.com/api/v4/projects/{encoded_path}");
-        let project_response = self.get_with_retry(&project_api).await?;
+        let project_response = self.get_with_retry(&project_api, false).await?;
         match project_response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
@@ -710,8 +814,13 @@ impl GitHubClient {
         repo: &str,
         ref_name: &str,
     ) -> Result<String, GitHubError> {
-        let url = format!("https://api.github.com/repos/{owner}/{repo}/commits/{ref_name}");
-        let response = self.get_with_retry(&url).await?;
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/commits/{}",
+            urlencoding::encode(owner),
+            urlencoding::encode(repo),
+            urlencoding::encode(ref_name)
+        );
+        let response = self.get_with_retry(&url, false).await?;
         match response.status() {
             StatusCode::OK => {
                 let body: CommitResponse = response.json().await?;
@@ -733,7 +842,7 @@ impl GitHubClient {
         let url = format!(
             "https://gitlab.com/api/v4/projects/{project_id}/repository/commits/{encoded_ref}"
         );
-        let response = self.get_with_retry(&url).await?;
+        let response = self.get_with_retry(&url, false).await?;
         match response.status() {
             StatusCode::OK => {
                 let body: GitLabCommitResponse = response.json().await?;
@@ -768,7 +877,12 @@ impl GitHubClient {
     ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
         let url = match provider {
             RepositoryProvider::GitHub => {
-                format!("https://codeload.github.com/{owner}/{repo}/tar.gz/{sha}")
+                format!(
+                    "https://codeload.github.com/{}/{}/tar.gz/{}",
+                    urlencoding::encode(owner),
+                    urlencoding::encode(repo),
+                    urlencoding::encode(sha)
+                )
             }
             RepositoryProvider::GitLab => {
                 let path = format!("{owner}/{repo}");
@@ -797,7 +911,7 @@ impl GitHubClient {
         url: String,
         max_bytes: u64,
     ) -> Result<Box<dyn std::io::Read + Send>, GitHubError> {
-        let response = self.send_get_with_retry(&url).await?;
+        let response = self.get_with_retry(&url, true).await?;
         match response.status() {
             StatusCode::OK => {}
             StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
@@ -840,6 +954,15 @@ mod tests {
     /// Variant of [`flaky_server`] answering 429 instead of 503, mirroring
     /// how codeload sheds load during incidents.
     async fn throttled_server(ok_after: u32) -> (String, Arc<AtomicU32>) {
+        throttled_server_with_headers(ok_after, None).await
+    }
+
+    /// [`throttled_server`], optionally stamping a `retry-after` header on the
+    /// 429s so the header-aware wait can be exercised.
+    async fn throttled_server_with_headers(
+        ok_after: u32,
+        retry_after: Option<&'static str>,
+    ) -> (String, Arc<AtomicU32>) {
         use axum::routing::get;
         let hits = Arc::new(AtomicU32::new(0));
         let state = hits.clone();
@@ -851,7 +974,16 @@ mod tests {
                     if seen >= ok_after {
                         axum::Json(serde_json::json!({"stargazers_count": 42})).into_response()
                     } else {
-                        (axum::http::StatusCode::TOO_MANY_REQUESTS, "slow down").into_response()
+                        let mut response =
+                            (axum::http::StatusCode::TOO_MANY_REQUESTS, "slow down")
+                                .into_response();
+                        if let Some(value) = retry_after {
+                            response.headers_mut().insert(
+                                "retry-after",
+                                axum::http::HeaderValue::from_static(value),
+                            );
+                        }
+                        response
                     }
                 }
             }),
@@ -866,7 +998,7 @@ mod tests {
     async fn get_with_retry_survives_a_transient_429() {
         let (url, hits) = throttled_server(2).await; // 429, then 200
         let client = GitHubClient::with_token(None).unwrap();
-        let response = client.get_with_retry(&url).await.unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
         assert_eq!(response.status().as_u16(), 200);
         assert_eq!(hits.load(Ordering::SeqCst), 2);
     }
@@ -875,9 +1007,41 @@ mod tests {
     async fn get_with_retry_returns_the_429_when_the_limit_holds() {
         let (url, hits) = throttled_server(u32::MAX).await; // always 429
         let client = GitHubClient::with_token(None).unwrap();
-        let response = client.get_with_retry(&url).await.unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
         assert_eq!(response.status().as_u16(), 429);
         assert_eq!(hits.load(Ordering::SeqCst), 3);
+    }
+
+    /// A `retry-after` longer than the wait cap must not park the request:
+    /// the 429 comes back on the first attempt for the caller to classify.
+    #[tokio::test]
+    async fn a_long_retry_after_is_returned_instead_of_waited_out() {
+        let (url, hits) = throttled_server_with_headers(u32::MAX, Some("120")).await;
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
+        assert_eq!(response.status().as_u16(), 429);
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+    }
+
+    /// A zero-second `retry-after` still retries, but only a bounded number
+    /// of times before the 429 is surfaced.
+    #[tokio::test]
+    async fn a_zero_retry_after_is_honoured_but_bounded() {
+        let (url, hits) = throttled_server_with_headers(u32::MAX, Some("0")).await;
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
+        assert_eq!(response.status().as_u16(), 429);
+        // initial attempt + MAX_RATE_LIMIT_SLEEPS header-directed retries
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn a_short_retry_after_lets_the_retry_succeed() {
+        let (url, hits) = throttled_server_with_headers(2, Some("0")).await; // 429, then 200
+        let client = GitHubClient::with_token(None).unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
+        assert_eq!(response.status().as_u16(), 200);
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
     }
 
     async fn flaky_server(ok_after: u32) -> (String, Arc<AtomicU32>) {
@@ -907,7 +1071,7 @@ mod tests {
     async fn get_with_retry_rides_out_transient_5xx() {
         let (url, hits) = flaky_server(3).await; // 503, 503, then 200
         let client = GitHubClient::with_token(None).unwrap();
-        let response = client.get_with_retry(&url).await.unwrap();
+        let response = client.get_with_retry(&url, false).await.unwrap();
         assert_eq!(response.status().as_u16(), 200);
         assert_eq!(hits.load(Ordering::SeqCst), 3);
     }
@@ -916,7 +1080,7 @@ mod tests {
     async fn get_with_retry_reports_upstream_unavailable_after_backoff() {
         let (url, hits) = flaky_server(u32::MAX).await; // always 503
         let client = GitHubClient::with_token(None).unwrap();
-        let error = client.get_with_retry(&url).await.unwrap_err();
+        let error = client.get_with_retry(&url, false).await.unwrap_err();
         assert!(matches!(error, super::GitHubError::UpstreamUnavailable));
         // initial attempt + both backoff retries
         assert_eq!(hits.load(Ordering::SeqCst), 3);

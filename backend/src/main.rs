@@ -9,12 +9,18 @@ mod github;
 #[cfg(test)]
 mod golden;
 mod indexnow;
+mod metrics;
 mod models;
 mod og;
+mod ratelimit;
 mod seo;
 mod store;
 
-use std::{net::SocketAddr, time::Duration};
+use std::{
+    net::SocketAddr,
+    sync::Arc,
+    time::Duration,
+};
 
 use anyhow::Context;
 use axum::{
@@ -32,6 +38,8 @@ use crate::{
     coordinator::AnalysisCoordinator,
     github::GitHubClient,
     indexnow::IndexNowService,
+    metrics::Metrics,
+    ratelimit::RateLimits,
     store::{CleanupConfig, Store},
 };
 
@@ -68,14 +76,18 @@ async fn main() -> anyhow::Result<()> {
         config.cleanup,
     );
 
+    let metrics = Arc::new(Metrics::new());
     let state = AppState {
         coordinator: AnalysisCoordinator::new(
             store,
             GitHubClient::new()?,
             config.analysis_concurrency,
             IndexNowService::start(config.indexnow.clone()),
+            metrics.clone(),
         ),
         caches: AppCaches::new(),
+        metrics,
+        rate_limits: RateLimits::new(),
     };
 
     let app = build_router(state);
@@ -84,11 +96,16 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!(%addr, "listening");
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
-        .await?;
+    // Connect info is what the per-IP rate limiter keys on; without it the
+    // analyze limiter would have nothing to key a bucket by.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(async {
+        let _ = tokio::signal::ctrl_c().await;
+    })
+    .await?;
 
     Ok(())
 }
@@ -96,6 +113,7 @@ async fn main() -> anyhow::Result<()> {
 fn build_router(state: AppState) -> Router {
     let routes = Router::new()
         .route("/healthz", get(|| async { "ok" }))
+        .route("/internal/stats", get(api::internal_stats))
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
@@ -205,9 +223,18 @@ mod tests {
         let store = Store::new(pool.clone());
         store.migrate().await.unwrap();
 
+        let metrics = Arc::new(Metrics::new());
         let state = AppState {
-            coordinator: AnalysisCoordinator::new(store, GitHubClient::new().unwrap(), 1, None),
+            coordinator: AnalysisCoordinator::new(
+                store,
+                GitHubClient::new().unwrap(),
+                1,
+                None,
+                metrics.clone(),
+            ),
             caches: AppCaches::new(),
+            metrics,
+            rate_limits: RateLimits::new(),
         };
         Some((build_router(state), pool, schema))
     }

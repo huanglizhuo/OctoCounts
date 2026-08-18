@@ -45,6 +45,17 @@ impl ApiError {
         Self::new(StatusCode::NOT_FOUND, code, message)
     }
 
+    /// The service's own rate limit, as opposed to a relayed upstream one.
+    /// `retry_after` is the exact wait the limiter computed.
+    pub(crate) fn rate_limited(retry_after: u64) -> Self {
+        Self::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            "rate_limited",
+            "too many requests; please retry later",
+        )
+        .with_retry_after(retry_after)
+    }
+
     pub(crate) fn body(&self) -> &ApiErrorBody {
         &self.body
     }
