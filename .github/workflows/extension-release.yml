@@ -132,6 +132,9 @@ jobs:
           zip-path: artifacts/${{ needs.build.outputs.chrome_zip }}/${{ needs.build.outputs.chrome_zip }}
 
       - name: Publish Edge zip to Add-ons
+        # The stores are independent; one rejecting a duplicate submission
+        # (e.g. "already in review" on a rerun) must not block the other.
+        if: always()
         uses: wdzeng/edge-addon@v2
         with:
           product-id: ${{ secrets.EDGE_PRODUCT_ID }}
