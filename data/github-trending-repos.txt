@@ -1,12 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-08-18T03:07:21.811Z
+# GitHub Trending daily snapshot generated 2026-08-19T03:09:59.288Z
 harry0703/MoneyPrinterTurbo
-usestrix/strix
-nautechsystems/nautilus_trader
+chaitanyagiri/munder-difflin
 akitaonrails/ai-memory
+volcengine/OpenViking
 mukul975/Anthropic-Cybersecurity-Skills
-AlexsJones/llmfit
-santifer/career-ops
-jundot/omlx
-immich-app/immich
-cordiverse/cordis
+public-apis/public-apis
+basecamp/omarchy
 agalwood/Motrix
+NawfalMotii79/PLFM_RADAR
+jundot/omlx
+genlayerlabs/genlayer-project-boilerplate
+OpenCut-app/OpenCut
