@@ -216,9 +216,12 @@ function StatsDashboard({ stats }: { stats: GrowthStats }) {
 export function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) {
   const { t } = useTranslation();
   const endpoint = kind === "monoliths" ? "/api/seo/monoliths" : `/api/seo/${kind}`;
+  // The edge function server-renders whichever ?page=N a deep link asks for;
+  // fetch the same page or React would swap the SSR list back to page 1.
+  const page = Number(new URLSearchParams(window.location.search).get("page")) || 1;
   const query = useQuery({
-    queryKey: ["seo-list", kind],
-    queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36`),
+    queryKey: ["seo-list", kind, page],
+    queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36&page=${page}`),
   });
   const copy = listPageCopy(kind, t);
 

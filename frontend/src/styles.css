@@ -3618,3 +3618,32 @@ table.report td.lang {
   color: var(--fg-dim);
   font-size: var(--text-sm, 0.9em);
 }
+
+/* Server-rendered report/list/compare content injected by the edge function
+   into #root. These rules only match before React mounts (createRoot().render
+   discards the block), so they style the pre-hydration table without touching
+   the app's own tables (those use .report / .compare-table). */
+#root > section {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-6, 1.5rem) var(--space-4, 1rem);
+}
+
+#root > section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+}
+
+#root > section th,
+#root > section td {
+  border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+}
+
+#root > section th:first-child,
+#root > section td:first-child {
+  text-align: left;
+}

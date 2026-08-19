@@ -893,7 +893,7 @@ function htmlResponse(html, cacheControl) {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": cacheControl,
-      ...securityHeaders(randomNonce()),
+      ...securityHeaders(),
     },
   });
 }
@@ -901,16 +901,11 @@ function htmlResponse(html, cacheControl) {
 function withHtmlSecurity(response) {
   if (!response.headers.get("content-type")?.includes("text/html")) return response;
   const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(securityHeaders(randomNonce()))) headers.set(name, value);
+  for (const [name, value] of Object.entries(securityHeaders())) headers.set(name, value);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-function randomNonce() {
-  return crypto.randomUUID().replaceAll("-", "");
-}
-
-function securityHeaders(nonce = "") {
-  const nonceSource = nonce ? ` 'nonce-${nonce}'` : "";
+function securityHeaders() {
   return {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -918,6 +913,6 @@ function securityHeaders(nonce = "") {
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "strict-transport-security": "max-age=63072000; includeSubDomains",
     "cross-origin-opener-policy": "same-origin",
-    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH}${nonceSource} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`,
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`,
   };
 }

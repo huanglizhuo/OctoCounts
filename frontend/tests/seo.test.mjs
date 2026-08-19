@@ -191,14 +191,16 @@ test("static and Pages Function responses apply production security headers", as
   assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
   const csp = response.headers.get("content-security-policy");
   assert.match(csp, /'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='/);
-  assert.match(csp, /'nonce-[a-f0-9]{32}'/);
+  // The nonce was removed: nothing ever consumed it and cached HTML replayed
+  // the same nonce, defeating its purpose. The pinned boot-script hash remains.
+  assert.doesNotMatch(csp, /'nonce-/);
   assert.match(csp, /cloud\.umami\.is/);
   assert.match(csp, /gateway\.umami\.is/);
   assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
   assert.doesNotMatch(response.headers.get("cache-control"), /no-transform/);
 });
 
-test("Pages static HTML uses a nonce CSP without disabling compression transforms", async () => {
+test("Pages static HTML uses a strict CSP without disabling compression transforms", async () => {
   const response = await onRequest({
     request: new Request("https://octocounts.com/"),
     env: {
@@ -214,7 +216,7 @@ test("Pages static HTML uses a nonce CSP without disabling compression transform
   });
 
   assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
-  assert.match(response.headers.get("content-security-policy"), /'nonce-[a-f0-9]{32}'/);
+  assert.doesNotMatch(response.headers.get("content-security-policy"), /'nonce-/);
   assert.doesNotMatch(response.headers.get("content-security-policy"), /script-src[^;]*'unsafe-inline'/);
 });
 
@@ -374,6 +376,21 @@ test("compare and diff routes return 200 SSR shells with canonical metadata", as
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
     assert.equal((html.match(/<noscript>/g) ?? []).length, 0);
   }
+});
+
+// setMeta()/canonical replacement rely on the exact minified shape of the
+// meta tags in dist/index.html (attribute order, space before "/>"). A
+// Vite/html-minifier upgrade that changes that shape silently degrades every
+// SSR page to duplicate meta tags, so pin the shape here.
+test("dist index.html keeps the meta shapes the edge injector matches", async () => {
+  const html = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  for (const attr of ["name", "property"]) {
+    const metas = html.match(new RegExp(`<meta ${attr}="[a-z:]+" content="[^"]*" />`, "g")) ?? [];
+    assert.ok(metas.length > 0, `no <meta ${attr} ... content="..." /> tags in expected shape`);
+  }
+  assert.match(html, /<link rel="canonical" href="[^"]*" \/>/);
+  assert.match(html, /<title>[^<]*<\/title>/);
+  assert.match(html, /<div id="root"><\/div>/);
 });
 
 test("static sitemap entries carry a lastmod date in both sitemap copies", async () => {

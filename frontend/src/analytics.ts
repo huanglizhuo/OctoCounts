@@ -48,9 +48,21 @@ export function aiReferrerSource(referrer: string | undefined): string | undefin
 
 export function trackAiVisitIfReferred() {
   if (typeof document === "undefined") return;
+  // Touching sessionStorage throws a SecurityError when site data is blocked
+  // (privacy-hardened browsers); that must never take the page down.
+  let seen: string | null = null;
+  try {
+    seen = sessionStorage.getItem("octocounts.ai_visit");
+  } catch {
+    return;
+  }
   const source = aiReferrerSource(document.referrer);
-  if (!source || sessionStorage.getItem("octocounts.ai_visit") === source) return;
-  sessionStorage.setItem("octocounts.ai_visit", source);
+  if (!source || seen === source) return;
+  try {
+    sessionStorage.setItem("octocounts.ai_visit", source);
+  } catch {
+    /* best effort */
+  }
   trackEvent(AnalyticsEvents.aiVisit, { source, path: window.location.pathname });
 }
 

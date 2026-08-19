@@ -2,15 +2,6 @@ import i18n from "./i18n";
 import type { AppStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
 export { visibleLanguageColor } from "./colorContrast";
 
-export const statusCopy: Record<AppStatus, string> = {
-  idle: i18n.t("runner.status.idle"),
-  queued: i18n.t("runner.status.queued"),
-  running: i18n.t("runner.status.running"),
-  completed: i18n.t("runner.status.completed"),
-  cached: i18n.t("runner.status.cached"),
-  failed: i18n.t("runner.status.failed"),
-};
-
 export function tickerRows(report: Report): TickerRow[] {
   const rows = report.languages.filter((language) => language.stats.code > 0).slice(0, 6);
   const max = Math.max(...rows.map((row) => row.stats.code), 1);

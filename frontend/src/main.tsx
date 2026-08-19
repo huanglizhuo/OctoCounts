@@ -138,7 +138,45 @@ const defaultAnalysisOptions: AnalysisOptions = {
   includeGenerated: true,
 };
 
-const seedReport = normalizeReport(initialReportData as unknown as Report);
+// On report deep links the edge function server-renders the facts and embeds a
+// machine-readable summary (#octocounts-report-summary). Seeding the runner
+// from it shows the full report instantly and halves the perceived double
+// download; the auto-run analysis then refreshes it from the live API.
+function seedReportFromSsrSummary(): Report | null {
+  const node = document.getElementById("octocounts-report-summary");
+  if (!node) return null;
+  try {
+    const summary = JSON.parse(node.textContent ?? "");
+    return {
+      id: "",
+      repository: {
+        owner: summary.repository.owner,
+        name: summary.repository.repo,
+        htmlUrl: summary.repository.htmlUrl,
+        provider: summary.repository.provider,
+      },
+      refName: summary.refName,
+      commitSha: summary.commitSha,
+      generatedAt: summary.generatedAt,
+      durationMs: summary.durationMs ?? 0,
+      cached: true,
+      tokeiVersion: summary.tokeiVersion ?? "",
+      analysisKey: "",
+      analysisOptions: defaultAnalysisOptions,
+      languages: (summary.languages ?? []).map((language: { name: string; stats: Stats }) => ({
+        name: language.name,
+        stats: language.stats,
+        children: [],
+      })),
+      total: summary.totals,
+    } as Report;
+  } catch {
+    return null;
+  }
+}
+
+const ssrSeed = seedReportFromSsrSummary();
+const seedReport = normalizeReport(ssrSeed ?? (initialReportData as unknown as Report));
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -175,10 +213,6 @@ function App() {
   });
 
   const autoRan = useRef(false);
-  useEffect(() => {
-    initAnalytics();
-    trackAiVisitIfReferred();
-  }, []);
 
   // Shown only while GitHub self-reports a disruption, so users hitting a
   // failed analysis see the cause before they submit, not after.
@@ -225,6 +259,11 @@ function App() {
   useEffect(() => {
     if (!autoRan.current && repoUrl) {
       autoRan.current = true;
+      // A report deep link already carries the server-rendered report as the
+      // seed (same data the edge page rendered from, at most 1h old). Skip the
+      // auto-run: it would clear the seed, flash the runner, and re-download
+      // what the page already has. Force refresh is still available by hand.
+      if (ssrSeed) return;
       void runAnalysis(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,6 +277,9 @@ function App() {
   const typingDoneRef = useRef<(() => void) | null>(null);
   const [busySample, setBusySample] = useState<string | null>(null);
   const stopTyping = useCallback(() => {
+    // A dropped animation also drops the pending runSample callback, so the
+    // chip it came from must be released here or busySample sticks forever.
+    if (typingDoneRef.current) setBusySample(null);
     typingDoneRef.current = null;
     setTypingTarget(null);
   }, []);
@@ -1393,8 +1435,15 @@ function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string; h
 
 // Applies title/description/og/twitter/canonical in one call; the per-branch
 // og/twitter boilerplate used to be copy-pasted three times through this file.
+let lastMetaFingerprint = "";
 function applyPageMetadata({ title, description, canonical, extraRobots }: { title: string; description: string; canonical: string; extraRobots?: string }) {
-  if (document.title === title) return; // most calls are no-ops while typing in the repo input
+  // Fingerprint every value, not just the title: on report pages the title is
+  // identical before and after the report arrives while the description (with
+  // live line counts) and canonical change -- a title-only guard would skip
+  // those updates entirely.
+  const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? ""]);
+  if (fingerprint === lastMetaFingerprint) return;
+  lastMetaFingerprint = fingerprint;
   document.title = title;
   const robots = `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
   const image = `${window.location.origin}/og-image.jpg`;
@@ -1779,6 +1828,11 @@ function NumberCell({ value }: { value: number }) {
 
 // Wait for the locale bundle (lazy zh chunk) before first render.
 void i18nReady.then(() => {
+  // Analytics must init before App renders: the marketing routes in App()
+  // early-return before any hook below them runs, so an in-component effect
+  // would never fire on /recent, /compare, /stats, etc.
+  initAnalytics();
+  trackAiVisitIfReferred();
   createRoot(document.getElementById("root")!).render(
     <SchemeProvider>
       <QueryClientProvider client={queryClient}>
