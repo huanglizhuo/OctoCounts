@@ -222,6 +222,10 @@ pub async fn sitemap(
         .await
         .map_err(ApiError::internal)?
         .into_iter()
+        // The site only serves /github/* report pages: the edge function and
+        // the SPA have no /gitlab route, so publishing a GitLab URL here would
+        // put a 404 in the sitemap. Filter until a GitLab route exists.
+        .filter(|row| row.provider == RepositoryProvider::GitHub)
         .map(|row| SitemapEntry {
             loc: format!(
                 "https://octocounts.com{}",

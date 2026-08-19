@@ -285,7 +285,10 @@ test("report SSR replaces homepage schema and fallback content", async () => {
   try {
     const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
     const html = await response.text();
-    assert.equal((html.match(/<noscript>/g) ?? []).length, 1);
+    // SSR facts render inside #root as visible HTML (replaced on hydration),
+    // not inside a noscript block.
+    assert.equal((html.match(/<noscript>/g) ?? []).length, 0);
+    assert.match(html, /<div id="root"><section>/);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
     assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, 1);
     assert.match(html, /Repository size insights/);
@@ -296,7 +299,7 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
     assert.match(html, /\/compare\/rust-vs-go/);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=86400, stale-while-revalidate=604800");
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -369,7 +372,7 @@ test("compare and diff routes return 200 SSR shells with canonical metadata", as
     assert.match(html, /<meta name="robots" content="index,follow/);
     assert.match(html, /<meta property="og:url" content="https:\/\/octocounts.com\/(compare|diff)" \/>/);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-    assert.equal((html.match(/<noscript>/g) ?? []).length, 1);
+    assert.equal((html.match(/<noscript>/g) ?? []).length, 0);
   }
 });
 
@@ -547,7 +550,8 @@ test("curated comparison SSR renders balanced citable content", async () => {
     assert.ok(html.includes(`<link rel="canonical" href="https://octocounts.com/compare/${slug}" />`), `${slug} canonical`);
     assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" \/>/);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1, `${slug} single h1`);
-    assert.equal((html.match(/<noscript>/g) ?? []).length, 1, `${slug} single noscript`);
+    assert.equal((html.match(/<noscript>/g) ?? []).length, 0, `${slug} no noscript`);
+    assert.match(html, /<div id="root"><section>/, `${slug} SSR content in root`);
     assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, 1, `${slug} single JSON-LD block`);
 
     // Totals comparison table and balanced, disclaimer-first copy.

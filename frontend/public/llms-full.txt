@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-08-18
+Last-Updated: 2026-08-19
 
 ## What OctoCounts Does
 

@@ -7,7 +7,7 @@ import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
 import { useGithubStatus } from "./githubStatus";
-import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackEvent } from "./analytics";
+import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
@@ -177,6 +177,7 @@ function App() {
   const autoRan = useRef(false);
   useEffect(() => {
     initAnalytics();
+    trackAiVisitIfReferred();
   }, []);
 
   // Shown only while GitHub self-reports a disruption, so users hitting a

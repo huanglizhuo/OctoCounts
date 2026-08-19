@@ -2,7 +2,7 @@ import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
 const API_BASE = "https://api.octocounts.com";
 const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
-const STATIC_SITEMAP_LASTMOD = "2026-08-04";
+const STATIC_SITEMAP_LASTMOD = "2026-08-19";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/stats", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -159,7 +159,19 @@ async function reportResponse(context, route) {
   }
 
   const report = await response.json();
-  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=86400, stale-while-revalidate=604800");
+  // The store matches owner/repo case-sensitively, so a mistyped or
+  // mixed-case external link (e.g. /github/Facebook/React) resolves to the
+  // canonical casing only via the report itself. 308 it so link equity lands
+  // on the URL the canonical tag and sitemap use.
+  const requestPath = new URL(context.request.url).pathname;
+  if (report.publicPath && report.publicPath.toLowerCase() === requestPath.toLowerCase() && report.publicPath !== requestPath) {
+    return Response.redirect(new URL(report.publicPath, new URL(context.request.url).origin), 308);
+  }
+  // 1h, not 24h: report titles/descriptions carry live line counts, and the
+  // SEO report API behind this page already serves s-maxage=3600. Caching the
+  // HTML a day longer than its own data source left stale counts in SERP
+  // titles for up to a day after a big push. SWR keeps origin load low.
+  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=3600, stale-while-revalidate=86400");
 }
 
 async function listPageResponse(context, kind, url) {
@@ -170,6 +182,10 @@ async function listPageResponse(context, kind, url) {
   });
   const payload = response.ok ? await response.json() : { reports: [] };
   const pageMeta = listPageMeta(kind);
+  // Page >1 is noindex,follow; pairing that with a canonical back to page 1
+  // sends conflicting signals (Google: pick one). A self-referencing
+  // canonical with the page parameter keeps the URL shape unambiguous.
+  const canonical = page === "1" ? pageMeta.canonical : `${pageMeta.canonical}?page=${encodeURIComponent(page)}`;
   const title = pageMeta.title;
   const description = pageMeta.description;
   const rows = payload.reports
@@ -189,7 +205,7 @@ async function listPageResponse(context, kind, url) {
     injectHeadAndNoscript(index, {
       title,
       description,
-      canonical: pageMeta.canonical,
+      canonical,
       robots: page === "1" ? "index,follow,max-image-preview:large,max-snippet:-1" : "noindex,follow,max-image-preview:large",
       ogImage: "https://octocounts.com/og-image.jpg",
       jsonLd: {
@@ -208,7 +224,7 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
     }),
     "public, s-maxage=900, stale-while-revalidate=3600"
   );
@@ -276,7 +292,7 @@ async function trendingPageResponse(context) {
           })),
         },
       },
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
     }),
     "public, s-maxage=3600, stale-while-revalidate=86400"
   );
@@ -328,7 +344,7 @@ async function statsPageResponse(context) {
         measurementTechnique: "Aggregate public OctoCounts report activity",
         variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
       },
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${body}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${body}</section>`,
     }),
     "public, s-maxage=900, stale-while-revalidate=3600"
   );
@@ -365,7 +381,7 @@ async function comparePageResponse(context, pathname) {
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
       jsonLd: null,
-      noscript: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
     }),
     "public, s-maxage=3600, stale-while-revalidate=86400"
   );
@@ -426,7 +442,7 @@ function injectCuratedCompare(index, entry, left, right) {
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
-  const noscript = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
+  const bodyContent = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(left.publicPath)}">${escapeHtml(left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(right.publicPath)}">${escapeHtml(right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(interactiveHref)}">Compare ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} interactively</a></li>
@@ -440,7 +456,7 @@ function injectCuratedCompare(index, entry, left, right) {
     ogImage: "https://octocounts.com/og-image.jpg",
     jsonLd: compareJsonLd(entry, left, right, canonical, description),
     extraHead: `<script type="application/json" id="octocounts-compare-prefill">${escapeScriptJson(prefill)}</script>`,
-    noscript,
+    bodyContent,
   });
 }
 
@@ -528,7 +544,7 @@ function injectCompareFallback(index, entry) {
     robots: "noindex,follow,max-image-preview:large",
     ogImage: "https://octocounts.com/og-image.jpg",
     jsonLd: null,
-    noscript: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>A cached OctoCounts report is not available for both repositories yet, so this comparison cannot be rendered. Open this page with JavaScript enabled to run the analyses, then revisit this page.</p></section>`,
+    bodyContent: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>A cached OctoCounts report is not available for both repositories yet, so this comparison cannot be rendered. Open this page with JavaScript enabled to run the analyses, then revisit this page.</p></section>`,
   });
 }
 
@@ -681,7 +697,7 @@ function injectReport(index, report, apiBaseUrl) {
     ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
     jsonLd: reportJsonLd(report),
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    noscript: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + internalLinks,
   });
 }
 
@@ -805,7 +821,7 @@ function injectFallback(index, route) {
     robots: "noindex,follow,max-image-preview:large",
     ogImage: "https://octocounts.com/og-image.jpg",
     jsonLd: null,
-    noscript: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>No cached report exists yet. Open this page with JavaScript enabled to run an analysis.</p></section>`,
+    bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>No cached report exists yet. Open this page with JavaScript enabled to run an analysis.</p></section>`,
   });
 }
 
@@ -830,7 +846,13 @@ function injectHeadAndNoscript(index, meta) {
   if (meta.extraHead) {
     html = html.replace("</head>", `${meta.extraHead}\n</head>`);
   }
-  html = html.replace('<div id="root"></div>', `<div id="root"></div><noscript>${meta.noscript}</noscript>`);
+  // Server-rendered facts go INSIDE #root as regular visible HTML, not into a
+  // <noscript> after it. Several AI fetchers (Perplexity's reader, some ChatGPT
+  // fetch paths) strip or de-prioritize noscript, and Google weights noscript
+  // content lower. React mounts with createRoot().render(), which discards the
+  // container's existing children, so the app replaces this block on hydration
+  // while no-JS crawlers keep the full facts, table, FAQ, and links.
+  html = html.replace('<div id="root"></div>', `<div id="root">${meta.bodyContent}</div>`);
   return html;
 }
 

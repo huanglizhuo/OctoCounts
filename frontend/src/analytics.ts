@@ -20,7 +20,39 @@ export const AnalyticsEvents = {
   extensionStoreClick: "extension_store_click",
   reportUrlCopied: "report_url_copied",
   shareClicked: "share_clicked",
+  aiVisit: "ai_visit",
 } as const;
+
+// Answer-engine referrers we want to measure GEO outcomes for: which report
+// pages actually get visited from AI search results.
+const AI_REFERRER_HOSTS: Array<{ host: RegExp; source: string }> = [
+  { host: /(^|\.)chatgpt\.com$/, source: "chatgpt" },
+  { host: /(^|\.)openai\.com$/, source: "chatgpt" },
+  { host: /(^|\.)perplexity\.ai$/, source: "perplexity" },
+  { host: /(^|\.)pplx\.ai$/, source: "perplexity" },
+  { host: /(^|\.)gemini\.google\.com$/, source: "gemini" },
+  { host: /(^|\.)copilot\.microsoft\.com$/, source: "copilot" },
+  { host: /(^|\.)claude\.ai$/, source: "claude" },
+  { host: /(^|\.)kimi\.com$/, source: "kimi" },
+];
+
+export function aiReferrerSource(referrer: string | undefined): string | undefined {
+  if (!referrer) return undefined;
+  try {
+    const hostname = new URL(referrer).hostname.toLowerCase();
+    return AI_REFERRER_HOSTS.find((entry) => entry.host.test(hostname))?.source;
+  } catch {
+    return undefined;
+  }
+}
+
+export function trackAiVisitIfReferred() {
+  if (typeof document === "undefined") return;
+  const source = aiReferrerSource(document.referrer);
+  if (!source || sessionStorage.getItem("octocounts.ai_visit") === source) return;
+  sessionStorage.setItem("octocounts.ai_visit", source);
+  trackEvent(AnalyticsEvents.aiVisit, { source, path: window.location.pathname });
+}
 
 export function initAnalytics() {
   if (!domain || typeof document === "undefined" || document.querySelector("script[data-domain][src*='plausible']")) {
