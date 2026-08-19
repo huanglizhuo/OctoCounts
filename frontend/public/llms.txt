@@ -3,7 +3,7 @@
 > Free SLOC counter for public GitHub repositories. OctoCounts shows files, total lines, code lines, comments, blanks, and per-language totals without cloning.
 
 License: MIT
-AI-Usage: search-allowed, training-permitted (see robots.txt: GPTBot and cited answer-engine crawlers are allowed; Google-Extended and CCBot are blocked)
+AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Google-Extended, and CCBot, are allowed in robots.txt)
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts

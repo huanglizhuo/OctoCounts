@@ -27,17 +27,17 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-# Google-Extended controls Gemini Apps / model training use, not normal Google
-# Search indexing. Keep standard Googlebot access via User-agent: * above.
+# Google-Extended (Gemini grounding/training), CCBot (Common Crawl), and
+# Applebot are all allowed: visibility and citation in answer engines is
+# worth more than keeping the corpus out of training data.
 User-agent: Google-Extended
-Disallow: /
+Allow: /
 
 User-agent: Applebot
 Allow: /
 
-# Block Common Crawl training scraper (not needed for search visibility)
 User-agent: CCBot
-Disallow: /
+Allow: /
 
 Sitemap: https://octocounts.com/sitemap.xml
 
