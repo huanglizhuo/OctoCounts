@@ -1,3 +1,5 @@
+/* Hallmark · macrostructure: Workbench · tone: technical/terminal · anchor hue: phosphor-green · polish: in-place (identity preserved) */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 */
 @font-face {
   font-family: 'JetBrains Mono';
   font-style: normal;
@@ -34,6 +36,7 @@ html[data-scheme="matrix"] {
   --fg-dim: oklch(78% 0.055 148);
   --fg-mute: oklch(60% 0.050 148);
   --accent: oklch(87% 0.240 148);
+  --accent-ink: #001b08;
   --accent-2: oklch(80% 0.115 220);
   --warn: oklch(86% 0.148 85);
   --err: oklch(65% 0.210 12);
@@ -81,6 +84,7 @@ html[data-scheme="paper"] {
   --fg-dim: oklch(38% 0.013 90);
   --fg-mute: oklch(50% 0.013 90);
   --accent: oklch(42% 0.100 148);
+  --accent-ink: #ffffff;
   --accent-2: oklch(54% 0.118 148);
   --warn: oklch(52% 0.118 72);
   --err: oklch(45% 0.118 16);
@@ -114,6 +118,7 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--fg);
+  overflow-x: clip;
 }
 
 body {
@@ -122,7 +127,6 @@ body {
   line-height: 1.6;
   font-feature-settings: "calt" 1;
   text-rendering: geometricPrecision;
-  overflow-x: hidden;
 }
 
 body::before {
@@ -275,7 +279,7 @@ html[data-scheme="paper"] body::before {
   padding: 28px max(28px, env(safe-area-inset-right)) 80px max(28px, env(safe-area-inset-left));
   position: relative;
   z-index: 1;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -375,8 +379,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  white-space: nowrap;
   transition: border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -384,6 +390,10 @@ body {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: var(--active-shadow);
+}
+
+.github-link:active {
+  transform: translateY(1px);
 }
 
 .github-link:focus-visible {
@@ -426,6 +436,7 @@ body {
   font-size: var(--text-xs);
   letter-spacing: .5px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .report-rail a {
@@ -604,10 +615,12 @@ section {
 
 .hero-left h1.title {
   font-size: clamp(32px, 5vw, 54px);
-  line-height: 0.98;
+  line-height: 1.02;
   margin: 0 0 var(--space-3);
   font-weight: 800;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .hero-left h1.title .glow {
@@ -628,7 +641,7 @@ section {
   text-underline-offset: .15em;
 }
 .subtitle a:hover {
-  text-decoration: underline;
+  text-decoration-thickness: .14em;
 }
 
 .input-row {
@@ -638,7 +651,7 @@ section {
   border: 1px solid var(--rule);
   background: var(--panel);
   box-shadow: var(--terminal-shadow);
-  transition: border-color .14s var(--ease-out), box-shadow .14s var(--ease-out);
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .input-row:focus-within,
@@ -699,7 +712,7 @@ section {
   justify-content: center;
   gap: 8px;
   background: var(--accent);
-  color: #001b08;
+  color: var(--accent-ink);
   border: 0;
   padding: 0 18px;
   cursor: pointer;
@@ -707,8 +720,9 @@ section {
   letter-spacing: .5px;
   text-transform: uppercase;
   font-size: var(--text-sm);
+  white-space: nowrap;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent) inset;
-  transition: filter var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
 a.btn {
@@ -733,11 +747,11 @@ a.btn {
 }
 
 html[data-scheme="paper"] .btn {
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: color-mix(in srgb, var(--accent) 90%, white);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--fg) 26%, transparent) inset,
     0 0 24px color-mix(in srgb, var(--accent) 22%, transparent);
@@ -1423,12 +1437,20 @@ html[data-scheme="paper"] .btn {
   padding: 4px 8px;
   cursor: pointer;
   font-size: var(--text-sm);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .quick-rows .chip:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+
+.quick-rows .chip:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .chip .k {
@@ -1444,7 +1466,7 @@ html[data-scheme="paper"] .btn {
 
 .quick-rows .chip:disabled:not(.busy) {
   opacity: .45;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .runner {
@@ -1831,6 +1853,13 @@ html[data-scheme="paper"] .btn {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .legend-row:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
 }
 
 .legend-row:focus-visible {
@@ -2114,15 +2143,21 @@ table.report tr.totals td.lang {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   transition: border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .copybtn:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+
+.copybtn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .copybtn:disabled {
@@ -2619,6 +2654,7 @@ footer a {
   min-height: 32px;
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 
 .lang-btn {
@@ -3189,7 +3225,7 @@ a.proof-badge:hover {
 
 @media (prefers-reduced-motion: no-preference) {
   .sticky-bar {
-    animation: sticky-drop .18s var(--ease-out, ease-out);
+    animation: sticky-drop var(--duration-base) var(--ease-out, ease-out);
   }
 
   @keyframes sticky-drop {
@@ -3363,9 +3399,11 @@ table.report td.lang {
   max-width: 860px;
   color: var(--fg);
   font-size: clamp(2rem, 7vw, 5.5rem);
-  line-height: .94;
+  line-height: 1.02;
   letter-spacing: 0;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .growth-hero p {
