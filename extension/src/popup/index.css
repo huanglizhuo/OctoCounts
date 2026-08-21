@@ -1,3 +1,6 @@
+/* Hallmark · component: extension-popup · genre: utilitarian (GitHub-native) · theme: existing tokens preserved · polish: in-place */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 */
+
 /* ── Tokens ── */
 :root {
   --bg:        #f3f4f6;
@@ -10,8 +13,10 @@
   --text-3:    #4b5563;
   --text-4:    #5b6470;
   --accent:    #1a7f37;
-  --accent-bg: rgba(26,127,55,0.12);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 
   --pill-active-bg:   #dcfce7;
   --pill-active-fg:   #15803d;
@@ -30,13 +35,24 @@
   --banner-info-fg:     #1e40af;
   --banner-info-border: #bfdbfe;
 
-  --toggle-off: #d1d5db;
-  --toggle-on:  #1a7f37;
+  --toggle-off:       #d1d5db;
+  --toggle-off-hover: #b8bfc9;
+  --toggle-on:        #1a7f37;
+  --toggle-on-hover:  #176f2c;
+  --toggle-knob:        #ffffff;
+  --toggle-knob-shadow: 0 1px 3px rgba(0,0,0,0.18);
+
+  --sic-blue-bg: #dbeafe;   --sic-blue-fg: #2563eb;
+  --sic-purple-bg: #ede9fe; --sic-purple-fg: #7c3aed;
+  --sic-orange-bg: #ffedd5; --sic-orange-fg: #ea580c;
+  --sic-teal-bg: #ccfbf1;   --sic-teal-fg: #0d9488;
 
   --error-bg:     #fff5f0;
   --error-border: #fca5a5;
   --error-fg:     #dc2626;
   --error-detail-bg: #f9fafb;
+  --error-icon-hover-bg:  rgba(220,38,38,0.08);
+  --error-icon-active-bg: rgba(220,38,38,0.15);
 
   --cache-btn-hover-bg:     #fef2f2;
   --cache-btn-hover-border: #fca5a5;
@@ -56,7 +72,6 @@
     --text-3:    #8b949e;
     --text-4:    #7d8590;
     --accent:    #3fb950;
-    --accent-bg: rgba(63,185,80,0.15);
 
     --pill-active-bg:   #0f2c1a;
     --pill-active-fg:   #3fb950;
@@ -75,13 +90,22 @@
     --banner-info-fg:     #4493f8;
     --banner-info-border: #1f3a5c;
 
-    --toggle-off: #30363d;
-    --toggle-on:  #3fb950;
+    --toggle-off:       #30363d;
+    --toggle-off-hover: #3d444d;
+    --toggle-on:        #3fb950;
+    --toggle-on-hover:  #2ea043;
+
+    --sic-blue-bg: #0c2044;   --sic-blue-fg: #4493f8;
+    --sic-purple-bg: #1e0f3c; --sic-purple-fg: #a78bfa;
+    --sic-orange-bg: #2d1500; --sic-orange-fg: #fb923c;
+    --sic-teal-bg: #002d29;   --sic-teal-fg: #2dd4bf;
 
     --error-bg:     #1a0a0a;
     --error-border: #6e1c1c;
     --error-fg:     #f85149;
     --error-detail-bg: #1c2128;
+    --error-icon-hover-bg:  rgba(248,81,73,0.12);
+    --error-icon-active-bg: rgba(248,81,73,0.22);
 
     --cache-btn-hover-bg:     #1a0a0a;
     --cache-btn-hover-border: #6e1c1c;
@@ -114,7 +138,7 @@ header {
   background: var(--surface);
   border-radius: 10px;
   margin-bottom: 8px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-card);
 }
 .logo-mark {
   width: 24px;
@@ -161,7 +185,7 @@ header {
 .status-pill--private::before { background: var(--pill-private-dot); }
 .status-pill--idle    { background: var(--pill-idle-bg);    color: var(--pill-idle-fg); }
 .status-pill--idle::before    { background: var(--pill-idle-dot); }
-.status-pill:not(:disabled) { cursor: pointer; transition: opacity 120ms; }
+.status-pill:not(:disabled) { cursor: pointer; transition: opacity 120ms var(--ease-out); }
 .status-pill:not(:disabled):hover  { opacity: 0.75; }
 .status-pill:not(:disabled):active { opacity: 0.55; }
 
@@ -200,7 +224,7 @@ header {
 .card {
   background: var(--surface);
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-card);
   margin-bottom: 6px;
   overflow: hidden;
 }
@@ -231,17 +255,10 @@ header {
   flex-shrink: 0;
 }
 .s-ic svg { width: 10px; height: 10px; }
-.s-ic--blue   { background: #dbeafe; color: #2563eb; }
-.s-ic--purple { background: #ede9fe; color: #7c3aed; }
-.s-ic--orange { background: #ffedd5; color: #ea580c; }
-.s-ic--teal   { background: #ccfbf1; color: #0d9488; }
-
-@media (prefers-color-scheme: dark) {
-  .s-ic--blue   { background: #0c2044; color: #4493f8; }
-  .s-ic--purple { background: #1e0f3c; color: #a78bfa; }
-  .s-ic--orange { background: #2d1500; color: #fb923c; }
-  .s-ic--teal   { background: #002d29; color: #2dd4bf; }
-}
+.s-ic--blue   { background: var(--sic-blue-bg);   color: var(--sic-blue-fg); }
+.s-ic--purple { background: var(--sic-purple-bg); color: var(--sic-purple-fg); }
+.s-ic--orange { background: var(--sic-orange-bg); color: var(--sic-orange-fg); }
+.s-ic--teal   { background: var(--sic-teal-bg);   color: var(--sic-teal-fg); }
 
 /* ── Setting rows ── */
 .row {
@@ -295,7 +312,7 @@ label.row-info { cursor: default; display: block; }
   border-radius: 9px;
   padding: 2px;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: background-color 150ms var(--ease-out);
   flex-shrink: 0;
 }
 
@@ -304,15 +321,18 @@ label.row-info { cursor: default; display: block; }
   display: block;
   width: 14px;
   height: 14px;
-  background: #fff;
+  background: var(--toggle-knob);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
-  transition: transform 150ms ease;
+  box-shadow: var(--toggle-knob-shadow);
+  transition: transform 150ms var(--ease-out);
 }
 
 .toggle-inp:checked + .toggle-track          { background: var(--toggle-on); }
 .toggle-inp:checked + .toggle-track::after   { transform: translateX(14px); }
+.toggle-inp:not(:disabled):not(:checked):hover + .toggle-track { background: var(--toggle-off-hover); }
+.toggle-inp:not(:disabled):checked:hover + .toggle-track       { background: var(--toggle-on-hover); }
 .toggle-inp:focus-visible + .toggle-track    { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-inp:disabled + .toggle-track         { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Select control ── */
 .sel-ctrl {
@@ -326,12 +346,15 @@ label.row-info { cursor: default; display: block; }
   color: var(--text-2);
   font-family: inherit;
   cursor: pointer;
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
   appearance: auto;
-  transition: border-color 120ms, box-shadow 120ms;
+  transition: border-color 120ms var(--ease-out), background-color 120ms var(--ease-out);
 }
-.sel-ctrl:hover  { border-color: var(--text-4); background: var(--bg); }
-.sel-ctrl:focus  { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); background: var(--surface); }
+.sel-ctrl:hover  { border-color: var(--text-4); background-color: var(--bg); }
+.sel-ctrl:focus  { border-color: var(--accent); background-color: var(--surface); }
+.sel-ctrl:focus-visible { outline-color: var(--accent); }
+.sel-ctrl:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Text input block ── */
 .block {
@@ -350,12 +373,15 @@ label.row-info { cursor: default; display: block; }
   font-size: 12px;
   color: var(--text-1);
   font-family: inherit;
-  outline: none;
-  transition: border-color 120ms, box-shadow 120ms, background 120ms;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition: border-color 120ms var(--ease-out), background-color 120ms var(--ease-out);
 }
 .inp-ctrl::placeholder { color: var(--text-4); }
-.inp-ctrl:hover  { border-color: var(--text-4); background: var(--bg); }
-.inp-ctrl:focus  { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); background: var(--surface); }
+.inp-ctrl:hover  { border-color: var(--text-4); background-color: var(--bg); }
+.inp-ctrl:focus  { border-color: var(--accent); background-color: var(--surface); }
+.inp-ctrl:focus-visible { outline-color: var(--accent); }
+.inp-ctrl:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Cache button row ── */
 .btn-row {
@@ -374,15 +400,15 @@ label.row-info { cursor: default; display: block; }
   padding: 8px 14px;
   background: var(--surface);
   border: 1.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;
   font-family: inherit;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out), color 120ms var(--ease-out);
 }
-.btn-cache svg      { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-3); transition: color 120ms; }
+.btn-cache svg      { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-3); transition: color 120ms var(--ease-out); }
 .btn-cache:hover    { background: var(--cache-btn-hover-bg); border-color: var(--cache-btn-hover-border); color: var(--cache-btn-hover-fg); }
 .btn-cache:hover svg { color: var(--cache-btn-hover-fg); }
 .btn-cache:active   { background: var(--cache-btn-active-bg); }
@@ -420,9 +446,11 @@ label.row-info { cursor: default; display: block; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: color 120ms var(--ease-out), background-color 120ms var(--ease-out);
 }
-.icon-btn svg   { width: 12px; height: 12px; }
-.icon-btn:hover { color: var(--error-fg); background: rgba(220,38,38,0.08); }
+.icon-btn svg    { width: 12px; height: 12px; }
+.icon-btn:hover  { color: var(--error-fg); background-color: var(--error-icon-hover-bg); }
+.icon-btn:active { color: var(--error-fg); background-color: var(--error-icon-active-bg); }
 
 .error-repo  { font-size: 11px; color: var(--text-3); font-family: ui-monospace, monospace; margin-bottom: 3px; }
 .error-msg   { font-size: 12px; color: var(--text-2); margin-bottom: 5px; line-height: 1.4; }
@@ -454,7 +482,8 @@ label.row-info { cursor: default; display: block; }
   display: block;
   font-family: inherit;
 }
-.link-btn:hover { text-decoration: underline; }
+.link-btn:hover  { text-decoration: underline; }
+.link-btn:active { opacity: 0.7; }
 .error-retries  { margin-top: 4px; font-size: 11px; color: var(--text-4); font-style: italic; }
 
 /* ── Footer ── */
@@ -467,11 +496,21 @@ footer {
   font-size: 11px;
   color: var(--text-4);
 }
-footer a       { color: var(--accent); text-decoration: none; }
-footer a:hover { text-decoration: underline; }
+footer a {
+  color: var(--accent);
+  text-decoration: none;
+  /* Expand the hit area without changing the visual spacing of the row */
+  padding: 6px 2px;
+  margin: -6px -2px;
+  border-radius: 4px;
+}
+footer a:hover  { text-decoration: underline; }
+footer a:active { opacity: 0.7; }
 .sep { opacity: 0.5; }
 
 /* ── Focus indicators (keyboard navigation) ── */
+/* No border-radius here: outlines follow each element's own shape, and forcing
+   a radius would visibly reshape the round status pill while focused. */
 .status-pill:not(:disabled):focus-visible,
 .btn-cache:focus-visible,
 .icon-btn:focus-visible,
@@ -479,7 +518,6 @@ footer a:hover { text-decoration: underline; }
 footer a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
 /* ── Larger hit area for the error-card dismiss button ── */

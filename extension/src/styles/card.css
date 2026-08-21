@@ -1,10 +1,21 @@
+/* Hallmark · component: content-card · genre: utilitarian (GitHub-native) · theme: existing tokens preserved · polish: in-place */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 */
+
 /*
   The host is our own <section>, not a Primer `.BorderGrid-cell`, so GitHub
   supplies no styling for it: vertical spacing and the section divider are ours.
 
-  The divider is conditional on purpose. With the card placed at the top of the
-  sidebar it is the first child, and an unconditional border-top would draw a
-  stray line above the whole sidebar; the native section below us draws its own.
+  GitHub's current sidebar (CodeViewSidebar-module__borderGrid) gives every
+  native section `padding: 16px 0` and lets the *lower* section own the divider
+  via `border-top` on `:not(:first-child)`. We mirror that exactly: same 16px
+  rhythm, same 1px line, divider above us whenever we're not first.
+
+  The divider *below* us is the exception. GitHub's About section carries the
+  `border-0` utility (`border: 0 !important`), so when the card is prepended to
+  the top of the sidebar (the default placement) the section below us never
+  draws its line. In that case we own the bottom divider ourselves; the -1px
+  margin collapses it onto the next section's border-top if it has one (same
+  overlap trick as Primer's legacy BorderGrid), so we never draw a 2px line.
 */
 :host {
   display: block;
@@ -13,10 +24,16 @@
   font-size: 14px;
   line-height: 1.5;
   box-sizing: border-box;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :host(:not(:first-child)) {
   border-top: 1px solid var(--border);
+}
+
+:host(:first-child) {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: -1px;
 }
 
 *,
@@ -35,6 +52,7 @@
   --err: #f85149;
   --border: #3d444d;
   --bg-2: #151b23;
+  --link: #58a6ff;
 }
 
 :host([data-theme="light"]) {
@@ -44,8 +62,9 @@
   --accent: #1a7f37;
   --warn: #9a6700;
   --err: #d1242f;
-  --border: #d0d7de;
+  --border: #d1d9e0;
   --bg-2: #f6f8fa;
+  --link: #0969da;
 }
 
 /* Inner wrapper handles horizontal padding to match GitHub's sidebar layout */
@@ -91,18 +110,23 @@
   border: none;
   cursor: pointer;
   color: var(--fg-dim);
-  padding: 5px 6px;
+  padding: 6px 8px;
   border-radius: 4px;
   font-size: 14px;
   line-height: 1;
   font-family: inherit;
   display: flex;
   align-items: center;
+  transition: color 120ms var(--ease-out), background-color 120ms var(--ease-out);
 }
 
 .oc-icon-btn:hover {
   color: var(--fg);
   background: var(--bg-2);
+}
+
+.oc-icon-btn:active {
+  transform: translateY(1px);
 }
 
 /* ── Focus indicators ── */
@@ -131,10 +155,20 @@
   color: var(--fg);
   cursor: pointer;
   font-family: inherit;
+  transition: background-color 120ms var(--ease-out), transform 100ms var(--ease-out);
 }
 
 .oc-count-btn:hover {
   background: var(--bg-2);
+}
+
+.oc-count-btn:active {
+  transform: translateY(1px);
+}
+
+.oc-count-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ── 4-column stats grid ── */
@@ -262,13 +296,15 @@ button.oc-lang-row {
   font-size: 12px;
   padding: 2px 0;
   margin-top: 2px;
+  color: var(--link);
 }
-
-:host([data-theme="dark"]) .oc-lang-more { color: #58a6ff; }
-:host([data-theme="light"]) .oc-lang-more { color: #0969da; }
 
 .oc-lang-more:hover {
   text-decoration: underline;
+}
+
+.oc-lang-more:active {
+  opacity: 0.7;
 }
 
 .oc-lang-dot {
@@ -305,7 +341,7 @@ button.oc-lang-row {
   .oc-skel {
     background: linear-gradient(90deg, var(--skel-base) 0%, var(--skel-shine) 50%, var(--skel-base) 100%);
     background-size: 200% 100%;
-    animation: oc-shimmer 1.6s ease-in-out infinite;
+    animation: oc-shimmer 1.6s linear infinite;
   }
 }
 
@@ -403,4 +439,13 @@ button.oc-lang-row {
   font-family: inherit;
   display: inline-block;
   margin-top: 6px;
+  transition: opacity 120ms var(--ease-out);
+}
+
+.oc-link-btn:hover {
+  opacity: 0.8;
+}
+
+.oc-link-btn:active {
+  opacity: 0.6;
 }
