@@ -9,6 +9,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "test:seo": "npm run build && node --test tests/seo.test.mjs",
+    "test:unit": "node --test tests/github-status.test.mjs",
+    "test": "npm run test:unit && npm run test:seo",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
