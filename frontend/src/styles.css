@@ -701,6 +701,11 @@ section {
 }
 
 .input-row .ref input {
+  /* Fixed width on desktop — the narrow breakpoint below overrides it to 100% —
+     so `hero.refPlaceholder` has to fit 90px in every locale, which is about 11
+     JetBrains Mono characters at --text-sm. "default branch" needed ~109px and
+     clipped mid-word. Widening it instead would take the space from the URL
+     field, which is the one people actually type into. */
   width: 90px;
   padding: 12px 0;
   font-size: var(--text-sm);
