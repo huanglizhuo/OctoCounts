@@ -1,18 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-08-22T03:06:01.636Z
+# GitHub Trending daily snapshot generated 2026-08-23T03:14:01.351Z
+openai/codex
 mattpocock/skills
-mahlernim/google-timeline-visualizer
-harry0703/MoneyPrinterTurbo
-AprilNEA/OpenLogi
-PostHog/posthog
-microsoft/TypeScript
-obra/superpowers
-santifer/career-ops
-cursor/plugins
-modular/modular
 affaan-m/ECC
-TryGhost/Ghost
-ruvnet/ruflo
-apache/maka
-protocolbuffers/protobuf
-elder-plinius/OBLITERATUS
-microsoft/onnxruntime
+obra/superpowers
+Wei-Shaw/sub2api
+makeplane/plane
+n8n-io/n8n
+anthropics/claude-code
+AprilNEA/OpenLogi
+modular/modular
+multica-ai/andrej-karpathy-skills
+mahlernim/google-timeline-visualizer
+ripienaar/free-for-dev
+microsoft/TypeScript
+cursor/plugins
+PostHog/posthog
+Tencent/AI-Infra-Guard
