@@ -388,6 +388,14 @@ async fn seo_monoliths_matches_golden() {
     harness.drop_schema().await;
 }
 
+/// Three URLs for four seeded repositories: the GitLab row is absent on
+/// purpose. `seo::sitemap` filters to `RepositoryProvider::GitHub` because the
+/// edge function only ever builds `/github/*` paths, so publishing a
+/// `/gitlab/*` URL would put a 404 in the sitemap. Do not restore that entry to
+/// make the counts look symmetrical — the seed keeps a GitLab report precisely
+/// so this fixture proves the filter fires, and its reappearance means either
+/// the filter was dropped or a GitLab route now exists and the comment in
+/// `seo.rs` needs retiring with it.
 #[tokio::test]
 async fn seo_sitemap_matches_golden() {
     let Some(harness) = harness().await else {
