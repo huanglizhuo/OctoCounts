@@ -104,6 +104,8 @@
     "forbidden": "OctoCounts APIリクエストがブロックまたは拒否されました。",
     "tooLarge": "リポジトリが2 GBのアーカイブサイズ制限を超えています",
     "notFound": "リポジトリが見つからないか、空です",
+    "refNotFound": "このページが表示しているブランチを集計できませんでした。",
+    "invalidUrl": "このリポジトリのアドレスを読み取れませんでした",
     "authError": "OctoCounts APIの認証に失敗しました",
     "offline": "ネットワーク接続がありません",
     "unknown": "分析に失敗しました",

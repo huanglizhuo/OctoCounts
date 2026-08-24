@@ -1,0 +1,46 @@
+<!--
+  Real `github.com/git/git/tree/master/builtin` markup, captured 2026-08-24 with
+  the recipe in README.md. `git/git`'s default branch is `master`, which is the
+  whole point of picking it.
+
+  This is the page shape the ref resolver got wrong: `codeViewRepoRoute` — the
+  only wrapper it used to read — does not exist on a tree page. The ref is under
+  `codeViewLayoutRoute` and `codeViewTreeRoute`, and `codeViewFileTreeLayoutRoute`
+  carries no `refInfo` at all. The live page also ships no
+  `octolytics-dimension-repository_default_branch` meta tag, so on this route the
+  embedded payload is the only place a ref can be read from — there is no
+  fallback left to lean on.
+
+  Trimmed, because a capture is disposable and a fixture is committed:
+  `csrf_tokens`, `uploadToken` and `currentUser` are gone, as are the ~140-entry
+  `fileTree`/`tree.items` lists, the Copilot/shortcut feature flags, the avatar
+  URL and the header's SVG and inline-style noise. Nothing that remains was
+  edited — every key and value below is verbatim from the capture, which is the
+  only reason it can testify to anything.
+-->
+<html lang="en">
+<head>
+  <meta name="octolytics-dimension-repository_id" content="36502">
+  <meta name="octolytics-dimension-repository_nwo" content="git/git">
+  <meta name="octolytics-dimension-repository_public" content="true">
+  <meta name="octolytics-dimension-repository_is_fork" content="false">
+  <script type="application/json" data-target="react-app.embeddedData">
+    {"payload":{"codeViewTreeRoute":{"path":"builtin","refInfo":{"name":"master","listCacheKey":"v0:1784844020.0","canEdit":false,"refType":"branch","currentOid":"1a3e64c6c4a623626ff0687008732a8e007e2a1c"},"treeExpanded":true,"symbolsExpanded":false},"codeViewLayoutRoute":{"repo":{"id":36502,"defaultBranch":"master","name":"git","ownerLogin":"git","currentUserCanPush":false,"isFork":false,"isEmpty":false,"createdAt":"2008-07-23T14:21:26.000Z","public":true,"private":false,"isOrgOwned":true},"path":"builtin","refInfo":{"name":"master","listCacheKey":"v0:1784844020.0","canEdit":false,"currentOid":"1a3e64c6c4a623626ff0687008732a8e007e2a1c"},"treeExpanded":true},"codeViewFileTreeLayoutRoute":{"foldersToFetch":[]}}}
+  </script>
+</head>
+<body>
+  <div id="repository-container-header" class="tmp-pt-3 hide-full-screen">
+    <div class="d-flex flex-wrap flex-items-center wb-break-word f3 text-normal">
+      <span class="author flex-self-stretch"><a class="url fn" href="/git">git</a></span>
+      <span class="mx-1 flex-self-stretch color-fg-muted">/</span>
+      <strong class="mr-2 flex-self-stretch"><a href="/git/git">git</a></strong>
+      <span></span><span class="Label Label--secondary v-align-middle mr-1">Public</span>
+    </div>
+  </div>
+  <main>
+    <div id="repo-content-pjax-container">
+      <h2>builtin</h2>
+    </div>
+  </main>
+</body>
+</html>

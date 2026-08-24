@@ -104,6 +104,8 @@
     "forbidden": "OctoCounts API request was blocked or forbidden.",
     "tooLarge": "Repository exceeds the 2 GB archive size limit",
     "notFound": "Repository not found or is empty",
+    "refNotFound": "The branch this page is showing could not be counted.",
+    "invalidUrl": "This repository address could not be read",
     "authError": "OctoCounts API authorization failed",
     "offline": "No network connection",
     "unknown": "Analysis failed",

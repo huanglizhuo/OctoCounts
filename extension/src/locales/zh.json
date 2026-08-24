@@ -104,6 +104,8 @@
     "forbidden": "OctoCounts API 请求被阻止或禁止。",
     "tooLarge": "仓库超过 2 GB 归档大小限制",
     "notFound": "仓库未找到或为空",
+    "refNotFound": "无法统计该页面显示的分支。",
+    "invalidUrl": "无法解析该仓库地址",
     "authError": "OctoCounts API 授权失败",
     "offline": "无网络连接",
     "unknown": "分析失败",

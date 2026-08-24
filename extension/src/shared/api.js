@@ -37,7 +37,11 @@ export function analyze(owner, repo, ref, forceRefresh = false) {
     headers,
     body: JSON.stringify({
       repoUrl: `https://github.com/${owner}/${repo}`,
-      refName: ref,
+      // Omitted when the page did not say which ref it is showing, which asks
+      // the API for the repository's default branch. The alternative — sending
+      // whatever the URL happened to contain — is what made every
+      // `/tree/<ref>/<dir>` view fail with `ref_not_found`, on any branch name.
+      refName: ref || undefined,
       forceRefresh,
       source: 'extension',
     }),
