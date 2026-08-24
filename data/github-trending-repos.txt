@@ -1,18 +1,19 @@
-# GitHub Trending daily snapshot generated 2026-08-23T03:14:01.351Z
+# GitHub Trending daily snapshot generated 2026-08-24T03:15:08.059Z
 openai/codex
+freestylefly/awesome-gpt-image-2
 mattpocock/skills
-affaan-m/ECC
-obra/superpowers
-Wei-Shaw/sub2api
-makeplane/plane
-n8n-io/n8n
-anthropics/claude-code
+basecamp/omarchy
 AprilNEA/OpenLogi
-modular/modular
-multica-ai/andrej-karpathy-skills
-mahlernim/google-timeline-visualizer
+block/buzz
+apache/maka
+Alishahryar1/free-claude-code
+tinyhumansai/openhuman
+affaan-m/ECC
+ruvnet/ruflo
+VoltAgent/awesome-agent-skills
+virgiliojr94/book-to-skill
+dani-garcia/vaultwarden
+anthropics/claude-plugins-community
 ripienaar/free-for-dev
-microsoft/TypeScript
-cursor/plugins
-PostHog/posthog
-Tencent/AI-Infra-Guard
+Comfy-Org/ComfyUI
+NousResearch/hermes-agent
