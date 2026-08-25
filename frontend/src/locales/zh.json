@@ -98,10 +98,18 @@
     "subtitle": "把徽章放进 README，复制报告链接，或导出分享卡。",
     "copyBadge": "README 徽章",
     "copyUrl": "报告链接",
+    "copyEmbed": "嵌入 iframe",
     "exportPng": "PNG 卡片",
     "installChrome": "Chrome",
     "installEdge": "Edge",
     "copied": "已复制"
+  },
+  "similarRepos": {
+    "ariaLabel": "相似仓库",
+    "title": "相似仓库",
+    "subtitle": "主语言相同、代码规模相近的报告",
+    "codeLines": "行代码",
+    "mixed": "多语言"
   },
   "summary": {
     "files": "文件",
@@ -264,6 +272,7 @@
     "contact": "联系",
     "apiDocs": "API 文档",
     "slocGuide": "SLOC 指南",
+    "badges": "徽章",
     "builtBy": "由 <1>huanglizhuo</1> 构建，独立开发者",
     "copyright": "(c) 2026"
   },
@@ -313,6 +322,7 @@
   "badgeBuilder": {
     "title": "Badge 生成器",
     "subtitle": "复制实时 README badge",
+    "openPage": "完整徽章页面",
     "type": "Badge 类型",
     "language": "语言",
     "copyMarkdown": "复制 Markdown",
@@ -334,6 +344,37 @@
     "kicker": "实时徽章",
     "hint": "由徽章 API 实时渲染 · 用上方生成器嵌入你自己的仓库",
     "alt": "{{repo}} 的 OctoCounts 徽章"
+  },
+  "badgesPage": {
+    "kicker": "README 徽章，实时渲染",
+    "title": "为你的 README 加上 SLOC 徽章",
+    "subtitle": "选择徽章类型，复制 Markdown，README 就会展示实时代码行数，并链接到永久的 OctoCounts 报告页。"
+  },
+  "embedBuilder": {
+    "title": "嵌入 SLOC 卡片",
+    "subtitle": "给博客和文档站用的 iframe 组件",
+    "description": "把这段 iframe 代码粘贴到博客或文档页面，即可展示仓库的实时行数统计和语言分布，并链接回完整报告：",
+    "previewAlt": "OctoCounts 嵌入卡片预览",
+    "copy": "复制 iframe"
+  },
+  "embedCard": {
+    "ariaLabel": "{{repo}} SLOC 概览卡片",
+    "lines": "总行数",
+    "code": "代码行",
+    "poweredBy": "Powered by OctoCounts",
+    "loading": "正在加载报告…",
+    "unavailable": "暂无缓存报告 —— 打开完整报告页运行一次分析。",
+    "viewReport": "查看完整报告"
+  },
+  "share": {
+    "ariaLabel": "分享此页面",
+    "label": "分享：",
+    "x": "X",
+    "reddit": "Reddit",
+    "hackernews": "HN",
+    "native": "分享",
+    "reportText": "{{repo}} 共有 {{code}} 行代码 —— OctoCounts SLOC 报告",
+    "compareText": "{{left}} vs {{right}} —— OctoCounts 代码行数对比"
   },
   "compare": {
     "title": "仓库对比",

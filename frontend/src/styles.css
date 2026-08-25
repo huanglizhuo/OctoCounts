@@ -817,6 +817,142 @@ html[data-scheme="paper"] .btn {
   white-space: nowrap;
 }
 
+/* ---- embeddable iframe card (/embed/:provider/:owner/:repo) ---- */
+/* Fixed light palette, independent of the site scheme, so the card looks the
+   same inside any third-party blog/docs iframe. */
+body.embed-mode {
+  background: transparent;
+  min-width: 0;
+}
+
+body.embed-mode::before {
+  display: none;
+}
+
+.embed-page {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.embed-card {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 24px;
+  border: 1px solid #d8e0da;
+  border-radius: 8px;
+  background: #fbfdfb;
+  color: #1c2420;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+.embed-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.embed-card-repo {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1c2420;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embed-card-repo:hover {
+  text-decoration: underline;
+}
+
+.embed-card-ref {
+  color: #6b7670;
+  font-size: 11px;
+}
+
+.embed-card-stats {
+  display: flex;
+  gap: 12px;
+  color: #6b7670;
+}
+
+.embed-card-stats strong {
+  color: #1c2420;
+  font-size: 14px;
+}
+
+.embed-card-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #e6ebe7;
+}
+
+.embed-card-bar i {
+  display: block;
+  height: 100%;
+}
+
+.embed-card-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: #47514b;
+}
+
+.embed-card-legend b {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.embed-card-powered {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 10px;
+  color: #8a948e;
+  text-decoration: none;
+}
+
+.embed-card-powered:hover {
+  color: #2e7d4f;
+  text-decoration: underline;
+}
+
+.embed-state {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #6b7670;
+  padding: 12px 14px;
+}
+
+.embed-state a {
+  color: #2e7d4f;
+}
+
+.embed-builder-preview {
+  justify-content: center;
+}
+
+.embed-builder-preview iframe {
+  display: block;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+}
+
 .analysis-options {
   margin-top: 10px;
   border: 1px solid var(--rule);
@@ -1159,6 +1295,20 @@ html[data-scheme="paper"] .btn {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-xs);
+}
+
+.share-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--rule);
+  padding: 10px 16px;
+}
+
+.share-buttons-label {
+  color: var(--fg-mute);
   font-size: var(--text-xs);
 }
 

@@ -16,6 +16,7 @@ export const AnalyticsEvents = {
   analyzeSubmitted: "analyze_submitted",
   analyzeCompleted: "analyze_completed",
   badgeMarkdownCopied: "badge_markdown_copied",
+  embedSnippetCopied: "embed_snippet_copied",
   pngExported: "png_exported",
   extensionStoreClick: "extension_store_click",
   reportUrlCopied: "report_url_copied",

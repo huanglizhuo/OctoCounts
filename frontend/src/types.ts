@@ -91,3 +91,14 @@ export type GrowthRepositoryStat = {
   total: Stats;
   topLanguage?: string;
 };
+
+export type RelatedReport = {
+  provider: RepositoryProvider;
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  publicPath: string;
+  topLanguage?: string | null;
+  totalCode: number;
+  totalLines: number;
+};
