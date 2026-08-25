@@ -18,9 +18,9 @@ Use this on screenshots, the website, or inside the detailed description. Do not
 
 ## Detailed Description
 
-Get actual line counts for any public GitHub repository without cloning.
+Get actual lines of code for any public GitHub repository without cloning.
 
-OctoCounts adds a SLOC and code statistics panel directly to GitHub repository pages. No command-line tools needed.
+OctoCounts is a SLOC counter for GitHub: it adds a code statistics panel directly to repository pages, with no command-line tools like tokei or cloc needed.
 
 What you get:
 
@@ -46,3 +46,32 @@ OctoCounts does not collect, store, or sell your personal data.
 OctoCounts is open source. View the source code, report issues, or contribute on GitHub:
 
 https://github.com/huanglizhuo/OctoCounts
+
+## Search Keywords & Categories
+
+### Chrome Web Store
+
+Chrome has no keyword/tags field — search matching relies on the store name and descriptions, which already carry the terms "SLOC", "code statistics", and "lines of code".
+
+- Category: **Developer Tools**
+
+### Microsoft Edge Add-ons
+
+- Suggested tags: `sloc`, `lines of code`, `code statistics`, `code metrics`, `github`, `tokei`, `cloc`
+- Category: **Developer Tools**
+
+### Firefox Add-ons
+
+- Suggested tags: `sloc`, `lines of code`, `code statistics`, `code metrics`, `github`, `tokei`, `cloc`
+- Category: **Developer Tools**
+
+## Screenshots
+
+Store-ready screenshots live in [`../screenshots/`](../screenshots/). Suggested upload order and captions:
+
+1. `../screenshots/extension-latest-github-card.png` — the in-page panel on a GitHub repository.
+   Caption: "Per-language lines of code, files, comments, and blanks right on the GitHub repository page."
+2. `../screenshots/extension-latest-popup.png` — the toolbar popup with behavior and appearance settings.
+   Caption: "Configure the panel from the toolbar popup — card position, cache TTL, and more."
+
+Upload the in-page panel screenshot first; it is the strongest search-result visual. Captions double as alt text where the store supports it.
