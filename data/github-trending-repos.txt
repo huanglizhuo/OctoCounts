@@ -1,19 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-08-24T03:15:08.059Z
-openai/codex
-freestylefly/awesome-gpt-image-2
-mattpocock/skills
-basecamp/omarchy
-AprilNEA/OpenLogi
-block/buzz
-apache/maka
+# GitHub Trending daily snapshot generated 2026-08-25T03:11:18.651Z
 Alishahryar1/free-claude-code
-tinyhumansai/openhuman
-affaan-m/ECC
-ruvnet/ruflo
-VoltAgent/awesome-agent-skills
-virgiliojr94/book-to-skill
-dani-garcia/vaultwarden
-anthropics/claude-plugins-community
-ripienaar/free-for-dev
-Comfy-Org/ComfyUI
+openai/codex
+MadsLorentzen/ai-job-search
+multica-ai/andrej-karpathy-skills
+makeplane/plane
 NousResearch/hermes-agent
+anthropics/claude-plugins-community
+AprilNEA/OpenLogi
+apache/maka
+PostHog/posthog
+openclaw/openclaw
+AgriciDaniel/claude-obsidian
+rohitg00/ai-engineering-from-scratch
+basecamp/omarchy
+tashfeenahmed/freellmapi
+dani-garcia/vaultwarden
+freestylefly/awesome-gpt-image-2
+VoltAgent/awesome-agent-skills
+tinyhumansai/openhuman
