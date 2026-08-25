@@ -1,7 +1,7 @@
 {
   "name": "octocounts",
   "version": "0.1.0",
-  "description": "Count source lines of code for public GitHub repositories with OctoCounts.",
+  "description": "Count source lines of code (SLOC) for any public GitHub repository — files, lines, code, comments, blanks, per language, without cloning.",
   "type": "module",
   "bin": {
     "octocounts": "src/index.js"
@@ -10,5 +10,32 @@
     "sample": "node src/index.js --sample",
     "sample:json": "node src/index.js --sample --json"
   },
+  "keywords": [
+    "sloc",
+    "lines-of-code",
+    "loc",
+    "code-statistics",
+    "code-metrics",
+    "tokei",
+    "github",
+    "repository",
+    "cloc",
+    "scc",
+    "count-lines"
+  ],
+  "homepage": "https://octocounts.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huanglizhuo/OctoCounts.git",
+    "directory": "cli"
+  },
+  "bugs": "https://github.com/huanglizhuo/OctoCounts/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
   "license": "MIT"
 }
