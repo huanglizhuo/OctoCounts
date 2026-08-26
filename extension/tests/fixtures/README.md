@@ -13,6 +13,7 @@ value per run, so a resolver that keys off a literal build hash (the original
 | `github-sidebar-no-languages.html` | Small repo with no Languages section, non-English UI |
 | `github-private-repo.html` | Private repo whose only visibility signal is the embedded payload |
 | `github-non-repo.html` | Two-segment non-repo path with a sidebar-shaped container |
+| `github-tree-view.html` | Real `/tree/<ref>/<dir>` capture: the ref lives under `codeViewLayoutRoute`/`codeViewTreeRoute`, `codeViewRepoRoute` is absent, and there is no default-branch meta tag |
 
 ## Refreshing the live capture
 
@@ -29,3 +30,13 @@ Then take the `[class*="-module__borderGrid"]` subtree, strip `svg`/`img`/
 `data-testid` and `id`, and replace the build hashes with `__HASH`. Keep the
 surrounding `main`/README/file-table scaffolding so the main-content rejection
 stays covered.
+
+## Capturing a payload fixture
+
+`github-private-repo.html` and `github-tree-view.html` keep the
+`react-app.embeddedData` script instead, because what they pin lives in the
+payload rather than in the markup. Same capture command, but the payload is
+trimmed by hand: drop `csrf_tokens`, `uploadToken`, `currentUser` and the long
+`fileTree`/`tree.items` lists — a capture is disposable, a fixture is committed —
+and keep every remaining value verbatim so the shape stays real. Say in the
+fixture's leading comment which keys were dropped and when it was captured.

@@ -15,7 +15,7 @@ import {
   fingerprintHash,
   LANGUAGE_HEADINGS,
 } from '../src/content/github-dom.js';
-import { getRepoVisibility, isPrivateRepo } from '../src/content/detect.js';
+import { getRepoVisibility, isPrivateRepo, parseRepoInfo } from '../src/content/detect.js';
 
 const FIXTURES = new URL('./fixtures/', import.meta.url);
 
@@ -294,6 +294,188 @@ test('an unrelated public repository in embedded data cannot prove this page is 
   `);
 
   assert.equal(getRepoVisibility(document), 'unknown');
+});
+
+/* ── ref resolution ──────────────────────────────────────────────────────── */
+
+// The anchor for this whole section: real markup, on the exact route that was
+// broken. `github-tree-view.html` is `github.com/git/git/tree/master/builtin`,
+// and the resolver this replaces answered `master/builtin` on it — the tree path,
+// which the API rejects with `ref_not_found`. `git/git` is here because its
+// default branch is `master`; on a `main` repository the bug was invisible.
+test('markup captured from a live tree view reports the branch, not the tree path', async () => {
+  const { document } = await loadFixture('github-tree-view.html');
+
+  assert.equal(parseRepoInfo('/git/git/tree/master/builtin', document).ref, 'master');
+  assert.equal(parseRepoInfo('/git/git/tree/master', document).ref, 'master');
+  assert.equal(parseRepoInfo('/git/git', document).ref, 'master');
+  // The card only mounts on a page it can prove is public, so the same capture
+  // has to survive that gate too.
+  assert.equal(getRepoVisibility(document), 'public');
+  assert.equal(parseRepoInfo('/git/git/tree/master/builtin', document).isFork, false);
+});
+
+// The captured page above covers today's payload. These build payloads inline
+// instead, because the shapes they pin are ones no single live page can show at
+// once: the older wrappers GitHub still serves on unmigrated pages, a wrapper
+// name that does not exist yet, and refs (slashes, abbreviated SHAs) that would
+// each need their own capture of their own repository.
+function pageWithPayload(payload, extraHead = '') {
+  const { document } = parseHTML(`
+    <html><head>
+      ${extraHead}
+      <script type="application/json" data-target="react-app.embeddedData">
+        ${JSON.stringify({ payload })}
+      </script>
+    </head><body><div id="repository-container-header"></div></body></html>
+  `);
+  return document;
+}
+
+test('the ref is read from the older route wrappers too', () => {
+  // `codeViewRepoRoute` is the only wrapper the previous resolver looked at, and
+  // it is absent from the live capture above — but GitHub still serves it on
+  // pages it has not migrated, so it stays in the precedence list.
+  const repoRoute = pageWithPayload({
+    codeViewRepoRoute: { refInfo: { name: 'master' } },
+  });
+  assert.equal(parseRepoInfo('/git/git', repoRoute).ref, 'master');
+  assert.equal(parseRepoInfo('/git/git/tree/master/builtin', repoRoute).ref, 'master');
+
+  // `refInfo` at the payload root, the oldest shape of all.
+  const rootRefInfo = pageWithPayload({ refInfo: { name: 'master' } });
+  assert.equal(parseRepoInfo('/git/git/tree/master/builtin', rootRefInfo).ref, 'master');
+});
+
+test('a ref containing slashes survives, and is preferred over its first segment', () => {
+  const document = pageWithPayload({
+    codeViewTreeRoute: { refInfo: { name: 'release/1.x' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/release/1.x', document).ref, 'release/1.x');
+  assert.equal(parseRepoInfo('/octo/demo/tree/release/1.x/src', document).ref, 'release/1.x');
+});
+
+test('a stated ref is only believed at a segment boundary', () => {
+  // The `<ref>/` in the agreement check, and the reason it is not a bare
+  // `startsWith`: `main-v2` begins with `main`, so the previous resolver returned
+  // the page's `main` for a URL that says `main-v2` — a real ref, resolvable, and
+  // the wrong tree, reported with no sign anything went wrong. A payload naming
+  // the ref of the page you just navigated away from is exactly how this arises.
+  const document = pageWithPayload({
+    codeViewLayoutRoute: { refInfo: { name: 'main' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/main-v2', document).ref, 'main-v2');
+
+  // With a folder after it the URL is ambiguous again and nothing on the page
+  // agrees, so the answer is `''` — the default branch. Still not `main-v2`, but
+  // no longer a confident claim about a branch the URL never named.
+  assert.equal(parseRepoInfo('/octo/demo/tree/main-v2/src', document).ref, '');
+
+  // The boundary does not break the case it exists to serve.
+  assert.equal(parseRepoInfo('/octo/demo/tree/main/src', document).ref, 'main');
+});
+
+test('the ref is found under a route wrapper this code has never seen', () => {
+  const document = pageWithPayload({
+    someFutureRouteName: { refInfo: { name: 'develop' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/develop', document).ref, 'develop');
+});
+
+test('an abbreviated SHA in the URL resolves to the full SHA the page states', () => {
+  const sha = 'ea91b33ca57ff0581b38e735cc108f831bccbdaa';
+  const document = pageWithPayload({
+    codeViewLayoutRoute: { refInfo: { name: sha } },
+  });
+  // GitHub expands the abbreviation in the payload, so neither the equality nor
+  // the `<ref>/` prefix test matches. The second assertion is the broken one:
+  // the previous resolver forwarded the raw path, so the API was asked for a ref
+  // called `ea91b33/tokio` and answered `ref_not_found`. The first was already
+  // correct there; answering the full SHA rather than the abbreviation is what
+  // puts both URLs on the same cache entry.
+  assert.equal(parseRepoInfo('/tokio-rs/tokio/tree/ea91b33', document).ref, sha);
+  assert.equal(parseRepoInfo('/tokio-rs/tokio/tree/ea91b33/tokio', document).ref, sha);
+  // The full SHA still works through the ordinary path.
+  assert.equal(parseRepoInfo(`/tokio-rs/tokio/tree/${sha}`, document).ref, sha);
+});
+
+test('the SHA expansion cannot resolve a branch name to a similar branch name', () => {
+  // The guard that makes the check above safe: matching a candidate that merely
+  // *starts with* the path would resolve `/tree/main` to `main-v2`. Only a hex
+  // abbreviation expanding to a full SHA qualifies. The answer is the path's own
+  // `main` — never the near miss, which is the whole point.
+  const nearMiss = pageWithPayload({
+    codeViewLayoutRoute: { refInfo: { name: 'main-v2' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/main', nearMiss).ref, 'main');
+
+  // `deadbee` is hex and abbreviation-shaped, but a 7-char candidate is a
+  // branch name, not an expansion of one — so no expansion happens and the path
+  // stands on its own.
+  const shortCandidate = pageWithPayload({
+    codeViewLayoutRoute: { refInfo: { name: 'deadbeef' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/deadbee', shortCandidate).ref, 'deadbee');
+});
+
+test('a single path segment is the ref, even when the page names something else', () => {
+  // `/owner/repo/tree/<x>` has exactly one segment after `tree`, and a folder
+  // cannot appear there without a ref in front of it — so `<x>` is a ref, and no
+  // agreement from the page is needed to say so. Nothing was broken here — the
+  // previous resolver returned the path too, by falling through to it. This rule
+  // is what keeps that answer now that an agreement check runs first: without it
+  // a contradicted page would reach `''`, and a URL naming a tag would report the
+  // default branch's count. It is a regression test, not a fix.
+  //
+  // The payload here names a *different* ref on purpose. That is what a soft
+  // navigation looks like mid-flight, and it is what a renamed wrapper looks
+  // like — the two failure modes this file exists to survive.
+  const stale = pageWithPayload({
+    codeViewLayoutRoute: { refInfo: { name: 'master' } },
+  });
+  assert.equal(parseRepoInfo('/octo/demo/tree/v1.2.3', stale).ref, 'v1.2.3');
+
+  // No payload at all: same reading, for the same reason.
+  const { document } = parseHTML(
+    '<html><body><div id="repository-container-header"></div></body></html>'
+  );
+  assert.equal(parseRepoInfo('/octo/demo/tree/v2.0.0', document).ref, 'v2.0.0');
+
+  // Two segments keep the old answer: `release/1.x` and `release` + `1.x` are
+  // the same URL, so with nothing on the page to break the tie there is no
+  // reading to prefer, and `''` (the default branch) is the documented guess.
+  assert.equal(parseRepoInfo('/octo/demo/tree/release/1.x', document).ref, '');
+});
+
+test('a repo home with no payload falls back to the default-branch meta tag', () => {
+  const { document } = parseHTML(`
+    <html><head>
+      <meta name="octolytics-dimension-repository_default_branch" content="trunk">
+    </head><body><div id="repository-container-header"></div></body></html>
+  `);
+  assert.equal(parseRepoInfo('/octo/demo', document).ref, 'trunk');
+});
+
+test('an unresolvable ref is reported as empty, which means "use the default branch"', () => {
+  // No payload and no meta on a tree view, and `master/app` is two segments, so
+  // the path cannot be read as a ref either (see the single-segment test above,
+  // which is the case where it can). `HEAD` was the old answer here, and
+  // `master/app` the one before that — both are claims this code cannot support.
+  const { document } = parseHTML('<html><body><div id="repository-container-header"></div></body></html>');
+  assert.equal(parseRepoInfo('/octo/demo/tree/master/app', document).ref, '');
+  assert.equal(parseRepoInfo('/octo/demo', document).ref, '');
+  // Not a repository route at all.
+  assert.equal(parseRepoInfo('/octo/demo/issues', document).ref, '');
+});
+
+test('the branch button is used when the payload has no ref', () => {
+  const { document } = parseHTML(`
+    <html><body>
+      <div id="repository-container-header"></div>
+      <summary data-hotkey="w"><span>master</span></summary>
+    </body></html>
+  `);
+  assert.equal(parseRepoInfo('/octo/demo/tree/master/app', document).ref, 'master');
 });
 
 /* ── diagnostics ─────────────────────────────────────────────────────────── */

@@ -104,6 +104,8 @@
     "forbidden": "La solicitud a la API de OctoCounts fue bloqueada o rechazada.",
     "tooLarge": "El repositorio supera el límite de tamaño de archivo de 2 GB",
     "notFound": "Repositorio no encontrado o vacío",
+    "refNotFound": "No se pudo contar la rama que muestra esta página.",
+    "invalidUrl": "No se pudo leer la dirección de este repositorio",
     "authError": "Error de autorización de la API de OctoCounts",
     "offline": "Sin conexión a la red",
     "unknown": "Error en el análisis",

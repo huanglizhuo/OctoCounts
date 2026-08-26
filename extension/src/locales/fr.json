@@ -104,6 +104,8 @@
     "forbidden": "La requête API OctoCounts a été bloquée ou refusée.",
     "tooLarge": "Le dépôt dépasse la limite de taille d'archive de 2 Go",
     "notFound": "Dépôt introuvable ou vide",
+    "refNotFound": "La branche affichée sur cette page n'a pas pu être comptée.",
+    "invalidUrl": "Cette adresse de dépôt n'a pas pu être lue",
     "authError": "Échec de l'autorisation API OctoCounts",
     "offline": "Pas de connexion réseau",
     "unknown": "Échec de l'analyse",

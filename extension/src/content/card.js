@@ -6,7 +6,19 @@ import { mountPanel, unmountPanel } from './panel.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 4;
-const NON_RETRYABLE = new Set(['too_large', 'private_repo', 'forbidden', 'auth_error']);
+// Retrying cannot change any of these answers, so the four retries below only
+// spend ~15s (1s + 2s + 4s + 8s) producing the same failure a fifth time.
+//
+// `not_found` is deliberately NOT here even though it sounds terminal: the API
+// returns it for the archive download 404ing as well as for a missing
+// repository, and the card only ever runs on a page GitHub has already rendered
+// as a public repo — so on this surface a 404 is far more likely transient than
+// a repository that does not exist. The backend retries 5xx and 429 but never a
+// 404, so the client retry is the only one that case gets.
+const NON_RETRYABLE = new Set([
+  'too_large', 'private_repo', 'forbidden', 'auth_error',
+  'ref_not_found', 'invalid_url',
+]);
 const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
 
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
@@ -402,6 +414,16 @@ function errorMessage(error) {
     auth_error:   t('error.authError'),
     offline:      t('error.offline'),
     timeout:      t('card.error.timedOut'),
+    // Every code in NON_RETRYABLE needs an entry here, because there is no
+    // second line of defence: `classifyError` in `background/index.js` returns
+    // `{ code, status, detail }` and drops the API's `message`, so the
+    // `error?.message` term below is always `undefined`. An unmapped code
+    // therefore renders as "Analysis failed" — and, being non-retryable, with no
+    // retry button either. No explanation and no action. `ref_not_found` also
+    // covers a repository with no commits, which the API reports under this same
+    // code.
+    ref_not_found: t('error.refNotFound'),
+    invalid_url:   t('error.invalidUrl'),
   };
   return codeMap[error?.code] || error?.message || t('error.unknown');
 }
