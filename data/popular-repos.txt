@@ -168,7 +168,7 @@ apache/druid
 apache/cassandra
 scylladb/scylladb
 cockroachdb/cockroach
-yugabyte/yugabyte
+yugabyte/yugabyte-db
 moby/moby
 containers/podman
 helm/helm

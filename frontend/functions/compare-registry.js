@@ -104,7 +104,7 @@ export const COMPARE_REGISTRY = [
   { slug: "kafka-vs-rabbitmq", name: "Kafka vs RabbitMQ", left: { owner: "apache", repo: "kafka" }, right: { owner: "rabbitmq", repo: "rabbitmq-server" } },
   { slug: "clickhouse-vs-druid", name: "ClickHouse vs Druid", left: { owner: "ClickHouse", repo: "ClickHouse" }, right: { owner: "apache", repo: "druid" } },
   { slug: "cassandra-vs-scylla", name: "Cassandra vs ScyllaDB", left: { owner: "apache", repo: "cassandra" }, right: { owner: "scylladb", repo: "scylladb" } },
-  { slug: "cockroachdb-vs-yugabyte", name: "CockroachDB vs YugabyteDB", left: { owner: "cockroachdb", repo: "cockroach" }, right: { owner: "yugabyte", repo: "yugabyte" } },
+  { slug: "cockroachdb-vs-yugabyte", name: "CockroachDB vs YugabyteDB", left: { owner: "cockroachdb", repo: "cockroach" }, right: { owner: "yugabyte", repo: "yugabyte-db" } },
   { slug: "docker-vs-podman", name: "Docker vs Podman", left: { owner: "moby", repo: "moby" }, right: { owner: "containers", repo: "podman" } },
   { slug: "helm-vs-kustomize", name: "Helm vs Kustomize", left: { owner: "helm", repo: "helm" }, right: { owner: "kubernetes-sigs", repo: "kustomize" } },
   { slug: "argo-cd-vs-flux", name: "Argo CD vs Flux", left: { owner: "argoproj", repo: "argo-cd" }, right: { owner: "fluxcd", repo: "flux2" } },
