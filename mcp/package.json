@@ -1,7 +1,7 @@
 {
   "name": "octocounts-mcp",
   "version": "0.1.0",
-  "description": "MCP server for OctoCounts public GitHub SLOC reports.",
+  "description": "MCP server that gives AI coding assistants access to OctoCounts SLOC reports — analyze and compare public GitHub repositories without cloning.",
   "type": "module",
   "bin": {
     "octocounts-mcp": "src/index.js"
@@ -9,5 +9,32 @@
   "scripts": {
     "start": "node src/index.js"
   },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "sloc",
+    "lines-of-code",
+    "code-statistics",
+    "code-metrics",
+    "github",
+    "ai-assistant",
+    "claude",
+    "cursor"
+  ],
+  "homepage": "https://octocounts.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huanglizhuo/OctoCounts.git",
+    "directory": "mcp"
+  },
+  "bugs": "https://github.com/huanglizhuo/OctoCounts/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
   "license": "MIT"
 }

@@ -9,7 +9,7 @@ use crate::{
     api::AppState,
     error::ApiError,
     models::{LanguageReport, LanguageStats, Report, RepositoryProvider},
-    store::{provider_from_str, provider_to_str, ReportCard},
+    store::{provider_from_str, provider_to_str, RelatedReportRow, ReportCard},
 };
 
 #[derive(Debug, Deserialize)]
@@ -73,6 +73,92 @@ pub struct SeoList {
 pub struct SitemapEntry {
     loc: String,
     lastmod: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelatedReport {
+    provider: String,
+    owner: String,
+    repo: String,
+    repo_full_name: String,
+    public_path: String,
+    top_language: Option<String>,
+    total_code: i64,
+    total_lines: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelatedList {
+    reports: Vec<RelatedReport>,
+}
+
+/// The report-page interlinking module shows at most this many similar
+/// repositories; the store clamps higher requests to this as well.
+const RELATED_LIMIT: i64 = 6;
+
+pub async fn related(
+    State(state): State<AppState>,
+    Query(query): Query<SeoReportQuery>,
+) -> Result<(HeaderMap, Json<RelatedList>), ApiError> {
+    let cache_key = format!("related:{}", seo_report_cache_key(&query));
+    if let Some(list) = state.caches.seo_related.get(&cache_key).await {
+        return Ok((related_cache_headers(), Json(list)));
+    }
+
+    let provider = parse_provider(&query.provider)?;
+    let Some(report) = state
+        .coordinator
+        .store()
+        .latest_report(provider, &query.owner, &query.repo)
+        .await
+        .map_err(ApiError::internal)?
+    else {
+        return Err(ApiError::not_found(
+            "report_not_found",
+            "report was not found",
+        ));
+    };
+
+    let card = ReportCard::from(&report);
+    let reports = state
+        .coordinator
+        .store()
+        .related_reports(
+            provider,
+            &card.owner,
+            &card.repo,
+            card.languages.first().map(|language| language.name.as_str()),
+            card.total.code as i64,
+            RELATED_LIMIT,
+        )
+        .await
+        .map_err(ApiError::internal)?
+        .into_iter()
+        .map(related_report)
+        .collect();
+    let list = RelatedList { reports };
+    state
+        .caches
+        .seo_related
+        .insert(cache_key, list.clone())
+        .await;
+
+    Ok((related_cache_headers(), Json(list)))
+}
+
+fn related_report(row: RelatedReportRow) -> RelatedReport {
+    RelatedReport {
+        provider: provider_to_str(&row.provider).to_string(),
+        repo_full_name: format!("{}/{}", row.owner, row.repo),
+        public_path: repository_public_path(row.provider, &row.owner, &row.repo),
+        owner: row.owner,
+        repo: row.repo,
+        top_language: row.top_language,
+        total_code: row.total_code.unwrap_or(0),
+        total_lines: row.total_lines.unwrap_or(0),
+    }
 }
 
 pub async fn report(
@@ -288,6 +374,10 @@ fn monoliths_cache_headers() -> HeaderMap {
 
 fn sitemap_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=900, s-maxage=900, stale-while-revalidate=3600")
+}
+
+fn related_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
 }
 
 fn seo_report_cache_headers() -> HeaderMap {

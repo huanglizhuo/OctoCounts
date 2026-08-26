@@ -6,6 +6,7 @@ import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { defaultRefName, defaultRepoUrl } from "./constants";
 import { copyText, formatNumber, languageColor, visibleLanguageColor } from "./reportUtils";
 import { useScheme } from "./scheme";
+import { ShareButtons } from "./ShareButtons";
 import type { JobRecord, Report } from "./types";
 
 // Compare (two repos) and Diff (two refs of one repo) share one panel layout,
@@ -67,7 +68,7 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
           <button type="button" className="copybtn retry-btn" onClick={() => void runCompare()}>{t("error.retry")}</button>
         </div>
       ) : null}
-      {leftReport && rightReport ? <CompareResults left={leftReport} right={rightReport} /> : null}
+      {leftReport && rightReport ? <CompareResults left={leftReport} right={rightReport} shareUrl={buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef)} sharePlacement="compare" /> : null}
     </div>
   );
 }
@@ -176,12 +177,12 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
           <button type="button" className="copybtn retry-btn" onClick={() => void runDiff()}>{t("error.retry")}</button>
         </div>
       ) : null}
-      {baseReport && headReport ? <CompareResults left={baseReport} right={headReport} /> : null}
+      {baseReport && headReport ? <CompareResults left={baseReport} right={headReport} shareUrl={buildDiffUrl(repo, baseRef, headRef)} sharePlacement="diff" /> : null}
     </div>
   );
 }
 
-function CompareResults({ left, right }: { left: Report; right: Report }) {
+function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Report; right: Report; shareUrl: string; sharePlacement: string }) {
   const { t } = useTranslation();
   const scheme = useScheme();
   const topLeft = left.languages[0]?.name ?? t("charts.noData");
@@ -241,6 +242,11 @@ function CompareResults({ left, right }: { left: Report; right: Report }) {
           </div>
         ))}
       </div>
+      <ShareButtons
+        url={shareUrl}
+        text={t("share.compareText", { left: `${left.repository.owner}/${left.repository.name}`, right: `${right.repository.owner}/${right.repository.name}` })}
+        placement={sharePlacement}
+      />
     </div>
   );
 }

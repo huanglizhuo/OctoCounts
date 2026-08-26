@@ -5,7 +5,7 @@ use moka::{future::Cache, policy::EvictionPolicy};
 
 use crate::{
     models::GrowthStats,
-    seo::{SeoList, SeoReport, SitemapEntry},
+    seo::{RelatedList, SeoList, SeoReport, SitemapEntry},
 };
 
 #[derive(Clone)]
@@ -16,6 +16,7 @@ pub struct AppCaches {
     pub seo_popular: Cache<String, SeoList>,
     pub seo_monoliths: Cache<String, SeoList>,
     pub seo_sitemap: Cache<String, Vec<SitemapEntry>>,
+    pub seo_related: Cache<String, RelatedList>,
     /// Rendered OG PNGs, keyed by `provider:owner:repo:commit_sha`.
     /// The key pins a specific commit, so entries can never go stale; the TTL
     /// only bounds memory.
@@ -38,6 +39,7 @@ impl AppCaches {
             seo_popular: ttl_cache(100, Duration::from_secs(300)),
             seo_monoliths: ttl_cache(100, Duration::from_secs(900)),
             seo_sitemap: ttl_cache(1, Duration::from_secs(900)),
+            seo_related: ttl_cache(5_000, Duration::from_secs(3_600)),
             og_png: ttl_cache(500, Duration::from_secs(86_400)),
             badge_svg: ttl_cache(2_000, Duration::from_secs(300)),
             badge_svg_immutable: ttl_cache(2_000, Duration::from_secs(86_400)),

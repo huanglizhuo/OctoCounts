@@ -7,7 +7,7 @@ AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Go
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-08-21
+Last-Updated: 2026-08-26
 Full Context: https://octocounts.com/llms-full.txt
 
 ## Short Answer
@@ -61,6 +61,7 @@ GET /badge/:owner/:repo/commit/:sha
 - Popular reports: https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- README badge builder: https://octocounts.com/badges
 - Curated comparisons: server-rendered "X vs Y" SLOC pages, one per pair listed below.
 - Methodology: https://octocounts.com/docs/methodology
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter
@@ -101,6 +102,76 @@ GET /badge/:owner/:repo/commit/:sha
 - Laravel vs Django (laravel/laravel vs django/django): https://octocounts.com/compare/laravel-vs-django
 - Bun vs Node.js (oven-sh/bun vs nodejs/node): https://octocounts.com/compare/bun-vs-node
 - Bun vs Deno (oven-sh/bun vs denoland/deno): https://octocounts.com/compare/bun-vs-deno
+- esbuild vs SWC (evanw/esbuild vs swc-project/swc): https://octocounts.com/compare/esbuild-vs-swc
+- Nuxt vs Next.js (nuxt/nuxt vs vercel/next.js): https://octocounts.com/compare/nuxt-vs-nextjs
+- Astro vs Next.js (withastro/astro vs vercel/next.js): https://octocounts.com/compare/astro-vs-nextjs
+- SolidJS vs React (solidjs/solid vs facebook/react): https://octocounts.com/compare/solidjs-vs-react
+- Redux vs Zustand (reduxjs/redux vs pmndrs/zustand): https://octocounts.com/compare/redux-vs-zustand
+- Vuex vs Pinia (vuejs/vuex vs vuejs/pinia): https://octocounts.com/compare/vuex-vs-pinia
+- Jest vs Vitest (jestjs/jest vs vitest-dev/vitest): https://octocounts.com/compare/jest-vs-vitest
+- Cypress vs Playwright (cypress-io/cypress vs microsoft/playwright): https://octocounts.com/compare/cypress-vs-playwright
+- Prisma vs TypeORM (prisma/prisma vs typeorm/typeorm): https://octocounts.com/compare/prisma-vs-typeorm
+- Prisma vs Drizzle ORM (prisma/prisma vs drizzle-team/drizzle-orm): https://octocounts.com/compare/prisma-vs-drizzle
+- Biome vs Prettier (biomejs/biome vs prettier/prettier): https://octocounts.com/compare/biome-vs-prettier
+- Axios vs Got (axios/axios vs sindresorhus/got): https://octocounts.com/compare/axios-vs-got
+- Moment.js vs Day.js (moment/moment vs iamkun/dayjs): https://octocounts.com/compare/moment-vs-dayjs
+- Chart.js vs D3.js (chartjs/Chart.js vs d3/d3): https://octocounts.com/compare/chartjs-vs-d3
+- Three.js vs Babylon.js (mrdoob/three.js vs BabylonJS/Babylon.js): https://octocounts.com/compare/threejs-vs-babylonjs
+- Express vs Koa (expressjs/express vs koajs/koa): https://octocounts.com/compare/express-vs-koa
+- styled-components vs Emotion (styled-components/styled-components vs emotion-js/emotion): https://octocounts.com/compare/styled-components-vs-emotion
+- Flask vs Django (pallets/flask vs django/django): https://octocounts.com/compare/flask-vs-django
+- FastAPI vs Flask (fastapi/fastapi vs pallets/flask): https://octocounts.com/compare/fastapi-vs-flask
+- pandas vs Polars (pandas-dev/pandas vs pola-rs/polars): https://octocounts.com/compare/pandas-vs-polars
+- NumPy vs SciPy (numpy/numpy vs scipy/scipy): https://octocounts.com/compare/numpy-vs-scipy
+- Celery vs RQ (celery/celery vs rq/rq): https://octocounts.com/compare/celery-vs-rq
+- Black vs Ruff (psf/black vs astral-sh/ruff): https://octocounts.com/compare/black-vs-ruff
+- mypy vs Pyright (python/mypy vs microsoft/pyright): https://octocounts.com/compare/mypy-vs-pyright
+- Requests vs HTTPX (psf/requests vs encode/httpx): https://octocounts.com/compare/requests-vs-httpx
+- uv vs Poetry (astral-sh/uv vs python-poetry/poetry): https://octocounts.com/compare/uv-vs-poetry
+- Axum vs Actix Web (tokio-rs/axum vs actix/actix-web): https://octocounts.com/compare/axum-vs-actix-web
+- Rocket vs Axum (rwf2/rocket vs tokio-rs/axum): https://octocounts.com/compare/rocket-vs-axum
+- Tokio vs async-std (tokio-rs/tokio vs async-rs/async-std): https://octocounts.com/compare/tokio-vs-async-std
+- Yew vs Leptos (yewstack/yew vs leptos-rs/leptos): https://octocounts.com/compare/yew-vs-leptos
+- ripgrep vs fd (BurntSushi/ripgrep vs sharkdp/fd): https://octocounts.com/compare/ripgrep-vs-fd
+- Gin vs Echo (gin-gonic/gin vs labstack/echo): https://octocounts.com/compare/gin-vs-echo
+- Fiber vs Gin (gofiber/fiber vs gin-gonic/gin): https://octocounts.com/compare/fiber-vs-gin
+- Zap vs Logrus (uber-go/zap vs sirupsen/logrus): https://octocounts.com/compare/zap-vs-logrus
+- Cobra vs urfave/cli (spf13/cobra vs urfave/cli): https://octocounts.com/compare/cobra-vs-urfave-cli
+- Hugo vs Jekyll (gohugoio/hugo vs jekyll/jekyll): https://octocounts.com/compare/hugo-vs-jekyll
+- Spring Boot vs Quarkus (spring-projects/spring-boot vs quarkusio/quarkus): https://octocounts.com/compare/spring-boot-vs-quarkus
+- Spring Boot vs Micronaut (spring-projects/spring-boot vs micronaut-projects/micronaut-core): https://octocounts.com/compare/spring-boot-vs-micronaut
+- Ktor vs Spring Boot (ktorio/ktor vs spring-projects/spring-boot): https://octocounts.com/compare/ktor-vs-spring-boot
+- Maven vs Gradle (apache/maven vs gradle/gradle): https://octocounts.com/compare/maven-vs-gradle
+- Elasticsearch vs OpenSearch (elastic/elasticsearch vs opensearch-project/OpenSearch): https://octocounts.com/compare/elasticsearch-vs-opensearch
+- Ruby on Rails vs Sinatra (rails/rails vs sinatra/sinatra): https://octocounts.com/compare/rails-vs-sinatra
+- Sidekiq vs Resque (sidekiq/sidekiq vs resque/resque): https://octocounts.com/compare/sidekiq-vs-resque
+- Laravel vs Symfony (laravel/laravel vs symfony/symfony): https://octocounts.com/compare/laravel-vs-symfony
+- WordPress vs Drupal (WordPress/WordPress vs drupal/drupal): https://octocounts.com/compare/wordpress-vs-drupal
+- CMake vs Meson (Kitware/CMake vs mesonbuild/meson): https://octocounts.com/compare/cmake-vs-meson
+- GCC vs LLVM (gcc-mirror/gcc vs llvm/llvm-project): https://octocounts.com/compare/gcc-vs-llvm
+- nlohmann/json vs RapidJSON (nlohmann/json vs Tencent/rapidjson): https://octocounts.com/compare/nlohmann-json-vs-rapidjson
+- Protocol Buffers vs FlatBuffers (protocolbuffers/protobuf vs google/flatbuffers): https://octocounts.com/compare/protobuf-vs-flatbuffers
+- Swift vs Kotlin (swiftlang/swift vs JetBrains/kotlin): https://octocounts.com/compare/swift-vs-kotlin
+- Alamofire vs Moya (Alamofire/Alamofire vs Moya/Moya): https://octocounts.com/compare/alamofire-vs-moya
+- Vim vs Neovim (vim/vim vs neovim/neovim): https://octocounts.com/compare/vim-vs-neovim
+- Emacs vs Vim (emacs-mirror/emacs vs vim/vim): https://octocounts.com/compare/emacs-vs-vim
+- Alacritty vs Kitty (alacritty/alacritty vs kovidgoyal/kitty): https://octocounts.com/compare/alacritty-vs-kitty
+- Nushell vs Fish (nushell/nushell vs fish-shell/fish-shell): https://octocounts.com/compare/nushell-vs-fish
+- LangChain vs LlamaIndex (langchain-ai/langchain vs run-llama/llama_index): https://octocounts.com/compare/langchain-vs-llamaindex
+- Ollama vs llama.cpp (ollama/ollama vs ggml-org/llama.cpp): https://octocounts.com/compare/ollama-vs-llama-cpp
+- vLLM vs Text Generation Inference (vllm-project/vllm vs huggingface/text-generation-inference): https://octocounts.com/compare/vllm-vs-tgi
+- Transformers vs Diffusers (huggingface/transformers vs huggingface/diffusers): https://octocounts.com/compare/transformers-vs-diffusers
+- Milvus vs Qdrant (milvus-io/milvus vs qdrant/qdrant): https://octocounts.com/compare/milvus-vs-qdrant
+- Redis vs Memcached (redis/redis vs memcached/memcached): https://octocounts.com/compare/redis-vs-memcached
+- MySQL vs PostgreSQL (mysql/mysql-server vs postgres/postgres): https://octocounts.com/compare/mysql-vs-postgres
+- Kafka vs RabbitMQ (apache/kafka vs rabbitmq/rabbitmq-server): https://octocounts.com/compare/kafka-vs-rabbitmq
+- ClickHouse vs Druid (ClickHouse/ClickHouse vs apache/druid): https://octocounts.com/compare/clickhouse-vs-druid
+- Cassandra vs ScyllaDB (apache/cassandra vs scylladb/scylladb): https://octocounts.com/compare/cassandra-vs-scylla
+- CockroachDB vs YugabyteDB (cockroachdb/cockroach vs yugabyte/yugabyte-db): https://octocounts.com/compare/cockroachdb-vs-yugabyte
+- Docker vs Podman (moby/moby vs containers/podman): https://octocounts.com/compare/docker-vs-podman
+- Helm vs Kustomize (helm/helm vs kubernetes-sigs/kustomize): https://octocounts.com/compare/helm-vs-kustomize
+- Argo CD vs Flux (argoproj/argo-cd vs fluxcd/flux2): https://octocounts.com/compare/argo-cd-vs-flux
+- Nomad vs Kubernetes (hashicorp/nomad vs kubernetes/kubernetes): https://octocounts.com/compare/nomad-vs-kubernetes
 
 <!-- END COMPARE PAGES -->
 

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchGrowthStats, fetchJson } from "../api";
 import { initAnalytics } from "../analytics";
 import { CompareRepos, DiffRefs } from "../compare";
+import { BadgeBuilder, BadgeWall, EmbedBuilder } from "../badges";
 import { Topbar } from "../Topbar";
 import { formatCompactNumber, formatNumber } from "../reportUtils";
 import { ThemeSwitch } from "../scheme";
@@ -136,7 +137,7 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
         <footer>
           <span>{t("growth.footerTagline")}</span>
           <span>
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
+            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
           </span>
         </footer>
       </main>
@@ -290,6 +291,28 @@ export function DiffPage() {
         <p>{t("diff.help")}</p>
       </section>
       <DiffRefs showHelp={false} />
+    </MarketingShell>
+  );
+}
+
+export function BadgesPage() {
+  const { t } = useTranslation();
+  return (
+    <MarketingShell>
+      <section className="growth-hero tool-hero" aria-label={t("badgesPage.title")}>
+        <span className="chart-tag">{t("badgesPage.kicker")}</span>
+        <h1>{t("badgesPage.title")}</h1>
+        <p>{t("badgesPage.subtitle")}</p>
+      </section>
+      <BadgeBuilder repoUrl="" refName="" report={null} />
+      <section aria-label={t("embedBuilder.title")}>
+        <div className="section-h">
+          <h2>{t("embedBuilder.title")}</h2>
+          <span className="sub">{t("embedBuilder.subtitle")}</span>
+        </div>
+        <EmbedBuilder repoUrl="" report={null} />
+      </section>
+      <BadgeWall />
     </MarketingShell>
   );
 }

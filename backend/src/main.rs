@@ -124,6 +124,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/popular", get(seo::popular))
         .route("/api/seo/monoliths", get(seo::monoliths))
         .route("/api/seo/sitemap", get(seo::sitemap))
+        .route("/api/seo/related", get(seo::related))
         .route("/og/github/{owner}/{repo}", get(og::github))
         .route("/og/gitlab/{*path}", get(og::gitlab))
         .route("/badge/{owner}/{repo}", get(badge::badge_default))

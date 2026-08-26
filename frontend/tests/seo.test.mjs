@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { transform } from "esbuild";
 
-import { onRequest } from "../functions/[[path]].js";
+import { onRequest, __resetCompareExistenceCacheForTests } from "../functions/[[path]].js";
 import { COMPARE_REGISTRY } from "../functions/compare-registry.js";
 
 const ROOT = new URL("../", import.meta.url);
@@ -111,6 +111,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
   const extensionSection = await readFile(new URL("src/BrowserExtensionSection.tsx", ROOT), "utf8");
   const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const badges = await readFile(new URL("src/badges.tsx", ROOT), "utf8");
   const topbar = await readFile(new URL("src/Topbar.tsx", ROOT), "utf8");
 
   assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
@@ -124,7 +125,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(extensionSection, /card-768\.webp 768w/);
   assert.match(extensionSection, /loading="lazy" width="1280" height="800"/);
   assert.match(topbar, /octocounts-logo-96\.webp/);
-  assert.match(main, /width="180" height="20"/);
+  assert.match(badges, /width="180" height="20"/);
   assert.match(main, /path\.startsWith\("\/github\/"\) \|\| path\.startsWith\("\/gitlab\/"\)/);
   assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?applyPageMetadata\(\{[\s\S]*?return;/);
   assert.match(main, /minHeight=\{820\} rootMargin="100px"><Charts/);
@@ -642,6 +643,119 @@ test("curated comparison serves a noindex fallback when a report is missing", as
   assert.doesNotMatch(html, /type="application\/ld\+json"/);
 });
 
+test("curated comparison answers 503 + no-store when a report fetch fails transiently", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    return new Response("backend exploded", { status: 503 });
+  };
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  // Transient backend failure: ask crawlers to retry later, never serve (or
+  // let the CDN cache) a noindex page for an indexable URL.
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.doesNotMatch(html, /noindex/);
+  assert.doesNotMatch(html, /not available for both repositories yet/);
+});
+
+test("curated comparison answers 503 + no-store when a report fetch throws", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    throw new Error("network unreachable");
+  };
+  let response;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("report page answers 503 + no-store when the report API fails transiently", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("backend exploded", { status: 500 });
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.doesNotMatch(html, /noindex/);
+  assert.doesNotMatch(html, /No cached report exists yet/);
+});
+
+test("report page answers 503 + no-store when the report API is unreachable", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("network unreachable");
+  };
+  let response;
+  try {
+    response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("sitemap drops curated comparisons whose reports are missing but keeps them on transient failure", async () => {
+  const originalFetch = globalThis.fetch;
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/sitemap") return Response.json([]);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "vuejs/core") return new Response("not found", { status: 404 });
+    if (key === "webpack/webpack") return new Response("backend exploded", { status: 500 });
+    return Response.json(CURATED_FIXTURES["facebook/react"]);
+  };
+  let xml;
+  try {
+    const response = await onRequest(await renderedContext("/sitemap.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    xml = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  // react-vs-vue: right side (vuejs/core) definitively missing -> excluded.
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>/);
+  // svelte-vs-vue / angular-vs-vue share the missing vuejs/core side.
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/svelte-vs-vue<\/loc>/);
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/angular-vs-vue<\/loc>/);
+  // vite-vs-webpack: right side (webpack/webpack) failed transiently -> kept.
+  assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/vite-vs-webpack<\/loc>/);
+  // The rest of the sitemap is untouched.
+  assert.match(xml, /<loc>https:\/\/octocounts\.com\/trending<\/loc>/);
+});
+
 test("bare /compare noscript links every curated comparison", async () => {
   const response = await onRequest(await renderedContext("/compare"));
   const html = await response.text();
@@ -654,6 +768,8 @@ test("bare /compare noscript links every curated comparison", async () => {
 test("generated and static sitemaps include every curated comparison", async () => {
   const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   const originalFetch = globalThis.fetch;
+  // Every report exists, so no curated entry is filtered out.
+  __resetCompareExistenceCacheForTests();
   globalThis.fetch = async () => Response.json([]);
   let generatedXml;
   try {
@@ -677,4 +793,147 @@ test("generated and static sitemaps include every curated comparison", async () 
     const curatedCount = (xml.match(/<loc>https:\/\/octocounts\.com\/compare\//g) ?? []).length;
     assert.equal(curatedCount, COMPARE_REGISTRY.length);
   }
+});
+
+const RELATED_REPORT_FIXTURE = {
+  provider: "github",
+  owner: "octo-org",
+  repo: "octo-repo",
+  repoFullName: "octo-org/octo-repo",
+  htmlUrl: "https://github.com/octo-org/octo-repo",
+  publicPath: "/github/octo-org/octo-repo",
+  canonicalUrl: "https://octocounts.com/github/octo-org/octo-repo",
+  title: "octo-org/octo-repo: 20,000 lines of code | OctoCounts",
+  description: "Source line count for octo-org/octo-repo.",
+  citation: "Counted at commit abcdef123456.",
+  generatedAt: "2026-07-15T00:00:00Z",
+  refName: "main",
+  commitSha: "abcdef1234567890abcdef1234567890abcdef12",
+  tokeiVersion: "13.0.0",
+  durationMs: 100,
+  total: { files: 100, lines: 20000, code: 15000, comments: 3000, blanks: 2000 },
+  topLanguage: { name: "Rust", code: 12000, percent: 80 },
+  languages: [{ name: "Rust", stats: { files: 80, lines: 16000, code: 12000, comments: 2500, blanks: 1500 } }],
+};
+
+function stubReportAndRelatedFetch(relatedPayload) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/related") {
+      if (relatedPayload instanceof Response) return relatedPayload;
+      return Response.json(relatedPayload);
+    }
+    return Response.json(RELATED_REPORT_FIXTURE);
+  };
+  return () => {
+    globalThis.fetch = originalFetch;
+  };
+}
+
+test("report SSR links similar repository reports when the related API answers", async () => {
+  const restore = stubReportAndRelatedFetch({
+    reports: [
+      { provider: "github", owner: "tokio-rs", repo: "axum", repoFullName: "tokio-rs/axum", publicPath: "/github/tokio-rs/axum", topLanguage: "Rust", totalCode: 16000, totalLines: 21000 },
+      { provider: "github", owner: "octo-org", repo: "odd & <named>", repoFullName: "octo-org/odd & <named>", publicPath: "/github/octo-org/odd%20%26%20%3Cnamed%3E", topLanguage: null, totalCode: 1200, totalLines: 1500 },
+    ],
+  });
+  let html;
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    html = await response.text();
+  } finally {
+    restore();
+  }
+
+  assert.match(html, /<h2>Similar repository reports<\/h2>/);
+  assert.ok(html.includes('<a href="/github/tokio-rs/axum">tokio-rs/axum</a> — Rust, 16,000 code lines'));
+  // Missing top language and HTML-significant characters are handled safely.
+  assert.ok(html.includes("octo-org/odd &amp; &lt;named&gt;</a> — mixed, 1,200 code lines"));
+  assert.doesNotMatch(html, /odd & <named>/);
+});
+
+test("report SSR omits the similar section when the related API fails or misbehaves", async () => {
+  for (const payload of [new Response("unavailable", { status: 500 }), { unexpected: true }]) {
+    const restore = stubReportAndRelatedFetch(payload);
+    let html;
+    try {
+      const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+      html = await response.text();
+    } finally {
+      restore();
+    }
+    assert.doesNotMatch(html, /Similar repository reports/);
+    assert.match(html, /<div id="root"><section>/);
+  }
+});
+
+test("trending.xml serves an RSS 2.0 feed from the daily snapshot", async () => {
+  const snapshot = {
+    source: "https://github.com/trending",
+    period: "daily",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [{
+      rank: 1,
+      owner: "octo-org",
+      name: "octo-repo",
+      fullName: "octo-org/octo-repo",
+      description: "Fish & <chips> counter",
+      language: "Rust",
+      starsToday: 1234,
+      totalStars: 12345,
+      htmlUrl: "https://github.com/octo-org/octo-repo",
+      publicPath: "/github/octo-org/octo-repo",
+    }],
+  };
+  const response = await onRequest(await renderedContext("/trending.xml", snapshot));
+  assert.equal(response.headers.get("content-type"), "application/rss+xml; charset=utf-8");
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+  const xml = await response.text();
+  assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<rss version="2\.0">/);
+  assert.ok(xml.includes("<link>https://octocounts.com/trending</link>"));
+  assert.match(xml, /<title>octo-org\/octo-repo<\/title>/);
+  assert.ok(xml.includes("<link>https://octocounts.com/github/octo-org/octo-repo</link>"));
+  assert.match(xml, /<pubDate>Wed, 15 Jul 2026 02:17:00 GMT<\/pubDate>/);
+  assert.match(xml, /<category>Rust<\/category>/);
+  assert.ok(xml.includes("Fish &amp; &lt;chips&gt; counter"));
+  assert.doesNotMatch(xml, /Fish & </);
+});
+
+test("trending.xml stays a valid empty feed without a snapshot", async () => {
+  const response = await onRequest(await renderedContext("/trending.xml"));
+  const xml = await response.text();
+  assert.match(xml, /<rss version="2\.0">/);
+  assert.doesNotMatch(xml, /<item>/);
+});
+
+test("the trending page head advertises the RSS feed", async () => {
+  const response = await onRequest(await renderedContext("/trending", {
+    source: "https://github.com/trending",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [],
+  }));
+  const html = await response.text();
+  assert.ok(html.includes('<link rel="alternate" type="application/rss+xml" title="Trending GitHub repositories today | OctoCounts" href="https://octocounts.com/trending.xml" />'));
+});
+
+test("embed routes are frameable by any site, noindexed, and link to the report", async () => {
+  for (const path of ["/embed/github/octo-org/octo-repo", "/embed/gitlab/octo-group/sub/octo-repo"]) {
+    const response = await onRequest(await renderedContext(path));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-frame-options"), null);
+    assert.match(response.headers.get("content-security-policy"), /frame-ancestors \*/);
+    const html = await response.text();
+    assert.match(html, /<meta name="robots" content="noindex,nofollow" \/>/);
+    const reportPath = path.replace(/^\/embed\//, "/");
+    assert.ok(html.includes(`<link rel="canonical" href="https://octocounts.com${reportPath}" />`));
+  }
+});
+
+test("non-embed pages keep the locked-down frame headers", async () => {
+  const response = await onRequest(await renderedContext("/badges"));
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
 });

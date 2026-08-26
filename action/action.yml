@@ -2,6 +2,10 @@ name: OctoCounts SLOC Diff
 description: Comment on pull requests with source line count changes powered by OctoCounts.
 author: huanglizhuo
 
+branding:
+  icon: bar-chart-2
+  color: blue
+
 inputs:
   github-token:
     description: GitHub token used to create or update the PR comment.

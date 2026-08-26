@@ -107,10 +107,18 @@
     "subtitle": "Drop the badge into a README, share the report URL, or export a card.",
     "copyBadge": "README badge",
     "copyUrl": "report URL",
+    "copyEmbed": "embed iframe",
     "exportPng": "PNG card",
     "installChrome": "Chrome",
     "installEdge": "Edge",
     "copied": "copied"
+  },
+  "similarRepos": {
+    "ariaLabel": "Similar repositories",
+    "title": "Similar repositories",
+    "subtitle": "reports with the same top language and a similar code size",
+    "codeLines": "code",
+    "mixed": "mixed"
   },
   "summary": {
     "files": "Files",
@@ -273,6 +281,7 @@
     "contact": "Contact",
     "apiDocs": "API docs",
     "slocGuide": "SLOC guide",
+    "badges": "Badges",
     "builtBy": "Built by <1>huanglizhuo</1>, indie developer",
     "copyright": "(c) 2026"
   },
@@ -325,6 +334,7 @@
   "badgeBuilder": {
     "title": "Badge Builder",
     "subtitle": "copy live README badges",
+    "openPage": "full badge page",
     "type": "Badge type",
     "language": "Language",
     "copyMarkdown": "copy markdown",
@@ -346,6 +356,37 @@
     "kicker": "badges, live",
     "hint": "rendered by the badge API right now · embed yours from the builder above",
     "alt": "OctoCounts badge for {{repo}}"
+  },
+  "badgesPage": {
+    "kicker": "readme badges, live",
+    "title": "SLOC badges for your README",
+    "subtitle": "Pick a badge type, copy the markdown, and your README shows live line counts that link back to a permanent OctoCounts report."
+  },
+  "embedBuilder": {
+    "title": "Embed a SLOC card",
+    "subtitle": "iframe widget for blogs and docs",
+    "description": "Paste this iframe snippet into a blog post or docs page to show the repository's live line counts and language mix, linking back to the full report:",
+    "previewAlt": "OctoCounts embed card preview",
+    "copy": "copy iframe"
+  },
+  "embedCard": {
+    "ariaLabel": "{{repo}} SLOC summary card",
+    "lines": "lines",
+    "code": "code",
+    "poweredBy": "Powered by OctoCounts",
+    "loading": "Loading report…",
+    "unavailable": "No cached report yet — open the full report to run an analysis.",
+    "viewReport": "View full report"
+  },
+  "share": {
+    "ariaLabel": "Share this page",
+    "label": "share:",
+    "x": "X",
+    "reddit": "Reddit",
+    "hackernews": "HN",
+    "native": "share",
+    "reportText": "{{repo}} has {{code}} lines of code — SLOC report by OctoCounts",
+    "compareText": "{{left}} vs {{right}} — source lines of code compared by OctoCounts"
   },
   "compare": {
     "title": "Compare Repos",

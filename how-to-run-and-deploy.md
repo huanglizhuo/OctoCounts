@@ -191,7 +191,7 @@ on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 | `REPORT_MIN_RETENTION_DAYS` | `30` | Never evict reports younger than this |
 | `REPORT_MAX_ROWS` | `20000` | LRU-style report cap |
 | `REPORT_CLEANUP_BATCH_SIZE` | `1000` | Max report rows deleted per cleanup batch |
-| `INDEXNOW_ENABLED` | `false` | Submit new/updated canonical report URLs to IndexNow |
+| `INDEXNOW_ENABLED` | `true` | Submit new/updated canonical report URLs to IndexNow (no-op unless `INDEXNOW_KEY` is set) |
 | `INDEXNOW_KEY` | — | Required when enabled; must match the Pages-side `INDEXNOW_KEY` |
 | `INDEXNOW_HOST` | `octocounts.com` | Host that submitted URLs and the key file belong to |
 | `INDEXNOW_KEY_LOCATION` | `https://<INDEXNOW_HOST>/<INDEXNOW_KEY>.txt` | Public URL of the key file |

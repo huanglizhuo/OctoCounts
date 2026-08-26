@@ -774,6 +774,76 @@ impl Store {
             .await
     }
 
+    /// Repositories similar to a given one, for the "similar repositories"
+    /// interlinking module on report pages.
+    ///
+    /// Similarity is deterministic: same top language first, then closest
+    /// total code size, then largest, newest, and finally owner/repo name so
+    /// ties never reorder between requests. When the repository itself has no
+    /// top language (or no size), the ranking degrades to that same order
+    /// rather than returning nothing. The query reads only the materialized
+    /// stat columns -- no report bodies are detoasted.
+    pub async fn related_reports(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        top_language: Option<&str>,
+        total_code: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<RelatedReportRow>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                latest.provider AS provider,
+                latest.owner AS owner,
+                latest.repo AS repo,
+                latest.top_language AS top_language,
+                latest.total_code AS total_code,
+                latest.total_lines AS total_lines
+            FROM (
+                SELECT DISTINCT ON (provider, owner, repo)
+                    provider, owner, repo, top_language, total_code, total_lines, created_at
+                FROM reports
+                WHERE provider = $1
+                ORDER BY provider, owner, repo, created_at DESC
+            ) latest
+            WHERE NOT (latest.owner = $2 AND latest.repo = $3)
+            ORDER BY
+                COALESCE(latest.top_language = $4, false) DESC,
+                ABS(COALESCE(latest.total_code, 0) - $5) ASC,
+                latest.total_lines DESC NULLS LAST,
+                latest.created_at DESC,
+                latest.owner ASC,
+                latest.repo ASC
+            LIMIT $6
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .bind(top_language)
+        .bind(total_code)
+        .bind(limit.clamp(1, 24))
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let provider: String = row.try_get("provider")?;
+                Ok(RelatedReportRow {
+                    provider: provider_from_str(&provider)
+                        .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
+                    owner: row.try_get("owner")?,
+                    repo: row.try_get("repo")?,
+                    top_language: row.try_get("top_language")?,
+                    total_code: row.try_get("total_code")?,
+                    total_lines: row.try_get("total_lines")?,
+                })
+            })
+            .collect()
+    }
+
     /// Repository identity plus last-modified date for every distinct repository,
     /// newest first.
     ///
@@ -1909,6 +1979,18 @@ pub struct SitemapRow {
     pub owner: String,
     pub repo: String,
     pub lastmod: NaiveDate,
+}
+
+/// One "similar repositories" row: repository identity plus the materialized
+/// size columns the report-page interlinking module displays.
+#[derive(Clone, Debug)]
+pub struct RelatedReportRow {
+    pub provider: RepositoryProvider,
+    pub owner: String,
+    pub repo: String,
+    pub top_language: Option<String>,
+    pub total_code: Option<i64>,
+    pub total_lines: Option<i64>,
 }
 
 #[derive(Clone, Copy, Debug)]

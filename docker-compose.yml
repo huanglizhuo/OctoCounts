@@ -17,7 +17,9 @@ services:
       REPORT_CLEANUP_BATCH_SIZE: ${REPORT_CLEANUP_BATCH_SIZE:-1000}
       # IndexNow: the same INDEXNOW_KEY must also be set on Cloudflare Pages,
       # which serves https://<INDEXNOW_HOST>/<INDEXNOW_KEY>.txt via a Pages function.
-      INDEXNOW_ENABLED: ${INDEXNOW_ENABLED:-false}
+      # Enabled by default: without INDEXNOW_KEY set the backend just logs a
+      # warning and skips submissions, so defaulting on is safe.
+      INDEXNOW_ENABLED: ${INDEXNOW_ENABLED:-true}
       INDEXNOW_KEY: ${INDEXNOW_KEY:-}
       INDEXNOW_HOST: ${INDEXNOW_HOST:-octocounts.com}
       INDEXNOW_KEY_LOCATION: ${INDEXNOW_KEY_LOCATION:-}

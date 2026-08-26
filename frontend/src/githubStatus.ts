@@ -42,6 +42,36 @@ export function fetchGithubStatus(): Promise<HostStatus | null> {
   return inflight;
 }
 
+// Statuspage's aggregate `indicator` vocabulary, of which "none" is the
+// healthy value. Kept as data next to the predicate below so that the one
+// place in this codebase that knows GitHub's status vocabulary is also the one
+// place that decides what it means.
+const DEGRADED_INDICATORS = new Set(["minor", "major", "critical", "maintenance"]);
+
+/**
+ * Whether the repository host is reporting trouble, i.e. whether a "this may
+ * fail" hint is honest.
+ *
+ * The healthy `indicator` is "none", *not* "operational" — "All Systems
+ * Operational" is the human-readable `description` beside it. Mistaking one
+ * for the other is not hypothetical: both call sites shipped
+ * `indicator !== "operational"`, which is true precisely when GitHub is
+ * healthy, so the homepage showed every visitor "All Systems Operational —
+ * analyses may fail until it recovers" on every load, and the error path's
+ * "status page reports normal operation" copy was unreachable except when the
+ * fetch itself failed.
+ *
+ * An unrecognised indicator counts as healthy, deliberately. This is
+ * supplementary context and never a dependency of the analysis flow (see
+ * `fetchGithubStatus`), so failing quiet costs a missing hint during an
+ * outage, while failing loud costs a permanent scare line under the hero —
+ * which is the bug this function exists to prevent, not to re-enact under a
+ * new spelling.
+ */
+export function isHostDegraded(status: HostStatus | null): status is HostStatus {
+  return status !== null && DEGRADED_INDICATORS.has(status.indicator);
+}
+
 /** Live host status for components; re-renders once the fetch settles. */
 export function useGithubStatus(): HostStatus | null {
   const [status, setStatus] = useState<HostStatus | null>(() => cache?.value ?? null);

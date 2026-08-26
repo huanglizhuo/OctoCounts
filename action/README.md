@@ -1,6 +1,8 @@
 # OctoCounts GitHub Action
 
-Comment on pull requests with SLOC changes between the base and head refs.
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-OctoCounts%20SLOC%20Diff-blue?logo=github)](https://github.com/marketplace/actions/octocounts-sloc-diff)
+
+Comment on pull requests with SLOC changes between the base and head refs, with a link to the full [OctoCounts](https://octocounts.com) report.
 
 ```yaml
 name: SLOC diff

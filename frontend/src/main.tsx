@@ -6,9 +6,11 @@ import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
-import { useGithubStatus } from "./githubStatus";
+import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
+import { BadgeBuilder, BadgeWall, buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, parsePublicRepo } from "./badges";
+import { ShareButtons } from "./ShareButtons";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
 // Marketing/tool pages are separate chunks; the home bundle no longer carries them.
@@ -17,6 +19,8 @@ const ReportListPage = React.lazy(() => import("./pages/marketing").then((m) => 
 const TrendingPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.TrendingPage })));
 const ComparePage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ComparePage })));
 const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.DiffPage })));
+const BadgesPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.BadgesPage })));
+const EmbedPage = React.lazy(() => import("./embed").then((m) => ({ default: m.EmbedPage })));
 // Below-the-fold tool sections on the home page — deferred anyway, so lazy.
 const CompareRepos = React.lazy(() => import("./compare").then((m) => ({ default: m.CompareRepos })));
 const DiffRefs = React.lazy(() => import("./compare").then((m) => ({ default: m.DiffRefs })));
@@ -45,13 +49,14 @@ import {
   formatPercent,
   languageColor,
   logLines,
+  normalizedProvider,
   progressValue,
   sortRows,
   textReport,
   tickerRows,
   visibleLanguageColor,
 } from "./reportUtils";
-import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, Report, SortKey, Stats } from "./types";
+import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, LanguageReport, PieItem, RelatedReport, Report, SortKey, Stats } from "./types";
 import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 import { SchemeProvider, ThemeSwitch, useScheme } from "./scheme";
@@ -62,7 +67,6 @@ const queryClient = new QueryClient({
   },
 });
 const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
-const BADGE_API_BASE = (import.meta.env.VITE_BADGE_API_BASE ?? "https://api.octocounts.com") as string;
 const samples = [
   { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
@@ -128,7 +132,6 @@ function DeferredContent({ children, minHeight = 1, rootMargin = "300px" }: { ch
 
 // Tracks html[data-scheme] was replaced by the SchemeProvider context — see scheme.tsx.
 const defaultIgnoredDirs = [".cache", ".git", ".next", "build", "dist", "node_modules", "target", "vendor"];
-const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
 const defaultAnalysisOptions: AnalysisOptions = {
   ignoredDirs: [],
   ignoredLanguages: [],
@@ -188,6 +191,8 @@ function App() {
   if (routePath === "/hall-of-monoliths") return <RoutedPage><ReportListPage kind="monoliths" /></RoutedPage>;
   if (routePath === "/compare" || routePath.startsWith("/compare/")) return <RoutedPage><ComparePage /></RoutedPage>;
   if (routePath === "/diff") return <RoutedPage><DiffPage /></RoutedPage>;
+  if (routePath === "/badges") return <RoutedPage><BadgesPage /></RoutedPage>;
+  if (routePath.startsWith("/embed/")) return <RoutedPage><EmbedPage /></RoutedPage>;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
@@ -356,7 +361,7 @@ function App() {
             <p className="subtitle">
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
-            {hostStatus && hostStatus.indicator !== "operational" ? (
+            {isHostDegraded(hostStatus) ? (
               <p className="host-status-hint" role="status">
                 {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}
                 <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
@@ -471,10 +476,10 @@ function App() {
 
         <DeferredContent minHeight={260}><PublicReportIndex /></DeferredContent>
 
-        <section>
+        <section id="badges">
           <div className="section-h">
             <h2>{t("badgeBuilder.title")}</h2>
-            <span className="sub">{t("badgeBuilder.subtitle")}</span>
+            <span className="sub">{t("badgeBuilder.subtitle")} · <a href="/badges">{t("badgeBuilder.openPage")}</a></span>
           </div>
           <DeferredContent minHeight={420}>
             <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
@@ -561,6 +566,7 @@ function App() {
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
             <a href="/docs/api">{t("footer.apiDocs")}</a> &middot;
             <a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a> &middot;
+            <a href="/badges">{t("footer.badges")}</a> &middot;
             <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
             <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot;
             <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot;
@@ -664,6 +670,55 @@ function PublicReportIndex() {
   );
 }
 
+// "Similar repositories" cards under a finished report. The data comes from
+// the public /api/seo/related endpoint (same feed the edge SSR embeds for
+// crawlers); any failure simply hides the module.
+function SimilarRepos({ report }: { report: Report }) {
+  const { t } = useTranslation();
+  const provider = normalizedProvider(report);
+  const query = useQuery({
+    queryKey: ["related-reports", provider, report.repository.owner, report.repository.name],
+    queryFn: () =>
+      fetchJson<{ reports: RelatedReport[] }>(
+        `/api/seo/related?provider=${encodeURIComponent(provider)}&owner=${encodeURIComponent(report.repository.owner)}&repo=${encodeURIComponent(report.repository.name)}`,
+      ),
+    staleTime: 60 * 60 * 1000,
+    retry: 0,
+  });
+  const related = (query.data?.reports ?? []).slice(0, 6);
+  if (related.length === 0) return null;
+
+  return (
+    <section className="similar-repos" aria-label={t("similarRepos.ariaLabel")}>
+      <div className="section-h">
+        <h2>{t("similarRepos.title")}</h2>
+        <span className="sub">{t("similarRepos.subtitle")}</span>
+      </div>
+      <div className="growth-repo-grid">
+        {related.map((item) => (
+          <a
+            className="growth-repo-card"
+            href={item.publicPath}
+            key={item.publicPath}
+            onClick={() =>
+              trackEvent("similar_repo_clicked", {
+                provider,
+                placement: "report_similar",
+                target: `${item.owner}/${item.repo}`,
+              })
+            }
+          >
+            <span className="chart-tag">{item.provider}</span>
+            <strong>{item.repoFullName}</strong>
+            <span>{item.topLanguage ?? t("similarRepos.mixed")} · {formatNumber(item.totalCode)} {t("similarRepos.codeLines")}</span>
+            <em>{item.publicPath}</em>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function DeveloperTools() {
   const tools = [
     {
@@ -694,7 +749,7 @@ function DeveloperTools() {
       title: "README badge",
       text: "Add a live SLOC badge that links back to a permanent report page.",
       command: "[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](...)",
-      href: "#badges",
+      href: "/badges",
     },
     {
       title: "API",
@@ -935,7 +990,18 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
               trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "report_cta" });
               showCopiedCta("url");
             }}
+            onCopyEmbed={() => {
+              const provider = normalizedProvider(report);
+              copyText(buildEmbedSnippet(buildEmbedUrl(provider, report.repository.owner, report.repository.name)));
+              trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_cta" });
+              showCopiedCta("embed");
+            }}
             onExportPng={() => void exportPng()}
+          />
+          <ShareButtons
+            url={buildCanonicalReportUrl(report, report.refName)}
+            text={t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) })}
+            placement="report"
           />
           {exportError ? <p className="export-error" role="alert">{exportError}</p> : null}
           <Insights report={report} />
@@ -954,6 +1020,7 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             </div>
           </div>
           <TrustDetails report={report} stars={liveStars ?? report.repository.stars ?? null} />
+          <SimilarRepos report={report} />
           <details className="run-details">
             <summary>{t("runner.runDetails")}</summary>
             <RunnerLog status={status} report={report} error={error} />
@@ -984,6 +1051,7 @@ function ReportGrowthActions({
   isExporting,
   onCopyBadge,
   onCopyUrl,
+  onCopyEmbed,
   onExportPng,
 }: {
   report: Report;
@@ -991,6 +1059,7 @@ function ReportGrowthActions({
   isExporting: boolean;
   onCopyBadge: () => void;
   onCopyUrl: () => void;
+  onCopyEmbed: () => void;
   onExportPng: () => void;
 }) {
   const { t } = useTranslation();
@@ -1013,6 +1082,10 @@ function ReportGrowthActions({
         <button className="copybtn" type="button" onClick={onCopyUrl}>
           <Clipboard size={14} />
           {copiedCta === "url" ? t("reportCta.copied") : t("reportCta.copyUrl")}
+        </button>
+        <button className="copybtn" type="button" onClick={onCopyEmbed}>
+          <Clipboard size={14} />
+          {copiedCta === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}
         </button>
         <button className="copybtn" type="button" disabled={isExporting} onClick={onExportPng}>
           <Download size={14} />
@@ -1066,7 +1139,7 @@ function ErrorState({ code, message, onRetry }: { code?: string; message: string
         <p>{t(helpKey)}</p>
         {code === "github_unavailable" ? (
           <p className="host-status-line">
-            {hostStatus && hostStatus.indicator !== "operational"
+            {isHostDegraded(hostStatus)
               ? `${t("githubStatus.official")} ${hostStatus.description} `
               : `${t("githubStatus.officialOperational")} `}
             <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
@@ -1219,100 +1292,6 @@ function csvList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-function BadgeBuilder({ repoUrl, refName, report }: { repoUrl: string; refName: string; report: Report | null }) {
-  const { t } = useTranslation();
-  const [badgeType, setBadgeType] = useState<(typeof badgeTypes)[number]>("summary");
-  const [language, setLanguage] = useState("rust");
-  const repoPath = report && normalizedProvider(report) === "github"
-    ? { owner: report.repository.owner, repo: report.repository.name }
-    : parseGitHubRepo(repoUrl || defaultRepoUrl);
-  const effectiveRef = report?.refName || refName.trim();
-  const badgeUrl = repoPath ? buildBadgeUrl(repoPath.owner, repoPath.repo, effectiveRef, badgeType, language) : "";
-  const frontendUrl = repoPath ? buildPublicReportUrl(repoPath.owner, repoPath.repo, effectiveRef, "github") : window.location.origin;
-  const markdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${frontendUrl})` : "";
-
-  return (
-    <div className="badge-builder">
-      <div className="badge-builder-controls">
-        <label>
-          <span>{t("badgeBuilder.type")}</span>
-          <select value={badgeType} onChange={(event) => setBadgeType(event.target.value as (typeof badgeTypes)[number])}>
-            {badgeTypes.map((type) => (
-              <option value={type} key={type}>{t(`badgeBuilder.types.${type}`)}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{t("badgeBuilder.language")}</span>
-          <input value={language} onChange={(event) => setLanguage(event.target.value)} disabled={badgeType !== "language"} placeholder="rust" />
-        </label>
-      </div>
-      <div className="badge-builder-preview">
-        {badgeUrl ? <img src={badgeUrl} alt={t("badgeBuilder.previewAlt")} width="180" height="20" /> : <span>{t("badgeBuilder.noRepo")}</span>}
-      </div>
-      <div className="badge-builder-output">
-        <code>{markdown || t("badgeBuilder.noRepo")}</code>
-        <button className="copybtn" type="button" disabled={!markdown} onClick={() => { copyText(markdown); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "builder" }); }}>
-          <Clipboard size={14} />
-          {t("badgeBuilder.copyMarkdown")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const badgeWallEntries: Array<{ owner: string; repo: string; type: (typeof badgeTypes)[number] }> = [
-  { owner: "huanglizhuo", repo: "OctoCounts", type: "summary" },
-  { owner: "tokio-rs", repo: "axum", type: "code" },
-  { owner: "vitejs", repo: "vite", type: "top-language" },
-];
-
-function BadgeWall() {
-  const { t } = useTranslation();
-  return (
-    <div className="badge-wall">
-      <div className="badge-wall-head">
-        <span className="chart-tag">{t("badgeWall.kicker")}</span>
-        <span>{t("badgeWall.hint")}</span>
-      </div>
-      <div className="badge-wall-row">
-        {badgeWallEntries.map((entry) => (
-          <a key={`${entry.owner}/${entry.repo}`} href={buildPublicReportUrl(entry.owner, entry.repo, "")} target="_blank" rel="noreferrer">
-            <img src={buildBadgeUrl(entry.owner, entry.repo, "", entry.type, "")} alt={t("badgeWall.alt", { repo: `${entry.owner}/${entry.repo}` })} loading="lazy" width="180" height="20" />
-            <code>{entry.owner}/{entry.repo}</code>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function parseGitHubRepo(value: string) {
-  const parsed = parsePublicRepo(value);
-  if (!parsed || parsed.host !== "github.com") return null;
-  return { owner: parsed.owner, repo: parsed.repo };
-}
-
-function parsePublicRepo(value: string) {
-  try {
-    const trimmed = value.trim();
-    const normalized = trimmed.startsWith("git@github.com:")
-      ? trimmed.replace("git@github.com:", "https://github.com/")
-      : trimmed;
-    const url = new URL(normalized);
-    if (url.hostname !== "github.com") return null;
-    const segments = url.pathname.split("/").filter(Boolean);
-    if (segments.length < 2) return null;
-    return {
-      host: url.hostname,
-      owner: segments.slice(0, -1).join("/"),
-      repo: segments[segments.length - 1].replace(/\.git$/, ""),
-    };
-  } catch {
-    return null;
-  }
-}
-
 // Path segments after which a github.com URL names a ref.
 const githubRefMarkers = new Set(["tree", "blob", "commit", "commits"]);
 
@@ -1406,46 +1385,6 @@ function parsePublicReportPath(pathname: string) {
     return { repoUrl: `https://github.com/${owner}/${repo}`, refName };
   }
   return null;
-}
-
-function buildPublicReportUrl(owner: string, repo: string, ref: string, provider: "github" | "gitlab" = "github") {
-  const ownerPath = provider === "gitlab"
-    ? owner.split("/").map(encodeURIComponent).join("/")
-    : encodeURIComponent(owner);
-  const base = `${window.location.origin}/${provider}/${ownerPath}/${encodeURIComponent(repo)}`;
-  if (!ref.trim()) return base;
-  const marker = looksLikeCommit(ref) ? "commit" : "tree";
-  return `${base}/${marker}/${encodeRefPath(ref)}`;
-}
-
-function encodeRefPath(ref: string) {
-  return ref.trim().split("/").map(encodeURIComponent).join("/");
-}
-
-function looksLikeCommit(ref: string) {
-  return /^[a-f0-9]{7,40}$/i.test(ref.trim());
-}
-
-function normalizedProvider(report: Report): "github" | "gitlab" {
-  const provider = report.repository.provider;
-  if (provider === "gitlab" || provider === "gitLab") return "gitlab";
-  if (provider === "github" || provider === "gitHub") return "github";
-  return report.repository.htmlUrl.includes("gitlab.com/") ? "gitlab" : "github";
-}
-
-function buildBadgeUrl(owner: string, repo: string, ref: string, type: (typeof badgeTypes)[number], language: string) {
-  const safeOwner = encodeURIComponent(owner);
-  const safeRepo = encodeURIComponent(repo);
-  const refKind = looksLikeCommit(ref) ? "commit" : "branch";
-  const safeRef = ref.trim() ? `/${refKind}/${encodeRefPath(ref)}` : "";
-  const params = new URLSearchParams();
-  if (type === "language") {
-    params.set("lang", language.trim() || "rust");
-  } else if (type !== "summary") {
-    params.set("type", type);
-  }
-  const query = params.toString();
-  return `${BADGE_API_BASE}/badge/${safeOwner}/${safeRepo}${safeRef}${query ? `?${query}` : ""}`;
 }
 
 function syncPageMetadata({

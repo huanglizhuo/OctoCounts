@@ -2,7 +2,7 @@ import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
 const API_BASE = "https://api.octocounts.com";
 const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
-const STATIC_SITEMAP_LASTMOD = "2026-08-21";
+const STATIC_SITEMAP_LASTMOD = "2026-08-26";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/stats", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -10,6 +10,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/popular", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/trending", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/badges", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/launch-kit.html", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/api", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -61,6 +62,10 @@ export async function onRequest(context) {
     return listPageResponse(context, url.pathname.slice(1), url);
   }
 
+  if (url.pathname === "/trending.xml") {
+    return trendingFeedResponse(context);
+  }
+
   if (url.pathname === "/trending") {
     return trendingPageResponse(context);
   }
@@ -82,6 +87,17 @@ export async function onRequest(context) {
 
   if (url.pathname === "/compare" || url.pathname === "/diff") {
     return comparePageResponse(context, url.pathname);
+  }
+
+  if (url.pathname === "/badges") {
+    return badgesPageResponse(context);
+  }
+
+  // Embeddable iframe cards: served from the same SPA bundle but with
+  // frame-ancestors relaxed (only for /embed/) and noindex — embeds are for
+  // humans on third-party pages, not for crawlers.
+  if (parts[0] === "embed" && (parts[1] === "github" || parts[1] === "gitlab") && parts.length >= 4) {
+    return embedPageResponse(context, parts);
   }
 
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
@@ -143,22 +159,23 @@ function parseGitHubRoute(parts) {
 
 async function reportResponse(context, route) {
   const index = await indexHtml(context);
-  const params = new URLSearchParams({
-    provider: route.provider,
-    owner: route.owner,
-    repo: route.repo,
-  });
-  if (route.refName) params.set("refName", route.refName);
 
-  const response = await fetch(`${apiBase(context)}/api/seo/report?${params.toString()}`, {
-    headers: { accept: "application/json" },
-  });
-
-  if (!response.ok) {
+  // A 404 from the report API means the repository genuinely has no cached
+  // report: serve the noindex fallback. A 5xx, network error, or timeout is
+  // transient — answering 503 + no-store keeps crawlers retrying instead of
+  // caching a noindex (or letting the CDN cache one) for an indexable page.
+  const result = await fetchSeoReport(context, route);
+  if (result.state === "missing") {
     return htmlResponse(injectFallback(index, route), "public, max-age=60");
   }
+  if (result.state === "unavailable") {
+    return serviceUnavailableResponse(index);
+  }
 
-  const report = await response.json();
+  const report = await result.response.json();
+  // The similar-repositories panel is an enhancement: the page must render
+  // identically whether or not the related endpoint answers.
+  const relatedReports = await fetchRelatedReports(context, route);
   // The store matches owner/repo case-sensitively, so a mistyped or
   // mixed-case external link (e.g. /github/Facebook/React) resolves to the
   // canonical casing only via the report itself. 308 it so link equity lands
@@ -171,7 +188,25 @@ async function reportResponse(context, route) {
   // SEO report API behind this page already serves s-maxage=3600. Caching the
   // HTML a day longer than its own data source left stale counts in SERP
   // titles for up to a day after a big push. SWR keeps origin load low.
-  return htmlResponse(injectReport(index, report, apiBase(context)), "public, s-maxage=3600, stale-while-revalidate=86400");
+  return htmlResponse(injectReport(index, report, apiBase(context), relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400");
+}
+
+async function fetchRelatedReports(context, route) {
+  try {
+    const params = new URLSearchParams({
+      provider: route.provider,
+      owner: route.owner,
+      repo: route.repo,
+    });
+    const response = await fetch(`${apiBase(context)}/api/seo/related?${params.toString()}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    return Array.isArray(payload?.reports) ? payload.reports.slice(0, 6) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function listPageResponse(context, kind, url) {
@@ -274,6 +309,7 @@ async function trendingPageResponse(context) {
       canonical: "https://octocounts.com/trending",
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
+      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -295,6 +331,40 @@ async function trendingPageResponse(context) {
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
     }),
     "public, s-maxage=3600, stale-while-revalidate=86400"
+  );
+}
+
+/// RSS 2.0 rendering of the same daily trending snapshot the /trending page
+/// serves. The snapshot carries no SLOC figures of its own, so each item's
+/// description leads with the repository summary and links the stable
+/// OctoCounts report page, where the counted lines live.
+async function trendingFeedResponse(context) {
+  const snapshot = await trendingSnapshot(context);
+  const buildDate = new Date(snapshot.generatedAt || snapshot.date || Date.now());
+  const pubDate = Number.isNaN(buildDate.getTime()) ? new Date().toUTCString() : buildDate.toUTCString();
+  const title = "Trending GitHub repositories today | OctoCounts";
+  const items = snapshot.repositories
+    .map((repo) => {
+      const summary = repo.description || "GitHub Trending repository";
+      const detail = `+${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""}. Source line count: OctoCounts report.`;
+      return `  <item>
+    <title>${escapeXml(repo.fullName)}</title>
+    <link>https://octocounts.com${escapeXml(repo.publicPath)}</link>
+    <guid isPermaLink="true">https://octocounts.com${escapeXml(repo.publicPath)}</guid>
+    <description>${escapeXml(`${summary} (${detail})`)}</description>
+    <pubDate>${pubDate}</pubDate>${repo.language ? `\n    <category>${escapeXml(repo.language)}</category>` : ""}
+  </item>`;
+    })
+    .join("\n");
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n  <title>${escapeXml(title)}</title>\n  <link>https://octocounts.com/trending</link>\n  <description>Daily GitHub Trending repositories with stable OctoCounts source line count report links.</description>\n  <language>en</language>\n  <lastBuildDate>${pubDate}</lastBuildDate>\n${items}\n</channel>\n</rss>\n`,
+    {
+      headers: {
+        "content-type": "application/rss+xml; charset=utf-8",
+        "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        ...securityHeaders(),
+      },
+    }
   );
 }
 
@@ -387,24 +457,198 @@ async function comparePageResponse(context, pathname) {
   );
 }
 
+async function embedPageResponse(context, parts) {
+  const index = await indexHtml(context);
+  const provider = parts[1];
+  const owner = parts.slice(2, -1).join("/");
+  const repo = parts[parts.length - 1];
+  const fullName = `${owner}/${repo}`;
+  const reportPath = `/${provider}/${parts.slice(2).map(encodeURIComponent).join("/")}`;
+  return htmlResponse(
+    injectHeadAndNoscript(index, {
+      title: `${fullName} SLOC card embed | OctoCounts`,
+      description: `Embeddable OctoCounts card with source line counts and language mix for ${fullName}.`,
+      canonical: `https://octocounts.com${reportPath}`,
+      robots: "noindex,nofollow",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: null,
+      bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC card</h1><p>Loading the embeddable OctoCounts card… <a href="${escapeAttr(reportPath)}">Open the full ${escapeHtml(fullName)} SLOC report</a>.</p></section>`,
+    }),
+    "public, s-maxage=3600, stale-while-revalidate=86400",
+    { frameable: true }
+  );
+}
+
+async function badgesPageResponse(context) {
+  const index = await indexHtml(context);
+  const title = "GitHub SLOC badges for your README | OctoCounts";
+  const description = "Live README badges that show source lines of code, code lines, files, comments, language count, top language, code share, or a single language for any public GitHub repository, rendered by the OctoCounts badge API.";
+  const badgeBase = "https://api.octocounts.com/badge/:owner/:repo";
+  const badgeTypeRows = [
+    ["Summary: total lines and code lines", badgeBase],
+    ["Code lines only", `${badgeBase}?type=code`],
+    ["Total lines", `${badgeBase}?type=lines`],
+    ["File count", `${badgeBase}?type=files`],
+    ["Comment lines", `${badgeBase}?type=comments`],
+    ["Language count", `${badgeBase}?type=languages`],
+    ["Top language", `${badgeBase}?type=top-language`],
+    ["Code share percentage", `${badgeBase}?type=ratio`],
+    ["Single language lines", `${badgeBase}?lang=rust`],
+  ]
+    .map(([label, url]) => `<li>${escapeHtml(label)}: <code>${escapeHtml(url)}</code></li>`)
+    .join("");
+  const exampleMarkdown = "[![OctoCounts](https://api.octocounts.com/badge/huanglizhuo/OctoCounts)](https://octocounts.com/github/huanglizhuo/OctoCounts)";
+  const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
+    <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>
+    <li><a href="/recent">Recently analyzed repositories</a></li>
+    <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+    <li><a href="/docs/api">OctoCounts API docs</a></li>
+  </ul></nav>`;
+
+  return htmlResponse(
+    injectHeadAndNoscript(index, {
+      title,
+      description,
+      canonical: "https://octocounts.com/badges",
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://octocounts.com/badges#webpage",
+            name: title,
+            description,
+            url: "https://octocounts.com/badges",
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://octocounts.com/badges#howto",
+            name: "Add a live SLOC badge to a GitHub README",
+            description,
+            step: [
+              { "@type": "HowToStep", position: 1, name: "Pick a badge type", text: "Open the OctoCounts badge builder and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language." },
+              { "@type": "HowToStep", position: 2, name: "Copy the markdown", text: "Enter a public GitHub repository URL and copy the generated markdown snippet." },
+              { "@type": "HowToStep", position: 3, name: "Paste it into your README", text: "Paste the markdown into README.md. The badge renders live line counts from the OctoCounts badge API and links to a permanent, commit-pinned SLOC report." },
+            ],
+          },
+        ],
+      },
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${internalLinks}</section>`,
+    }),
+    "public, s-maxage=3600, stale-while-revalidate=86400"
+  );
+}
+
 async function curatedCompareResponse(context, entry) {
   const index = await indexHtml(context);
-  const [leftResponse, rightResponse] = await Promise.all([
-    fetch(seoReportUrl(context, entry.left), { headers: { accept: "application/json" } }),
-    fetch(seoReportUrl(context, entry.right), { headers: { accept: "application/json" } }),
+  const [leftResult, rightResult] = await Promise.all([
+    fetchSeoReport(context, entry.left),
+    fetchSeoReport(context, entry.right),
   ]);
 
-  if (!leftResponse.ok || !rightResponse.ok) {
+  if (leftResult.state === "unavailable" || rightResult.state === "unavailable") {
+    return serviceUnavailableResponse(index);
+  }
+
+  if (leftResult.state === "missing" || rightResult.state === "missing") {
     return htmlResponse(injectCompareFallback(index, entry), "public, max-age=60");
   }
 
-  const [left, right] = await Promise.all([leftResponse.json(), rightResponse.json()]);
+  const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
   return htmlResponse(injectCuratedCompare(index, entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
+}
+
+const SEO_REPORT_TIMEOUT_MS = 8_000;
+// Module-level state survives across requests within a Cloudflare Workers
+// isolate, so one sitemap request does not re-fire ~200 report checks.
+const COMPARE_EXISTENCE_TTL_MS = 3_600_000;
+const compareExistenceCache = new Map();
+
+/// Test hook: the existence cache would otherwise leak between test cases.
+export function __resetCompareExistenceCacheForTests() {
+  compareExistenceCache.clear();
+}
+
+/// Fetch an /api/seo/report and classify the outcome:
+/// - "ok": report exists (response attached, unread)
+/// - "missing": 404 — the repository has no cached report
+/// - "unavailable": 5xx, network error, or timeout — transient backend trouble
+async function fetchSeoReport(context, target) {
+  try {
+    const response = await fetch(seoReportUrl(context, target), {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (response.ok) return { state: "ok", response };
+    if (response.status === 404) return { state: "missing" };
+    return { state: "unavailable" };
+  } catch {
+    return { state: "unavailable" };
+  }
+}
+
+/// 503 + no-store: ask crawlers to retry later. The body is the plain SPA
+/// shell — no noindex injection and nothing the CDN is allowed to cache.
+function serviceUnavailableResponse(index) {
+  return new Response(index, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      ...securityHeaders(),
+    },
+  });
+}
+
+function compareTargetKey(target) {
+  return `${target.owner.toLowerCase()}/${target.repo.toLowerCase()}@${target.ref || ""}`;
+}
+
+async function cachedReportState(context, target) {
+  const key = compareTargetKey(target);
+  const cached = compareExistenceCache.get(key);
+  if (cached && Date.now() - cached.checkedAt < COMPARE_EXISTENCE_TTL_MS) return cached.state;
+  const result = await fetchSeoReport(context, target);
+  // "unavailable" results are never cached: a network blip must not filter a
+  // sitemap entry out (or keep one in) for the next hour.
+  if (result.state !== "unavailable") {
+    compareExistenceCache.set(key, { state: result.state, checkedAt: Date.now() });
+  }
+  return result.state;
+}
+
+/// Sitemap entries for curated comparisons whose both sides have cached
+/// reports. A definitive 404 on either side drops the slug (its SSR page is
+/// noindex, so listing it would teach Google to ignore the sitemap); any
+/// transient failure keeps the entry.
+async function indexableCompareEntries(context) {
+  const targets = new Map();
+  for (const entry of COMPARE_REGISTRY) {
+    for (const target of [entry.left, entry.right]) targets.set(compareTargetKey(target), target);
+  }
+  const states = new Map();
+  await Promise.all(
+    [...targets.entries()].map(async ([key, target]) => {
+      states.set(key, await cachedReportState(context, target));
+    })
+  );
+  return COMPARE_REGISTRY.filter((entry) => {
+    const left = states.get(compareTargetKey(entry.left));
+    const right = states.get(compareTargetKey(entry.right));
+    return left !== "missing" && right !== "missing";
+  }).map((entry) => ({
+    loc: `https://octocounts.com/compare/${entry.slug}`,
+    lastmod: STATIC_SITEMAP_LASTMOD,
+  }));
 }
 
 function seoReportUrl(context, target) {
   const params = new URLSearchParams({ provider: "github", owner: target.owner, repo: target.repo });
-  if (target.ref) params.set("refName", target.ref);
+  const ref = target.ref || target.refName;
+  if (ref) params.set("refName", ref);
   return `${apiBase(context)}/api/seo/report?${params.toString()}`;
 }
 
@@ -554,10 +798,10 @@ async function sitemapResponse(context) {
   });
   const dynamicEntries = response.ok ? await response.json() : [];
   const snapshot = await trendingSnapshot(context);
-  const curatedEntries = COMPARE_REGISTRY.map((entry) => ({
-    loc: `https://octocounts.com/compare/${entry.slug}`,
-    lastmod: STATIC_SITEMAP_LASTMOD,
-  }));
+  // Only comparisons whose both sides have cached reports: the rest SSR as
+  // noindex fallbacks, and a sitemap full of noindex URLs trains crawlers to
+  // distrust it.
+  const curatedEntries = await indexableCompareEntries(context);
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
     .concat(curatedEntries)
     .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
@@ -653,7 +897,7 @@ function relatedComparisons(topLanguageName) {
     .slice(0, 3);
 }
 
-function injectReport(index, report, apiBaseUrl) {
+function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
   // Answer engines quote self-contained opening sections; the citation alone
   // (~45 words) is the quotable core and this lead brings the section to the
@@ -688,6 +932,14 @@ function injectReport(index, report, apiBaseUrl) {
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(report.citation)}</p>${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  // Peer links between report pages: every long-tail /github/* URL both
+  // receives and hands out crawl paths, so the report corpus is a web instead
+  // of a list of dead ends reachable only from /recent and /popular.
+  const similarReposHtml = relatedReports.length
+    ? `<section><h2>Similar repository reports</h2><p>Other public repositories with an OctoCounts report, ranked by top language and code size similarity:</p><ul>${relatedReports
+        .map((item) => `<li><a href="${escapeAttr(item.publicPath)}">${escapeHtml(item.repoFullName)}</a> — ${escapeHtml(item.topLanguage || "mixed")}, ${formatNumber(item.totalCode)} code lines</li>`)
+        .join("")}</ul></section>`
+    : "";
   const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,
@@ -697,7 +949,7 @@ function injectReport(index, report, apiBaseUrl) {
     ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
     jsonLd: reportJsonLd(report),
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + similarReposHtml + internalLinks,
   });
 }
 
@@ -888,12 +1140,12 @@ function formatNumber(value) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function htmlResponse(html, cacheControl) {
+function htmlResponse(html, cacheControl, options) {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": cacheControl,
-      ...securityHeaders(),
+      ...securityHeaders(options),
     },
   });
 }
@@ -905,14 +1157,18 @@ function withHtmlSecurity(response) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-function securityHeaders() {
+function securityHeaders(options) {
+  // frameable is set only for /embed/ responses: those pages exist to be
+  // iframed by third-party sites, so they drop X-Frame-Options and open
+  // frame-ancestors. Every other page keeps the fully locked-down set.
+  const frameable = Boolean(options && options.frameable);
   return {
     "x-content-type-options": "nosniff",
-    "x-frame-options": "DENY",
+    ...(frameable ? {} : { "x-frame-options": "DENY" }),
     "referrer-policy": "strict-origin-when-cross-origin",
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "strict-transport-security": "max-age=63072000; includeSubDomains",
     "cross-origin-opener-policy": "same-origin",
-    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`,
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
   };
 }

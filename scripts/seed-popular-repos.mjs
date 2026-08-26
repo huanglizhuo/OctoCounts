@@ -3,6 +3,8 @@
 import { readFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { COMPARE_REGISTRY } from "../frontend/functions/compare-registry.js";
+
 const DEFAULT_API_BASE = "https://api.octocounts.com";
 const DEFAULT_REPO_FILE = new URL("../data/popular-repos.txt", import.meta.url);
 
@@ -24,7 +26,7 @@ if (args.help || args.h) {
   process.exit(0);
 }
 
-const repos = (await readRepos(repoFile)).slice(0, limit);
+const repos = mergeCompareRegistryRepos(await readRepos(repoFile)).slice(0, limit);
 
 if (repos.length === 0) {
   console.error("No repositories found to seed.");
@@ -157,6 +159,28 @@ async function readRepos(file) {
     .map((line) => line.replace(/\s+#.*$/, "").trim())
     .filter((line) => line && !line.startsWith("#"))
     .map(parseRepoLine);
+}
+
+// Every repository referenced by the curated compare registry must have a
+// cached report: each /compare/<slug> SSR page (and its sitemap entry) depends
+// on both sides existing. data/popular-repos.txt has drifted from the registry
+// before (registry entries added without re-seeding left 61 compare pages
+// unindexable), so the registry is unioned in here unconditionally.
+function mergeCompareRegistryRepos(repos) {
+  const seen = new Set(repos.map((repo) => `${repo.owner}/${repo.name}`.toLowerCase()));
+  const added = [];
+  for (const entry of COMPARE_REGISTRY) {
+    for (const side of [entry.left, entry.right]) {
+      const key = `${side.owner}/${side.repo}`.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      added.push({ owner: side.owner, name: side.repo, refName: side.ref || "" });
+    }
+  }
+  if (added.length > 0) {
+    console.log(`Adding ${added.length} compare-registry repositories missing from the repo list`);
+  }
+  return repos.concat(added);
 }
 
 function parseRepoLine(line) {
