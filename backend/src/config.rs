@@ -50,7 +50,7 @@ impl Config {
                 report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
             },
             indexnow: IndexNowConfig {
-                enabled: env_bool("INDEXNOW_ENABLED", false),
+                enabled: env_bool("INDEXNOW_ENABLED", true),
                 key: env_string("INDEXNOW_KEY"),
                 host: env_string("INDEXNOW_HOST").unwrap_or_else(|| DEFAULT_HOST.to_string()),
                 key_location: env_string("INDEXNOW_KEY_LOCATION"),

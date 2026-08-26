@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { transform } from "esbuild";
 
-import { onRequest } from "../functions/[[path]].js";
+import { onRequest, __resetCompareExistenceCacheForTests } from "../functions/[[path]].js";
 import { COMPARE_REGISTRY } from "../functions/compare-registry.js";
 
 const ROOT = new URL("../", import.meta.url);
@@ -643,6 +643,119 @@ test("curated comparison serves a noindex fallback when a report is missing", as
   assert.doesNotMatch(html, /type="application\/ld\+json"/);
 });
 
+test("curated comparison answers 503 + no-store when a report fetch fails transiently", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    return new Response("backend exploded", { status: 503 });
+  };
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  // Transient backend failure: ask crawlers to retry later, never serve (or
+  // let the CDN cache) a noindex page for an indexable URL.
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.doesNotMatch(html, /noindex/);
+  assert.doesNotMatch(html, /not available for both repositories yet/);
+});
+
+test("curated comparison answers 503 + no-store when a report fetch throws", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    throw new Error("network unreachable");
+  };
+  let response;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("report page answers 503 + no-store when the report API fails transiently", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("backend exploded", { status: 500 });
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.doesNotMatch(html, /noindex/);
+  assert.doesNotMatch(html, /No cached report exists yet/);
+});
+
+test("report page answers 503 + no-store when the report API is unreachable", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("network unreachable");
+  };
+  let response;
+  try {
+    response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("sitemap drops curated comparisons whose reports are missing but keeps them on transient failure", async () => {
+  const originalFetch = globalThis.fetch;
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/sitemap") return Response.json([]);
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "vuejs/core") return new Response("not found", { status: 404 });
+    if (key === "webpack/webpack") return new Response("backend exploded", { status: 500 });
+    return Response.json(CURATED_FIXTURES["facebook/react"]);
+  };
+  let xml;
+  try {
+    const response = await onRequest(await renderedContext("/sitemap.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    xml = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  // react-vs-vue: right side (vuejs/core) definitively missing -> excluded.
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>/);
+  // svelte-vs-vue / angular-vs-vue share the missing vuejs/core side.
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/svelte-vs-vue<\/loc>/);
+  assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/angular-vs-vue<\/loc>/);
+  // vite-vs-webpack: right side (webpack/webpack) failed transiently -> kept.
+  assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/vite-vs-webpack<\/loc>/);
+  // The rest of the sitemap is untouched.
+  assert.match(xml, /<loc>https:\/\/octocounts\.com\/trending<\/loc>/);
+});
+
 test("bare /compare noscript links every curated comparison", async () => {
   const response = await onRequest(await renderedContext("/compare"));
   const html = await response.text();
@@ -655,6 +768,8 @@ test("bare /compare noscript links every curated comparison", async () => {
 test("generated and static sitemaps include every curated comparison", async () => {
   const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   const originalFetch = globalThis.fetch;
+  // Every report exists, so no curated entry is filtered out.
+  __resetCompareExistenceCacheForTests();
   globalThis.fetch = async () => Response.json([]);
   let generatedXml;
   try {

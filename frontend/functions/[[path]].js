@@ -159,22 +159,20 @@ function parseGitHubRoute(parts) {
 
 async function reportResponse(context, route) {
   const index = await indexHtml(context);
-  const params = new URLSearchParams({
-    provider: route.provider,
-    owner: route.owner,
-    repo: route.repo,
-  });
-  if (route.refName) params.set("refName", route.refName);
 
-  const response = await fetch(`${apiBase(context)}/api/seo/report?${params.toString()}`, {
-    headers: { accept: "application/json" },
-  });
-
-  if (!response.ok) {
+  // A 404 from the report API means the repository genuinely has no cached
+  // report: serve the noindex fallback. A 5xx, network error, or timeout is
+  // transient — answering 503 + no-store keeps crawlers retrying instead of
+  // caching a noindex (or letting the CDN cache one) for an indexable page.
+  const result = await fetchSeoReport(context, route);
+  if (result.state === "missing") {
     return htmlResponse(injectFallback(index, route), "public, max-age=60");
   }
+  if (result.state === "unavailable") {
+    return serviceUnavailableResponse(index);
+  }
 
-  const report = await response.json();
+  const report = await result.response.json();
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
   const relatedReports = await fetchRelatedReports(context, route);
@@ -546,22 +544,111 @@ async function badgesPageResponse(context) {
 
 async function curatedCompareResponse(context, entry) {
   const index = await indexHtml(context);
-  const [leftResponse, rightResponse] = await Promise.all([
-    fetch(seoReportUrl(context, entry.left), { headers: { accept: "application/json" } }),
-    fetch(seoReportUrl(context, entry.right), { headers: { accept: "application/json" } }),
+  const [leftResult, rightResult] = await Promise.all([
+    fetchSeoReport(context, entry.left),
+    fetchSeoReport(context, entry.right),
   ]);
 
-  if (!leftResponse.ok || !rightResponse.ok) {
+  if (leftResult.state === "unavailable" || rightResult.state === "unavailable") {
+    return serviceUnavailableResponse(index);
+  }
+
+  if (leftResult.state === "missing" || rightResult.state === "missing") {
     return htmlResponse(injectCompareFallback(index, entry), "public, max-age=60");
   }
 
-  const [left, right] = await Promise.all([leftResponse.json(), rightResponse.json()]);
+  const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
   return htmlResponse(injectCuratedCompare(index, entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
+}
+
+const SEO_REPORT_TIMEOUT_MS = 8_000;
+// Module-level state survives across requests within a Cloudflare Workers
+// isolate, so one sitemap request does not re-fire ~200 report checks.
+const COMPARE_EXISTENCE_TTL_MS = 3_600_000;
+const compareExistenceCache = new Map();
+
+/// Test hook: the existence cache would otherwise leak between test cases.
+export function __resetCompareExistenceCacheForTests() {
+  compareExistenceCache.clear();
+}
+
+/// Fetch an /api/seo/report and classify the outcome:
+/// - "ok": report exists (response attached, unread)
+/// - "missing": 404 — the repository has no cached report
+/// - "unavailable": 5xx, network error, or timeout — transient backend trouble
+async function fetchSeoReport(context, target) {
+  try {
+    const response = await fetch(seoReportUrl(context, target), {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (response.ok) return { state: "ok", response };
+    if (response.status === 404) return { state: "missing" };
+    return { state: "unavailable" };
+  } catch {
+    return { state: "unavailable" };
+  }
+}
+
+/// 503 + no-store: ask crawlers to retry later. The body is the plain SPA
+/// shell — no noindex injection and nothing the CDN is allowed to cache.
+function serviceUnavailableResponse(index) {
+  return new Response(index, {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      ...securityHeaders(),
+    },
+  });
+}
+
+function compareTargetKey(target) {
+  return `${target.owner.toLowerCase()}/${target.repo.toLowerCase()}@${target.ref || ""}`;
+}
+
+async function cachedReportState(context, target) {
+  const key = compareTargetKey(target);
+  const cached = compareExistenceCache.get(key);
+  if (cached && Date.now() - cached.checkedAt < COMPARE_EXISTENCE_TTL_MS) return cached.state;
+  const result = await fetchSeoReport(context, target);
+  // "unavailable" results are never cached: a network blip must not filter a
+  // sitemap entry out (or keep one in) for the next hour.
+  if (result.state !== "unavailable") {
+    compareExistenceCache.set(key, { state: result.state, checkedAt: Date.now() });
+  }
+  return result.state;
+}
+
+/// Sitemap entries for curated comparisons whose both sides have cached
+/// reports. A definitive 404 on either side drops the slug (its SSR page is
+/// noindex, so listing it would teach Google to ignore the sitemap); any
+/// transient failure keeps the entry.
+async function indexableCompareEntries(context) {
+  const targets = new Map();
+  for (const entry of COMPARE_REGISTRY) {
+    for (const target of [entry.left, entry.right]) targets.set(compareTargetKey(target), target);
+  }
+  const states = new Map();
+  await Promise.all(
+    [...targets.entries()].map(async ([key, target]) => {
+      states.set(key, await cachedReportState(context, target));
+    })
+  );
+  return COMPARE_REGISTRY.filter((entry) => {
+    const left = states.get(compareTargetKey(entry.left));
+    const right = states.get(compareTargetKey(entry.right));
+    return left !== "missing" && right !== "missing";
+  }).map((entry) => ({
+    loc: `https://octocounts.com/compare/${entry.slug}`,
+    lastmod: STATIC_SITEMAP_LASTMOD,
+  }));
 }
 
 function seoReportUrl(context, target) {
   const params = new URLSearchParams({ provider: "github", owner: target.owner, repo: target.repo });
-  if (target.ref) params.set("refName", target.ref);
+  const ref = target.ref || target.refName;
+  if (ref) params.set("refName", ref);
   return `${apiBase(context)}/api/seo/report?${params.toString()}`;
 }
 
@@ -711,10 +798,10 @@ async function sitemapResponse(context) {
   });
   const dynamicEntries = response.ok ? await response.json() : [];
   const snapshot = await trendingSnapshot(context);
-  const curatedEntries = COMPARE_REGISTRY.map((entry) => ({
-    loc: `https://octocounts.com/compare/${entry.slug}`,
-    lastmod: STATIC_SITEMAP_LASTMOD,
-  }));
+  // Only comparisons whose both sides have cached reports: the rest SSR as
+  // noindex fallbacks, and a sitemap full of noindex URLs trains crawlers to
+  // distrust it.
+  const curatedEntries = await indexableCompareEntries(context);
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
     .concat(curatedEntries)
     .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
