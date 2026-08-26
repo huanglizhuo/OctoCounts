@@ -167,7 +167,7 @@ GET /badge/:owner/:repo/commit/:sha
 - Kafka vs RabbitMQ (apache/kafka vs rabbitmq/rabbitmq-server): https://octocounts.com/compare/kafka-vs-rabbitmq
 - ClickHouse vs Druid (ClickHouse/ClickHouse vs apache/druid): https://octocounts.com/compare/clickhouse-vs-druid
 - Cassandra vs ScyllaDB (apache/cassandra vs scylladb/scylladb): https://octocounts.com/compare/cassandra-vs-scylla
-- CockroachDB vs YugabyteDB (cockroachdb/cockroach vs yugabyte/yugabyte): https://octocounts.com/compare/cockroachdb-vs-yugabyte
+- CockroachDB vs YugabyteDB (cockroachdb/cockroach vs yugabyte/yugabyte-db): https://octocounts.com/compare/cockroachdb-vs-yugabyte
 - Docker vs Podman (moby/moby vs containers/podman): https://octocounts.com/compare/docker-vs-podman
 - Helm vs Kustomize (helm/helm vs kubernetes-sigs/kustomize): https://octocounts.com/compare/helm-vs-kustomize
 - Argo CD vs Flux (argoproj/argo-cd vs fluxcd/flux2): https://octocounts.com/compare/argo-cd-vs-flux
