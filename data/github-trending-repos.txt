@@ -1,20 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-08-25T03:11:18.651Z
-Alishahryar1/free-claude-code
-openai/codex
-MadsLorentzen/ai-job-search
-multica-ai/andrej-karpathy-skills
-makeplane/plane
-NousResearch/hermes-agent
+# GitHub Trending daily snapshot generated 2026-08-26T03:16:30.442Z
+freestylefly/awesome-gpt-image-2
 anthropics/claude-plugins-community
-AprilNEA/OpenLogi
+MadsLorentzen/ai-job-search
 apache/maka
-PostHog/posthog
-openclaw/openclaw
+TauricResearch/TradingAgents
 AgriciDaniel/claude-obsidian
 rohitg00/ai-engineering-from-scratch
-basecamp/omarchy
-tashfeenahmed/freellmapi
-dani-garcia/vaultwarden
-freestylefly/awesome-gpt-image-2
-VoltAgent/awesome-agent-skills
 tinyhumansai/openhuman
+basecamp/omarchy
+Shubhamsaboo/awesome-llm-apps
+multica-ai/andrej-karpathy-skills
+openai/codex
+marin-community/marin
+DietrichGebert/ponytail
+anthropics/claude-plugins-official
+asciimoo/hister
