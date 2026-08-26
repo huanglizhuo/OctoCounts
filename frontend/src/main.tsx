@@ -197,6 +197,14 @@ function App() {
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
   const [refName, setRefName] = useState(() => initialRequest.refName);
+  // The URL field derives the ref field, so it has to know whether the value
+  // sitting there is worth keeping. `false`: it came from the app — a deep
+  // link's `?ref=`, a sample chip, an earlier URL — and belongs to whichever
+  // URL is in the box, so a new URL may replace it. `true`: the user typed it,
+  // and no keystroke in the URL field may throw it away. A ref rather than
+  // state because nothing renders from it and it is only ever read inside an
+  // event handler.
+  const refTypedByHand = useRef(false);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => defaultAnalysisOptions);
   const {
     report,
@@ -257,6 +265,9 @@ function App() {
     trackEvent("recent_chip_clicked", { provider: providerFromRepoUrl(entry.repoUrl) });
     stopTyping();
     setRepoUrl(entry.repoUrl);
+    // A chip owns both fields, so whatever was typed into the ref box is gone
+    // on purpose and the next URL edit is free to derive again.
+    refTypedByHand.current = false;
     setRefName(entry.refName);
     void runAnalysis(false, { repoUrl: entry.repoUrl, refName: entry.refName });
   };
@@ -299,6 +310,7 @@ function App() {
     trackEvent("sample_chip_clicked", { sample: sample.label, provider: providerFromRepoUrl(sample.repoUrl) });
     stopTyping();
     setBusySample(sample.repoUrl);
+    refTypedByHand.current = false;
     setRefName(sample.refName);
     setLastCommand(commandText(sample.repoUrl, sample.refName, false));
     const runSample = () => {
@@ -364,14 +376,30 @@ function App() {
                 onCancelTyping={stopTyping}
                 onChange={(next) => {
                   setRepoUrl(next);
-                  setRefName("main");
+                  // This was `setRefName("main")`, which wrote a ref nobody
+                  // asked for on every keystroke. A repository with no `main`
+                  // branch failed with `ref_not_found` — `git/git`, or anything
+                  // still on `master`/`develop`/`trunk`. A repository that has a
+                  // `main` next to a *different* default branch was worse: the
+                  // ref resolved, so the count came back for a tree the visitor
+                  // never asked about, with no error to notice. The backend only
+                  // substitutes `default_branch` when the ref is blank, so blank
+                  // is the way to ask for it.
+                  //
+                  // Guarded, because the old write was unconditional too: with
+                  // a ref typed by hand in the box, correcting a typo in the
+                  // URL erased the correction on the next keypress. Clearing
+                  // the box releases the guard (see its onChange) — an empty
+                  // field is not a choice to preserve, and holding the guard
+                  // there would leave the URL unable to fill it again.
+                  if (!refTypedByHand.current) setRefName(refFromRepoUrl(next));
                 }}
                 placeholder={t("hero.placeholderUrl")}
                 ariaLabel={t("hero.ariaUrl")}
               />
               <label className="ref">
                 {t("hero.refLabel")}
-                <input id="repo-ref" name="refName" value={refName} onChange={(event) => setRefName(event.target.value)} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
+                <input id="repo-ref" name="refName" value={refName} onChange={(event) => { refTypedByHand.current = event.target.value.trim() !== ""; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
               </label>
               <button className="btn" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
@@ -1262,6 +1290,68 @@ function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOption
 
 function csvList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+// Path segments after which a github.com URL names a ref.
+const githubRefMarkers = new Set(["tree", "blob", "commit", "commits"]);
+
+/**
+ * Reads the ref out of a pasted browse URL, so pasting
+ * `https://github.com/owner/repo/tree/master` and pressing Analyze counts
+ * `master`. The scheme is part of that: `new URL` throws without one, and the
+ * catch below returns `""`. Nothing is lost by it — `parse_repo_url` rejects a
+ * scheme-less string as `invalid_url`, so the submit fails either way, and the
+ * `git@github.com:` form `parsePublicRepo` accepts cannot carry a browse path.
+ *
+ * Only the unambiguous shape counts: exactly one segment after the marker.
+ * `/tree/main/src` is either branch `main` plus a directory or a branch named
+ * `main/src`, and neither side can tell which: the API takes `refName` as an
+ * opaque string, and `parse_repo_url` in `backend/src/github.rs` keeps only the
+ * first two path segments, so the browse suffix never reaches the resolver.
+ *
+ * An ambiguous URL therefore leaves the field empty, which is a request, not a
+ * guess: `resolve_github_ref` drops a blank ref and resolves the repository's
+ * `default_branch` instead. The cost is that `/tree/develop/src` is counted on
+ * the default branch rather than on `develop` — and succeeds, so there is no
+ * error to notice. What there is instead is the ref itself: `report.refName` is
+ * the ref the server resolved, and both the runner header and the trust panel's
+ * REF row print it with no interaction, so the mismatch with the pasted URL is
+ * on the page rather than only in the request. (`RunnerLog`'s
+ * `resolved <ref> -> <sha>` repeats it, but that one is behind the collapsed
+ * `run details` disclosure and does not count as surfaced.)
+ *
+ * Guessing `segments[3]` instead would send `release` for `/tree/release/1.0`
+ * and turn a URL that names its ref exactly into a `ref_not_found`; slashes are
+ * legal in a ref name and there is no local way to tell one from a directory.
+ */
+function refFromRepoUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    if (url.hostname !== "github.com") return "";
+    const segments = url.pathname.split("/").filter(Boolean);
+    if (segments.length !== 4 || !githubRefMarkers.has(segments[2])) return "";
+    return decodeRefSegment(segments[3]);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * `url.pathname` is percent-encoded, but the ref goes to the API as data and is
+ * re-encoded by `encodeRefPath` on the way into links. Decoded here it matches
+ * what `parsePublicReportPath` produces from the same ref; left encoded it
+ * became the ref name `release%2020.1` and double-encoded from there.
+ *
+ * A bare `%` throws and is not an error: `100%` is a legal branch name, so an
+ * undecodable segment is kept rather than silently falling back to the default
+ * branch.
+ */
+function decodeRefSegment(segment: string) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 function initialRequestFromLocation() {
