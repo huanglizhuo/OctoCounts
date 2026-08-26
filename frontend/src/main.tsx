@@ -6,7 +6,7 @@ import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
-import { useGithubStatus } from "./githubStatus";
+import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
 import { BadgeBuilder, BadgeWall, buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, parsePublicRepo } from "./badges";
@@ -349,7 +349,7 @@ function App() {
             <p className="subtitle">
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
-            {hostStatus && hostStatus.indicator !== "operational" ? (
+            {isHostDegraded(hostStatus) ? (
               <p className="host-status-hint" role="status">
                 {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}
                 <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
@@ -1111,7 +1111,7 @@ function ErrorState({ code, message, onRetry }: { code?: string; message: string
         <p>{t(helpKey)}</p>
         {code === "github_unavailable" ? (
           <p className="host-status-line">
-            {hostStatus && hostStatus.indicator !== "operational"
+            {isHostDegraded(hostStatus)
               ? `${t("githubStatus.official")} ${hostStatus.description} `
               : `${t("githubStatus.officialOperational")} `}
             <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
