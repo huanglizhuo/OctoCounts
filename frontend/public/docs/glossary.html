@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SLOC Glossary | Code Line Counting Terms | OctoCounts</title>
+    <meta name="description" content="Precise definitions of source lines of code terms: SLOC, code lines, comment lines, blank lines, comment ratio, tokei, cloc, scc, COCOMO, language breakdown, and SLOC delta." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/glossary" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/glossary.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="SLOC Glossary | OctoCounts" />
+    <meta property="og:description" content="Precise definitions of source lines of code terms: SLOC, code lines, comment lines, blank lines, comment ratio, tokei, cloc, scc, COCOMO, language breakdown, and SLOC delta." />
+    <meta property="og:url" content="https://octocounts.com/docs/glossary" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SLOC Glossary | OctoCounts" />
+    <meta name="twitter:description" content="Precise definitions of SLOC and code counting terms, with how each one maps to OctoCounts reports." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.1rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d0d7de; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        footer { border-top-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "SLOC Glossary",
+      "description": "Precise definitions of source lines of code terms and how each one maps to OctoCounts reports.",
+      "dateModified": "2026-08-27",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/glossary"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "DefinedTermSet",
+      "name": "OctoCounts SLOC Glossary",
+      "description": "Definitions of source lines of code terms used in OctoCounts reports.",
+      "url": "https://octocounts.com/docs/glossary",
+      "hasDefinedTerm": [
+        {
+          "@type": "DefinedTerm",
+          "name": "SLOC",
+          "description": "SLOC (Source Lines of Code) is a measure of software size obtained by counting the number of lines in a program's source files.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Physical vs Logical SLOC",
+          "description": "Physical SLOC is a count of the raw text lines in source files, while logical SLOC counts executable statements rather than lines.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Code lines",
+          "description": "Code lines are source lines that contain executable statements or declarations, excluding comments and blank lines.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Comment lines",
+          "description": "Comment lines are source lines that contain only human-readable documentation, recognized by each language's comment syntax.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Blank lines",
+          "description": "Blank lines are source lines that contain nothing but whitespace and carry no code or comment content.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Comment ratio",
+          "description": "Comment ratio is the share of a codebase made up of comment lines, usually expressed as comment lines divided by total lines.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "tokei",
+          "description": "tokei is a fast, open-source code statistics tool written in Rust that counts files, total lines, code lines, comments, and blanks across many programming languages.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "cloc",
+          "description": "cloc (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "scc",
+          "description": "scc (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "COCOMO",
+          "description": "COCOMO (Constructive Cost Model) is a software cost estimation model, published by Barry Boehm in 1981, that predicts development effort, schedule, and cost from estimated source lines of code.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "Repository language breakdown",
+          "description": "A repository language breakdown is a per-language table showing how a repository's files, code lines, comments, and blanks are distributed across detected programming languages.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        },
+        {
+          "@type": "DefinedTerm",
+          "name": "SLOC delta",
+          "description": "A SLOC delta is the change in line counts between two revisions of a codebase, such as the code, comment, and blank lines added or removed by a pull request.",
+          "inDefinedTermSet": "https://octocounts.com/docs/glossary"
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is SLOC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SLOC (Source Lines of Code) is a measure of software size obtained by counting the number of lines in a program's source files. A SLOC report normally separates code lines, comment lines, and blank lines, and is only comparable across projects when the counting rules are stated."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between physical and logical SLOC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Physical SLOC counts raw text lines in source files; logical SLOC counts executable statements, so one logical statement may span several physical lines. OctoCounts and tokei report physical line counts split into code, comments, and blanks."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which tool does OctoCounts use to count lines of code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts counts public GitHub repositories with tokei, a fast code statistics tool written in Rust, run against the source archive of a pinned commit."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo"],
+      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Glossary</nav>
+    <main>
+      <p class="meta">Updated August 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>SLOC Glossary</h1>
+      <p class="note">Precise definitions of source lines of code terms, and how each one appears in OctoCounts reports. OctoCounts counts public GitHub repositories with <a href="https://github.com/XAMPPRocky/tokei">tokei</a> at a pinned commit; see the <a href="/docs/methodology">methodology</a> for the full counting policy.</p>
+
+      <section id="sloc">
+        <h2>SLOC</h2>
+        <p>SLOC (Source Lines of Code) is a measure of software size obtained by counting the number of lines in a program's source files. Because a raw line count mixes very different content, a SLOC report normally separates code lines, comment lines, and blank lines, and "lines of code" without qualification usually means code lines only. SLOC is only comparable across projects when the counting rules are stated, since language syntax and tool rules shift the totals. OctoCounts reports code, comments, and blanks separately for every repository and language so that two reports can be compared directly.</p>
+      </section>
+
+      <section id="physical-vs-logical-sloc">
+        <h2>Physical vs Logical SLOC</h2>
+        <p>Physical SLOC is a count of the raw text lines in source files, while logical SLOC counts executable statements rather than lines. One logical statement can span several physical lines, and one physical line can hold several statements, so the two figures diverge most in languages with flexible formatting. Physical SLOC is cheaper to compute and far more reproducible across tools, which is why most counters default to it. OctoCounts reports physical line counts, split by tokei into code, comments, and blanks.</p>
+      </section>
+
+      <section id="code-lines">
+        <h2>Code lines</h2>
+        <p>Code lines are source lines that contain executable statements or declarations, excluding comments and blank lines. They are the figure people usually mean by "lines of code," and the most useful single indicator of a codebase's size. What qualifies depends on language parsing rules, so counts from different tools can differ slightly on edge cases such as docstrings or inline code after a comment. In OctoCounts reports this is the <code>code</code> column, computed per language and in the repository total.</p>
+      </section>
+
+      <section id="comment-lines">
+        <h2>Comment lines</h2>
+        <p>Comment lines are source lines that contain only human-readable documentation, recognized by each language's comment syntax. Line comments and block comments both count, and a line that mixes code with a trailing comment is classified as code by most counters. Comment volume reflects documentation habits more than program size, so it is best read alongside code lines rather than alone. OctoCounts reports comments as a separate column for every language, and exposes them through the <code>type=comments</code> badge.</p>
+      </section>
+
+      <section id="blank-lines">
+        <h2>Blank lines</h2>
+        <p>Blank lines are source lines that contain nothing but whitespace and carry no code or comment content. They exist purely for visual separation, so their share of a file says more about formatting style than about the software itself. Blank lines still matter for arithmetic: total lines equal code plus comments plus blanks, and any report that omits them understates file size. OctoCounts reports blanks explicitly so its totals always reconcile.</p>
+      </section>
+
+      <section id="comment-ratio">
+        <h2>Comment ratio</h2>
+        <p>Comment ratio is the share of a codebase made up of comment lines, usually expressed as comment lines divided by total lines. It is a rough proxy for documentation density, though heavy generated comments or license headers can inflate it. Some reports instead track code share, the complementary figure of code lines over total lines. OctoCounts' <code>type=ratio</code> badge displays code share: code lines as a percentage of total lines for the repository.</p>
+      </section>
+
+      <section id="tokei">
+        <h2>tokei</h2>
+        <p>tokei is a fast, open-source code statistics tool written in Rust that counts files, total lines, code lines, comments, and blanks across many programming languages. It uses language-specific rules to classify each line and processes directories in parallel, which makes it quick on large trees. Because its counting rules are explicit and stable per version, results can be reproduced by pinning the tool version. OctoCounts runs tokei on the extracted source archive of a pinned commit and includes the tokei version in every report's cache key.</p>
+      </section>
+
+      <section id="cloc">
+        <h2>cloc</h2>
+        <p>cloc (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages. It is one of the oldest widely used counters and is a common baseline for comparing code-counting results. Like tokei, it classifies lines with language-specific rules, so its figures may differ slightly from other tools on ambiguous lines. OctoCounts uses tokei rather than cloc, but the reported metrics map one-to-one, so cloc output for the same tree is a reasonable cross-check.</p>
+      </section>
+
+      <section id="scc">
+        <h2>scc</h2>
+        <p>scc (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates. It is designed for speed on very large repositories and adds derived metrics beyond raw line counts. Its cost and effort numbers come from applying a COCOMO-like model to the measured SLOC. OctoCounts reports line counts only; tools like scc are the reference when an estimated cost figure is needed.</p>
+      </section>
+
+      <section id="cocomo">
+        <h2>COCOMO</h2>
+        <p>COCOMO (Constructive Cost Model) is a software cost estimation model, published by Barry Boehm in 1981, that predicts development effort, schedule, and cost from estimated source lines of code. The basic model applies an equation of the form effort = a &times; (KLOC)<sup>b</sup>, where KLOC is thousands of source lines and the constants depend on the project's development mode. Later revisions added cost-driver multipliers, but SLOC remains the central input. OctoCounts supplies the measured SLOC input for public GitHub repositories; it does not itself compute COCOMO estimates.</p>
+      </section>
+
+      <section id="language-breakdown">
+        <h2>Repository language breakdown</h2>
+        <p>A repository language breakdown is a per-language table showing how a repository's files, code lines, comments, and blanks are distributed across detected programming languages. It reveals the dominant implementation language, the presence of supporting languages, and where documentation-heavy code lives. Languages are detected from file extensions and content rules, so generated or vendored files can skew the breakdown unless excluded. Every OctoCounts report includes a language breakdown sorted by code lines, and single-language badges are available with the <code>lang</code> query parameter.</p>
+      </section>
+
+      <section id="sloc-delta">
+        <h2>SLOC delta</h2>
+        <p>A SLOC delta is the change in line counts between two revisions of a codebase, such as the code, comment, and blank lines added or removed by a pull request. Deltas are more informative than absolute counts for review work, because they show whether a change grew the code, the comments, or only whitespace. Comparing deltas across revisions requires counting both sides with the same tool and rules. OctoCounts supports revision comparison through its <code>/diff</code> URLs, which count two refs of the same repository and show how the line counts moved.</p>
+      </section>
+    </main>
+    <footer>
+      <nav class="meta">Docs: <a href="/docs/github-sloc-counter">SLOC guide</a> &middot; <a href="/docs/methodology">Methodology</a> &middot; <a href="/docs/api">API docs</a> &middot; <a href="/">Home</a> &middot; <a href="/badges">Badges</a></nav>
+    </footer>
+  </body>
+</html>

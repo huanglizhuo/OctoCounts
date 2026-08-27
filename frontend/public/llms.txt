@@ -7,8 +7,9 @@ AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Go
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-08-26
+Last-Updated: 2026-08-27
 Full Context: https://octocounts.com/llms-full.txt
+Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/facebook/react.md
 
 ## Short Answer
 
@@ -65,6 +66,7 @@ GET /badge/:owner/:repo/commit/:sha
 - Curated comparisons: server-rendered "X vs Y" SLOC pages, one per pair listed below.
 - Methodology: https://octocounts.com/docs/methodology
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter
+- Glossary: https://octocounts.com/docs/glossary
 - API docs: https://octocounts.com/docs/api
 - Sitemap: https://octocounts.com/sitemap.xml
 

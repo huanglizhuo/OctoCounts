@@ -24,6 +24,14 @@ const EXTRA = [
     apply: (text, today) => text.replace(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/g, `<lastmod>${today}</lastmod>`),
     label: "sitemap.xml lastmod",
   },
+  // The static docs pages carry a TechArticle dateModified that would
+  // otherwise drift from the sitemap lastmod for the same URLs; both now come
+  // from this one run.
+  ...["api", "github-sloc-counter", "methodology"].map((slug) => ({
+    file: new URL(`../frontend/public/docs/${slug}.html`, import.meta.url),
+    apply: (text, today) => text.replace(/"dateModified": "\d{4}-\d{2}-\d{2}"/, `"dateModified": "${today}"`),
+    label: `docs/${slug}.html dateModified`,
+  })),
 ];
 
 // llms.txt lists one line per curated comparison page so answer engines can

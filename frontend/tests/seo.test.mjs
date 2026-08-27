@@ -203,7 +203,7 @@ test("static and Pages Function responses apply production security headers", as
 
 test("Pages static HTML uses a strict CSP without disabling compression transforms", async () => {
   const response = await onRequest({
-    request: new Request("https://octocounts.com/"),
+    request: new Request("https://octocounts.com/privacy"),
     env: {
       ASSETS: {
         fetch: async () => new Response("<!doctype html><title>OctoCounts</title>", {
@@ -298,6 +298,9 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.match(html, /"@type":"Dataset"/);
     assert.match(html, /"@type":"BreadcrumbList"/);
     assert.match(html, /"@type":"FAQPage"/);
+    // The citation sentence is the speakable, quotable core of the page.
+    assert.match(html, /<p id="octocounts-citation">Counted at commit abcdef123456\.<\/p>/);
+    assert.match(html, /"speakable":\{"@type":"SpeakableSpecification","cssSelector":\["#root h1","#octocounts-citation"\]\}/);
     assert.match(html, /"name":"How many lines of code does octo-org\/octo-repo have\?"/);
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
@@ -333,6 +336,7 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.match(html, /octo-org\/octo-repo/);
   assert.match(html, /1,234 stars today/);
   assert.match(html, /"@type":"CollectionPage"/);
+  assert.match(html, /"datePublished":"2026-07-15"/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
   assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
 });
@@ -936,4 +940,430 @@ test("non-embed pages keep the locked-down frame headers", async () => {
   const response = await onRequest(await renderedContext("/badges"));
   assert.equal(response.headers.get("x-frame-options"), "DENY");
   assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+});
+
+test("homepage SSR injects crawler-visible body content and keeps the head schema", async () => {
+  const source = await readFile(new URL("index.html", ROOT), "utf8");
+  const blocks = source.match(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g) ?? [];
+  const faq = blocks
+    .map((block) => {
+      try {
+        return JSON.parse(block.replace(/<\/?script\b[^>]*>/gi, ""));
+      } catch {
+        return null;
+      }
+    })
+    .find((json) => json?.["@type"] === "FAQPage");
+  assert.ok(faq, "homepage FAQPage JSON-LD exists");
+  assert.equal(faq.mainEntity.length, 7);
+
+  const response = await onRequest(await renderedContext("/"));
+  assert.equal(response.status, 200);
+  const html = await response.text();
+
+  assert.match(html, /<div id="root"><section>/);
+  assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
+  assert.match(html, /<h1>OctoCounts – GitHub SLOC Counter<\/h1>/);
+  assert.match(html, /free SLOC counter for public GitHub repositories/);
+  assert.match(html, /<h2>How it works<\/h2>/);
+  // Visible FAQ answers come from the same FAQPage JSON-LD the head serves.
+  for (const item of faq.mainEntity) {
+    assert.ok(html.includes(`<h3>${item.name}</h3>`), item.name);
+  }
+  for (const href of ["/badges", "/compare", "/trending", "/stats", "/docs/methodology", "/docs/api"]) {
+    assert.ok(html.includes(`href="${href}"`), href);
+  }
+  // The head is untouched: the full homepage JSON-LD set stays in place.
+  const sourceLdCount = (source.match(/type="application\/ld\+json"/g) ?? []).length;
+  assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, sourceLdCount);
+  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts.com\/" \/>/);
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+});
+
+test("stats SSR renders the full citable aggregates and Dataset datePublished", async () => {
+  const stats = {
+    totals: { reportsGenerated: 4200, repositoriesAnalyzed: 3100, linesCounted: 123456789, codeLinesCounted: 98765432, languagesDetected: 87 },
+    windows: { reportsToday: 5, reports7d: 40, reports30d: 150, repositoriesToday: 4, repositories7d: 33, repositories30d: 120 },
+    sources: [
+      { source: "web", reports: 2000 },
+      { source: "extension", reports: 1500 },
+      { source: "github_action", reports: 700 },
+    ],
+    languages: [{ language: "Rust", code: 5000000, lines: 6500000, reports: 300 }],
+    topRepositories: [{
+      provider: "github",
+      owner: "torvalds",
+      repo: "linux",
+      publicPath: "/github/torvalds/linux",
+      htmlUrl: "https://github.com/torvalds/linux",
+      refName: "master",
+      generatedAt: "2026-08-01T00:00:00Z",
+      total: { files: 80000, lines: 40000000, code: 30000000, comments: 5000000, blanks: 5000000 },
+      topLanguage: "C",
+    }],
+    recentRepositories: [],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(stats);
+  let html;
+  try {
+    const response = await onRequest(await renderedContext("/stats"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.match(html, /<h2>Where analyses come from<\/h2>/);
+  assert.ok(html.includes("Web app: 2,000 reports"));
+  assert.ok(html.includes("GitHub Action: 700 reports"));
+  assert.match(html, /<h2>Language coverage<\/h2>/);
+  assert.ok(html.includes("Rust: 5,000,000 code lines across 300 reports"));
+  assert.match(html, /<h2>Largest repositories measured<\/h2>/);
+  assert.ok(html.includes('<a href="/github/torvalds/linux">torvalds/linux</a> — 40,000,000 total lines (30,000,000 code)'));
+  assert.match(html, /"@type":"Dataset"/);
+  assert.match(html, /"datePublished":"2026-07-10"/);
+});
+
+test("docs TechArticle dateModified stays in sync with the sitemap lastmod source", async () => {
+  const edge = await readFile(new URL("functions/[[path]].js", ROOT), "utf8");
+  const lastmod = edge.match(/const STATIC_SITEMAP_LASTMOD = "(\d{4}-\d{2}-\d{2})";/)?.[1];
+  assert.ok(lastmod, "STATIC_SITEMAP_LASTMOD exists");
+  const script = await readFile(new URL("../../scripts/refresh-llms-lastupdated.mjs", import.meta.url), "utf8");
+  // The refresh script rewrites each docs page's TechArticle dateModified from
+  // the same `today` it writes into STATIC_SITEMAP_LASTMOD.
+  assert.match(script, /public\/docs\/\$\{slug\}\.html/);
+  assert.match(script, /"dateModified": "\\d\{4\}/);
+  for (const [slug] of docs) {
+    const html = await readFile(new URL(`public/docs/${slug}.html`, ROOT), "utf8");
+    assert.ok(html.includes(`"dateModified": "${lastmod}"`), `${slug} dateModified != STATIC_SITEMAP_LASTMOD`);
+  }
+});
+
+function withUserAgent(context, userAgent) {
+  return { ...context, request: new Request(context.request.url, { headers: { "user-agent": userAgent } }) };
+}
+
+/// ASSETS mock backed by the real public/ tree, so docs markdown tests serve
+/// the actual pre-generated .md files.
+function docsAssetContext(pathname, userAgent) {
+  return {
+    request: new Request(`https://octocounts.com${pathname}`, userAgent ? { headers: { "user-agent": userAgent } } : undefined),
+    env: {
+      ASSETS: {
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          const filePath = /^\/docs\/[a-z-]+$/.test(path) ? `${path}.html` : path;
+          try {
+            const body = await readFile(new URL(`public${filePath}`, ROOT), "utf8");
+            return new Response(body, {
+              status: 200,
+              headers: { "content-type": filePath.endsWith(".md") ? "text/markdown; charset=utf-8" : "text/html; charset=utf-8" },
+            });
+          } catch {
+            return new Response("not found", { status: 404 });
+          }
+        },
+      },
+    },
+  };
+}
+
+test("report markdown twins mirror the SSR report via ?format=md and the .md suffix", async () => {
+  const restore = stubReportAndRelatedFetch({
+    reports: [
+      { provider: "github", owner: "tokio-rs", repo: "axum", repoFullName: "tokio-rs/axum", publicPath: "/github/tokio-rs/axum", topLanguage: "Rust", totalCode: 16000, totalLines: 21000 },
+    ],
+  });
+  try {
+    for (const path of [
+      "/github/octo-org/octo-repo?format=md",
+      "/github/octo-org/octo-repo.md",
+      "/github/octo-org/octo-repo/tree/main.md",
+    ]) {
+      const response = await onRequest(await renderedContext(path));
+      assert.equal(response.status, 200, path);
+      assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+      const md = await response.text();
+      assert.match(md, /^# octo-org\/octo-repo SLOC report\n/, path);
+      assert.ok(md.includes(`> ${RELATED_REPORT_FIXTURE.citation}`), path);
+      assert.match(md, /## Repository size insights/, path);
+      assert.match(md, /\| Language \| Files \| Lines \| Code \| Comments \| Blanks \|/, path);
+      assert.match(md, /\| Rust \| 80 \| 16,000 \| 12,000 \| 2,500 \| 1,500 \|/, path);
+      assert.match(md, /### How many lines of code does octo-org\/octo-repo have\?/, path);
+      assert.ok(md.includes("- [tokio-rs/axum](https://octocounts.com/github/tokio-rs/axum) — Rust, 16,000 code lines"), path);
+      assert.ok(md.includes("[Counting methodology](https://octocounts.com/docs/methodology)"), path);
+      // Markdown must not leak HTML markup from the page templates.
+      assert.doesNotMatch(md, /<[a-z][^>]*>/i, path);
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("report markdown handles missing reports and transient failures like the HTML page", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("backend exploded", { status: 500 });
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo.md"));
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  globalThis.fetch = async () => new Response("report was not found", { status: 404 });
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"));
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(response.headers.get("cache-control"), "public, max-age=60");
+    assert.match(await response.text(), /No cached report exists yet for octo-org\/octo-repo/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("retrieval-time AI bots get markdown on reports while search and training crawlers keep HTML", async () => {
+  const restore = stubReportAndRelatedFetch({ reports: [] });
+  try {
+    for (const ua of [
+      "Mozilla/5.0 (compatible; OAI-SearchBot/1.0)",
+      "ChatGPT-User/1.0",
+      "PerplexityBot/1.0",
+      "Perplexity-User/1.0",
+      "ClaudeBot/1.0",
+      "Claude-User/1.0",
+      "Google-Extended",
+      "Applebot/0.1",
+    ]) {
+      const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
+      assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, ua);
+    }
+    // Cloaking guard: search engine crawlers and training crawlers must see
+    // exactly the HTML a browser gets.
+    for (const ua of [
+      "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+      "GPTBot/1.0",
+      "CCBot/2.0 (https://commoncrawl.org/faq/)",
+      "anthropic-ai",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0",
+    ]) {
+      const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
+      assert.match(response.headers.get("content-type") ?? "", /^text\/html/, ua);
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("curated comparison markdown mirrors the SSR comparison", async () => {
+  const restore = stubReportFetch(CURATED_FIXTURES);
+  try {
+    for (const path of ["/compare/react-vs-vue?format=md", "/compare/react-vs-vue.md"]) {
+      const response = await onRequest(await renderedContext(path));
+      assert.equal(response.status, 200, path);
+      assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+      const md = await response.text();
+      assert.match(md, /^# React vs Vue: source lines of code compared\n/, path);
+      assert.ok(md.includes("| Metric | [facebook/react](https://octocounts.com/github/facebook/react) | [vuejs/core](https://octocounts.com/github/vuejs/core) |"), path);
+      assert.match(md, /\| Code lines \| 152,488 \| 89,302 \|/, path);
+      assert.ok(md.includes(CURATED_FIXTURES["facebook/react"].commitSha.slice(0, 12)), path);
+      assert.ok(md.includes(CURATED_FIXTURES["vuejs/core"].commitSha.slice(0, 12)), path);
+      assert.match(md, /\[counting methodology\]\(https:\/\/octocounts\.com\/docs\/methodology\)/, path);
+      assert.match(md, /code size is not code quality/i, path);
+    }
+    // Retrieval bots get the markdown twin on compare pages too.
+    const bot = await onRequest(withUserAgent(await renderedContext("/compare/react-vs-vue"), "PerplexityBot/1.0"));
+    assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/);
+  } finally {
+    restore();
+  }
+});
+
+test("curated comparison markdown keeps the short-cache answer when a report is missing", async () => {
+  const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
+  try {
+    const response = await onRequest(await renderedContext("/compare/react-vs-vue.md"));
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(response.headers.get("cache-control"), "public, max-age=60");
+    assert.match(await response.text(), /not available for both repositories yet/);
+  } finally {
+    restore();
+  }
+});
+
+test("trending and stats serve markdown twins on request but keep HTML for retrieval bots", async () => {
+  const snapshot = {
+    source: "https://github.com/trending",
+    period: "daily",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [{
+      rank: 1,
+      owner: "octo-org",
+      name: "octo-repo",
+      fullName: "octo-org/octo-repo",
+      description: "A useful repository.",
+      language: "Rust",
+      starsToday: 1234,
+      totalStars: 12345,
+      htmlUrl: "https://github.com/octo-org/octo-repo",
+      publicPath: "/github/octo-org/octo-repo",
+    }],
+  };
+  for (const path of ["/trending.md", "/trending?format=md"]) {
+    const response = await onRequest(await renderedContext(path, snapshot));
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, path);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+    const md = await response.text();
+    assert.match(md, /^# Trending GitHub repositories today\n/, path);
+    assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. (1,234 stars today, Rust)"), path);
+  }
+  // UA-based markdown is scoped to reports, comparisons, and docs; /trending
+  // and /stats stay HTML for bots unless they explicitly ask for markdown.
+  const bot = await onRequest(withUserAgent(await renderedContext("/trending", snapshot), "PerplexityBot/1.0"));
+  assert.match(bot.headers.get("content-type") ?? "", /^text\/html/);
+
+  const stats = {
+    totals: { reportsGenerated: 4200, repositoriesAnalyzed: 3100, linesCounted: 123456789, codeLinesCounted: 98765432, languagesDetected: 87 },
+    sources: [{ source: "web", reports: 2000 }],
+    languages: [{ language: "Rust", code: 5000000, lines: 6500000, reports: 300 }],
+    topRepositories: [{
+      provider: "github",
+      owner: "torvalds",
+      repo: "linux",
+      publicPath: "/github/torvalds/linux",
+      total: { files: 80000, lines: 40000000, code: 30000000, comments: 5000000, blanks: 5000000 },
+    }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(stats);
+  try {
+    const response = await onRequest(await renderedContext("/stats?format=md"));
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=900, stale-while-revalidate=3600");
+    const md = await response.text();
+    assert.match(md, /^# OctoCounts public growth stats\n/);
+    assert.match(md, /## Where analyses come from\n\n- Web app: 2,000 reports/);
+    assert.match(md, /## Language coverage\n\n- Rust: 5,000,000 code lines across 300 reports/);
+    assert.ok(md.includes("1. [torvalds/linux](https://octocounts.com/github/torvalds/linux) — 40,000,000 total lines (30,000,000 code)"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("docs pages serve their pre-generated markdown twins", async () => {
+  // The shared `docs` list pins the legacy-redirect corpus; the glossary has
+  // no legacy .html URL but still gets a markdown twin.
+  const docsWithGlossary = [...docs, ["glossary", "https://octocounts.com/docs/glossary"]];
+  for (const [slug] of docsWithGlossary) {
+    const file = await readFile(new URL(`public/docs/${slug}.md`, ROOT), "utf8");
+    assert.match(file, /^# /, slug);
+
+    for (const path of [`/docs/${slug}?format=md`, `/docs/${slug}.md`]) {
+      const response = await onRequest(docsAssetContext(path));
+      assert.equal(response.status, 200, path);
+      assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+      assert.equal(response.headers.get("cache-control"), "public, max-age=3600", path);
+      assert.equal(await response.text(), file, path);
+    }
+
+    const bot = await onRequest(docsAssetContext(`/docs/${slug}`, "ClaudeBot/1.0"));
+    assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/, `${slug} bot`);
+
+    const browser = await onRequest(docsAssetContext(`/docs/${slug}`));
+    assert.match(browser.headers.get("content-type") ?? "", /^text\/html/, `${slug} browser`);
+  }
+});
+
+test("HTML pages advertise their markdown twin with a text/markdown alternate link", async () => {
+  const restoreReports = stubReportAndRelatedFetch({ reports: [] });
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    const html = await response.text();
+    assert.ok(html.includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/github/octo-org/octo-repo.md" />'));
+  } finally {
+    restoreReports();
+  }
+
+  const restoreCompare = stubReportFetch(CURATED_FIXTURES);
+  try {
+    const response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    assert.ok((await response.text()).includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/compare/react-vs-vue.md" />'));
+  } finally {
+    restoreCompare();
+  }
+
+  const trending = await onRequest(await renderedContext("/trending", {
+    source: "https://github.com/trending",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [],
+  }));
+  assert.ok((await trending.text()).includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/trending.md" />'));
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({});
+  try {
+    const stats = await onRequest(await renderedContext("/stats"));
+    assert.ok((await stats.text()).includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/stats.md" />'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  for (const [slug] of [...docs, ["glossary"]]) {
+    const html = await readFile(new URL(`public/docs/${slug}.html`, ROOT), "utf8");
+    assert.ok(html.includes(`<link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/${slug}.md" />`), slug);
+  }
+});
+
+test("compare registry targets stay well-formed and yugabyte keeps its real repo name", async () => {
+  const slugs = new Set();
+  for (const entry of COMPARE_REGISTRY) {
+    assert.match(entry.slug, /^[a-z0-9-]+$/, entry.slug);
+    assert.ok(!slugs.has(entry.slug), `duplicate slug ${entry.slug}`);
+    slugs.add(entry.slug);
+    for (const side of [entry.left, entry.right]) {
+      assert.match(`${side.owner}/${side.repo}`, /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, `${entry.slug} target`);
+    }
+  }
+  const yugabyte = COMPARE_REGISTRY.find((entry) => entry.slug === "cockroachdb-vs-yugabyte");
+  assert.ok(yugabyte, "cockroachdb-vs-yugabyte entry exists");
+  assert.deepEqual(yugabyte.right, { owner: "yugabyte", repo: "yugabyte-db" });
+  const llms = await readFile(new URL("public/llms.txt", ROOT), "utf8");
+  assert.ok(llms.includes("cockroachdb/cockroach vs yugabyte/yugabyte-db"));
+  assert.doesNotMatch(llms, /yugabyte\/yugabyte[)\s]/);
+});
+
+test("llms.txt advertises markdown versions and the glossary outside the generated block", async () => {
+  const llms = await readFile(new URL("public/llms.txt", ROOT), "utf8");
+  assert.match(llms, /^Markdown Versions: .+\.md/m);
+  assert.match(llms, /^- Glossary: https:\/\/octocounts\.com\/docs\/glossary$/m);
+  const generated = llms.match(/<!-- BEGIN COMPARE PAGES[\s\S]*?END COMPARE PAGES -->/);
+  assert.ok(generated, "generated compare block exists");
+  assert.doesNotMatch(generated[0], /Markdown Versions|Glossary/);
+});
+
+test("sitemaps list the docs glossary alongside the other docs", async () => {
+  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
+  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
+
+  const originalFetch = globalThis.fetch;
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async () => Response.json([]);
+  try {
+    const generated = await onRequest(await renderedContext("/sitemap.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    assert.match(await generated.text(), /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
