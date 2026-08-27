@@ -1,17 +1,19 @@
-# GitHub Trending daily snapshot generated 2026-08-26T03:16:30.442Z
+# GitHub Trending daily snapshot generated 2026-08-27T12:45:28.687Z
+zedeus/nitter
 freestylefly/awesome-gpt-image-2
-anthropics/claude-plugins-community
-MadsLorentzen/ai-job-search
-apache/maka
-TauricResearch/TradingAgents
-AgriciDaniel/claude-obsidian
-rohitg00/ai-engineering-from-scratch
-tinyhumansai/openhuman
-basecamp/omarchy
-Shubhamsaboo/awesome-llm-apps
-multica-ai/andrej-karpathy-skills
-openai/codex
-marin-community/marin
-DietrichGebert/ponytail
+tt-a1i/archify
+JetBrains/go-modern-guidelines
 anthropics/claude-plugins-official
-asciimoo/hister
+K-Dense-AI/scientific-agent-skills
+DietrichGebert/ponytail
+calesthio/OpenMontage
+rohitg00/ai-engineering-from-scratch
+ConardLi/garden-skills
+thedotmack/claude-mem
+google/googletest
+AgriciDaniel/claude-obsidian
+marin-community/marin
+ComposioHQ/awesome-claude-skills
+actions/checkout
+OpenCut-app/OpenCut
+TauricResearch/TradingAgents
