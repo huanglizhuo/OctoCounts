@@ -1,19 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-08-27T12:45:28.687Z
-zedeus/nitter
-freestylefly/awesome-gpt-image-2
+# GitHub Trending daily snapshot generated 2026-08-28T14:19:14.297Z
 tt-a1i/archify
-JetBrains/go-modern-guidelines
-anthropics/claude-plugins-official
 K-Dense-AI/scientific-agent-skills
-DietrichGebert/ponytail
+anthropics/claude-plugins-official
+bilawalsidhu/gods-eye-view
+abhigyanpatwari/GitNexus
+JetBrains/go-modern-guidelines
 calesthio/OpenMontage
-rohitg00/ai-engineering-from-scratch
-ConardLi/garden-skills
-thedotmack/claude-mem
-google/googletest
-AgriciDaniel/claude-obsidian
+abi/screenshot-to-code
+cursor/plugins
+freestylefly/awesome-gpt-image-2
+tailscale/tailcat
+NationalSecurityAgency/ghidra
 marin-community/marin
-ComposioHQ/awesome-claude-skills
-actions/checkout
-OpenCut-app/OpenCut
-TauricResearch/TradingAgents
+tashfeenahmed/freellmapi
+ChromeDevTools/chrome-devtools-mcp
+rohitg00/ai-engineering-from-scratch
+DietrichGebert/ponytail
+google/googletest
+livekit/agents
