@@ -1139,6 +1139,11 @@ test("retrieval-time AI bots get markdown on reports while search and training c
     ]) {
       const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
       assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, ua);
+      // The zone cache rule keys on URL alone: a UA-derived markdown variant
+      // must never enter the shared cache, or browsers/Googlebot would be
+      // served markdown from the HTML URL's cache entry (and vice versa).
+      assert.equal(response.headers.get("cache-control"), "private, no-store", ua);
+      assert.equal(response.headers.get("vary"), "User-Agent", ua);
     }
     // Cloaking guard: search engine crawlers and training crawlers must see
     // exactly the HTML a browser gets.
@@ -1152,7 +1157,15 @@ test("retrieval-time AI bots get markdown on reports while search and training c
     ]) {
       const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
       assert.match(response.headers.get("content-type") ?? "", /^text\/html/, ua);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", ua);
+      assert.equal(response.headers.get("vary"), null, ua);
     }
+    // Explicit markdown URLs have their own cache key, so they keep the shared
+    // cache headers even when a retrieval bot asks for them.
+    const explicit = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo?format=md"), "PerplexityBot/1.0"));
+    assert.match(explicit.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(explicit.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+    assert.equal(explicit.headers.get("vary"), null);
   } finally {
     restore();
   }
@@ -1175,9 +1188,12 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
       assert.match(md, /\[counting methodology\]\(https:\/\/octocounts\.com\/docs\/methodology\)/, path);
       assert.match(md, /code size is not code quality/i, path);
     }
-    // Retrieval bots get the markdown twin on compare pages too.
+    // Retrieval bots get the markdown twin on compare pages too — uncacheable,
+    // since the zone cache keys on the shared HTML URL.
     const bot = await onRequest(withUserAgent(await renderedContext("/compare/react-vs-vue"), "PerplexityBot/1.0"));
     assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(bot.headers.get("cache-control"), "private, no-store");
+    assert.equal(bot.headers.get("vary"), "User-Agent");
   } finally {
     restore();
   }
@@ -1274,6 +1290,10 @@ test("docs pages serve their pre-generated markdown twins", async () => {
 
     const bot = await onRequest(docsAssetContext(`/docs/${slug}`, "ClaudeBot/1.0"));
     assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/, `${slug} bot`);
+    // Docs are outside the zone cache rule today, but a UA variant still
+    // never belongs in any shared cache.
+    assert.equal(bot.headers.get("cache-control"), "private, no-store", `${slug} bot`);
+    assert.equal(bot.headers.get("vary"), "User-Agent", `${slug} bot`);
 
     const browser = await onRequest(docsAssetContext(`/docs/${slug}`));
     assert.match(browser.headers.get("content-type") ?? "", /^text\/html/, `${slug} browser`);

@@ -70,7 +70,7 @@ export async function onRequest(context) {
 
   if (parts[0] === "github" && parts.length >= 3) {
     const route = parseGitHubRoute(parts);
-    return reportResponse(context, route, { markdown: markdownRequested || aiMarkdown });
+    return reportResponse(context, route, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
   }
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
@@ -95,7 +95,7 @@ export async function onRequest(context) {
 
   if (parts[0] === "compare" && parts.length === 2) {
     const curated = findCuratedComparison(parts[1].toLowerCase());
-    if (curated) return curatedCompareResponse(context, curated, { markdown: markdownRequested || aiMarkdown });
+    if (curated) return curatedCompareResponse(context, curated, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
     // Unknown comparison slugs are not curated content; they fall through to
     // static asset handling, which answers 404 in production.
   }
@@ -120,7 +120,7 @@ export async function onRequest(context) {
   // than relying on the bare .md asset) so ?format=md and retrieval-bot
   // requests get a guaranteed text/markdown type and the /docs/* cache policy.
   if (parts[0] === "docs" && parts.length === 2 && DOC_MARKDOWN_PAGES.has(parts[1]) && (markdownRequested || aiMarkdown)) {
-    return docsMarkdownResponse(context, parts[1]);
+    return docsMarkdownResponse(context, parts[1], { uaOnly: aiMarkdown && !markdownRequested });
   }
 
   if (url.pathname === "/") {
@@ -151,13 +151,13 @@ function isAiRetrievalBot(userAgent) {
 
 const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary"]);
 
-async function docsMarkdownResponse(context, slug) {
+async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
   url.pathname = `/docs/${slug}.md`;
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
-  return markdownResponse(asset.body, "public, max-age=3600");
+  return markdownResponse(asset.body, "public, max-age=3600", options);
 }
 
 function legacyQueryReportPath(url) {
@@ -211,7 +211,7 @@ async function reportResponse(context, route, options = {}) {
   // caching a noindex (or letting the CDN cache one) for an indexable page.
   const result = await fetchSeoReport(context, route);
   if (result.state === "missing") {
-    if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60");
+    if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", options);
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60");
   }
   if (result.state === "unavailable") {
@@ -238,7 +238,7 @@ async function reportResponse(context, route, options = {}) {
   // HTML a day longer than its own data source left stale counts in SERP
   // titles for up to a day after a big push. SWR keeps origin load low.
   if (options.markdown) {
-    return markdownResponse(reportMarkdown(report, relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400");
+    return markdownResponse(reportMarkdown(report, relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
   return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400");
 }
@@ -852,13 +852,13 @@ async function curatedCompareResponse(context, entry, options = {}) {
   }
 
   if (leftResult.state === "missing" || rightResult.state === "missing") {
-    if (options.markdown) return markdownResponse(compareMissingMarkdown(entry), "public, max-age=60");
+    if (options.markdown) return markdownResponse(compareMissingMarkdown(entry), "public, max-age=60", options);
     return htmlResponse(injectCompareFallback(await indexHtml(context), entry), "public, max-age=60");
   }
 
   const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
   if (options.markdown) {
-    return markdownResponse(compareMarkdown(entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
+    return markdownResponse(compareMarkdown(entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
   return htmlResponse(injectCuratedCompare(await indexHtml(context), entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
 }
@@ -1551,11 +1551,20 @@ function htmlResponse(html, cacheControl, options) {
 
 /// Markdown twins share the cache policy of their HTML page and the lockdown
 /// header set; the body may be a string or a stream (static .md asset).
-function markdownResponse(markdown, cacheControl) {
+///
+/// uaOnly (the response is markdown only because of the retrieval-bot user
+/// agent, not an explicit ?format=md/.md URL): the zone cache rule in front of
+/// this function keys purely on URL, so a UA-derived markdown body cached
+/// under the HTML URL would be served to browsers and Googlebot (and vice
+/// versa). Force private, no-store + Vary: User-Agent so the variant never
+/// enters any shared cache. Explicit markdown URLs keep the shared headers —
+/// their distinct URL cannot pollute the HTML entry.
+function markdownResponse(markdown, cacheControl, options = {}) {
   return new Response(markdown, {
     headers: {
       "content-type": "text/markdown; charset=utf-8",
-      "cache-control": cacheControl,
+      "cache-control": options.uaOnly ? "private, no-store" : cacheControl,
+      ...(options.uaOnly ? { vary: "User-Agent" } : {}),
       ...securityHeaders(),
     },
   });
