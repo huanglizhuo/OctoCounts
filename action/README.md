@@ -4,6 +4,8 @@
 
 Comment on pull requests with SLOC changes between the base and head refs, with a link to the full [OctoCounts](https://octocounts.com) report.
 
+Published from [huanglizhuo/octocounts-sloc-diff-action](https://github.com/huanglizhuo/octocounts-sloc-diff-action) — GitHub Marketplace only lists actions whose `action.yml` sits at a repository root, so the published action lives in its own repo. The code below in this directory is the development copy; changes here should be mirrored there before tagging a new release.
+
 ```yaml
 name: SLOC diff
 
@@ -18,7 +20,7 @@ jobs:
   sloc:
     runs-on: ubuntu-latest
     steps:
-      - uses: huanglizhuo/OctoCounts/action@main
+      - uses: huanglizhuo/octocounts-sloc-diff-action@v1
         with:
           github-token: ${{ github.token }}
 ```
