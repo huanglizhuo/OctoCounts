@@ -14,6 +14,8 @@
     "title": "GitHub <1>SLOC counter</1>: the panel GitHub forgot.",
     "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
     "definition": "OctoCounts is a free SLOC counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.",
+    "freshnessLabel": "Last updated",
+    "maintainedBy": "Maintained by",
     "badgeOpenSource": "Open source on GitHub",
     "badgeFree": "Free · no sign-up",
     "badgeLanguages": "200+ languages",

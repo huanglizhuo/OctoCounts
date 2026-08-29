@@ -222,6 +222,30 @@ The key must be a hex/alphanumeric token (8–128 characters) of your choosing.
 Set `INDEXNOW_DRY_RUN=true` first if you want to verify wiring in the logs
 before real submissions go out.
 
+### Cloudflare edge cache rule for `/` and `/compare/*`
+
+The Pages Function already sends `Cache-Control: public, s-maxage=3600,
+stale-while-revalidate=86400` for the homepage and every `/compare/*` page —
+identical to what `/github/*` report pages send. Report pages hit Cloudflare's
+edge cache (`cf-cache-status: HIT`); the homepage and compare pages currently
+don't (`cf-cache-status: DYNAMIC` on every request), because Cloudflare does
+not cache HTML by origin `Cache-Control` alone — it needs a **Cache Rule**
+that explicitly makes HTML documents on those paths eligible, matching
+whatever rule already covers `/github/*`. This is dashboard/API configuration
+outside this repo (no Terraform/wrangler cache-rule config exists here), so it
+can't be fixed by a code change — apply it by hand:
+
+1. Cloudflare dashboard → the `octocounts.com` zone → **Rules → Cache Rules**.
+2. Open the existing rule that covers `/github/*` (or find it under **Caching
+   → Configuration** if it's a Cache Level: Cache Everything Page Rule
+   instead) and note its exact match/eligibility settings.
+3. Add `/` (exact) and `/compare/*` to that rule's URL match, or duplicate it
+   with those paths — "Eligible for cache" + "Respect origin TTL" so it keeps
+   honoring the `s-maxage=3600` the Function already sends.
+4. Verify with `curl -sI https://octocounts.com/ | grep -i cf-cache-status`
+   and the same for a `/compare/*` URL — expect `HIT` on the second request
+   within an hour, matching `/github/*` today.
+
 To stop:
 ```bash
 docker compose down

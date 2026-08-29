@@ -52,6 +52,24 @@ test("legacy documentation .html URLs permanently redirect to extensionless cano
   }
 });
 
+test("trailing-slash URLs permanently redirect to the slash-free canonical", async () => {
+  for (const [pathname, expected] of [
+    ["/github/huanglizhuo/OctoCounts/", "https://octocounts.com/github/huanglizhuo/OctoCounts"],
+    ["/compare/react-vs-vue/", "https://octocounts.com/compare/react-vs-vue"],
+    ["/trending/", "https://octocounts.com/trending"],
+    ["/badges/", "https://octocounts.com/badges"],
+    ["/docs/faq/?foo=bar", "https://octocounts.com/docs/faq?foo=bar"],
+  ]) {
+    const response = await onRequest(requestContext(pathname));
+    assert.equal(response.status, 308, pathname);
+    assert.equal(response.headers.get("location"), expected, pathname);
+  }
+  // The root path itself must not redirect: "/" already has no trailing
+  // content to strip, and stripping it would loop.
+  const root = await onRequest(requestContext("/"));
+  assert.notEqual(root.status, 308);
+});
+
 test("renamed repository URLs permanently redirect to the current canonical report", async () => {
   for (const path of [
     "/github/huanglizhuo/OctoCount",
@@ -185,10 +203,10 @@ test("static and Pages Function responses apply production security headers", as
   for (const value of [
     "/fonts/*\n  Cache-Control: public, max-age=31536000, immutable",
     "/octocounts-*-768.webp\n  Cache-Control: public, max-age=31536000, immutable",
-    "Strict-Transport-Security: max-age=63072000; includeSubDomains",
+    "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
     "Cross-Origin-Opener-Policy: same-origin",
   ]) assert.ok(headers.includes(value));
-  assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains");
+  assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains; preload");
   assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
   const csp = response.headers.get("content-security-policy");
   assert.match(csp, /'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='/);
@@ -616,6 +634,19 @@ test("curated comparison SSR renders balanced citable content", async () => {
     assert.equal(dataset.url, `https://octocounts.com/compare/${slug}`);
     assert.equal(dataset.dateModified, right.generatedAt > left.generatedAt ? right.generatedAt : left.generatedAt);
     assert.ok(graph.some((node) => node["@type"] === "BreadcrumbList"), `${slug} breadcrumbs`);
+
+    // Compare FAQ: the question-shaped fan-out AI answer engines expect for
+    // a comparison query, both as visible content and as FAQPage schema.
+    assert.match(html, /<h2>Compare FAQ<\/h2>/, `${slug} FAQ heading`);
+    assert.match(html, /Which has more lines of code/, `${slug} FAQ which-is-bigger question`);
+    assert.match(html, /Does more source lines of code mean more complexity\?/, `${slug} FAQ complexity question`);
+    const faqNode = graph.find((node) => node["@type"] === "FAQPage");
+    assert.ok(faqNode, `${slug} FAQPage node`);
+    assert.ok(faqNode.mainEntity.length >= 4, `${slug} FAQPage has the full question set`);
+    for (const question of faqNode.mainEntity) {
+      assert.ok(html.includes(question.name), `${slug} FAQ schema question "${question.name}" appears in visible HTML`);
+      assert.ok(html.includes(question.acceptedAnswer.text), `${slug} FAQ schema answer for "${question.name}" appears in visible HTML`);
+    }
   }
 });
 
@@ -1187,6 +1218,9 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
       assert.ok(md.includes(CURATED_FIXTURES["vuejs/core"].commitSha.slice(0, 12)), path);
       assert.match(md, /\[counting methodology\]\(https:\/\/octocounts\.com\/docs\/methodology\)/, path);
       assert.match(md, /code size is not code quality/i, path);
+      assert.match(md, /## Compare FAQ/, path);
+      assert.match(md, /### Which has more lines of code/, path);
+      assert.match(md, /### Does more source lines of code mean more complexity\?/, path);
     }
     // Retrieval bots get the markdown twin on compare pages too — uncacheable,
     // since the zone cache keys on the shared HTML URL.
@@ -1368,9 +1402,22 @@ test("llms.txt advertises markdown versions and the glossary outside the generat
   assert.doesNotMatch(generated[0], /Markdown Versions|Glossary/);
 });
 
+test("docs pages serve the GitHub language bar alternative page and its markdown twin", async () => {
+  const file = await readFile(new URL("public/docs/github-language-bar-alternative.md", ROOT), "utf8");
+  assert.match(file, /^# /);
+
+  for (const path of ["/docs/github-language-bar-alternative?format=md", "/docs/github-language-bar-alternative.md"]) {
+    const response = await onRequest(docsAssetContext(path));
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+    assert.equal(await response.text(), file, path);
+  }
+});
+
 test("sitemaps list the docs glossary alongside the other docs", async () => {
   const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
+  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/github-language-bar-alternative<\/loc>/);
 
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();

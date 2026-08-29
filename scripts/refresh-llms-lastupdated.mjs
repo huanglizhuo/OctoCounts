@@ -27,11 +27,31 @@ const EXTRA = [
   // The static docs pages carry a TechArticle dateModified that would
   // otherwise drift from the sitemap lastmod for the same URLs; both now come
   // from this one run.
-  ...["api", "github-sloc-counter", "methodology"].map((slug) => ({
+  ...["api", "github-sloc-counter", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative"].map((slug) => ({
     file: new URL(`../frontend/public/docs/${slug}.html`, import.meta.url),
     apply: (text, today) => text.replace(/"dateModified": "\d{4}-\d{2}-\d{2}"/, `"dateModified": "${today}"`),
     label: `docs/${slug}.html dateModified`,
   })),
+  // Homepage freshness signal: the WebSite dateModified in JSON-LD, the
+  // noscript <time> line, and the visible React freshness line (via the
+  // siteLastUpdated constant) all need to move together or they drift and
+  // contradict each other on the rendered page.
+  {
+    file: new URL("../frontend/index.html", import.meta.url),
+    apply: (text, today) =>
+      text
+        .replace(/"dateModified": "\d{4}-\d{2}-\d{2}"/, `"dateModified": "${today}"`)
+        .replace(
+          /<time datetime="\d{4}-\d{2}-\d{2}">Updated [^<]*\.<\/time>/,
+          `<time datetime="${today}">Updated ${new Date(today).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}.</time>`
+        ),
+    label: "index.html homepage dateModified + noscript freshness",
+  },
+  {
+    file: new URL("../frontend/src/constants.ts", import.meta.url),
+    apply: (text, today) => text.replace(/export const siteLastUpdated = "\d{4}-\d{2}-\d{2}";/, `export const siteLastUpdated = "${today}";`),
+    label: "constants.ts siteLastUpdated",
+  },
 ];
 
 // llms.txt lists one line per curated comparison page so answer engines can

@@ -14,6 +14,8 @@
     "title": "GitHub <1>SLOC 计数器</1>：GitHub 忘记添加的面板。",
     "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开 GitHub 仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
     "definition": "OctoCounts 是一款免费的公开 GitHub 仓库 SLOC 计数器。无需克隆，即可显示文件数、总行数、代码行、注释行、空行以及各语言统计。",
+    "freshnessLabel": "最后更新",
+    "maintainedBy": "维护者",
     "badgeOpenSource": "GitHub 开源",
     "badgeFree": "免费 · 无需注册",
     "badgeLanguages": "200+ 种语言",

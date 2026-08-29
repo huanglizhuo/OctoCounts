@@ -47,6 +47,7 @@
       "url": "https://octocounts.com/",
       "description": "OctoCounts shows actual source line counts for public GitHub repositories in browser extension sidebars or the web app: files, code lines, comments, blanks, and per-language totals. No cloning required.",
       "applicationCategory": "DeveloperApplication",
+      "datePublished": "2026-05-02",
       "operatingSystem": "Any",
       "browserRequirements": "Requires Chrome, Edge, or Firefox",
       "softwareVersion": "__EXTENSION_VERSION__",
@@ -152,6 +153,7 @@
       "name": "OctoCounts",
       "url": "https://octocounts.com/",
       "description": "Free GitHub SLOC counter. See source line counts for public repositories: files, code, comments, blanks, and language totals. No cloning required.",
+      "dateModified": "2026-08-29",
       "potentialAction": {
         "@type": "SearchAction",
         "target": {
@@ -178,28 +180,26 @@
       ]
     }
     </script>
-    <!-- aggregateRating below mirrors the Chrome Web Store listing for
-         OctoCounts (5.0 from 118 users, checked 2026-08). ratingCount
-         approximates ratings with the store's public user count; update both
-         numbers by hand when the store listing changes. -->
+    <!-- No aggregateRating here: Google's structured-data policy requires a
+         rating asserted on a page to be visibly displayed on that same page,
+         and octocounts.com has no rating UI. The real 5.0/118 figure lives on
+         the Chrome Web Store listing itself (linked via downloadUrl/sameAs
+         below) — assert it there, not here. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
+      "@id": "https://octocounts.com/#extension",
       "name": "OctoCounts – GitHub SLOC & Code Statistics",
       "operatingSystem": "Chrome, Edge, Firefox",
       "applicationCategory": "BrowserApplication",
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "5.0",
-        "ratingCount": "118"
-      },
+      "datePublished": "2026-05-05",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD"
       },
-      "url": "https://octocounts.com/",
+      "url": "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
       "downloadUrl": "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
       "screenshot": "https://octocounts.com/og-image.jpg",
       "description": "Browser extension that adds a SLOC card to GitHub repository sidebars, showing source line counts per language without cloning.",
@@ -230,7 +230,7 @@
     <noscript>
       <main>
         <h1>OctoCounts – GitHub SLOC Counter</h1>
-        <p><strong>OctoCounts is a free SLOC counter for public GitHub repositories.</strong> It shows files, total lines, code, comments, blanks, and per-language totals without cloning. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning. <time datetime="2026-08-28">Updated August 28, 2026.</time></p>
+        <p><strong>OctoCounts is a free SLOC counter for public GitHub repositories.</strong> It shows files, total lines, code, comments, blanks, and per-language totals without cloning. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning. <time datetime="2026-08-29">Updated August 29, 2026.</time></p>
 
         <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
         <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA, tokei version, and analysis options, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install. Paste a public GitHub URL and get results in seconds.</p>
@@ -276,6 +276,7 @@
           <li><a href="/docs/api">OctoCounts API docs</a></li>
           <li><a href="/docs/faq">Frequently asked questions</a></li>
           <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
+          <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
           <li><a href="/about">About OctoCounts</a></li>
         </ul>
         <p>Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>, <a href="/github/torvalds/linux">torvalds/linux</a>.</p>

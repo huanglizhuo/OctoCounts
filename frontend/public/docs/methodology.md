@@ -19,6 +19,8 @@ SLOC, or source lines of code, is a measure of software size counted as the numb
 5. **Count:** [tokei](https://github.com/XAMPPRocky/tokei) detects languages and counts files, total lines, code lines, comments, and blank lines.
 6. **Cache:** The report is stored by repository, commit SHA, tokei version, and analysis options.
 
+OctoCounts currently runs [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (pinned in the backend's `Cargo.lock`, checked 2026-08-29). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.
+
 ## Cache Key
 
 Reports are cached by repository provider, owner, repository name, commit SHA, tokei version, and active analysis options. Repeated requests for the same commit and options return the cached report instead of downloading and counting again.

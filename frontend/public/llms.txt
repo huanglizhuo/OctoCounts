@@ -70,6 +70,7 @@ GET /badge/:owner/:repo/commit/:sha
 - API docs: https://octocounts.com/docs/api
 - FAQ: https://octocounts.com/docs/faq
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
+- GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 

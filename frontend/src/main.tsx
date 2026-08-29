@@ -4,7 +4,7 @@ import React, { FormEvent, ReactNode, Suspense, useCallback, useEffect, useMemo,
 import { Trans, useTranslation } from "react-i18next";
 import i18n, { ready as i18nReady } from "./i18n";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
-import { defaultRepoUrl, defaultRefName, extensionInfo } from "./constants";
+import { defaultRepoUrl, defaultRefName, extensionInfo, siteLastUpdated } from "./constants";
 import { analyzeRepository, fetchGrowthStats, fetchJson } from "./api";
 import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
@@ -362,6 +362,10 @@ function App() {
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
             <p className="hero-definition">{t("hero.definition")}</p>
+            <p className="hero-freshness">
+              {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time> · {t("hero.maintainedBy")}{" "}
+              <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a>
+            </p>
             {isHostDegraded(hostStatus) ? (
               <p className="host-status-hint" role="status">
                 {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}

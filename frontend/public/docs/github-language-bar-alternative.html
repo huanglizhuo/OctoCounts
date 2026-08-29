@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Language Bar Alternative: Real Line Counts | OctoCounts</title>
+    <meta name="description" content="GitHub's language bar shows byte-based percentages, not line counts. OctoCounts is a free alternative that shows actual files, total lines, code, comments, and blanks per language." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/github-language-bar-alternative" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/github-language-bar-alternative.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="GitHub Language Bar Alternative: Real Line Counts | OctoCounts" />
+    <meta property="og:description" content="OctoCounts replaces GitHub's byte-based language bar with real files, total lines, code, comments, and blanks per language, for any public repository." />
+    <meta property="og:url" content="https://octocounts.com/docs/github-language-bar-alternative" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GitHub Language Bar Alternative: Real Line Counts | OctoCounts" />
+    <meta name="twitter:description" content="A free alternative to GitHub's language bar that shows real line counts per language instead of byte percentages." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "GitHub Language Bar Alternative: Real Line Counts",
+      "description": "GitHub's language bar shows byte-based percentages, not line counts. OctoCounts is a free alternative that shows actual files, total lines, code, comments, and blanks per language.",
+      "datePublished": "2026-08-29",
+      "dateModified": "2026-08-29",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/github-language-bar-alternative"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What does GitHub's language bar actually measure?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GitHub's language bar shows the percentage of a repository's bytes attributed to each detected language, not lines of code, not files, and not a code/comment/blank breakdown. A repository that is 80% JavaScript by bytes could still have more actual lines of Python if the Python files are terser or more heavily commented. The bar also excludes files GitHub's Linguist classifies as vendored, generated, or documentation, which can shift the percentages away from what a contributor would experience reading the codebase."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is OctoCounts different from the GitHub language bar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts reports files, total lines, code lines, comment lines, and blank lines per language, pinned to a specific commit, instead of a single byte-based percentage bar. It downloads the repository's source archive, runs tokei, and returns numbers you can sort, export, badge, or cite, rather than a fixed-width colored bar with no underlying counts."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why doesn't GitHub just show line counts instead of the language bar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GitHub has not added a line-count view to the repository sidebar. The language bar is a lightweight summary computed from the same Linguist byte-classification data GitHub already uses for syntax highlighting, which is cheaper to compute than an actual line-by-line count across every file. OctoCounts fills that gap as a browser extension and web app rather than a GitHub feature."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I see line counts directly on GitHub's repository page?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Install the OctoCounts browser extension for Chrome, Edge, or Firefox to add a SLOC card directly to GitHub's repository sidebar, next to where the language bar already appears. No account or configuration is required."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo"],
+      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / GitHub language bar alternative</nav>
+    <main>
+      <p class="meta">Updated August 29, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>GitHub Language Bar Alternative: Real Line Counts</h1>
+      <p class="note">OctoCounts is a free alternative to GitHub's language bar. It shows actual files, total lines, code lines, comments, and blanks per language for any public repository, instead of a single byte-based percentage bar.</p>
+
+      <h2>What does GitHub's language bar actually measure?</h2>
+      <p>GitHub's language bar shows the percentage of a repository's bytes attributed to each detected language, not lines of code, not files, and not a code/comment/blank breakdown. A repository that is 80% JavaScript by bytes could still have more actual lines of Python if the Python files are terser or more heavily commented. The bar also excludes files GitHub's Linguist classifies as vendored, generated, or documentation, which can shift the percentages away from what a contributor would experience reading the codebase.</p>
+
+      <h2>How is OctoCounts different from the GitHub language bar?</h2>
+      <p>OctoCounts reports files, total lines, code lines, comment lines, and blank lines per language, pinned to a specific commit, instead of a single byte-based percentage bar. It downloads the repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns numbers you can sort, export, badge, or cite, rather than a fixed-width colored bar with no underlying counts.</p>
+      <table>
+        <thead><tr><th></th><th>GitHub language bar</th><th>OctoCounts</th></tr></thead>
+        <tbody>
+          <tr><td>What it measures</td><td>Percentage of bytes per language</td><td>Files, total lines, code, comments, blanks per language</td></tr>
+          <tr><td>Commit pinning</td><td>Reflects the default branch tip only</td><td>Pinned to a specific branch, tag, or commit SHA</td></tr>
+          <tr><td>Exportable</td><td>No</td><td>Plain text, JSON, or a shareable PNG card</td></tr>
+          <tr><td>Badge for a README</td><td>Not available</td><td><a href="/badges">Live SLOC badges</a></td></tr>
+          <tr><td>Where it appears</td><td>Repository page sidebar only</td><td>GitHub sidebar (via extension) and a standalone web report</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Why doesn't GitHub just show line counts instead of the language bar?</h2>
+      <p>GitHub has not added a line-count view to the repository sidebar. The language bar is a lightweight summary computed from the same Linguist byte-classification data GitHub already uses for syntax highlighting, which is cheaper to compute than an actual line-by-line count across every file. OctoCounts fills that gap as a browser extension and web app rather than a GitHub feature.</p>
+
+      <h2>Can I see line counts directly on GitHub's repository page?</h2>
+      <p>Install the OctoCounts browser extension for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a> to add a SLOC card directly to GitHub's repository sidebar, next to where the language bar already appears. No account or configuration is required. You can also paste any public repository URL into the <a href="/">OctoCounts web app</a> for the same breakdown without installing anything.</p>
+
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>
+        <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+        <li><a href="/docs/methodology">Counting methodology</a></li>
+        <li><a href="/docs/faq">Frequently asked questions</a></li>
+        <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
+        <li><a href="/badges">GitHub SLOC badges for your README</a></li>
+      </ul></nav>
+    </main>
+  </body>
+</html>

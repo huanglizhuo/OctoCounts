@@ -641,6 +641,17 @@ section {
   line-height: 1.5;
   max-width: 64ch;
 }
+.hero-freshness {
+  margin: calc(var(--space-4) * -1 + var(--space-1)) 0 var(--space-4);
+  font-size: 0.8rem;
+  color: var(--fg-mute);
+}
+.hero-freshness a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: .08em;
+  text-underline-offset: .15em;
+}
 .subtitle a {
   color: var(--accent);
   text-decoration: underline;

@@ -18,6 +18,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/glossary", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/faq", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/about", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms.txt", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms-full.txt", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -27,6 +28,17 @@ const STATIC_SITEMAP_ENTRIES = [
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
+  // Every canonical URL on this site is extensionless and slash-free (see
+  // STATIC_SITEMAP_ENTRIES and every canonical: below). Without this, dynamic
+  // routes like /github/:owner/:repo/ and /compare/:slug/ served 200s instead
+  // of redirecting, leaving duplicate crawlable URLs with only a soft
+  // rel=canonical signal; static routes 404'd instead, inconsistently. A
+  // single hard redirect here covers both.
+  if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+    const target = new URL(url);
+    target.pathname = url.pathname.replace(/\/+$/, "") || "/";
+    return Response.redirect(target, 308);
+  }
   // A trailing .md suffix selects the markdown twin of the same page
   // (/github/o/r.md, /compare/x-vs-y.md, /docs/methodology.md, ...); route
   // matching below runs on the stripped path so every ref variant resolves.
@@ -152,7 +164,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -734,6 +746,23 @@ async function badgesPageResponse(context) {
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
+  const badgeFaq = [
+    {
+      question: "Will the badge slow down my README?",
+      answer: "No. Default-branch and branch badges are served with a 1-hour edge cache and a 24-hour stale-while-revalidate window, and tag or commit badges are cached forever as immutable. GitHub's own image proxy (camo) caches the response again on top of that, so repeat views rarely reach the OctoCounts API at all.",
+    },
+    {
+      question: "Can I badge a single language instead of the whole repository?",
+      answer: 'Yes. Add a `?lang=<language>` query parameter to any badge URL, for example `?lang=rust`, to get a per-language line-count badge instead of the full summary. Language names are case-insensitive.',
+    },
+    {
+      question: "Does the badge update automatically as the repository changes?",
+      answer: "Default-branch and branch badges re-analyze on a cache miss, so they reflect new commits once the cache window expires. Tag and commit badges are pinned to that exact ref and never change, which is the right choice for a release README that should show historical numbers.",
+    },
+  ];
+  const badgeFaqHtml = `<h2>Badge FAQ</h2>${badgeFaq
+    .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+    .join("")}`;
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -753,19 +782,17 @@ async function badgesPageResponse(context) {
             url: "https://octocounts.com/badges",
           },
           {
-            "@type": "HowTo",
-            "@id": "https://octocounts.com/badges#howto",
-            name: "Add a live SLOC badge to a GitHub README",
-            description,
-            step: [
-              { "@type": "HowToStep", position: 1, name: "Pick a badge type", text: "Open the OctoCounts badge builder and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language." },
-              { "@type": "HowToStep", position: 2, name: "Copy the markdown", text: "Enter a public GitHub repository URL and copy the generated markdown snippet." },
-              { "@type": "HowToStep", position: 3, name: "Paste it into your README", text: "Paste the markdown into README.md. The badge renders live line counts from the OctoCounts badge API and links to a permanent, commit-pinned SLOC report." },
-            ],
+            "@type": "FAQPage",
+            "@id": "https://octocounts.com/badges#faq",
+            mainEntity: badgeFaq.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
           },
         ],
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a permanent, commit-pinned SLOC report.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
     }),
     "public, s-maxage=3600, stale-while-revalidate=86400"
   );
@@ -800,6 +827,7 @@ function injectHome(index) {
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
+    <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
   </ul></nav>`;
   const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
     <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Public GitLab repositories are supported as well, and neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>
@@ -891,6 +919,7 @@ function compareMarkdown(entry, left, right) {
     "See the counting methodology",
     "See the [counting methodology](https://octocounts.com/docs/methodology)"
   );
+  const faq = compareFaq(entry, left, right, leftDate, rightDate);
   return `# ${entry.name}: source lines of code compared
 
 ${compareSummaryText(left, right, leftDate, rightDate)}
@@ -908,6 +937,10 @@ Evidence and next steps:
 - [Compare ${left.repoFullName} and ${right.repoFullName} interactively](https://octocounts.com${interactiveHref})
 
 Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.
+
+## Compare FAQ
+
+${compareFaqMarkdown(faq)}
 
 ## Related OctoCounts pages
 
@@ -1053,11 +1086,12 @@ function injectCuratedCompare(index, entry, left, right) {
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const compareDefinition = `<p>This page compares the source lines of code (SLOC) of ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} using cached OctoCounts reports. Code size is not code quality: a larger count only means more source material, not a better or worse project.</p>`;
+  const faq = compareFaq(entry, left, right, leftDate, rightDate);
   const bodyContent = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareDefinition}${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(left.publicPath)}">${escapeHtml(left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(right.publicPath)}">${escapeHtml(right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(interactiveHref)}">Compare ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} interactively</a></li>
-  </ul><p>Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.</p>${internalLinks}</section>`;
+  </ul><p>Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.</p>${compareFaqHtml(faq)}${internalLinks}</section>`;
 
   return injectHeadAndNoscript(index, {
     title,
@@ -1065,7 +1099,7 @@ function injectCuratedCompare(index, entry, left, right) {
     canonical,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: "https://octocounts.com/og-image.jpg",
-    jsonLd: compareJsonLd(entry, left, right, canonical, description),
+    jsonLd: compareJsonLd(entry, left, right, canonical, description, faq),
     mdAlternate: `${canonical}.md`,
     extraHead: `<script type="application/json" id="octocounts-compare-prefill">${escapeScriptJson(prefill)}</script>`,
     bodyContent,
@@ -1126,10 +1160,66 @@ function compareMethodologyText(left, right, leftDate, rightDate) {
   return `Methodology: both counts come from cached OctoCounts reports generated with tokei. ${left.repoFullName} was counted at ref ${left.refName} (commit ${left.commitSha.slice(0, 12)}) on ${leftDate}; ${right.repoFullName} was counted at ref ${right.refName} (commit ${right.commitSha.slice(0, 12)}) on ${rightDate}. See the counting methodology for ignored directories and analysis options.`;
 }
 
-function compareJsonLd(entry, left, right, canonical, description) {
+/// Question-answer cluster every /compare/* page renders, matching the
+/// question-shaped fan-out ("which is bigger", "does more SLOC mean more
+/// complex", "is this fair", "can I use a different ref") that AI answer
+/// engines and Google's "People also ask" surface for a comparison query.
+/// Compare pages had zero question-based headings before this; it was the
+/// single largest AEO gap on the site given there are 90+ of these pages.
+function compareFaq(entry, left, right, leftDate, rightDate) {
+  const leftCode = Math.max(Number(left.total.code) || 0, 1);
+  const rightCode = Math.max(Number(right.total.code) || 0, 1);
+  const bigger = leftCode >= rightCode ? left.repoFullName : right.repoFullName;
+  const smaller = leftCode >= rightCode ? right.repoFullName : left.repoFullName;
+  const ratio = leftCode >= rightCode ? leftCode / rightCode : rightCode / leftCode;
+  const closeCall = ratio < 1.15;
+  return [
+    {
+      question: `Which has more lines of code, ${left.repoFullName} or ${right.repoFullName}?`,
+      answer: closeCall
+        ? `As of ${leftDate > rightDate ? leftDate : rightDate}, ${left.repoFullName} and ${right.repoFullName} are close in size: ${formatNumber(left.total.code)} vs ${formatNumber(right.total.code)} code lines, a difference of less than 15%. Neither clearly outsizes the other by this metric.`
+        : `${bigger} has more code: ${formatNumber(leftCode >= rightCode ? leftCode : rightCode)} code lines versus ${formatNumber(leftCode >= rightCode ? rightCode : leftCode)} for ${smaller}, about ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)}x as much, based on cached OctoCounts reports as of ${leftDate > rightDate ? leftDate : rightDate}.`,
+    },
+    {
+      question: "Does more source lines of code mean more complexity?",
+      answer: `Not necessarily. SLOC measures size, not complexity, quality, or maintainability. A larger codebase can mean more features, more generated or vendored code, more verbose language idioms, or more tests — none of which imply the code is harder to work with. Use SLOC to gauge the scale of what you'd be reading or maintaining, not as a quality signal for ${left.repoFullName}, ${right.repoFullName}, or any repository.`,
+    },
+    {
+      question: "How is this comparison calculated?",
+      answer: compareMethodologyText(left, right, leftDate, rightDate),
+    },
+    {
+      question: "Can I compare a different branch, tag, or commit?",
+      answer: `Yes. This page shows the default branch for each repository. Use the interactive comparison tool to pick any public GitHub repository, branch, tag, or commit SHA for both sides and get a fresh side-by-side report.`,
+    },
+  ];
+}
+
+function compareFaqHtml(faq) {
+  return `<h2>Compare FAQ</h2>${faq.map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`).join("")}`;
+}
+
+function compareFaqMarkdown(faq) {
+  return faq.map((item) => `### ${item.question}\n\n${item.answer}`).join("\n\n");
+}
+
+function compareFaqJsonLd(canonical, faq) {
+  return {
+    "@type": "FAQPage",
+    "@id": `${canonical}#faq`,
+    mainEntity: faq.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  };
+}
+
+function compareJsonLd(entry, left, right, canonical, description, faq) {
   return {
     "@context": "https://schema.org",
     "@graph": [
+      compareFaqJsonLd(canonical, faq),
       {
         "@type": "Dataset",
         "@id": `${canonical}#dataset`,
@@ -1591,7 +1681,7 @@ function securityHeaders(options) {
     ...(frameable ? {} : { "x-frame-options": "DENY" }),
     "referrer-policy": "strict-origin-when-cross-origin",
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
-    "strict-transport-security": "max-age=63072000; includeSubDomains",
+    "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "cross-origin-opener-policy": "same-origin",
     "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
   };

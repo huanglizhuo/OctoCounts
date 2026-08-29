@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-08-29 更新：8 项专项复核 + 修复
+
+次日用 8 个专项 agent（技术 SEO、Schema、内容、站点地图、性能、SXO、外链、GEO 复核）对本报告做了独立复核，发现两类问题并已修复（代码改动 + `frontend npm test` 58/58 通过）：
+
+1. **本报告曾标"✅ 已完成"但实际未上线的两项**：首页可见的"最后更新"日期、`/badges` 页的 FAQ 组件。已在 2026-08-29 真正实现并验证。
+2. **本报告未发现的新问题**：首页 `SoftwareApplication` Schema 挂了一条页面上完全不可见的 5.0★/118 条 `aggregateRating`（Google 富媒体结果政策风险）；两个页面残留已废弃的 `HowTo` Schema；`/compare/*` 页面完全没有问答式内容（AEO 最大缺口）；动态 report/compare 页带尾斜杠时 200 而非 301。以上均已修复。
+
+**本报告第 2.3 节和第 7 节 P1 表格中"动态 report 页 sitemap 覆盖情况不明确 ⏸️"的结论已被证伪**：复核确认 3,415 个 `/github/*` 报告页（含 `data/popular-repos.txt` 全部 173 个精选仓库）当时就已完整收录在 `sitemap.xml` 中，并非仅依赖 IndexNow。
+
+第 6 节"外部信号"的两处也有修正：Hacker News 帖子实际**已确认存在**（2026-07-16，2 赞 0 评论），并非"未找到/搜索失败"；`ruanyf/weekly`（10 万+ star 仓库）2026-07-01 有一条开源自荐 issue 提及 OctoCounts，是原搜索未覆盖到的中文社区触点。真实的 referring domain 数量/域名权重仍缺乏 Moz/Bing/DataForSEO 等真实数据源，"55/100"应视为低置信度估计而非基准分数。
+
+未修复、需要人工/基础设施操作的项：Cloudflare 边缘缓存规则（`/` 与 `/compare/*` 未命中缓存，需要 Cloudflare 控制台配置，步骤见 `how-to-run-and-deploy.md`）、`www.octocounts.com` 无 DNS 记录、report 页 JS bundle 按路由代码分割（需要更大范围重构，当前无组件级测试覆盖，暂缓）、伪造仓库路径的软 404（需要后端做 GitHub 仓库存在性校验）。
+
+---
+
 ## 1. 执行摘要
 
 ### 1.1 GEO 准备度评分：72/100

@@ -48,6 +48,7 @@ For private repositories, run tokei locally.
 - Popular reports: https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- README badge builder: https://octocounts.com/badges
 - Curated comparisons (server-rendered "X vs Y" SLOC pages, e.g. React vs Vue): https://octocounts.com/compare/react-vs-vue
 - Methodology: https://octocounts.com/docs/methodology
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter
@@ -55,6 +56,7 @@ For private repositories, run tokei locally.
 - API docs: https://octocounts.com/docs/api
 - FAQ: https://octocounts.com/docs/faq
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
+- GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 
