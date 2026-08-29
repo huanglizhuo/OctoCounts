@@ -63,6 +63,7 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 
 ## Related reading
 
+- [Best SLOC counter tools compared (including sloccount and GitHub's language bar)](/docs/best-sloc-counter-tools)
 - [GitHub SLOC counter guide](/docs/github-sloc-counter)
 - [OctoCounts counting methodology](/docs/methodology)
 - [OctoCounts API docs](/docs/api)

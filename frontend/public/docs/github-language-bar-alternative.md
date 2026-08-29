@@ -33,4 +33,5 @@ Install the OctoCounts browser extension for [Chrome](https://chromewebstore.goo
 - [Counting methodology](https://octocounts.com/docs/methodology)
 - [Frequently asked questions](https://octocounts.com/docs/faq)
 - [OctoCounts vs cloc, scc, and tokei](https://octocounts.com/docs/octocounts-vs-cloc)
+- [Best SLOC counter tools compared](https://octocounts.com/docs/best-sloc-counter-tools)
 - [GitHub SLOC badges for your README](https://octocounts.com/badges)

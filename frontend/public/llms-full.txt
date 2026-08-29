@@ -57,6 +57,7 @@ For private repositories, run tokei locally.
 - FAQ: https://octocounts.com/docs/faq
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
+- Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 

@@ -19,6 +19,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/faq", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/about", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms.txt", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms-full.txt", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -164,7 +165,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -840,6 +841,7 @@ function injectHome(index) {
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
     <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
+    <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared</a></li>
   </ul></nav>`;
   const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
     <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Public GitLab repositories are supported as well, and neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>

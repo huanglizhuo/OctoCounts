@@ -1434,10 +1434,23 @@ test("docs pages serve the GitHub language bar alternative page and its markdown
   }
 });
 
+test("docs pages serve the best SLOC counter tools comparison and its markdown twin", async () => {
+  const file = await readFile(new URL("public/docs/best-sloc-counter-tools.md", ROOT), "utf8");
+  assert.match(file, /^# /);
+
+  for (const path of ["/docs/best-sloc-counter-tools?format=md", "/docs/best-sloc-counter-tools.md"]) {
+    const response = await onRequest(docsAssetContext(path));
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+    assert.equal(await response.text(), file, path);
+  }
+});
+
 test("sitemaps list the docs glossary alongside the other docs", async () => {
   const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
   assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/github-language-bar-alternative<\/loc>/);
+  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/best-sloc-counter-tools<\/loc>/);
 
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();

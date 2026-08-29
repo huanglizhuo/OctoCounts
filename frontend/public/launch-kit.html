@@ -73,6 +73,30 @@ Try it: https://octocounts.com/</code></pre>
 
       <h2>Badge Example</h2>
       <pre><code>[![SLOC](https://api.octocounts.com/badge/huanglizhuo/OctoCounts)](https://octocounts.com/github/huanglizhuo/OctoCounts)</code></pre>
+
+      <h2>Directory Submission Kit</h2>
+      <p>Copy for submitting to AlternativeTo, LibHunt, OpenAlternative, OpenSourceFest, Product Hunt, and similar tool/open-source directories.</p>
+
+      <div class="card"><strong>Tagline (≤10 words)</strong>Free GitHub SLOC counter — real line counts, not percentages.</div>
+
+      <div class="card" style="margin-top: 14px;"><strong>Short description (~60 words)</strong>OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It downloads the source archive for a pinned commit, counts it with tokei, and reports files, total lines, code, comments, blanks, and per-language totals — no cloning required. Available as a web app, browser extension, README badge, GitHub Action, CLI, and MCP server.</div>
+
+      <div class="card" style="margin-top: 14px;"><strong>Long description (~300 words)</strong>OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. GitHub's repository sidebar shows a language bar — a percentage breakdown by bytes — but never shows the numbers most developers actually want: how many files, how many total lines, how much of that is real code versus comments and blank space, broken down per language.
+      <br><br>
+      OctoCounts fills that gap. Paste a public GitHub URL, optionally pin a branch, tag, or commit, and it downloads the repository's source archive (never a full git clone with history), counts every file with tokei — a fast, Rust-based line counter — and returns a sortable, shareable report: files, total lines, code lines, comment lines, blank lines, and per-language totals, all pinned to an exact commit so the numbers are reproducible.
+      <br><br>
+      Reports are cached by commit SHA and tokei version, so re-analyzing the same commit is instant. Every report gets a permanent, shareable URL, can be exported as plain text, JSON, or a PNG card, and can be embedded as a live README badge that always reflects the current default branch, or pinned to a tag or commit for numbers that never change.
+      <br><br>
+      Beyond the web app, OctoCounts ships as a browser extension for Chrome, Edge, and Firefox that adds the same SLOC breakdown directly to GitHub's repository sidebar, a GitHub Action that comments SLOC changes on pull requests, a CLI (<code>npx octocounts</code>), and an MCP server that gives AI coding assistants like Claude and Cursor direct access to repository size data.
+      <br><br>
+      OctoCounts only analyzes public repositories — no account, no GitHub token, and no source-code upload required. It's free with no premium tier, and the entire stack (Rust/Axum backend, React/TypeScript frontend) is open source under the MIT license.</div>
+
+      <div class="grid" style="margin-top: 14px;">
+        <div class="card"><strong>Category / tags</strong>Developer Tools, GitHub, Code Quality, Open Source, CLI Tools, Productivity</div>
+        <div class="card"><strong>Pricing</strong>Free — open source, MIT license</div>
+      </div>
+
+      <div class="card" style="margin-top: 14px;"><strong>Maker story (Product Hunt first comment / "why I built this")</strong>I kept wanting to know how big a repository actually was before depending on it, forking it, or spending an afternoon reading it — and GitHub's language bar never answered that; it shows percentages, not files or lines. Cloning a repo just to run tokei locally worked, but I was doing it often enough, especially for repos with a long git history, that it got old. So I built OctoCounts to skip the clone: paste a GitHub URL, get the real numbers.</div>
     </main>
   </body>
 </html>
