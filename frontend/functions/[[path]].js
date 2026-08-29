@@ -11,7 +11,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/trending", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/badges", lastmod: STATIC_SITEMAP_LASTMOD },
-  { loc: "https://octocounts.com/launch-kit.html", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/launch-kit", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/api", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/methodology", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -150,6 +150,7 @@ const LEGACY_DOC_REDIRECTS = {
   "/docs/github-sloc-counter.html": "/docs/github-sloc-counter",
   "/docs/methodology.html": "/docs/methodology",
   "/docs/api.html": "/docs/api",
+  "/launch-kit.html": "/launch-kit",
 };
 
 const LEGACY_REPORT_REDIRECTS = {

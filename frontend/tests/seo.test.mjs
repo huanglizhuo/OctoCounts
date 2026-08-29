@@ -52,6 +52,21 @@ test("legacy documentation .html URLs permanently redirect to extensionless cano
   }
 });
 
+test("launch-kit.html permanently redirects to its extensionless canonical", async () => {
+  // The site's own canonical tag, sitemap, and footer links had all
+  // already standardized on the extensionless /launch-kit, but nothing
+  // redirected the old .html URL there — so /launch-kit.html sat as a
+  // second, un-redirected copy with a canonical tag pointing away from
+  // itself. LEGACY_DOC_REDIRECTS closes that the same way the three docs
+  // pages above already do.
+  const response = await onRequest(requestContext("/launch-kit.html"));
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://octocounts.com/launch-kit");
+
+  const launchKit = await readFile(new URL("public/launch-kit.html", ROOT), "utf8");
+  assert.match(launchKit, /<link rel="canonical" href="https:\/\/octocounts\.com\/launch-kit" \/>/);
+});
+
 test("trailing-slash URLs permanently redirect to the slash-free canonical", async () => {
   for (const [pathname, expected] of [
     ["/github/huanglizhuo/OctoCounts/", "https://octocounts.com/github/huanglizhuo/OctoCounts"],

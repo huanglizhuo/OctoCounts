@@ -595,7 +595,7 @@ function App() {
             <a href="/badges">{t("footer.badges")}</a> &middot;
             <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
             <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot;
-            <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot;
+            <a href="/launch-kit">{t("growth.launchKit")}</a> &middot;
             <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
             {" "}{t("footer.copyright")}
           </span>

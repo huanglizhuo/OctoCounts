@@ -27,7 +27,7 @@ Install the extension for instant stats directly on GitHub, or use the web app f
 | [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |
 | [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
 | [README badges](#badges) | Add a live SLOC badge that links to a permanent report page. |
-| [Launch kit](https://octocounts.com/launch-kit.html) | Copy product descriptions, launch posts, links, screenshots, and badges. |
+| [Launch kit](https://octocounts.com/launch-kit) | Copy product descriptions, launch posts, links, screenshots, and badges. |
 
 ## Preview
 

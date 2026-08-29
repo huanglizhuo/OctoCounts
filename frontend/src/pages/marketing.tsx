@@ -137,7 +137,7 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
         <footer>
           <span>{t("growth.footerTagline")}</span>
           <span>
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/launch-kit.html">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
+            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/launch-kit">{t("growth.launchKit")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
           </span>
         </footer>
       </main>
