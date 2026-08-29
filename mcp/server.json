@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.huanglizhuo/octocounts-mcp",
+  "title": "OctoCounts MCP Server",
+  "description": "Analyze and compare public GitHub repo line counts (SLOC) via OctoCounts, from any MCP client.",
+  "version": "0.1.1",
+  "websiteUrl": "https://octocounts.com",
+  "repository": {
+    "url": "https://github.com/huanglizhuo/OctoCounts",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "octocounts-mcp",
+      "version": "0.1.1",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}
