@@ -2,7 +2,7 @@ import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
 const API_BASE = "https://api.octocounts.com";
 const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
-const STATIC_SITEMAP_LASTMOD = "2026-08-28";
+const STATIC_SITEMAP_LASTMOD = "2026-08-29";
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/stats", lastmod: STATIC_SITEMAP_LASTMOD },
