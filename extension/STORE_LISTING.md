@@ -75,3 +75,13 @@ Store-ready screenshots live in [`../screenshots/`](../screenshots/). Suggested 
    Caption: "Configure the panel from the toolbar popup — card position, cache TTL, and more."
 
 Upload the in-page panel screenshot first; it is the strongest search-result visual. Captions double as alt text where the store supports it.
+
+## Promotional Images (Chrome Web Store)
+
+Chrome Web Store's developer dashboard has an optional "Promo images" section (separate from screenshots) that improves placement in category/search browse pages. All three are in [`../screenshots/`](../screenshots/), on-brand with the existing mascot artwork used in `og_image.jpg`:
+
+- `extension-promo-small-440x280.png` — Small promo tile, exactly 440×280.
+- `extension-promo-large-920x680.png` — Large promo tile, exactly 920×680.
+- `extension-promo-marquee-1400x560.png` — Marquee promo tile, exactly 1400×560.
+
+These are optional on Edge Add-ons and Firefox Add-ons (neither store uses this exact format), so only upload them to the Chrome Web Store dashboard.
