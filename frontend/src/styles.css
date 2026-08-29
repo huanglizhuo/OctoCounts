@@ -344,7 +344,7 @@ body {
 
 
 .top-actions,
-.topbar-links,
+.topbar-links-scroll,
 .row-flex {
   display: flex;
   gap: var(--space-2);
@@ -353,6 +353,11 @@ body {
 }
 
 .topbar-links {
+  min-width: 0;
+  position: relative;
+}
+
+.topbar-links-scroll {
   min-width: 0;
   flex-wrap: nowrap;
 }
@@ -2896,10 +2901,39 @@ footer a {
 
   .topbar-links {
     width: 100%;
+  }
+
+  .topbar-links-scroll {
     padding-bottom: var(--space-1);
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scrollbar-width: thin;
+  }
+
+  /* The scrollbar alone doesn't signal there's more to scroll to on mobile
+     (thin/auto-hiding scrollbars are easy to miss). A background-color fade
+     was invisible here: the tab pills already sit at nearly the same tone
+     as the page background in both themes, so fading toward --bg produced
+     no visible contrast. An accent-colored chevron doesn't depend on that
+     contrast. Lives on .topbar-links (sized to just this row and not
+     itself scrolling), not .topbar-links-scroll (which scrolls and would
+     carry the chevron away with it) or .topbar (whose height also covers
+     the brand row above, misaligning the chevron vertically). */
+  .topbar-links::after {
+    content: "\203A";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: var(--space-1);
+    width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 18px;
+    background: linear-gradient(to right, transparent, var(--bg) 55%);
+    pointer-events: none;
   }
 
   .report-rail,
