@@ -1,4 +1,4 @@
-# GitHub Trending daily snapshot generated 2026-08-28T14:19:14.297Z
+# GitHub Trending daily snapshot generated 2026-08-29T09:00:25.417Z
 tt-a1i/archify
 K-Dense-AI/scientific-agent-skills
 anthropics/claude-plugins-official
@@ -11,6 +11,7 @@ cursor/plugins
 freestylefly/awesome-gpt-image-2
 tailscale/tailcat
 NationalSecurityAgency/ghidra
+swoole/typephp
 marin-community/marin
 tashfeenahmed/freellmapi
 ChromeDevTools/chrome-devtools-mcp
