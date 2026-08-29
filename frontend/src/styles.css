@@ -627,6 +627,18 @@ section {
   color: var(--accent);
 }
 
+/* Report routes skip the marketing pitch and go straight to a search box —
+   a visitor arriving from search already knows what the page is. */
+.hero-compact {
+  padding-block: var(--space-2) 0;
+}
+
+.hero-left h1.title-compact {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 var(--space-2);
+}
+
 .subtitle {
   margin: 0 0 var(--space-2);
   font-size: 0.875rem;

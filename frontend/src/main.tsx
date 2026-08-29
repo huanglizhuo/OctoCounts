@@ -184,6 +184,13 @@ const seedReport = normalizeReport(ssrSeed ?? (initialReportData as unknown as R
 function App() {
   const { t, i18n } = useTranslation();
   const routePath = window.location.pathname;
+  // A visitor who lands directly on a specific report from search sees the
+  // full marketing hero (tagline, subtitle, definition, install buttons,
+  // sample chips) before any repository data — on mobile that pushed the
+  // actual report over a screen down. Collapse the hero to title + search
+  // box on report routes; the homepage keeps the full pitch for first-time
+  // visitors who have nothing else to look at yet.
+  const isReportRoute = routePath.startsWith("/github/");
   if (routePath === "/stats") return <RoutedPage><StatsPage /></RoutedPage>;
   if (routePath === "/recent") return <RoutedPage><ReportListPage kind="recent" /></RoutedPage>;
   if (routePath === "/popular") return <RoutedPage><ReportListPage kind="popular" /></RoutedPage>;
@@ -352,20 +359,26 @@ function App() {
       <div className="crt flicker" />
       <main id="main" className="page">
         <Topbar />
-        <section className="hero" aria-label={t("hero.title")}>
+        <section className={`hero ${isReportRoute ? "hero-compact" : ""}`} aria-label={t("hero.title")}>
           <div className="hero-left">
             <TopActions status={status} />
-            <h1 className="title">
-              <Trans i18nKey="hero.title" components={{ 1: <span className="glow" /> }} />
-            </h1>
-            <p className="subtitle">
-              <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
-            </p>
-            <p className="hero-definition">{t("hero.definition")}</p>
-            <p className="hero-freshness">
-              {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time> · {t("hero.maintainedBy")}{" "}
-              <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a>
-            </p>
+            {isReportRoute ? (
+              <h1 className="title title-compact">OctoCounts</h1>
+            ) : (
+              <>
+                <h1 className="title">
+                  <Trans i18nKey="hero.title" components={{ 1: <span className="glow" /> }} />
+                </h1>
+                <p className="subtitle">
+                  <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
+                </p>
+                <p className="hero-definition">{t("hero.definition")}</p>
+                <p className="hero-freshness">
+                  {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time> · {t("hero.maintainedBy")}{" "}
+                  <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a>
+                </p>
+              </>
+            )}
             {isHostDegraded(hostStatus) ? (
               <p className="host-status-hint" role="status">
                 {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}
@@ -413,52 +426,58 @@ function App() {
             </form>
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {report && <BadgeEmbed report={report} refName={refName} />}
-            <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
-              <StoreLink store="chrome" placement="hero" className="btn install-btn" size={15}>{t("hero.installChrome")}</StoreLink>
-              <StoreLink store="edge" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installEdge")}</StoreLink>
-              <StoreLink store="firefox" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installFirefox")}</StoreLink>
-              <span>{t("hero.sidebarHint")}</span>
-            </div>
-            <div className="quick-rows" role="group" aria-label={t("hero.ariaSamples")}>
-              {samples.map((sample) => (
-                <button
-                  className={`chip ${busySample === sample.repoUrl ? "busy" : ""}`}
-                  key={sample.repoUrl}
-                  type="button"
-                  disabled={busySample !== null}
-                  aria-pressed={busySample === sample.repoUrl}
-                  onClick={() => playSample(sample)}
-                >
-                  <span className="k">{t("samples.label")}</span>{sample.label}
-                </button>
-              ))}
-            </div>
-            {recentRepos.length > 0 ? (
-              <div className="quick-rows recent-rows" role="group" aria-label={t("recent.ariaLabel")}>
-                {recentRepos.map((entry) => (
-                  <button
-                    className="chip recent-chip"
-                    key={entry.repoUrl}
-                    type="button"
-                    title={entry.repoUrl}
-                    onClick={() => playRecent(entry)}
-                  >
-                    <History size={12} aria-hidden="true" />
-                    <span className="k">{t("recent.label")}</span>{entry.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            {!isReportRoute && (
+              <>
+                <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
+                  <StoreLink store="chrome" placement="hero" className="btn install-btn" size={15}>{t("hero.installChrome")}</StoreLink>
+                  <StoreLink store="edge" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installEdge")}</StoreLink>
+                  <StoreLink store="firefox" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installFirefox")}</StoreLink>
+                  <span>{t("hero.sidebarHint")}</span>
+                </div>
+                <div className="quick-rows" role="group" aria-label={t("hero.ariaSamples")}>
+                  {samples.map((sample) => (
+                    <button
+                      className={`chip ${busySample === sample.repoUrl ? "busy" : ""}`}
+                      key={sample.repoUrl}
+                      type="button"
+                      disabled={busySample !== null}
+                      aria-pressed={busySample === sample.repoUrl}
+                      onClick={() => playSample(sample)}
+                    >
+                      <span className="k">{t("samples.label")}</span>{sample.label}
+                    </button>
+                  ))}
+                </div>
+                {recentRepos.length > 0 ? (
+                  <div className="quick-rows recent-rows" role="group" aria-label={t("recent.ariaLabel")}>
+                    {recentRepos.map((entry) => (
+                      <button
+                        className="chip recent-chip"
+                        key={entry.repoUrl}
+                        type="button"
+                        title={entry.repoUrl}
+                        onClick={() => playRecent(entry)}
+                      >
+                        <History size={12} aria-hidden="true" />
+                        <span className="k">{t("recent.label")}</span>{entry.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </section>
 
-        <section className="trust-strip" aria-label={t("hero.ariaTrust")}>
-          <div className="social-proof">
-            <a href="https://github.com/huanglizhuo/OctoCounts" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
-            <span className="proof-badge">{t("hero.badgeFree")}</span>
-            <span className="proof-badge">{t("hero.badgeLanguages")}</span>
-          </div>
-        </section>
+        {!isReportRoute && (
+          <section className="trust-strip" aria-label={t("hero.ariaTrust")}>
+            <div className="social-proof">
+              <a href="https://github.com/huanglizhuo/OctoCounts" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
+              <span className="proof-badge">{t("hero.badgeFree")}</span>
+              <span className="proof-badge">{t("hero.badgeLanguages")}</span>
+            </div>
+          </section>
+        )}
 
         <section>
           <div className="section-h">
