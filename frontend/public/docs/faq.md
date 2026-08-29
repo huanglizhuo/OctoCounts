@@ -10,7 +10,9 @@ OctoCounts is a free source lines of code (SLOC) counter for public GitHub repos
 
 ### What is SLOC?
 
-SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting the lines in its source code. Unlike raw line count, SLOC distinguishes between code lines (actual instructions the compiler or interpreter processes), comment lines (documentation and explanations), and blank lines (whitespace). This breakdown matters because a 10,000-line file that is 40% comments tells a different story than one that is 95% code. Developers use SLOC to estimate project complexity, compare codebases when evaluating dependencies, scope billing and audit work, and communicate repository size to stakeholders who may not read code. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is tokei, which is significantly faster than alternatives like cloc or sloccount because it is written in Rust and uses parallel file processing.
+SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting the lines in its source code. Unlike raw line count, SLOC distinguishes between code lines (actual instructions the compiler or interpreter processes), comment lines (documentation and explanations), and blank lines (whitespace). This breakdown matters because a 10,000-line file that is 40% comments tells a different story than one that is 95% code.
+
+Developers use SLOC to estimate project complexity, compare codebases when evaluating dependencies, scope billing and audit work, and communicate repository size to stakeholders who may not read code. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is tokei, which is significantly faster than alternatives like cloc or sloccount because it is written in Rust and uses parallel file processing.
 
 ### How do I count lines of code in a GitHub repository?
 
@@ -18,21 +20,29 @@ Paste a public GitHub URL into the OctoCounts web app, optionally specify a bran
 
 ### Is OctoCounts free?
 
-Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and no rate limit that is publicly documented. Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on GitHub at github.com/huanglizhuo/OctoCounts. OctoCounts intentionally analyzes public repositories only and has no advertising and collects no personal data.
+Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and no rate limit that is publicly documented. Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on GitHub at github.com/huanglizhuo/OctoCounts.
+
+OctoCounts intentionally analyzes public repositories only and has no advertising and collects no personal data.
 
 ## Features and integrations
 
 ### Does OctoCounts have a browser extension?
 
-Yes. OctoCounts has browser extensions for Chrome, Edge, and Firefox, all named OctoCounts – GitHub SLOC & Code Statistics. They add a compact SLOC card directly to GitHub repository sidebars, appearing automatically on any public repository page and showing the total line count and analysis status. Clicking the card opens the full panel with files, total lines, code lines, comment lines, and blank lines per language — the same breakdown as the web app. A local cache makes repeat visits to the same repository and ref instant, the auto-analyze setting controls whether counts fetch on page load or on demand, and a placement setting controls where the card appears in the sidebar. No GitHub account or API token is required, and the extension source code is publicly available on GitHub.
+Yes. OctoCounts has browser extensions for Chrome, Edge, and Firefox, all named OctoCounts – GitHub SLOC & Code Statistics. They add a compact SLOC card directly to GitHub repository sidebars, appearing automatically on any public repository page and showing the total line count and analysis status. Clicking the card opens the full panel with files, total lines, code lines, comment lines, and blank lines per language — the same breakdown as the web app.
+
+A local cache makes repeat visits to the same repository and ref instant, the auto-analyze setting controls whether counts fetch on page load or on demand, and a placement setting controls where the card appears in the sidebar. No GitHub account or API token is required, and the extension source code is publicly available on GitHub.
 
 ### What programming languages does OctoCounts support?
 
-OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types, including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Erlang, Clojure, F#, Lua, R, Julia, Dart, Perl, Shell, Bash, PowerShell, HTML, CSS, SCSS, SQL, GraphQL, Dockerfile, YAML, JSON, TOML, XML, Markdown, and many more. tokei detects languages primarily by file extension, with fallback to shebang lines and content-based detection for ambiguous files, and supports configuration to exclude directories such as node_modules, vendor, or build output folders. OctoCounts automatically skips heavy generated folders before passing the archive to tokei, so the SLOC count reflects actual human-written source code rather than auto-generated files that would inflate the numbers.
+OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types, including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Erlang, Clojure, F#, Lua, R, Julia, Dart, Perl, Shell, Bash, PowerShell, HTML, CSS, SCSS, SQL, GraphQL, Dockerfile, YAML, JSON, TOML, XML, Markdown, and many more.
+
+tokei detects languages primarily by file extension, with fallback to shebang lines and content-based detection for ambiguous files, and supports configuration to exclude directories such as node_modules, vendor, or build output folders. OctoCounts automatically skips heavy generated folders before passing the archive to tokei, so the SLOC count reflects actual human-written source code rather than auto-generated files that would inflate the numbers.
 
 ### Can I export the results?
 
-Yes. OctoCounts supports three export formats, available from the action buttons below the analysis results. Plain text copies a formatted table to your clipboard, showing language name, file count, total lines, code lines, comment lines, and blank lines in a column-aligned layout suitable for pasting into README files, GitHub issues, or documentation. JSON downloads the full structured report, including per-language stats and aggregate totals, formatted for scripts, CI pipelines, or other tools that consume JSON. PNG downloads a 1200x630 image card showing the language breakdown, suitable for sharing on social media, GitHub READMEs, or portfolio pages. All three formats are generated client-side from the analysis data already loaded in your browser, so no additional server request is needed.
+Yes. OctoCounts supports three export formats, available from the action buttons below the analysis results. Plain text copies a formatted table to your clipboard, showing language name, file count, total lines, code lines, comment lines, and blank lines in a column-aligned layout suitable for pasting into README files, GitHub issues, or documentation. JSON downloads the full structured report, including per-language stats and aggregate totals, formatted for scripts, CI pipelines, or other tools that consume JSON.
+
+PNG downloads a 1200x630 image card showing the language breakdown, suitable for sharing on social media, GitHub READMEs, or portfolio pages. All three formats are generated client-side from the analysis data already loaded in your browser, so no additional server request is needed.
 
 ### How do I add a SLOC badge to my README?
 

@@ -52,6 +52,8 @@
       "name": "About OctoCounts",
       "description": "About OctoCounts, a free source lines of code counter for public GitHub repositories.",
       "url": "https://octocounts.com/about",
+      "datePublished": "2026-08-29",
+      "dateModified": "2026-08-30",
       "mainEntity": {
         "@type": "Organization",
         "@id": "https://octocounts.com/#organization",
@@ -82,9 +84,13 @@
   <body>
     <nav><a href="/">OctoCounts</a> / About</nav>
     <main>
-      <p class="meta">Updated August 28, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated August 30, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>About OctoCounts</h1>
       <p class="note">OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.</p>
+
+      <h2>Why I built this</h2>
+      <p>I kept wanting to know how big a repository actually was before depending on it, forking it, or spending an afternoon reading it — and GitHub's language bar never answered that; it shows percentages, not files or lines. Cloning a repo just to run tokei locally worked, but I was doing it often enough, especially for repos with a long git history, that it got old.</p>
+      <p>So I built OctoCounts to skip the clone: paste a GitHub URL, get the real numbers. I still use it myself, mostly to size up a dependency before adopting it, or to settle "how big is this thing, really" with an actual count instead of a guess.</p>
 
       <h2>What OctoCounts does</h2>
       <p>GitHub shows language percentages in the repository sidebar, but it does not show actual file counts or line counts. OctoCounts fills that gap by:</p>

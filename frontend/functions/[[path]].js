@@ -761,7 +761,7 @@ async function badgesPageResponse(context) {
     },
   ];
   const badgeFaqHtml = `<h2>Badge FAQ</h2>${badgeFaq
-    .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+    .map((item) => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`)
     .join("")}`;
 
   return htmlResponse(
@@ -813,7 +813,7 @@ function injectHome(index) {
   const faq = homeFaq(index);
   const faqHtml = faq.length
     ? `<h2>Frequently Asked Questions</h2>${faq
-        .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+        .map((item) => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`)
         .join("")}`
     : "";
   const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
@@ -1196,7 +1196,7 @@ function compareFaq(entry, left, right, leftDate, rightDate) {
 }
 
 function compareFaqHtml(faq) {
-  return `<h2>Compare FAQ</h2>${faq.map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`).join("")}`;
+  return `<h2>Compare FAQ</h2>${faq.map((item) => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`).join("")}`;
 }
 
 function compareFaqMarkdown(faq) {
@@ -1377,7 +1377,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     .join("");
   const faq = reportFaq(report);
   const faqHtml = `<section><h2>Report FAQ</h2>${faq
-    .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+    .map((item) => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`)
     .join("")}</section>`;
   // Contextual links out of every report page: crawlers get a path from any
   // long-tail /github/* URL into the curated compare corpus (and vice versa),
@@ -1611,6 +1611,18 @@ function setMeta(html, attr, key, content) {
 
 function escapeScriptJson(value) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+/// Renders a Q&A answer as one <p> per blank-line-separated chunk. FAQ
+/// answers are one Answer.text string in JSON-LD (schema.org has no
+/// multi-paragraph answer type), so a long answer is written with internal
+/// "\n\n" breaks and split here for humans reading the rendered page —
+/// AI extraction still gets the single self-contained string it wants.
+function answerHtml(text) {
+  return text
+    .split(/\n\n+/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
 }
 
 function escapeHtml(value) {
