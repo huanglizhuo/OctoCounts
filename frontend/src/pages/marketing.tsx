@@ -297,6 +297,7 @@ export function DiffPage() {
 
 export function BadgesPage() {
   const { t } = useTranslation();
+  const faqItems = t("badgesPage.faq", { returnObjects: true }) as Array<{ question: string; answer: string }>;
   return (
     <MarketingShell>
       <section className="growth-hero tool-hero" aria-label={t("badgesPage.title")}>
@@ -313,6 +314,20 @@ export function BadgesPage() {
         <EmbedBuilder repoUrl="" report={null} />
       </section>
       <BadgeWall />
+      <section aria-label={t("badgesPage.faqTitle")}>
+        <div className="section-h">
+          <h2>{t("badgesPage.faqTitle")}</h2>
+          <span className="sub">{t("badgesPage.faqSubtitle")}</span>
+        </div>
+        <div className="how">
+          {faqItems.map((item, idx) => (
+            <div className="step" key={idx}>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </MarketingShell>
   );
 }

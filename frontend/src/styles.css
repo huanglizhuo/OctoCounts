@@ -628,11 +628,18 @@ section {
 }
 
 .subtitle {
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-2);
   font-size: 0.875rem;
   color: var(--fg-mute);
   line-height: 1.45;
   max-width: 52ch;
+}
+.hero-definition {
+  margin: 0 0 var(--space-4);
+  font-size: 1rem;
+  color: var(--fg);
+  line-height: 1.5;
+  max-width: 64ch;
 }
 .subtitle a {
   color: var(--accent);

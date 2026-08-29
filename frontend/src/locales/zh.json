@@ -13,6 +13,7 @@
   "hero": {
     "title": "GitHub <1>SLOC 计数器</1>：GitHub 忘记添加的面板。",
     "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开 GitHub 仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
+    "definition": "OctoCounts 是一款免费的公开 GitHub 仓库 SLOC 计数器。无需克隆，即可显示文件数、总行数、代码行、注释行、空行以及各语言统计。",
     "badgeOpenSource": "GitHub 开源",
     "badgeFree": "免费 · 无需注册",
     "badgeLanguages": "200+ 种语言",
@@ -268,10 +269,12 @@
   },
   "footer": {
     "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
+    "about": "关于",
     "privacy": "隐私",
     "contact": "联系",
     "apiDocs": "API 文档",
     "slocGuide": "SLOC 指南",
+    "faq": "常见问题",
     "badges": "徽章",
     "builtBy": "由 <1>huanglizhuo</1> 构建，独立开发者",
     "copyright": "(c) 2026"
@@ -351,7 +354,16 @@
   "badgesPage": {
     "kicker": "README 徽章，实时渲染",
     "title": "为你的 README 加上 SLOC 徽章",
-    "subtitle": "选择徽章类型，复制 Markdown，README 就会展示实时代码行数，并链接到永久的 OctoCounts 报告页。"
+    "subtitle": "选择徽章类型，复制 Markdown，README 就会展示实时代码行数，并链接到永久的 OctoCounts 报告页。",
+    "faqTitle": "徽章常见问题",
+    "faqSubtitle": "关于 README 徽章的常见疑问",
+    "faq": [
+      { "question": "什么是 OctoCounts 徽章？", "answer": "一个可嵌入 README 的小尺寸实时图片，展示仓库的 SLOC 统计，并链接到永久的 OctoCounts 报告页。" },
+      { "question": "如何把徽章加到 README 里？", "answer": "在上方的生成器中选择徽章类型，复制 Markdown 代码片段，然后粘贴到 README.md 中你想展示徽章的位置。" },
+      { "question": "徽章会拖慢 README 加载吗？", "answer": "不会。徽章是由 OctoCounts 徽章 API 提供的轻量 SVG 图片，并通过 CDN 缓存加速。" },
+      { "question": "可以只展示某一种语言吗？", "answer": "可以。在生成器中选择“单语言”，然后输入语言名称，例如 Rust 或 TypeScript。" },
+      { "question": "徽章会自动更新吗？", "answer": "徽章反映的是请求引用最新缓存报告的数据。重新分析仓库或访问其 OctoCounts 报告即可刷新缓存。" }
+    ]
   },
   "embedBuilder": {
     "title": "嵌入 SLOC 卡片",

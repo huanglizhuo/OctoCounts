@@ -361,6 +361,7 @@ function App() {
             <p className="subtitle">
               <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
             </p>
+            <p className="hero-definition">{t("hero.definition")}</p>
             {isHostDegraded(hostStatus) ? (
               <p className="host-status-hint" role="status">
                 {hostStatus.description} — {t("githubStatus.degradedHint")}{" "}
@@ -563,9 +564,11 @@ function App() {
         <footer>
           <span>{t("footer.tagline")}</span>
           <span>
+            <a href="/about">{t("footer.about")}</a> &middot;
             <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
             <a href="/docs/api">{t("footer.apiDocs")}</a> &middot;
             <a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a> &middot;
+            <a href="/docs/faq">{t("footer.faq")}</a> &middot;
             <a href="/badges">{t("footer.badges")}</a> &middot;
             <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
             <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot;

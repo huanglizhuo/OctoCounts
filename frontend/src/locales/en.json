@@ -13,6 +13,7 @@
   "hero": {
     "title": "GitHub <1>SLOC counter</1>: the panel GitHub forgot.",
     "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
+    "definition": "OctoCounts is a free SLOC counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.",
     "badgeOpenSource": "Open source on GitHub",
     "badgeFree": "Free · no sign-up",
     "badgeLanguages": "200+ languages",
@@ -277,10 +278,12 @@
   },
   "footer": {
     "tagline": "OctoCounts // actual SLOC for public GitHub repos",
+    "about": "About",
     "privacy": "Privacy",
     "contact": "Contact",
     "apiDocs": "API docs",
     "slocGuide": "SLOC guide",
+    "faq": "FAQ",
     "badges": "Badges",
     "builtBy": "Built by <1>huanglizhuo</1>, indie developer",
     "copyright": "(c) 2026"
@@ -360,7 +363,16 @@
   "badgesPage": {
     "kicker": "readme badges, live",
     "title": "SLOC badges for your README",
-    "subtitle": "Pick a badge type, copy the markdown, and your README shows live line counts that link back to a permanent OctoCounts report."
+    "subtitle": "Pick a badge type, copy the markdown, and your README shows live line counts that link back to a permanent OctoCounts report.",
+    "faqTitle": "Badge FAQ",
+    "faqSubtitle": "common questions about README badges",
+    "faq": [
+      { "question": "What is an OctoCounts badge?", "answer": "A small live image you embed in a README that shows repository SLOC stats and links to the permanent OctoCounts report page." },
+      { "question": "How do I add a badge to my README?", "answer": "Pick a badge type above, copy the Markdown snippet, and paste it into your README.md where you want the badge to appear." },
+      { "question": "Will the badge slow down my README?", "answer": "No. Badges are lightweight SVG images served by the OctoCounts badge API and are cached by CDN." },
+      { "question": "Can I show a single language instead of the whole repo?", "answer": "Yes. Select 'Single language' in the badge builder and enter the language name, for example Rust or TypeScript." },
+      { "question": "Does the badge update automatically?", "answer": "The badge reflects the latest cached report for the requested ref. Re-analyze the repository or visit its OctoCounts report to refresh the cache." }
+    ]
   },
   "embedBuilder": {
     "title": "Embed a SLOC card",

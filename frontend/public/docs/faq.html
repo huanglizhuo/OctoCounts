@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts FAQ | Source Lines of Code Counter</title>
+    <meta name="description" content="Frequently asked questions about OctoCounts: SLOC counting, GitHub support, browser extension, badges, API, privacy, and how it compares to local tools." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/faq" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/faq.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts FAQ | Source Lines of Code Counter" />
+    <meta property="og:description" content="Answers to common questions about OctoCounts, SLOC counting, GitHub support, extensions, badges, and the API." />
+    <meta property="og:url" content="https://octocounts.com/docs/faq" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts FAQ | Source Lines of Code Counter" />
+    <meta name="twitter:description" content="Frequently asked questions about OctoCounts, SLOC counting, and GitHub repository analysis." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      .faq-section { margin-bottom: 48px; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts FAQ",
+      "description": "Frequently asked questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and API usage.",
+      "dateModified": "2026-08-28",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/faq"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is OctoCounts?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is SLOC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SLOC stands for Source Lines of Code. It is a software metric that counts lines in source files and normally separates them into code lines, comment lines, and blank lines."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does OctoCounts count lines of code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts resolves a public GitHub URL to a pinned commit SHA, downloads the source archive for that ref, extracts it, and counts every file with tokei. Results are cached by repository, commit SHA, tokei version, and analysis options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts support private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is OctoCounts free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account, API key, sign-up, or premium tier."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts have a browser extension?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Browser extensions for Chrome, Edge, and Firefox add a SLOC card directly to GitHub repository sidebars."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What programming languages does OctoCounts support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I export SLOC results?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts supports plain text, JSON, and a 1200x630 PNG share card."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is OctoCounts different from GitHub's language bar?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GitHub's language bar shows language percentages. OctoCounts shows actual file counts and line counts: total lines, code lines, comments, blanks, and per-language totals."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is OctoCounts different from running tokei or cloc locally?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts downloads a compressed archive instead of doing a full git clone, requires no local installation, caches reports by commit SHA, and provides shareable report URLs, badges, and an API."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I add a SLOC badge to my README?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use the badge builder on /badges to pick a badge type, copy the Markdown snippet, and paste it into your README.md."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I compare two repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Use /compare to compare two public repositories side by side, or visit curated comparison pages such as /compare/react-vs-vue."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a cached report?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A cached report is a stored SLOC result keyed by repository, commit SHA, tokei version, and analysis options. Re-analyzing the same commit returns the cached result instantly."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How accurate are OctoCounts reports?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Reports are exact for the downloaded source archive and selected analysis options. They reflect the public archive at one commit, not the full git history or excluded files."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts store my source code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public repositories and stores only aggregated statistics. It does not keep source files."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I cite an OctoCounts report?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Every report page includes a recommended citation. Prefer citing the canonical report URL and include the generated date and commit SHA."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens if a repository is too large?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Very large repositories may hit analyzer size or timeout limits. Retry later, or run tokei locally for full control."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use OctoCounts in CI or GitHub Actions?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts provides a GitHub Action that comments SLOC changes on pull requests, plus a CLI for terminal and CI usage."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there an API or CLI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. OctoCounts offers a public API, a CLI via npx octocounts, an MCP server, and a GitHub Action. See /docs/api for API details."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Who maintains OctoCounts?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts is built and maintained by huanglizhuo. The project is open source under the MIT license."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo"],
+      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / FAQ</nav>
+    <main>
+      <p class="meta">Updated August 28, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>OctoCounts FAQ</h1>
+      <p class="note">Answers to common questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and the API.</p>
+
+      <div class="faq-section">
+        <h2>Getting started</h2>
+
+        <h3>What is OctoCounts?</h3>
+        <p>OctoCounts is a free <a href="/docs/methodology">source lines of code (SLOC)</a> counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning.</p>
+
+        <h3>What is SLOC?</h3>
+        <p>SLOC stands for Source Lines of Code. It is a software metric that counts lines in source files and normally separates them into three kinds: <strong>code</strong> lines (executable or meaningful source), <strong>comment</strong> lines (documentation), and <strong>blank</strong> lines (whitespace). OctoCounts reports all three figures separately for every language. See the <a href="/docs/methodology">methodology</a> for details.</p>
+
+        <h3>How do I count lines of code in a GitHub repository?</h3>
+        <p>Paste a public GitHub URL into the <a href="/">OctoCounts web app</a>, optionally specify a branch, tag, or commit SHA, and click Analyze. OctoCounts resolves the ref, downloads the source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns a sortable breakdown.</p>
+
+        <h3>Is OctoCounts free?</h3>
+        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account, API key, sign-up, or premium tier.</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>Features and integrations</h2>
+
+        <h3>Does OctoCounts have a browser extension?</h3>
+        <p>Yes. Extensions for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, and <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a> add a compact SLOC card to GitHub repository sidebars. Click the card for the full panel with totals, language breakdown, and cached stats.</p>
+
+        <h3>What programming languages does OctoCounts support?</h3>
+        <p>OctoCounts uses tokei for language detection, which supports over 200 programming languages and file types, including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Shell, HTML, CSS, YAML, JSON, Markdown, and many more.</p>
+
+        <h3>Can I export the results?</h3>
+        <p>Yes. Every report page offers three exports: plain text (copy to clipboard), JSON (full structured report), and a 1200 &times; 630 PNG card for sharing on social media or in documentation.</p>
+
+        <h3>How do I add a SLOC badge to my README?</h3>
+        <p>Use the <a href="/badges">badge builder</a> to pick a badge type, copy the Markdown snippet, and paste it into your README.md. The badge updates from the latest cached report and links back to the permanent OctoCounts report page.</p>
+
+        <h3>Can I compare two repositories?</h3>
+        <p>Yes. Visit <a href="/compare">/compare</a> to compare two public repositories or refs side by side. OctoCounts also maintains curated comparison pages such as <a href="/compare/react-vs-vue">React vs Vue</a> and <a href="/compare/rust-vs-go">Rust vs Go</a>.</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>Methodology and accuracy</h2>
+
+        <h3>How does OctoCounts count lines of code?</h3>
+        <p>OctoCounts resolves the requested branch, tag, or commit SHA to a pinned commit, downloads the GitHub source archive for that exact ref, extracts it, and counts every source file with tokei. Heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default. See the <a href="/docs/methodology">counting methodology</a>.</p>
+
+        <h3>How is OctoCounts different from GitHub's language bar?</h3>
+        <p>GitHub's language bar shows language percentages by file count and size. OctoCounts shows actual file counts and line counts: total lines, code lines, comments, blanks, and per-language totals, pinned to a specific commit.</p>
+
+        <h3>How is OctoCounts different from running tokei or cloc locally?</h3>
+        <p>OctoCounts downloads a compressed archive instead of doing a full git clone, requires no local installation, caches reports by commit SHA, and provides shareable report URLs, README badges, an API, a CLI, and a GitHub Action. For private repositories or custom analysis, running <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> locally is still the best option. See <a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc and tokei</a>.</p>
+
+        <h3>What is a cached report?</h3>
+        <p>A cached report is a stored SLOC result keyed by repository provider, owner, name, commit SHA, tokei version, and analysis options. Re-analyzing the same commit returns the cached result instantly with no re-download and no re-count.</p>
+
+        <h3>How accurate are OctoCounts reports?</h3>
+        <p>Reports are exact for the downloaded source archive and selected analysis options. They reflect the public archive at one commit, not the full git history. Generated files, dependency folders, docs, tests, and ignored languages may be included or excluded depending on the analysis options.</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>Privacy, API, and project</h2>
+
+        <h3>Does OctoCounts support private repositories?</h3>
+        <p>No. OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
+
+        <h3>Does OctoCounts store my source code?</h3>
+        <p>No. OctoCounts analyzes public repositories and stores only aggregated statistics such as file counts and line counts. It does not keep source files.</p>
+
+        <h3>Is there an API or CLI?</h3>
+        <p>Yes. OctoCounts offers a public API, a CLI via <code>npx octocounts</code>, an MCP server, and a GitHub Action. See the <a href="/docs/api">API docs</a> for request and response details.</p>
+
+        <h3>Can I use OctoCounts in CI or GitHub Actions?</h3>
+        <p>Yes. The <a href="https://github.com/huanglizhuo/OctoCounts/tree/main/action">OctoCounts GitHub Action</a> comments SLOC changes on pull requests. The CLI can also run in any terminal or CI script.</p>
+
+        <h3>What happens if a repository is too large?</h3>
+        <p>Very large repositories may hit analyzer size or timeout limits. Retry later, specify a smaller ref, or run tokei locally for full control.</p>
+
+        <h3>How do I cite an OctoCounts report?</h3>
+        <p>Every report page includes a recommended citation block. Prefer citing the canonical report URL and include the generated date and commit SHA, for example: <code>https://octocounts.com/github/torvalds/linux</code>.</p>
+
+        <h3>Who maintains OctoCounts?</h3>
+        <p>OctoCounts is built and maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a>. The project is <a href="https://github.com/huanglizhuo/OctoCounts">open source on GitHub</a> under the MIT license. For more background, see the <a href="/about">About OctoCounts</a> page.</p>
+      </div>
+    </main>
+  </body>
+</html>

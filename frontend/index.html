@@ -230,7 +230,7 @@
     <noscript>
       <main>
         <h1>OctoCounts – GitHub SLOC Counter</h1>
-        <p><time datetime="2026-07-15">Updated July 2026.</time> GitHub shows language bars, but it does not show actual files, code lines, comments, blanks, or per-language totals. OctoCounts is a free SLOC counter for public GitHub repositories. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning.</p>
+        <p><strong>OctoCounts is a free SLOC counter for public GitHub repositories.</strong> It shows files, total lines, code, comments, blanks, and per-language totals without cloning. Install <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">OctoCounts from the Chrome Web Store</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">OctoCounts from Microsoft Edge Add-ons</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">OctoCounts from Firefox Add-ons</a> to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL into the web app for a full report. OctoCounts downloads the archive tarball, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, caches the result by commit SHA, and returns a sortable breakdown without cloning. <time datetime="2026-08-28">Updated August 28, 2026.</time></p>
 
         <h2>Why use OctoCounts instead of cloning and running tokei locally?</h2>
         <p>OctoCounts downloads a compressed archive tarball rather than a full git clone with history, which is significantly faster for large repositories. It caches results by commit SHA, tokei version, and analysis options, so any repeated analysis of the same commit returns instantly with zero re-processing. There is nothing to install. Paste a public GitHub URL and get results in seconds.</p>
@@ -274,6 +274,9 @@
           <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
           <li><a href="/docs/methodology">Counting methodology</a></li>
           <li><a href="/docs/api">OctoCounts API docs</a></li>
+          <li><a href="/docs/faq">Frequently asked questions</a></li>
+          <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
+          <li><a href="/about">About OctoCounts</a></li>
         </ul>
         <p>Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>, <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
 

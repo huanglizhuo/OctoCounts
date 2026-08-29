@@ -16,6 +16,9 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/api", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/methodology", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/docs/glossary", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/faq", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: STATIC_SITEMAP_LASTMOD },
+  { loc: "https://octocounts.com/about", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms.txt", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/llms-full.txt", lastmod: STATIC_SITEMAP_LASTMOD },
   { loc: "https://octocounts.com/privacy", lastmod: STATIC_SITEMAP_LASTMOD },
@@ -149,7 +152,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -1049,7 +1052,8 @@ function injectCuratedCompare(index, entry, left, right) {
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
-  const bodyContent = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
+  const compareDefinition = `<p>This page compares the source lines of code (SLOC) of ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} using cached OctoCounts reports. Code size is not code quality: a larger count only means more source material, not a better or worse project.</p>`;
+  const bodyContent = `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1>${compareDefinition}${compareSummary(left, right, leftDate, rightDate)}${table}${compareLanguageMix(left, right)}${compareMethodology(left, right, leftDate, rightDate)}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(left.publicPath)}">${escapeHtml(left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(right.publicPath)}">${escapeHtml(right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(interactiveHref)}">Compare ${escapeHtml(left.repoFullName)} and ${escapeHtml(right.repoFullName)} interactively</a></li>

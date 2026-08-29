@@ -51,7 +51,11 @@ For private repositories, run tokei locally.
 - Curated comparisons (server-rendered "X vs Y" SLOC pages, e.g. React vs Vue): https://octocounts.com/compare/react-vs-vue
 - Methodology: https://octocounts.com/docs/methodology
 - SLOC guide: https://octocounts.com/docs/github-sloc-counter
+- Glossary: https://octocounts.com/docs/glossary
 - API docs: https://octocounts.com/docs/api
+- FAQ: https://octocounts.com/docs/faq
+- Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
+- About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 
 ## Report URL Patterns
