@@ -997,6 +997,10 @@ test("homepage SSR injects crawler-visible body content and keeps the head schem
   assert.match(html, /<h1>OctoCounts – GitHub SLOC Counter<\/h1>/);
   assert.match(html, /free SLOC counter for public GitHub repositories/);
   assert.match(html, /<h2>How it works<\/h2>/);
+  // The freshness line is only meaningful to crawlers if it's in the SSR
+  // body, not just the client-rendered React component — a prior fix added
+  // it to main.tsx alone and non-JS-executing bots never saw it.
+  assert.match(html, /Last updated: \d{4}-\d{2}-\d{2} &middot; Maintained by <a href="https:\/\/github\.com\/huanglizhuo">huanglizhuo<\/a>/);
   // Visible FAQ answers come from the same FAQPage JSON-LD the head serves.
   for (const item of faq.mainEntity) {
     assert.ok(html.includes(`<h3>${item.name}</h3>`), item.name);

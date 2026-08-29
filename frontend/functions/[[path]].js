@@ -831,6 +831,7 @@ function injectHome(index) {
   </ul></nav>`;
   const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
     <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Public GitLab repositories are supported as well, and neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>
+    <p><small>Last updated: ${STATIC_SITEMAP_LASTMOD} &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></small></p>
     <h2>How it works</h2>
     <ol>
       <li>OctoCounts resolves the requested branch, tag, or commit and pins the analysis to an exact commit SHA.</li>
