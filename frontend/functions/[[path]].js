@@ -230,7 +230,19 @@ async function reportResponse(context, route, options = {}) {
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60");
   }
   if (result.state === "unavailable") {
-    return serviceUnavailableResponse(await indexHtml(context));
+    const fullName = `${route.owner}/${route.repo}`;
+    return serviceUnavailableResponse(await indexHtml(context), {
+      title: `${fullName} SLOC report | OctoCounts`,
+      description: `Source line count report for ${fullName} is temporarily unavailable. Please try again shortly.`,
+      canonical: `https://octocounts.com/${route.provider}/${route.owner}/${route.repo}`,
+      // Not noindex: the 503 status alone tells crawlers this is transient
+      // and to retry later. Stacking noindex on top risks a crawler
+      // deindexing a normally-indexable URL over a passing backend blip.
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: null,
+      bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>This report is temporarily unavailable. Please try again in a moment.</p></section>`,
+    });
   }
 
   const report = await result.response.json();
@@ -880,7 +892,16 @@ async function curatedCompareResponse(context, entry, options = {}) {
   ]);
 
   if (leftResult.state === "unavailable" || rightResult.state === "unavailable") {
-    return serviceUnavailableResponse(await indexHtml(context));
+    return serviceUnavailableResponse(await indexHtml(context), {
+      title: `${entry.name}: source lines of code compared | OctoCounts`,
+      description: `The ${entry.name} source line count comparison is temporarily unavailable. Please try again shortly.`,
+      canonical: `https://octocounts.com/compare/${entry.slug}`,
+      // Not noindex — see the comment in the report-page 503 branch above.
+      robots: "index,follow,max-image-preview:large,max-snippet:-1",
+      ogImage: "https://octocounts.com/og-image.jpg",
+      jsonLd: null,
+      bodyContent: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>This comparison is temporarily unavailable. Please try again in a moment.</p></section>`,
+    });
   }
 
   if (leftResult.state === "missing" || rightResult.state === "missing") {
@@ -992,8 +1013,18 @@ async function fetchSeoReport(context, target) {
 
 /// 503 + no-store: ask crawlers to retry later. The body is the plain SPA
 /// shell — no noindex injection and nothing the CDN is allowed to cache.
-function serviceUnavailableResponse(index) {
-  return new Response(index, {
+/// A transient backend failure used to serve the bare, generic index.html
+/// shell here — same <title>, same meta description, and its only <h1>
+/// sitting inside a <noscript> block search-engine H1 detection typically
+/// ignores. Every report/compare URL hit by the same outage therefore
+/// looked byte-identical to a crawler, which is exactly what surfaced as
+/// "duplicate title tag" / "duplicate meta description" across unrelated
+/// repo pages (and "missing <h1>") in Bing Webmaster Tools. `meta` gives
+/// each URL its own real title/description/H1 even while unavailable; the
+/// 503 + no-store still tell crawlers not to index or cache this response.
+function serviceUnavailableResponse(index, meta) {
+  const html = meta ? injectHeadAndNoscript(index, meta) : index;
+  return new Response(html, {
     status: 503,
     headers: {
       "content-type": "text/html; charset=utf-8",

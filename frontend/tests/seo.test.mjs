@@ -701,6 +701,13 @@ test("curated comparison answers 503 + no-store when a report fetch fails transi
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.doesNotMatch(html, /noindex/);
   assert.doesNotMatch(html, /not available for both repositories yet/);
+  // Bing Webmaster Tools flagged duplicate titles/descriptions and a
+  // missing <h1> across unrelated report/compare URLs — traced to every
+  // 503 returning the same generic homepage shell. Each URL must render
+  // its own title/description/H1 even while the backend is unavailable.
+  assert.match(html, /<title>React vs Vue: source lines of code compared \| OctoCounts<\/title>/);
+  assert.match(html, /<h1>React vs Vue: source lines of code compared<\/h1>/);
+  assert.doesNotMatch(html, /<title>OctoCounts – GitHub SLOC Counter<\/title>/);
 });
 
 test("curated comparison answers 503 + no-store when a report fetch throws", async () => {
@@ -727,9 +734,11 @@ test("report page answers 503 + no-store when the report API fails transiently",
   globalThis.fetch = async () => new Response("backend exploded", { status: 500 });
   let response;
   let html;
+  let otherHtml;
   try {
     response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
     html = await response.text();
+    otherHtml = await (await onRequest(await renderedContext("/github/another-org/another-repo"))).text();
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -738,6 +747,13 @@ test("report page answers 503 + no-store when the report API fails transiently",
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.doesNotMatch(html, /noindex/);
   assert.doesNotMatch(html, /No cached report exists yet/);
+  // Same regression as the curated-compare 503 above: each repo URL must
+  // get its own title/H1, not the generic homepage shell repeated for
+  // every URL an outage happens to touch.
+  assert.match(html, /<title>octo-org\/octo-repo SLOC report \| OctoCounts<\/title>/);
+  assert.match(html, /<h1>octo-org\/octo-repo SLOC report<\/h1>/);
+  assert.doesNotMatch(html, /<title>OctoCounts – GitHub SLOC Counter<\/title>/);
+  assert.notEqual(html, otherHtml, "different repos must not render byte-identical 503 pages");
 });
 
 test("report page answers 503 + no-store when the report API is unreachable", async () => {
