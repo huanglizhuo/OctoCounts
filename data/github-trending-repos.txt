@@ -1,21 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-08-29T09:00:25.417Z
+# GitHub Trending daily snapshot generated 2026-08-30T08:17:04.654Z
 tt-a1i/archify
-K-Dense-AI/scientific-agent-skills
-anthropics/claude-plugins-official
 bilawalsidhu/gods-eye-view
-abhigyanpatwari/GitNexus
-JetBrains/go-modern-guidelines
-calesthio/OpenMontage
-abi/screenshot-to-code
-cursor/plugins
-freestylefly/awesome-gpt-image-2
+K-Dense-AI/scientific-agent-skills
 tailscale/tailcat
-NationalSecurityAgency/ghidra
-swoole/typephp
-marin-community/marin
-tashfeenahmed/freellmapi
-ChromeDevTools/chrome-devtools-mcp
-rohitg00/ai-engineering-from-scratch
-DietrichGebert/ponytail
+THU-MAIC/OpenMAIC
+p-e-w/heretic
+bigskysoftware/htmx
+JetBrains/go-modern-guidelines
+ComposioHQ/awesome-claude-skills
+calesthio/OpenMontage
+every-app/open-seo
+Osmantic/ODS
+abi/screenshot-to-code
+anthropics/claude-plugins-official
 google/googletest
-livekit/agents
+actions/checkout
+kaifcodec/user-scanner
+addyosmani/agent-skills
+workweave/router
