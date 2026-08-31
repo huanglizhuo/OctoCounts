@@ -1,20 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-08-30T08:17:04.654Z
-tt-a1i/archify
-bilawalsidhu/gods-eye-view
-K-Dense-AI/scientific-agent-skills
-tailscale/tailcat
+# GitHub Trending daily snapshot generated 2026-08-31T08:37:09.704Z
 THU-MAIC/OpenMAIC
+K-Dense-AI/scientific-agent-skills
+Lakr233/vphone-cli
+tt-a1i/archify
 p-e-w/heretic
-bigskysoftware/htmx
-JetBrains/go-modern-guidelines
-ComposioHQ/awesome-claude-skills
-calesthio/OpenMontage
+unclecode/crawl4ai
+mvanhorn/last30days-skill
+majd/ipatool
+punkpeye/awesome-mcp-servers
+checkstyle/checkstyle
+NationalSecurityAgency/ghidra
+pollen-robotics/microduck_rl
+handsomestWei/patent-disclosure-skill
+corsairdev/corsair
 every-app/open-seo
-Osmantic/ODS
-abi/screenshot-to-code
-anthropics/claude-plugins-official
-google/googletest
-actions/checkout
-kaifcodec/user-scanner
-addyosmani/agent-skills
-workweave/router
+colinhacks/zod
+tashfeenahmed/freellmapi
+livekit/agents
+abhigyanpatwari/GitNexus
