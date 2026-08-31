@@ -37,7 +37,7 @@ impl Store {
                 body_bytes BIGINT NOT NULL DEFAULT 0,
                 source TEXT NOT NULL DEFAULT 'unknown',
                 CONSTRAINT reports_provider_valid CHECK (provider IN ('github', 'gitlab')),
-                CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown')),
+                CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'sloc_backfill', 'unknown')),
                 CONSTRAINT reports_access_count_nonnegative CHECK (access_count >= 0),
                 CONSTRAINT reports_body_bytes_nonnegative CHECK (body_bytes >= 0),
                 UNIQUE(provider, owner, repo, commit_sha, tokei_version)
@@ -59,7 +59,7 @@ impl Store {
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT jobs_provider_valid CHECK (provider IS NULL OR provider IN ('github', 'gitlab')),
-                CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown')),
+                CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'sloc_backfill', 'unknown')),
                 CONSTRAINT jobs_status_valid CHECK (status IN ('queued', 'running', 'completed', 'failed'))
             );
             "#,
@@ -237,11 +237,11 @@ impl Store {
                     FROM pg_constraint
                     WHERE conname = 'reports_source_valid'
                     AND connamespace = current_schema()::regnamespace
-                    AND pg_get_constraintdef(oid) NOT LIKE '%github_trending%'
+                    AND pg_get_constraintdef(oid) NOT LIKE '%sloc_backfill%'
                 ) THEN
                     ALTER TABLE reports DROP CONSTRAINT reports_source_valid;
                     ALTER TABLE reports
-                    ADD CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown'));
+                    ADD CONSTRAINT reports_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'sloc_backfill', 'unknown'));
                 END IF;
 
                 IF EXISTS (
@@ -249,11 +249,11 @@ impl Store {
                     FROM pg_constraint
                     WHERE conname = 'jobs_source_valid'
                     AND connamespace = current_schema()::regnamespace
-                    AND pg_get_constraintdef(oid) NOT LIKE '%github_trending%'
+                    AND pg_get_constraintdef(oid) NOT LIKE '%sloc_backfill%'
                 ) THEN
                     ALTER TABLE jobs DROP CONSTRAINT jobs_source_valid;
                     ALTER TABLE jobs
-                    ADD CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'unknown'));
+                    ADD CONSTRAINT jobs_source_valid CHECK (source IN ('web', 'extension', 'github_action', 'cli', 'mcp', 'api', 'seed', 'github_trending', 'sloc_backfill', 'unknown'));
                 END IF;
 
                 IF NOT EXISTS (
@@ -294,6 +294,8 @@ impl Store {
 
         self.migrate_report_stat_columns().await?;
         self.migrate_report_languages().await?;
+        self.migrate_star_history().await?;
+        self.migrate_sloc_history().await?;
 
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
@@ -558,6 +560,336 @@ impl Store {
 
         self.backfill_report_languages().await?;
         Ok(())
+    }
+
+    /// Star history is GitHub-only (GitLab has no public per-star timestamp
+    /// API), tracked only for repositories someone has actually asked to see a
+    /// chart for — `star_watch` is that opt-in list, populated the first time
+    /// `star_history()` is called for a given repo. `star_snapshots` then
+    /// accumulates one row per watched repo per day via a background task
+    /// (see `spawn_star_snapshot_task` in main.rs); a UNIQUE(provider, owner,
+    /// repo, date) lets that task upsert idempotently no matter how many times
+    /// it runs in a day.
+    async fn migrate_star_history(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS star_watch (
+                provider TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                first_watched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (provider, owner, repo)
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS star_snapshots (
+                provider TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                snapshot_date DATE NOT NULL,
+                star_count BIGINT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT star_snapshots_count_nonnegative CHECK (star_count >= 0),
+                UNIQUE(provider, owner, repo, snapshot_date)
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_star_snapshots_lookup ON star_snapshots (provider, owner, repo, snapshot_date)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Adds a repo to the watch list if it isn't already on it. Returns
+    /// whether this call was the one that started watching it, so the caller
+    /// can decide whether a one-time historical backfill is needed.
+    pub async fn watch_repo_for_stars(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            INSERT INTO star_watch (provider, owner, repo)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (provider, owner, repo) DO NOTHING
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    /// Every watched repo, for the daily snapshot task to iterate.
+    pub async fn watched_star_repos(&self) -> anyhow::Result<Vec<(RepositoryProvider, String, String)>> {
+        let rows = sqlx::query("SELECT provider, owner, repo FROM star_watch")
+            .fetch_all(&self.pool)
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let provider: String = row.try_get("provider")?;
+                let owner: String = row.try_get("owner")?;
+                let repo: String = row.try_get("repo")?;
+                let provider = provider_from_str(&provider)
+                    .ok_or_else(|| anyhow::anyhow!("unknown provider {provider}"))?;
+                Ok((provider, owner, repo))
+            })
+            .collect()
+    }
+
+    /// Inserts or replaces today's (or a backfilled day's) star count for a
+    /// repo. `ON CONFLICT ... DO UPDATE` rather than `DO NOTHING` so a repeat
+    /// snapshot the same day corrects an earlier bad read instead of freezing
+    /// on it, and so a backfill re-run recovers cleanly from a partial prior
+    /// attempt.
+    pub async fn record_star_snapshot(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        date: NaiveDate,
+        star_count: i64,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO star_snapshots (provider, owner, repo, snapshot_date, star_count)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (provider, owner, repo, snapshot_date)
+            DO UPDATE SET star_count = EXCLUDED.star_count
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .bind(date)
+        .bind(star_count)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// The full recorded history for a repo, oldest first — whatever mix of
+    /// backfilled and daily-snapshot rows exists. Empty for a repo nobody has
+    /// ever asked to watch yet.
+    pub async fn star_history(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Vec<(NaiveDate, i64)>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT snapshot_date, star_count
+            FROM star_snapshots
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            ORDER BY snapshot_date ASC
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let date: NaiveDate = row.try_get("snapshot_date")?;
+                let count: i64 = row.try_get("star_count")?;
+                Ok((date, count))
+            })
+            .collect()
+    }
+
+    async fn migrate_sloc_history(&self) -> anyhow::Result<()> {
+        // Reuses `star_watch` as the "this repo's history was requested"
+        // trigger instead of a second watch table — both the star and SLOC
+        // backfills key off the same first-view signal.
+        sqlx::query("ALTER TABLE star_watch ADD COLUMN IF NOT EXISTS sloc_backfill_started_at TIMESTAMPTZ")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE star_watch ADD COLUMN IF NOT EXISTS sloc_backfill_completed_at TIMESTAMPTZ")
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS sloc_snapshots (
+                provider TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                snapshot_date DATE NOT NULL,
+                total_lines BIGINT NOT NULL,
+                commit_sha TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT sloc_snapshots_lines_nonnegative CHECK (total_lines >= 0),
+                UNIQUE(provider, owner, repo, snapshot_date)
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_sloc_snapshots_lookup ON sloc_snapshots (provider, owner, repo, snapshot_date)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Atomically claims the SLOC backfill for a repo: only the caller that
+    /// flips `sloc_backfill_started_at` from NULL gets `true` back, so a burst
+    /// of concurrent first-views of the same repo spawns exactly one backfill
+    /// task instead of one per request.
+    pub async fn start_sloc_backfill_if_needed(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE star_watch
+            SET sloc_backfill_started_at = NOW()
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+              AND sloc_backfill_started_at IS NULL
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn mark_sloc_backfill_completed(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE star_watch
+            SET sloc_backfill_completed_at = NOW()
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Whether a repo's SLOC backfill has been claimed but not yet finished —
+    /// used to tell the frontend "still gathering historical data" apart from
+    /// "this repo genuinely has no history yet".
+    pub async fn sloc_backfill_in_progress(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query(
+            r#"
+            SELECT sloc_backfill_started_at IS NOT NULL AND sloc_backfill_completed_at IS NULL AS in_progress
+            FROM star_watch
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| row.try_get::<bool, _>("in_progress")).transpose()?.unwrap_or(false))
+    }
+
+    /// Inserts or replaces a sampled historical SLOC point.
+    /// `ON CONFLICT ... DO UPDATE` mirrors `record_star_snapshot`: a repeat
+    /// sample landing on the same day corrects rather than duplicates.
+    pub async fn record_sloc_snapshot(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        date: NaiveDate,
+        total_lines: i64,
+        commit_sha: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO sloc_snapshots (provider, owner, repo, snapshot_date, total_lines, commit_sha)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (provider, owner, repo, snapshot_date)
+            DO UPDATE SET total_lines = EXCLUDED.total_lines, commit_sha = EXCLUDED.commit_sha
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .bind(date)
+        .bind(total_lines)
+        .bind(commit_sha)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// The full recorded SLOC history for a repo, oldest first.
+    pub async fn sloc_history(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Vec<(NaiveDate, i64)>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT snapshot_date, total_lines
+            FROM sloc_snapshots
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            ORDER BY snapshot_date ASC
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let date: NaiveDate = row.try_get("snapshot_date")?;
+                let total_lines: i64 = row.try_get("total_lines")?;
+                Ok((date, total_lines))
+            })
+            .collect()
     }
 
     /// Populates `report_languages` for reports that predate it.
@@ -2115,6 +2447,7 @@ pub fn source_to_str(source: &AnalysisSource) -> &'static str {
         AnalysisSource::Api => "api",
         AnalysisSource::Seed => "seed",
         AnalysisSource::GitHubTrending => "github_trending",
+        AnalysisSource::SlocBackfill => "sloc_backfill",
         AnalysisSource::Unknown => "unknown",
     }
 }
@@ -2129,6 +2462,7 @@ fn source_from_str(source: &str) -> AnalysisSource {
         "api" => AnalysisSource::Api,
         "seed" => AnalysisSource::Seed,
         "github_trending" => AnalysisSource::GitHubTrending,
+        "sloc_backfill" => AnalysisSource::SlocBackfill,
         _ => AnalysisSource::Unknown,
     }
 }
@@ -3331,6 +3665,273 @@ mod tests {
         assert_eq!(loaded.status, JobStatus::Failed);
         assert_eq!(error.code, "bad_repo");
         assert_eq!(error.message, "repository is invalid");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn watch_repo_for_stars_is_idempotent() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+
+        let first = store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "torvalds", "linux")
+            .await
+            .unwrap();
+        let second = store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "torvalds", "linux")
+            .await
+            .unwrap();
+
+        assert!(first, "the first call should start watching");
+        assert!(!second, "the second call should find it already watched");
+
+        let watched = store.watched_star_repos().await.unwrap();
+        assert_eq!(
+            watched,
+            vec![(RepositoryProvider::GitHub, "torvalds".to_string(), "linux".to_string())]
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn record_star_snapshot_upserts_same_day_instead_of_duplicating() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 100)
+            .await
+            .unwrap();
+        // A same-day re-snapshot (e.g. the daily task running twice, or a
+        // repeat backfill) must correct the row in place, not add a second
+        // one for the same date.
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 142)
+            .await
+            .unwrap();
+
+        let history = store
+            .star_history(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert_eq!(history, vec![(today, 142)]);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_history_returns_snapshots_oldest_first() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+        let yesterday = today - Duration::days(1);
+        let last_week = today - Duration::days(7);
+
+        // Inserted out of chronological order on purpose, to prove the query
+        // orders by date rather than by insertion order.
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 300)
+            .await
+            .unwrap();
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "octo", "counts", last_week, 100)
+            .await
+            .unwrap();
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "octo", "counts", yesterday, 250)
+            .await
+            .unwrap();
+
+        let history = store
+            .star_history(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert_eq!(history, vec![(last_week, 100), (yesterday, 250), (today, 300)]);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_history_is_scoped_per_repository() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "owner-a", "repo", today, 10)
+            .await
+            .unwrap();
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "owner-b", "repo", today, 20)
+            .await
+            .unwrap();
+
+        let a = store
+            .star_history(RepositoryProvider::GitHub, "owner-a", "repo")
+            .await
+            .unwrap();
+        let b = store
+            .star_history(RepositoryProvider::GitHub, "owner-b", "repo")
+            .await
+            .unwrap();
+
+        assert_eq!(a, vec![(today, 10)]);
+        assert_eq!(b, vec![(today, 20)]);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_history_is_empty_for_an_unwatched_repo() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let history = store
+            .star_history(RepositoryProvider::GitHub, "nobody", "watches-this")
+            .await
+            .unwrap();
+        assert!(history.is_empty());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn start_sloc_backfill_if_needed_is_idempotent() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        let first = store
+            .start_sloc_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        let second = store
+            .start_sloc_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert!(first, "the first call should claim the backfill");
+        assert!(!second, "a concurrent second call should find it already claimed");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn sloc_backfill_in_progress_reflects_started_and_completed_markers() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert!(
+            !store
+                .sloc_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "not started yet"
+        );
+
+        store
+            .start_sloc_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(
+            store
+                .sloc_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "started but not completed"
+        );
+
+        store
+            .mark_sloc_backfill_completed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(
+            !store
+                .sloc_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "completed"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn record_sloc_snapshot_upserts_same_day_instead_of_duplicating() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+
+        store
+            .record_sloc_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 1_000, "sha1")
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 1_200, "sha2")
+            .await
+            .unwrap();
+
+        let history = store
+            .sloc_history(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert_eq!(history, vec![(today, 1_200)]);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn sloc_history_returns_snapshots_oldest_first() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+        let yesterday = today - Duration::days(1);
+        let last_week = today - Duration::days(7);
+
+        store
+            .record_sloc_snapshot(RepositoryProvider::GitHub, "octo", "counts", today, 3_000, "sha-today")
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(RepositoryProvider::GitHub, "octo", "counts", last_week, 1_000, "sha-lw")
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(RepositoryProvider::GitHub, "octo", "counts", yesterday, 2_000, "sha-y")
+            .await
+            .unwrap();
+
+        let history = store
+            .sloc_history(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert_eq!(history, vec![(last_week, 1_000), (yesterday, 2_000), (today, 3_000)]);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn sloc_history_is_empty_for_a_repo_with_no_snapshots() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let history = store
+            .sloc_history(RepositoryProvider::GitHub, "nobody", "watches-this")
+            .await
+            .unwrap();
+        assert!(history.is_empty());
         store.drop_schema().await;
     }
 

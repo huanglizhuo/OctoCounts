@@ -200,6 +200,16 @@
     "noData": "No data",
     "totalLinesTooltip": "{{count}} total lines"
   },
+  "starHistory": {
+    "title": "Star & Code History",
+    "chartAriaLabel": "Star and code growth chart, {{count}} stars currently",
+    "legendStars": "Stars",
+    "legendSloc": "Lines of code",
+    "locAbbrev": "lines",
+    "gatheringSloc": "Gathering historical code data… this can take a minute the first time",
+    "exportGif": "Export GIF",
+    "gifExportFailed": "GIF export failed. Try again."
+  },
   "table": {
     "language": "Language",
     "files": "files",

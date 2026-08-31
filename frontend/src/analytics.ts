@@ -18,6 +18,7 @@ export const AnalyticsEvents = {
   badgeMarkdownCopied: "badge_markdown_copied",
   embedSnippetCopied: "embed_snippet_copied",
   pngExported: "png_exported",
+  gifExported: "gif_exported",
   extensionStoreClick: "extension_store_click",
   reportUrlCopied: "report_url_copied",
   shareClicked: "share_clicked",

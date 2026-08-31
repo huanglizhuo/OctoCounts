@@ -11,6 +11,7 @@ import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfRefe
 import { Topbar, publicReportLinks } from "./Topbar";
 import { BadgeBuilder, BadgeWall, buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, parsePublicRepo } from "./badges";
 import { ShareButtons } from "./ShareButtons";
+import { RepoHistoryChart } from "./RepoHistoryChart";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
 // Marketing/tool pages are separate chunks; the home bundle no longer carries them.
@@ -1046,6 +1047,11 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             </div>
           </div>
           <TrustDetails report={report} stars={liveStars ?? report.repository.stars ?? null} />
+          <RepoHistoryChart
+            provider={normalizedProvider(report)}
+            owner={report.repository.owner}
+            repo={report.repository.name}
+          />
           <SimilarRepos report={report} />
           <details className="run-details">
             <summary>{t("runner.runDetails")}</summary>

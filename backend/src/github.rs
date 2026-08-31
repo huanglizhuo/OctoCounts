@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use moka::{future::Cache, policy::EvictionPolicy};
 use reqwest::{header, Client, StatusCode};
@@ -92,6 +93,10 @@ pub struct GitHubClient {
     archive_client: Client,
     ref_cache: Cache<(String, Option<String>), RepoRef>,
     stars_cache: Cache<(RepositoryProvider, String, String), Option<u64>>,
+    /// A repo's creation date never changes, so this can live far longer than
+    /// `stars_cache` — it only exists to avoid re-fetching it on every repeat
+    /// SLOC-backfill trigger for the same repo within a process lifetime.
+    created_at_cache: Cache<(RepositoryProvider, String, String), Option<DateTime<Utc>>>,
     /// GitHub's GraphQL API rejects unauthenticated requests outright, and
     /// `GITHUB_TOKEN` is optional in this deployment, so the fast path is only
     /// attempted when there is a token to attempt it with.
@@ -109,6 +114,8 @@ struct RepoResponse {
     private: bool,
     #[serde(default)]
     stargazers_count: Option<u64>,
+    #[serde(default)]
+    created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -348,6 +355,14 @@ fn build_stars_cache() -> Cache<(RepositoryProvider, String, String), Option<u64
         .build()
 }
 
+fn build_created_at_cache() -> Cache<(RepositoryProvider, String, String), Option<DateTime<Utc>>> {
+    Cache::builder()
+        .max_capacity(REF_CACHE_CAPACITY)
+        .time_to_live(Duration::from_secs(3600))
+        .eviction_policy(EvictionPolicy::lru())
+        .build()
+}
+
 impl GitHubClient {
     pub fn new() -> anyhow::Result<Self> {
         Self::with_token(std::env::var("GITHUB_TOKEN").ok())
@@ -396,6 +411,7 @@ impl GitHubClient {
                 .build()?,
             ref_cache: build_ref_cache(REF_CACHE_TTL),
             stars_cache: build_stars_cache(),
+            created_at_cache: build_created_at_cache(),
             has_token,
             rate_limited_429: Arc::new(AtomicU64::new(0)),
         })
@@ -535,6 +551,91 @@ impl GitHubClient {
 
         self.stars_cache.insert(cache_key, stars).await;
         stars
+    }
+
+    /// A repo's creation date — the natural start of the window sampled for
+    /// SLOC history backfill. GitHub-only: GitLab support is deferred, same
+    /// as the rest of the history feature.
+    pub async fn repo_created_at(
+        &self,
+        provider: &RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> Option<DateTime<Utc>> {
+        if !matches!(provider, RepositoryProvider::GitHub) {
+            return None;
+        }
+        let cache_key = (provider.clone(), owner.to_string(), repo.to_string());
+        if let Some(cached) = self.created_at_cache.get(&cache_key).await {
+            return cached;
+        }
+        let url = format!(
+            "https://api.github.com/repos/{}/{}",
+            urlencoding::encode(owner),
+            urlencoding::encode(repo)
+        );
+        let created_at = async {
+            let response = self.get_with_retry(&url, false).await.ok()?;
+            if !matches!(response.status(), StatusCode::OK) {
+                return None;
+            }
+            response.json::<RepoResponse>().await.ok()?.created_at
+        }
+        .await;
+        self.created_at_cache.insert(cache_key, created_at).await;
+        created_at
+    }
+
+    /// The most recent commit on the default branch at or before `until` —
+    /// the historical "what did the repo look like on this date" anchor a
+    /// SLOC backfill sample analyzes. Unlike star history, this has no access
+    /// restriction: commit history for a public repo is always public.
+    pub async fn resolve_commit_before(
+        &self,
+        owner: &str,
+        repo: &str,
+        until: DateTime<Utc>,
+    ) -> Option<String> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/commits?until={}&per_page=1",
+            urlencoding::encode(owner),
+            urlencoding::encode(repo),
+            urlencoding::encode(&until.to_rfc3339()),
+        );
+        let response = self.get_with_retry(&url, false).await.ok()?;
+        if !matches!(response.status(), StatusCode::OK) {
+            return None;
+        }
+        let commits = response.json::<Vec<CommitResponse>>().await.ok()?;
+        commits.into_iter().next().map(|commit| commit.sha)
+    }
+
+    /// Evenly spaced points in time from `start` to `end` inclusive, always
+    /// including both endpoints, capped at `max_samples` regardless of how
+    /// long the span is — the date analogue of the page-sampling approach
+    /// star history used, keeping the number of downstream analysis jobs
+    /// (a tarball download + tokei run per sample) flat regardless of a
+    /// repo's age. Bounded further by the span's length in days so a
+    /// brand-new repo does not get `max_samples` points minutes apart.
+    pub fn sample_dates(start: DateTime<Utc>, end: DateTime<Utc>, max_samples: u64) -> Vec<DateTime<Utc>> {
+        if end <= start || max_samples <= 1 {
+            return vec![end];
+        }
+        let span_days = (end - start).num_days().max(1) as u64;
+        let count = max_samples.min(span_days + 1).max(2);
+        let step_ms = (end - start).num_milliseconds() as f64 / (count - 1) as f64;
+        let mut dates: Vec<DateTime<Utc>> = (0..count)
+            .map(|i| start + chrono::Duration::milliseconds((i as f64 * step_ms).round() as i64))
+            .collect();
+        dates.dedup();
+        // Anchor the last sample to `end` exactly (the step above can land
+        // just short of it) without exceeding max_samples requests —
+        // replace, never push, so the count stays bounded.
+        if let Some(last) = dates.last_mut() {
+            *last = end;
+        }
+        dates.dedup();
+        dates
     }
 
     fn parse_repo_url(input: &str) -> Result<RepoTarget, GitHubError> {
@@ -942,6 +1043,35 @@ mod tests {
         build_ref_cache, interpret_graphql, GitHubClient, GraphQlFailure, GraphQlOutcome, RepoRef,
         RepositoryProvider, REF_CACHE_TTL,
     };
+
+    #[test]
+    fn sample_dates_covers_every_day_under_the_cap() {
+        let start = "2026-01-01T00:00:00Z".parse().unwrap();
+        let end = "2026-01-06T00:00:00Z".parse().unwrap(); // 5-day span
+        let dates = GitHubClient::sample_dates(start, end, 30);
+        assert_eq!(dates.len(), 6); // bounded by span_days + 1, not max_samples
+        assert_eq!(dates.first(), Some(&start));
+        assert_eq!(dates.last(), Some(&end));
+        assert!(dates.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn sample_dates_stays_bounded_and_spans_first_to_last() {
+        let start = "2015-01-01T00:00:00Z".parse().unwrap();
+        let end = "2026-08-30T00:00:00Z".parse().unwrap(); // ~11-year span
+        let dates = GitHubClient::sample_dates(start, end, 12);
+        assert!(dates.len() <= 12, "got {} dates", dates.len());
+        assert_eq!(dates.first(), Some(&start));
+        assert_eq!(dates.last(), Some(&end));
+        // Strictly increasing: no duplicate or out-of-order samples to re-fetch.
+        assert!(dates.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn sample_dates_handles_a_same_day_repo() {
+        let now = "2026-08-30T12:00:00Z".parse().unwrap();
+        assert_eq!(GitHubClient::sample_dates(now, now, 12), vec![now]);
+    }
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use std::time::Duration;

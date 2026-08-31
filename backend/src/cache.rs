@@ -5,6 +5,7 @@ use moka::{future::Cache, policy::EvictionPolicy};
 
 use crate::{
     models::GrowthStats,
+    repo_history::RepoHistoryResponse,
     seo::{RelatedList, SeoList, SeoReport, SitemapEntry},
 };
 
@@ -17,6 +18,12 @@ pub struct AppCaches {
     pub seo_monoliths: Cache<String, SeoList>,
     pub seo_sitemap: Cache<String, Vec<SitemapEntry>>,
     pub seo_related: Cache<String, RelatedList>,
+    /// Combined star + SLOC history responses. The one-time watch/backfill
+    /// trigger only runs on a cache miss (see `repo_history::repo_history`),
+    /// so this TTL also bounds how often that check re-runs, not just how
+    /// fresh the numbers look. Responses with a backfill still in progress are
+    /// never inserted here — see `repo_history::repo_history`.
+    pub seo_repo_history: Cache<String, RepoHistoryResponse>,
     /// Rendered OG PNGs, keyed by `provider:owner:repo:commit_sha`.
     /// The key pins a specific commit, so entries can never go stale; the TTL
     /// only bounds memory.
@@ -40,6 +47,7 @@ impl AppCaches {
             seo_monoliths: ttl_cache(100, Duration::from_secs(900)),
             seo_sitemap: ttl_cache(1, Duration::from_secs(900)),
             seo_related: ttl_cache(5_000, Duration::from_secs(3_600)),
+            seo_repo_history: ttl_cache(5_000, Duration::from_secs(3_600)),
             og_png: ttl_cache(500, Duration::from_secs(86_400)),
             badge_svg: ttl_cache(2_000, Duration::from_secs(300)),
             badge_svg_immutable: ttl_cache(2_000, Duration::from_secs(86_400)),

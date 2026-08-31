@@ -114,6 +114,7 @@ async fn harness() -> Option<Harness> {
         caches: AppCaches::new(),
         metrics,
         rate_limits: RateLimits::new(),
+        sloc_history_max_samples: 12,
     };
     Some(Harness {
         router: crate::build_router(state),

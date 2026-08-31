@@ -329,7 +329,7 @@ pub async fn sitemap(
     Ok((sitemap_cache_headers(), Json(entries)))
 }
 
-fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError> {
+pub(crate) fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError> {
     provider_from_str(value).ok_or_else(|| {
         ApiError::new(
             axum::http::StatusCode::BAD_REQUEST,
@@ -384,7 +384,7 @@ fn seo_report_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
 }
 
-fn cache_headers(cache_control: &'static str) -> HeaderMap {
+pub(crate) fn cache_headers(cache_control: &'static str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CACHE_CONTROL,

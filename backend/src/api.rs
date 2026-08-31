@@ -23,6 +23,9 @@ pub struct AppState {
     pub caches: AppCaches,
     pub metrics: Arc<Metrics>,
     pub rate_limits: RateLimits,
+    /// How many historical commits `repo_history::ensure_repo_history` samples
+    /// per repo for the SLOC backfill. See `Config::sloc_history_max_samples`.
+    pub sloc_history_max_samples: u64,
 }
 
 pub async fn analyze(
@@ -382,6 +385,7 @@ mod tests {
             caches: AppCaches::new(),
             metrics,
             rate_limits: RateLimits::new(),
+            sloc_history_max_samples: 12,
         };
         Some(Harness {
             router: Router::new()

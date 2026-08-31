@@ -154,6 +154,9 @@ pub enum AnalysisSource {
     Seed,
     #[serde(rename = "github_trending")]
     GitHubTrending,
+    /// A historical commit re-analyzed by the SLOC-history backfill task
+    /// (`repo_history.rs`), not a user-triggered request.
+    SlocBackfill,
     #[default]
     Unknown,
 }

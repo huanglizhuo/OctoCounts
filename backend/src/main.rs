@@ -13,6 +13,7 @@ mod metrics;
 mod models;
 mod og;
 mod ratelimit;
+mod repo_history;
 mod seo;
 mod store;
 
@@ -76,11 +77,18 @@ async fn main() -> anyhow::Result<()> {
         config.cleanup,
     );
 
+    let github = GitHubClient::new()?;
+    spawn_star_snapshot_task(
+        store.clone(),
+        github.clone(),
+        config.star_snapshot_interval_seconds,
+    );
+
     let metrics = Arc::new(Metrics::new());
     let state = AppState {
         coordinator: AnalysisCoordinator::new(
             store,
-            GitHubClient::new()?,
+            github,
             config.analysis_concurrency,
             IndexNowService::start(config.indexnow.clone()),
             metrics.clone(),
@@ -88,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
         caches: AppCaches::new(),
         metrics,
         rate_limits: RateLimits::new(),
+        sloc_history_max_samples: config.sloc_history_max_samples as u64,
     };
 
     let app = build_router(state);
@@ -125,9 +134,14 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/monoliths", get(seo::monoliths))
         .route("/api/seo/sitemap", get(seo::sitemap))
         .route("/api/seo/related", get(seo::related))
+        .route("/api/seo/repo-history", get(repo_history::repo_history))
         .route("/og/github/{owner}/{repo}", get(og::github))
         .route("/og/gitlab/{*path}", get(og::gitlab))
         .route("/badge/{owner}/{repo}", get(badge::badge_default))
+        .route(
+            "/badge/{owner}/{repo}/star-history.svg",
+            get(badge::star_history_badge),
+        )
         .route(
             "/badge/{owner}/{repo}/branch/{*branch}",
             get(badge::badge_branch),
@@ -188,6 +202,45 @@ fn spawn_cleanup_task(store: Store, interval_seconds: u64, config: CleanupConfig
     });
 }
 
+/// Once per `interval_seconds` (default daily), re-reads the current GitHub
+/// star count for every repo on the watch list and records one snapshot per
+/// repo. `record_star_snapshot` upserts on (provider, owner, repo, date), so
+/// a slow tick that spills past midnight, or a restart that reruns the same
+/// day, both settle on one row instead of duplicating or skipping.
+fn spawn_star_snapshot_task(store: Store, github: GitHubClient, interval_seconds: u64) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
+
+            let repos = match store.watched_star_repos().await {
+                Ok(repos) => repos,
+                Err(error) => {
+                    tracing::warn!(%error, "failed to list watched repos for star snapshot");
+                    continue;
+                }
+            };
+
+            let mut updated = 0u64;
+            let today = chrono::Utc::now().date_naive();
+            for (provider, owner, repo) in repos {
+                let Some(stars) = github.repo_stars(&provider, &owner, &repo).await else {
+                    continue;
+                };
+                match store
+                    .record_star_snapshot(provider, &owner, &repo, today, stars as i64)
+                    .await
+                {
+                    Ok(()) => updated += 1,
+                    Err(error) => {
+                        tracing::warn!(%error, owner, repo, "failed to record star snapshot")
+                    }
+                }
+            }
+            tracing::info!(updated, "star snapshot task completed");
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{
@@ -236,6 +289,7 @@ mod tests {
             caches: AppCaches::new(),
             metrics,
             rate_limits: RateLimits::new(),
+            sloc_history_max_samples: 12,
         };
         Some((build_router(state), pool, schema))
     }

@@ -30,7 +30,7 @@ export type LanguageReport = {
 };
 
 export type RepositoryProvider = "github" | "gitlab" | "gitHub" | "gitLab";
-export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mcp" | "api" | "seed" | "github_trending" | "unknown";
+export type AnalysisSource = "web" | "extension" | "github_action" | "cli" | "mcp" | "api" | "seed" | "github_trending" | "sloc_backfill" | "unknown";
 
 export type Report = {
   id: string;
@@ -101,4 +101,17 @@ export type RelatedReport = {
   topLanguage?: string | null;
   totalCode: number;
   totalLines: number;
+};
+
+export type StarHistoryPoint = { date: string; stars: number };
+export type SlocHistoryPoint = { date: string; totalLines: number };
+
+export type RepoHistory = {
+  provider: string;
+  owner: string;
+  repo: string;
+  currentStars: number | null;
+  starPoints: StarHistoryPoint[];
+  slocPoints: SlocHistoryPoint[];
+  slocBackfillInProgress: boolean;
 };

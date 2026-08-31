@@ -1,5 +1,5 @@
 import i18n from "./i18n";
-import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats } from "./types";
+import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats, RepoHistory } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
 
@@ -37,6 +37,11 @@ export async function analyzeRepository(request: {
 
 export function fetchGrowthStats() {
   return fetchJson<GrowthStats>("/api/stats");
+}
+
+export function fetchRepoHistory(provider: string, owner: string, repo: string) {
+  const params = new URLSearchParams({ provider, owner, repo });
+  return fetchJson<RepoHistory>(`/api/seo/repo-history?${params.toString()}`);
 }
 
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {

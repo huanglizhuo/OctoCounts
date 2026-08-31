@@ -5,12 +5,14 @@ use axum::{
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
+use chrono::NaiveDate;
 use uuid::Uuid;
 
 use crate::{
     api::AppState,
     coordinator::{job_is_finished, AnalysisCoordinator},
-    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report},
+    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider},
+    repo_history::ensure_repo_history,
 };
 
 #[derive(serde::Deserialize)]
@@ -516,10 +518,183 @@ fn single_badge_svg(label: &str, value: &str, color: &str) -> String {
     lang_badge_svg(label, value, color)
 }
 
+/// `GET /badge/{owner}/{repo}/star-history.svg` — a server-rendered chart
+/// meant for embedding in a README (`![Stars](...)`, same pattern as the
+/// SLOC badges above), which is why this is a plain SVG rather than the
+/// client-rendered/GIF chart on the report page: GitHub's markdown renderer
+/// only ever shows a static image for an embedded README asset, so a chart
+/// that needs to *be* an image has to be built server-side.
+///
+/// Shares its data path with the JSON endpoint at `repo_history::repo_history`
+/// via `ensure_repo_history` — the first request for a repo from either
+/// endpoint triggers the same one-time watch/backfill. Only the star series
+/// is rendered here; the SLOC series has no SVG badge (it lives on the
+/// interactive report-page chart only).
+pub async fn star_history_badge(
+    State(state): State<AppState>,
+    Path((owner, repo)): Path<(String, String)>,
+) -> Response {
+    let cache_key = format!("star-history-svg:{owner}:{repo}");
+    if let Some(svg) = state.caches.badge_svg.get(&cache_key).await {
+        return svg_response(svg, "public, s-maxage=3600, stale-while-revalidate=86400");
+    }
+
+    let (history, current_stars, _, _) =
+        match ensure_repo_history(&state, RepositoryProvider::GitHub, &owner, &repo).await {
+            Ok(result) => result,
+            Err(_) => {
+                return svg_response(render_star_history_svg(&[], None), "no-cache, no-store");
+            }
+        };
+
+    let svg = render_star_history_svg(&history, current_stars);
+    state.caches.badge_svg.insert(cache_key, svg.clone()).await;
+    svg_response(svg, "public, s-maxage=3600, stale-while-revalidate=86400")
+}
+
+const STAR_CHART_WIDTH: f64 = 480.0;
+const STAR_CHART_HEIGHT: f64 = 140.0;
+const STAR_CHART_PAD_LEFT: f64 = 16.0;
+const STAR_CHART_PAD_RIGHT: f64 = 16.0;
+const STAR_CHART_PAD_TOP: f64 = 42.0;
+const STAR_CHART_PAD_BOTTOM: f64 = 28.0;
+
+fn render_star_history_svg(points: &[(NaiveDate, i64)], current_stars: Option<u64>) -> String {
+    let current_label = current_stars
+        .map(|n| format_stat(n as usize))
+        .unwrap_or_else(|| "\u{2014}".to_string());
+
+    if points.len() < 2 {
+        return format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+  <rect x="0.5" y="0.5" width="{wm1}" height="{hm1}" rx="8" fill="#fff" stroke="#d0d7de"/>
+  <text x="16" y="26" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="13" font-weight="bold" fill="#1f2328">&#9733; Star History</text>
+  <text x="16" y="{mid}" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="12" fill="#57606a">Not enough history yet &#8212; check back tomorrow</text>
+</svg>"##,
+            w = STAR_CHART_WIDTH,
+            h = STAR_CHART_HEIGHT,
+            wm1 = STAR_CHART_WIDTH - 1.0,
+            hm1 = STAR_CHART_HEIGHT - 1.0,
+            mid = STAR_CHART_HEIGHT / 2.0 + 6.0,
+        );
+    }
+
+    let min_date = points[0].0;
+    let max_date = points[points.len() - 1].0;
+    let span_days = (max_date - min_date).num_days().max(1) as f64;
+    let max_star = points.iter().map(|(_, count)| *count).max().unwrap_or(1).max(1) as f64;
+
+    let plot_width = STAR_CHART_WIDTH - STAR_CHART_PAD_LEFT - STAR_CHART_PAD_RIGHT;
+    let plot_height = STAR_CHART_HEIGHT - STAR_CHART_PAD_TOP - STAR_CHART_PAD_BOTTOM;
+    let baseline_y = STAR_CHART_PAD_TOP + plot_height;
+
+    let coords: Vec<(f64, f64)> = points
+        .iter()
+        .map(|(date, count)| {
+            let x = STAR_CHART_PAD_LEFT + ((*date - min_date).num_days() as f64 / span_days) * plot_width;
+            let y = baseline_y - (*count as f64 / max_star) * plot_height;
+            (x, y)
+        })
+        .collect();
+
+    let line_path = coords
+        .iter()
+        .enumerate()
+        .map(|(i, (x, y))| format!("{}{x:.1},{y:.1}", if i == 0 { "M" } else { "L" }))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let area_path = format!(
+        "{line_path} L{lx:.1},{baseline_y:.1} L{fx:.1},{baseline_y:.1} Z",
+        lx = coords.last().map(|(x, _)| *x).unwrap_or_default(),
+        fx = coords.first().map(|(x, _)| *x).unwrap_or_default(),
+    );
+
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+  <rect x="0.5" y="0.5" width="{wm1}" height="{hm1}" rx="8" fill="#fff" stroke="#d0d7de"/>
+  <text x="16" y="26" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="13" font-weight="bold" fill="#1f2328">&#9733; Star History</text>
+  <text x="{w_minus_16}" y="26" text-anchor="end" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="13" font-weight="bold" fill="#6f42c1">{current_label}</text>
+  <path d="{area_path}" fill="#6f42c1" fill-opacity="0.12" stroke="none"/>
+  <path d="{line_path}" fill="none" stroke="#6f42c1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="16" y="{label_y}" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="10" fill="#8b949e">{min_date}</text>
+  <text x="{w_minus_16}" y="{label_y}" text-anchor="end" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="10" fill="#8b949e">{max_date}</text>
+</svg>"##,
+        w = STAR_CHART_WIDTH,
+        h = STAR_CHART_HEIGHT,
+        wm1 = STAR_CHART_WIDTH - 1.0,
+        hm1 = STAR_CHART_HEIGHT - 1.0,
+        w_minus_16 = STAR_CHART_WIDTH - 16.0,
+        label_y = STAR_CHART_HEIGHT - 10.0,
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{badge_cache_key, format_percent, format_stat, normalize_badge_type, BadgeParams};
+    use super::{
+        badge_cache_key, format_percent, format_stat, normalize_badge_type, render_star_history_svg,
+        BadgeParams,
+    };
     use crate::cache::AppCaches;
+    use chrono::NaiveDate;
+
+    fn date(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    #[test]
+    fn star_history_svg_shows_a_placeholder_with_fewer_than_two_points() {
+        let empty = render_star_history_svg(&[], None);
+        assert!(empty.contains("Not enough history yet"));
+        assert!(!empty.contains("<path"), "no chart geometry without data");
+
+        let one_point = render_star_history_svg(&[(date("2026-01-01"), 5)], Some(5));
+        assert!(one_point.contains("Not enough history yet"));
+    }
+
+    #[test]
+    fn star_history_svg_renders_a_line_spanning_first_to_last_point() {
+        let svg = render_star_history_svg(
+            &[
+                (date("2026-01-01"), 10),
+                (date("2026-02-01"), 50),
+                (date("2026-03-01"), 100),
+            ],
+            Some(100),
+        );
+
+        assert!(svg.contains("<path d=\"M"), "line path should start with a moveto");
+        assert!(svg.contains("2026-01-01"), "first date label");
+        assert!(svg.contains("2026-03-01"), "last date label");
+        assert!(svg.contains("100"), "current star count label");
+        assert!(!svg.contains("Not enough history"));
+    }
+
+    #[test]
+    fn star_history_svg_never_divides_by_zero_when_every_point_is_the_same_day() {
+        // Two snapshots recorded the same day (a backfill point and today's
+        // exact snapshot can land on the same date) must not produce a NaN
+        // or infinite coordinate from a zero-day span.
+        let svg = render_star_history_svg(
+            &[(date("2026-01-01"), 1), (date("2026-01-01"), 2)],
+            Some(2),
+        );
+        assert!(!svg.contains("NaN"));
+        assert!(!svg.contains("inf"));
+    }
+
+    #[test]
+    fn star_history_svg_never_divides_by_zero_when_stars_never_change() {
+        // A flat line (star count identical at every sampled point) exercises
+        // the max_star normalization the same way a zero-day span exercises
+        // the x-axis normalization above.
+        let svg = render_star_history_svg(
+            &[(date("2026-01-01"), 10), (date("2026-01-02"), 10)],
+            Some(10),
+        );
+        assert!(!svg.contains("NaN"));
+        assert!(!svg.contains("inf"));
+    }
 
     fn params(badge_type: Option<&str>, lang: Option<&str>) -> BadgeParams {
         BadgeParams {

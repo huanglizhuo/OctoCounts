@@ -16,6 +16,17 @@ pub struct Config {
     pub analysis_concurrency: usize,
     pub cleanup_interval_seconds: u64,
     pub cleanup: CleanupConfig,
+    /// How often the background task re-reads GitHub's current star count for
+    /// every watched repo and records one snapshot per repo per day. Daily by
+    /// default — stars do not move fast enough to need finer granularity, and
+    /// each tick costs one GitHub API request per watched repo.
+    pub star_snapshot_interval_seconds: u64,
+    /// How many historical commits the SLOC-history backfill samples across a
+    /// repo's lifetime the first time it is viewed. Each sample costs one real
+    /// analysis job (tarball download + tokei run), so this is kept low rather
+    /// than matching the finer-grained star sampling used before GitHub
+    /// restricted that API.
+    pub sloc_history_max_samples: usize,
     pub indexnow: IndexNowConfig,
 }
 
@@ -42,6 +53,8 @@ impl Config {
             bind_addr: std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string()),
             analysis_concurrency: env_usize("ANALYSIS_CONCURRENCY", 2).max(1),
             cleanup_interval_seconds: env_u64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1),
+            star_snapshot_interval_seconds: env_u64("STAR_SNAPSHOT_INTERVAL_SECONDS", 86_400).max(1),
+            sloc_history_max_samples: env_usize("SLOC_HISTORY_MAX_SAMPLES", 12).max(2),
             cleanup: CleanupConfig {
                 job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 1).max(1),
                 job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 6).max(1),
