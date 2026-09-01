@@ -1,20 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-08-31T08:37:09.704Z
+# GitHub Trending daily snapshot generated 2026-09-01T07:47:37.390Z
 THU-MAIC/OpenMAIC
-K-Dense-AI/scientific-agent-skills
-Lakr233/vphone-cli
 tt-a1i/archify
-p-e-w/heretic
-unclecode/crawl4ai
-mvanhorn/last30days-skill
+K-Dense-AI/scientific-agent-skills
+k1tbyte/Wand-Enhancer
 majd/ipatool
-punkpeye/awesome-mcp-servers
+jingyaogong/minimind
+Osmantic/ODS
 checkstyle/checkstyle
-NationalSecurityAgency/ghidra
-pollen-robotics/microduck_rl
-handsomestWei/patent-disclosure-skill
-corsairdev/corsair
+zhaoxuya520/reverse-skill
+affaan-m/ECC
+kaifcodec/user-scanner
 every-app/open-seo
-colinhacks/zod
-tashfeenahmed/freellmapi
-livekit/agents
-abhigyanpatwari/GitNexus
+p-e-w/heretic
+handsomestWei/patent-disclosure-skill
+firecrawl/pdf-inspector
+pollen-robotics/microduck_rl
