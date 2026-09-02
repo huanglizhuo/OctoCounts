@@ -1,17 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-09-01T07:47:37.390Z
+# GitHub Trending daily snapshot generated 2026-09-02T07:04:42.241Z
+Gitlawb/openclaude
+Imbad0202/academic-research-skills
 THU-MAIC/OpenMAIC
-tt-a1i/archify
-K-Dense-AI/scientific-agent-skills
-k1tbyte/Wand-Enhancer
-majd/ipatool
+iv-org/invidious
 jingyaogong/minimind
-Osmantic/ODS
-checkstyle/checkstyle
-zhaoxuya520/reverse-skill
-affaan-m/ECC
-kaifcodec/user-scanner
-every-app/open-seo
-p-e-w/heretic
-handsomestWei/patent-disclosure-skill
+3b1b/manim
 firecrawl/pdf-inspector
-pollen-robotics/microduck_rl
+browser-use/video-use
+K-Dense-AI/scientific-agent-skills
+handsomestWei/patent-disclosure-skill
+VoltAgent/awesome-design-md
+averygan/reclip
+affaan-m/ECC
+unclecode/crawl4ai
