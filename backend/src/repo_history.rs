@@ -66,19 +66,27 @@ pub struct RepoHistoryResponse {
     /// in the background. The frontend polls while this is true and stops
     /// once it flips to false.
     sloc_backfill_in_progress: bool,
+    /// True when this repo's real star history hasn't been backfilled yet and
+    /// isn't currently being backfilled — the frontend shows the "connect
+    /// your repo" card only in this state (see `oauth.rs`).
+    star_backfill_available: bool,
+    /// True while a caller-authorized real star-history backfill is running
+    /// in the background (see `oauth::authorize_and_backfill`).
+    star_backfill_in_progress: bool,
 }
 
 /// Shared core behind both `repo_history` (JSON API) and `badge.rs`'s
 /// `star_history_badge` (SVG), so the watch/backfill-triggering logic and its
 /// cost exist in one place.
 ///
-/// Returns `(star_history, current_stars, sloc_history, sloc_backfill_in_progress)`.
+/// Returns `(star_history, current_stars, sloc_history, sloc_backfill_in_progress,
+/// star_backfill_available, star_backfill_in_progress)`.
 pub(crate) async fn ensure_repo_history(
     state: &AppState,
     provider: RepositoryProvider,
     owner: &str,
     repo: &str,
-) -> anyhow::Result<(Vec<(NaiveDate, i64)>, Option<u64>, Vec<(NaiveDate, i64)>, bool)> {
+) -> anyhow::Result<(Vec<(NaiveDate, i64)>, Option<u64>, Vec<(NaiveDate, i64)>, bool, bool, bool)> {
     let store = state.coordinator.store();
     let github = state.coordinator.github();
     let current_stars = github.repo_stars(&provider, owner, repo).await;
@@ -111,7 +119,19 @@ pub(crate) async fn ensure_repo_history(
     let sloc_history = store.sloc_history(provider, owner, repo).await?;
     let sloc_backfill_in_progress = store.sloc_backfill_in_progress(provider, owner, repo).await?;
 
-    Ok((star_history, current_stars, sloc_history, sloc_backfill_in_progress))
+    let star_backfilled = store.star_history_is_backfilled(provider, owner, repo).await?;
+    let star_backfill_in_progress = store.star_backfill_in_progress(provider, owner, repo).await?;
+    let star_backfill_available =
+        matches!(provider, RepositoryProvider::GitHub) && !star_backfilled && !star_backfill_in_progress;
+
+    Ok((
+        star_history,
+        current_stars,
+        sloc_history,
+        sloc_backfill_in_progress,
+        star_backfill_available,
+        star_backfill_in_progress,
+    ))
 }
 
 pub async fn repo_history(
@@ -132,10 +152,16 @@ pub async fn repo_history(
         ));
     }
 
-    let (star_history, current_stars, sloc_history, sloc_backfill_in_progress) =
-        ensure_repo_history(&state, provider, &query.owner, &query.repo)
-            .await
-            .map_err(ApiError::internal)?;
+    let (
+        star_history,
+        current_stars,
+        sloc_history,
+        sloc_backfill_in_progress,
+        star_backfill_available,
+        star_backfill_in_progress,
+    ) = ensure_repo_history(&state, provider, &query.owner, &query.repo)
+        .await
+        .map_err(ApiError::internal)?;
 
     let response = RepoHistoryResponse {
         provider: query.provider.clone(),
@@ -151,13 +177,14 @@ pub async fn repo_history(
             .map(|(date, total_lines)| SlocHistoryPoint { date: date.to_string(), total_lines })
             .collect(),
         sloc_backfill_in_progress,
+        star_backfill_available,
+        star_backfill_in_progress,
     };
 
-    // Skip the cache while backfill is still running so repeat polls (the
-    // frontend refetches on an interval until `sloc_backfill_in_progress`
-    // flips false) see fresh progress instead of the same stale snapshot for
-    // up to an hour.
-    if !response.sloc_backfill_in_progress {
+    // Skip the cache while either backfill is still running so repeat polls
+    // (the frontend refetches on an interval until both flip false) see fresh
+    // progress instead of the same stale snapshot for up to an hour.
+    if !response.sloc_backfill_in_progress && !response.star_backfill_in_progress {
         state.caches.seo_repo_history.insert(cache_key, response.clone()).await;
     }
 

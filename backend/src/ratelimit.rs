@@ -98,6 +98,11 @@ pub struct RateLimits {
     /// `force_refresh` bypasses the report cache and re-downloads a whole
     /// archive, so it gets a quota of its own: 2 per minute.
     pub force_refresh: RateLimiter,
+    /// Both the OAuth `start` redirect and the paste-a-token endpoint accept
+    /// unauthenticated input and trigger outbound GitHub API calls, so they
+    /// share one modest quota to bound how much abuse a single IP can push
+    /// through them.
+    pub github_auth: RateLimiter,
 }
 
 impl RateLimits {
@@ -105,6 +110,7 @@ impl RateLimits {
         Self {
             analyze: RateLimiter::per_minute(5, 10),
             force_refresh: RateLimiter::per_minute(2, 2),
+            github_auth: RateLimiter::per_minute(3, 5),
         }
     }
 }

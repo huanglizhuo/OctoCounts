@@ -27,6 +27,16 @@ pub struct Config {
     /// than matching the finer-grained star sampling used before GitHub
     /// restricted that API.
     pub sloc_history_max_samples: usize,
+    /// GitHub OAuth App credentials for the browser extension's "Login with
+    /// GitHub" flow (`oauth.rs::github_extension_token_exchange`). This is a
+    /// dedicated OAuth App distinct from any web-facing one: its callback URL
+    /// is fixed to the extension's own `https://<id>.chromiumapp.org/`
+    /// address, handled entirely client-side by `chrome.identity`, so this
+    /// server only ever sees the resulting authorization code, never a
+    /// redirect. `None` (the default) simply means that route returns an
+    /// error.
+    pub github_extension_oauth_client_id: Option<String>,
+    pub github_extension_oauth_client_secret: Option<String>,
     pub indexnow: IndexNowConfig,
 }
 
@@ -55,6 +65,8 @@ impl Config {
             cleanup_interval_seconds: env_u64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1),
             star_snapshot_interval_seconds: env_u64("STAR_SNAPSHOT_INTERVAL_SECONDS", 86_400).max(1),
             sloc_history_max_samples: env_usize("SLOC_HISTORY_MAX_SAMPLES", 12).max(2),
+            github_extension_oauth_client_id: env_string("GITHUB_EXTENSION_OAUTH_CLIENT_ID"),
+            github_extension_oauth_client_secret: env_string("GITHUB_EXTENSION_OAUTH_CLIENT_SECRET"),
             cleanup: CleanupConfig {
                 job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 1).max(1),
                 job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 6).max(1),

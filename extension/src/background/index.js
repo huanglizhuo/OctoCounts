@@ -1,6 +1,7 @@
-import { analyze, pollJob, fetchReport } from '../shared/api.js';
+import { analyze, pollJob, fetchReport, connectGithubToken, fetchRepoHistory } from '../shared/api.js';
 import { getCached, setCached, clearAll, countEntries, pruneExpired, getSettings } from './cache.js';
 import { getInflight, setInflight, clearInflight } from './dedup.js';
+import { loginWithGithub, logout, getAuthState, getStoredToken } from '../shared/github-auth.js';
 
 chrome.alarms.create('prune-cache', { periodInMinutes: 60 });
 chrome.alarms.onAlarm.addListener(alarm => {
@@ -79,6 +80,28 @@ async function handleMessage(msg) {
 
     case 'COUNT_CACHE':
       return { count: await countEntries() };
+
+    case 'GITHUB_LOGIN':
+      return loginWithGithub();
+
+    case 'GITHUB_LOGOUT':
+      await logout();
+      return { loggedOut: true };
+
+    case 'GET_AUTH_STATE':
+      return getAuthState();
+
+    case 'CONNECT_STAR_HISTORY': {
+      const { owner, repo } = msg;
+      const token = await getStoredToken();
+      if (!token) return { success: false, error: 'not_logged_in' };
+      return connectGithubToken(owner, repo, token);
+    }
+
+    case 'FETCH_STAR_HISTORY': {
+      const { owner, repo } = msg;
+      return fetchRepoHistory(owner, repo);
+    }
 
     default:
       throw new Error(`Unknown message type: ${msg.type}`);

@@ -3,6 +3,8 @@ import { t } from '../i18n/index.js';
 import { formatNumber, formatCompact, formatPercent } from '../shared/format.js';
 import { buildBarItems, languageColor } from '../shared/chart.js';
 import { mountPanel, unmountPanel } from './panel.js';
+import { getAuthState } from '../shared/github-auth.js';
+import { buildStarHistoryHTML } from './star-chart.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 4;
@@ -318,6 +320,7 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   const theme = getTheme();
   const total = report.total;
   recordSuccessfulRender();
+  maybeTriggerStarHistoryBackfill(owner, repo);
 
   const cachedBadge = report.cached
     ? `<span class="oc-badge" title="${cachedAt ? escapeHtml(t('card.cachedAt', { time: new Date(cachedAt).toLocaleString() })) : t('card.cached')}">${t('card.cached')}</span>`
@@ -351,7 +354,10 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
     ${statsHTML}
     ${buildStackedBarHTML(report, theme)}
     ${langListHTML}
-  </div>`;
+  </div>
+  <div class="oc-star-history-wrap"></div>`;
+
+  maybeRenderStarHistory(root, owner, repo);
 
   const onForceRefresh = () => {
     unmountPanel();
@@ -486,6 +492,53 @@ async function recordSuccessfulRender() {
     const next = Math.min(Number(state[STAR_SUCCESS_COUNT_KEY] || 0) + 1, 1000);
     await chrome.storage.local.set({ [STAR_SUCCESS_COUNT_KEY]: next });
   } catch (_) {}
+}
+
+// Shared gate for both the backfill trigger and the star-history render
+// below: only ever for the logged-in GitHub account's own repos, and only
+// while the setting is on.
+async function isStarHistoryEnabledFor(owner) {
+  const settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
+  if (settings?.showStarHistory === false) return false;
+  const { loggedIn, login } = await getAuthState();
+  return Boolean(loggedIn && login && login.toLowerCase() === String(owner).toLowerCase());
+}
+
+// Fire-and-forget: once per repo, if the logged-in GitHub account owns it and
+// the setting is on, ask the backend to verify+backfill its real star
+// history. The backend's own claim-then-spawn logic already makes a repeat
+// call for an already-backfilled repo a cheap no-op, but this local flag
+// avoids re-sending the request on every single card render regardless.
+async function maybeTriggerStarHistoryBackfill(owner, repo) {
+  try {
+    if (!(await isStarHistoryEnabledFor(owner))) return;
+
+    const key = `starBackfillTriggered::${owner}/${repo}`;
+    const stored = await chrome.storage.local.get(key);
+    if (stored[key]) return;
+    await chrome.storage.local.set({ [key]: true });
+    await chrome.runtime.sendMessage({ type: 'CONNECT_STAR_HISTORY', owner, repo });
+  } catch (_) {}
+}
+
+// Renders the star-history block directly under the OctoCounts card on the
+// GitHub page itself (not gated behind opening the panel) — styled with the
+// same GitHub-native tokens as the rest of the card via the shared shadow
+// root, so light/dark mode is inherited automatically.
+async function maybeRenderStarHistory(root, owner, repo) {
+  try {
+    if (!(await isStarHistoryEnabledFor(owner))) return;
+
+    const history = await chrome.runtime.sendMessage({ type: 'FETCH_STAR_HISTORY', owner, repo });
+    const points = history?.starPoints ?? [];
+    if (points.length < 2) return;
+
+    const wrap = root.querySelector('.oc-star-history-wrap');
+    if (wrap) wrap.innerHTML = buildStarHistoryHTML(points);
+  } catch (_) {
+    // Best-effort: the card already rendered everything else successfully,
+    // so a star-history failure should not surface as a visible error.
+  }
 }
 
 function buildStackedBarHTML(report, theme) {

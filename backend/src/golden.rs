@@ -115,6 +115,8 @@ async fn harness() -> Option<Harness> {
         metrics,
         rate_limits: RateLimits::new(),
         sloc_history_max_samples: 12,
+        github_extension_oauth_client_id: None,
+        github_extension_oauth_client_secret: None,
     };
     Some(Harness {
         router: crate::build_router(state),

@@ -11,6 +11,7 @@ mod golden;
 mod indexnow;
 mod metrics;
 mod models;
+mod oauth;
 mod og;
 mod ratelimit;
 mod repo_history;
@@ -97,6 +98,8 @@ async fn main() -> anyhow::Result<()> {
         metrics,
         rate_limits: RateLimits::new(),
         sloc_history_max_samples: config.sloc_history_max_samples as u64,
+        github_extension_oauth_client_id: config.github_extension_oauth_client_id.clone(),
+        github_extension_oauth_client_secret: config.github_extension_oauth_client_secret.clone(),
     };
 
     let app = build_router(state);
@@ -135,6 +138,8 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/sitemap", get(seo::sitemap))
         .route("/api/seo/related", get(seo::related))
         .route("/api/seo/repo-history", get(repo_history::repo_history))
+        .route("/api/auth/github/extension-token", post(oauth::github_extension_token_exchange))
+        .route("/api/auth/github/token", post(oauth::github_auth_token))
         .route("/og/github/{owner}/{repo}", get(og::github))
         .route("/og/gitlab/{*path}", get(og::gitlab))
         .route("/badge/{owner}/{repo}", get(badge::badge_default))
@@ -290,6 +295,8 @@ mod tests {
             metrics,
             rate_limits: RateLimits::new(),
             sloc_history_max_samples: 12,
+            github_extension_oauth_client_id: None,
+            github_extension_oauth_client_secret: None,
         };
         Some((build_router(state), pool, schema))
     }

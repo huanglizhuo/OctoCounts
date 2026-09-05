@@ -2,6 +2,7 @@ import { t } from '../i18n/index.js';
 import { DEFAULT_SETTINGS } from '../shared/settings.js';
 import { BUILD_INFO } from '../shared/buildInfo.js';
 import { parseRoute, fingerprintHash } from '../content/github-dom.js';
+import { isLoginSupported, getAuthState } from '../shared/github-auth.js';
 
 const $ = id => document.getElementById(id);
 
@@ -40,6 +41,10 @@ function applyTranslations() {
   $('cardTitle').placeholder       = t('popup.cardTitlePlaceholder');
   $('hintCardTitle').textContent   = t('popup.hintCardTitle');
 
+  $('showStarHistoryLabel').textContent  = t('popup.showStarHistory');
+  $('hintShowStarHistoryDesc').textContent = t('popup.hintShowStarHistory');
+  $('groupGithubAccountLabel').textContent = t('popup.groupGithubAccount');
+
   $('cacheTtlLabel').textContent  = t('popup.cacheTtl');
   $('hintCacheTtl').textContent   = t('popup.hintCacheTtl');
   const ttlOpts = $('cacheTtl').querySelectorAll('option');
@@ -64,6 +69,7 @@ async function load() {
   $('cardPlacement').value        = sync.cardPlacement || 'top';
   $('replaceGhLanguages').checked = sync.replaceGhLanguages !== false;
   $('skipForks').checked          = sync.skipForks !== false;
+  $('showStarHistory').checked    = sync.showStarHistory !== false;
   $('cacheTtl').value             = String(sync.cacheTtlMs);
 }
 
@@ -74,6 +80,7 @@ async function save() {
     cardPlacement:      $('cardPlacement').value === 'bottom' ? 'bottom' : 'top',
     replaceGhLanguages: $('replaceGhLanguages').checked,
     skipForks:          $('skipForks').checked,
+    showStarHistory:    $('showStarHistory').checked,
     cacheTtlMs:         Number($('cacheTtl').value),
   });
 }
@@ -86,6 +93,7 @@ load();
 loadError();
 checkPageStatus();
 initClearCache();
+initGithubAccount();
 setFooterVersion();
 
 function setFooterVersion() {
@@ -397,6 +405,48 @@ async function loadError() {
   });
 
   section.hidden = false;
+}
+
+/* ── GitHub account (star history login) ─────────────────────────────────── */
+
+async function initGithubAccount() {
+  if (!isLoginSupported()) return; // card stays hidden — see github-auth.js
+  $('githubAccountCard').hidden = false;
+
+  const loginBtn  = $('githubLoginBtn');
+  const logoutBtn = $('githubLogoutBtn');
+
+  await renderGithubAccountState();
+
+  loginBtn.addEventListener('click', async () => {
+    loginBtn.disabled = true;
+    try {
+      await chrome.runtime.sendMessage({ type: 'GITHUB_LOGIN' });
+    } catch (_) {
+      $('githubAccountStatus').textContent = t('popup.githubLoginFailed');
+    } finally {
+      loginBtn.disabled = false;
+      await renderGithubAccountState();
+    }
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    logoutBtn.disabled = true;
+    await chrome.runtime.sendMessage({ type: 'GITHUB_LOGOUT' });
+    logoutBtn.disabled = false;
+    await renderGithubAccountState();
+  });
+}
+
+async function renderGithubAccountState() {
+  const { loggedIn, login } = await getAuthState();
+  $('githubAccountStatus').textContent = loggedIn
+    ? t('popup.githubConnectedAs', { login })
+    : t('popup.githubNotConnected');
+  $('githubLoginBtn').hidden  = loggedIn;
+  $('githubLoginBtn').textContent = t('popup.githubLogin');
+  $('githubLogoutBtn').hidden = !loggedIn;
+  $('githubLogoutBtn').textContent = t('popup.githubDisconnect');
 }
 
 function initClearCache() {

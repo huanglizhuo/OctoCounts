@@ -753,7 +753,117 @@ impl Store {
         .execute(&self.pool)
         .await?;
 
+        // Mirrors the sloc_backfill_* pair above: a repo's real star history
+        // (Phase 2) can only be backfilled once a caller proves ownership via
+        // a token with write access, so it gets its own started/completed
+        // markers on the same star_watch row.
+        sqlx::query("ALTER TABLE star_watch ADD COLUMN IF NOT EXISTS star_backfill_started_at TIMESTAMPTZ")
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("ALTER TABLE star_watch ADD COLUMN IF NOT EXISTS star_backfill_completed_at TIMESTAMPTZ")
+            .execute(&self.pool)
+            .await?;
+
         Ok(())
+    }
+
+    /// Atomically claims the real star-history backfill for a repo (Phase 2:
+    /// only runs once a caller has proven ownership/collaborator access via a
+    /// write-capable token) — same claim-by-UPDATE pattern as
+    /// `start_sloc_backfill_if_needed`.
+    pub async fn start_star_backfill_if_needed(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE star_watch
+            SET star_backfill_started_at = NOW()
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+              AND star_backfill_started_at IS NULL
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn mark_star_backfill_completed(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE star_watch
+            SET star_backfill_completed_at = NOW()
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Whether a repo's real star-history backfill has been claimed but not
+    /// yet finished — drives the frontend's "importing historical star
+    /// data…" polling state.
+    pub async fn star_backfill_in_progress(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query(
+            r#"
+            SELECT star_backfill_started_at IS NOT NULL AND star_backfill_completed_at IS NULL AS in_progress
+            FROM star_watch
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| row.try_get::<bool, _>("in_progress")).transpose()?.unwrap_or(false))
+    }
+
+    /// Whether a repo's real star history has already been backfilled at
+    /// least once — the frontend uses this (inverted) to decide whether the
+    /// "connect your repo" card is still worth showing.
+    pub async fn star_history_is_backfilled(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query(
+            r#"
+            SELECT star_backfill_completed_at IS NOT NULL AS backfilled
+            FROM star_watch
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| row.try_get::<bool, _>("backfilled")).transpose()?.unwrap_or(false))
     }
 
     /// Atomically claims the SLOC backfill for a repo: only the caller that
@@ -3863,6 +3973,112 @@ mod tests {
                 .unwrap(),
             "completed"
         );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn start_star_backfill_if_needed_is_idempotent() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        let first = store
+            .start_star_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        let second = store
+            .start_star_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert!(first, "the first call should claim the backfill");
+        assert!(!second, "a concurrent second call should find it already claimed");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_backfill_in_progress_reflects_started_and_completed_markers() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert!(
+            !store
+                .star_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "not started yet"
+        );
+
+        store
+            .start_star_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(
+            store
+                .star_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "started but not completed"
+        );
+
+        store
+            .mark_star_backfill_completed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(
+            !store
+                .star_backfill_in_progress(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "completed"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_history_is_backfilled_reflects_completion() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+
+        assert!(!store
+            .star_history_is_backfilled(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap());
+
+        store
+            .start_star_backfill_if_needed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(
+            !store
+                .star_history_is_backfilled(RepositoryProvider::GitHub, "octo", "counts")
+                .await
+                .unwrap(),
+            "started but not completed yet"
+        );
+
+        store
+            .mark_star_backfill_completed(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(store
+            .star_history_is_backfilled(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap());
         store.drop_schema().await;
     }
 

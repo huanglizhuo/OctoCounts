@@ -114,4 +114,6 @@ export type RepoHistory = {
   starPoints: StarHistoryPoint[];
   slocPoints: SlocHistoryPoint[];
   slocBackfillInProgress: boolean;
+  starBackfillAvailable: boolean;
+  starBackfillInProgress: boolean;
 };

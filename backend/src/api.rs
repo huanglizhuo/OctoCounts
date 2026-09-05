@@ -26,6 +26,12 @@ pub struct AppState {
     /// How many historical commits `repo_history::ensure_repo_history` samples
     /// per repo for the SLOC backfill. See `Config::sloc_history_max_samples`.
     pub sloc_history_max_samples: u64,
+    /// See `Config::github_extension_oauth_client_id` /
+    /// `github_extension_oauth_client_secret` — threaded onto `AppState`
+    /// directly rather than carrying the whole `Config` so `oauth.rs` doesn't
+    /// need a dependency on it, same as `sloc_history_max_samples` above.
+    pub github_extension_oauth_client_id: Option<String>,
+    pub github_extension_oauth_client_secret: Option<String>,
 }
 
 pub async fn analyze(
@@ -386,6 +392,8 @@ mod tests {
             metrics,
             rate_limits: RateLimits::new(),
             sloc_history_max_samples: 12,
+            github_extension_oauth_client_id: None,
+            github_extension_oauth_client_secret: None,
         };
         Some(Harness {
             router: Router::new()

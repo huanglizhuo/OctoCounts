@@ -61,6 +61,13 @@ pub enum GitHubError {
     TooLarge,
     #[error("requested ref was not found")]
     RefNotFound,
+    /// The supplied token was rejected by GitHub's stargazers endpoint —
+    /// either it belongs to someone who isn't an owner/collaborator on the
+    /// repo, or (more often in practice) it lacks the `contents: write`
+    /// permission GitHub uses as its collaborator check, even though this
+    /// flow never writes anything.
+    #[error("this token does not have write access to the repository, which GitHub requires to verify collaborator access")]
+    NotCollaborator,
     /// GitHub/GitLab itself is failing (5xx or timeouts that survive retries).
     /// Distinct from [`GitHubError::Request`] so clients can tell an upstream
     /// outage apart from a bug in this service.
@@ -85,6 +92,13 @@ const RATE_LIMIT_SLEEP_CAP: Duration = Duration::from_secs(60);
 /// gives up and surfaces the rate limit to the caller.
 const MAX_RATE_LIMIT_SLEEPS: usize = 2;
 
+/// GitHub's page size cap for the stargazers endpoint.
+const STARGAZERS_PER_PAGE: u64 = 100;
+/// Caps real star-history backfill (Phase 2) at this many upstream requests
+/// regardless of how popular the repo is — same bound the old, now-restricted
+/// sampling used.
+const STARGAZERS_MAX_SAMPLES: u64 = 30;
+
 #[derive(Clone)]
 pub struct GitHubClient {
     client: Client,
@@ -105,6 +119,13 @@ pub struct GitHubClient {
     /// for `/internal/stats`; shared through `Arc` so clones of this client
     /// (one per coordinator) report one number.
     rate_limited_429: Arc<AtomicU64>,
+}
+
+/// One row from `GET .../stargazers` under the `application/vnd.github.star+json`
+/// media type — the plain `application/vnd.github+json` shape omits `starred_at`.
+#[derive(Debug, Deserialize)]
+struct StarredEntry {
+    starred_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -638,6 +659,135 @@ impl GitHubClient {
         dates
     }
 
+    /// A one-off, unauthenticated-by-default client used only for a caller's
+    /// star-history token. Kept separate from `self.client` (which bakes the
+    /// server's own `GITHUB_TOKEN` into its default headers) so there is
+    /// never a question of whether a per-request Authorization header would
+    /// compete with a baked-in default one — this client has no defaults to
+    /// compete with.
+    fn caller_token_client() -> Client {
+        Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
+            .build()
+            .expect("building a plain reqwest client never fails")
+    }
+
+    /// Verifies that `token` has enough access to read this repo's real star
+    /// history. GitHub requires the token to carry `contents: write` on the
+    /// repo to pass this check — confirmed by hand against the live API —
+    /// which is how it tells an owner/collaborator apart from anyone else
+    /// since restricting this endpoint on 2026-06-30. That is a platform
+    /// decision this service cannot request its way around with a different
+    /// scope. Returns the first page of real, timestamped points on success
+    /// so a caller does not have to re-fetch what verification already read.
+    pub async fn verify_star_history_access(
+        token: &str,
+        owner: &str,
+        repo: &str,
+    ) -> Result<Vec<(DateTime<Utc>, u64)>, GitHubError> {
+        let client = Self::caller_token_client();
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/stargazers?per_page={STARGAZERS_PER_PAGE}&page=1",
+            urlencoding::encode(owner),
+            urlencoding::encode(repo),
+        );
+        let response = client
+            .get(&url)
+            .header(header::USER_AGENT, "octocount-service/0.1")
+            .header(header::ACCEPT, "application/vnd.github.star+json")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .send()
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => {
+                let entries = response.json::<Vec<StarredEntry>>().await?;
+                Ok(entries
+                    .first()
+                    .map(|first| vec![(first.starred_at, 1)])
+                    .unwrap_or_default())
+            }
+            StatusCode::FORBIDDEN | StatusCode::NOT_FOUND => Err(GitHubError::NotCollaborator),
+            StatusCode::TOO_MANY_REQUESTS => Err(GitHubError::RateLimited),
+            status if status.is_server_error() => Err(GitHubError::UpstreamUnavailable),
+            _ => Err(GitHubError::NotCollaborator),
+        }
+    }
+
+    /// Continues the sampling `verify_star_history_access` started on page 1,
+    /// walking the remaining sampled pages with the same caller token. Only
+    /// ever called after verification has already proven access, so this is
+    /// best-effort throughout: a single bad page thins the sample rather than
+    /// failing the whole backfill.
+    pub async fn backfill_star_history(
+        token: &str,
+        owner: &str,
+        repo: &str,
+        current_stars: u64,
+        first_page: Vec<(DateTime<Utc>, u64)>,
+    ) -> Vec<(DateTime<Utc>, u64)> {
+        if current_stars == 0 {
+            return first_page;
+        }
+        let client = Self::caller_token_client();
+        let total_pages = current_stars.div_ceil(STARGAZERS_PER_PAGE).max(1);
+        let remaining_pages = Self::sample_pages(total_pages, STARGAZERS_MAX_SAMPLES)
+            .into_iter()
+            .filter(|&page| page != 1);
+
+        let mut points = first_page;
+        for page in remaining_pages {
+            let url = format!(
+                "https://api.github.com/repos/{}/{}/stargazers?per_page={STARGAZERS_PER_PAGE}&page={page}",
+                urlencoding::encode(owner),
+                urlencoding::encode(repo),
+            );
+            let response = match client
+                .get(&url)
+                .header(header::USER_AGENT, "octocount-service/0.1")
+                .header(header::ACCEPT, "application/vnd.github.star+json")
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .send()
+                .await
+            {
+                Ok(response) if response.status().is_success() => response,
+                _ => continue,
+            };
+            let Ok(entries) = response.json::<Vec<StarredEntry>>().await else {
+                continue;
+            };
+            let Some(first) = entries.first() else { continue };
+            let position = (page - 1) * STARGAZERS_PER_PAGE + 1;
+            points.push((first.starred_at, position));
+        }
+
+        points.sort_by_key(|(date, _)| *date);
+        points
+    }
+
+    /// Evenly spaced page numbers from 1..=total_pages, always including the
+    /// first and last page, capped at `max_samples` requests regardless of
+    /// how large `total_pages` is.
+    fn sample_pages(total_pages: u64, max_samples: u64) -> Vec<u64> {
+        if total_pages <= max_samples {
+            return (1..=total_pages).collect();
+        }
+        let step = total_pages as f64 / max_samples as f64;
+        let mut pages: Vec<u64> = (0..max_samples)
+            .map(|i| (((i as f64 * step).round() as u64) + 1).min(total_pages))
+            .collect();
+        pages.dedup();
+        // Anchor the last sample to the final page exactly (the step above
+        // can land just short of it) without exceeding max_samples requests —
+        // replace, never push, so the count stays bounded.
+        if let Some(last) = pages.last_mut() {
+            *last = total_pages;
+        }
+        pages.dedup();
+        pages
+    }
+
     fn parse_repo_url(input: &str) -> Result<RepoTarget, GitHubError> {
         let mut normalized = input.trim().to_string();
         if normalized.starts_with("git@github.com:") {
@@ -1071,6 +1221,29 @@ mod tests {
     fn sample_dates_handles_a_same_day_repo() {
         let now = "2026-08-30T12:00:00Z".parse().unwrap();
         assert_eq!(GitHubClient::sample_dates(now, now, 12), vec![now]);
+    }
+
+    #[test]
+    fn sample_pages_covers_every_page_under_the_cap() {
+        assert_eq!(GitHubClient::sample_pages(5, 30), vec![1, 2, 3, 4, 5]);
+        assert_eq!(GitHubClient::sample_pages(1, 30), vec![1]);
+    }
+
+    #[test]
+    fn sample_pages_stays_bounded_and_spans_first_to_last() {
+        let pages = GitHubClient::sample_pages(4_000, 30);
+        assert!(pages.len() <= 30, "got {} pages", pages.len());
+        assert_eq!(pages.first(), Some(&1));
+        assert_eq!(pages.last(), Some(&4_000));
+        // Strictly increasing: no duplicate or out-of-order pages to re-fetch.
+        assert!(pages.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn sample_pages_handles_a_tiny_repo_with_one_page() {
+        // current_stars=1 -> total_pages=1: the single-page branch, not the
+        // stepped-sampling branch, must be the one that runs.
+        assert_eq!(GitHubClient::sample_pages(1, 1), vec![1]);
     }
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;

@@ -55,3 +55,32 @@ export function pollJob(jobId) {
 export function fetchReport(reportId) {
   return fetchJson(`${BASE}/api/reports/${reportId}`);
 }
+
+// Exchanges the authorization code chrome.identity.launchWebAuthFlow got
+// from GitHub for an access token. Has to happen server-side (needs the
+// extension OAuth App's client secret), so this is a plain JSON POST, not a
+// redirect — see backend/src/oauth.rs::github_extension_token_exchange.
+export function exchangeGithubCode(code, redirectUri) {
+  return fetchJson(`${BASE}/api/auth/github/extension-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirectUri }),
+  });
+}
+
+// Verifies `token` can read this repo's real star history and, the first
+// time it succeeds for a given repo, kicks off a background backfill.
+// Fire-and-forget from the caller's point of view — repeat calls for an
+// already-backfilled repo are cheap no-ops server-side.
+export function connectGithubToken(owner, repo, token) {
+  return fetchJson(`${BASE}/api/auth/github/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'github', owner, repo, token }),
+  });
+}
+
+export function fetchRepoHistory(owner, repo) {
+  const params = new URLSearchParams({ provider: 'github', owner, repo });
+  return fetchJson(`${BASE}/api/seo/repo-history?${params.toString()}`);
+}

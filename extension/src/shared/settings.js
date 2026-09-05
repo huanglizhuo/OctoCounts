@@ -10,6 +10,10 @@ export const DEFAULT_SETTINGS = {
   silentUntilSuccess: false,
   skipForks: true,
   cardTitle: '',
+  // Shows a star-history section in the panel for repos the logged-in
+  // GitHub account owns. Only takes effect once logged in (see
+  // shared/github-auth.js) — has no visible effect otherwise.
+  showStarHistory: true,
 };
 
 export async function getSettings() {

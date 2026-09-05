@@ -539,7 +539,7 @@ pub async fn star_history_badge(
         return svg_response(svg, "public, s-maxage=3600, stale-while-revalidate=86400");
     }
 
-    let (history, current_stars, _, _) =
+    let (history, current_stars, _, _, _, _) =
         match ensure_repo_history(&state, RepositoryProvider::GitHub, &owner, &repo).await {
             Ok(result) => result,
             Err(_) => {

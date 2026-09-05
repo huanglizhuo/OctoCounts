@@ -25,6 +25,7 @@
   line-height: 1.5;
   box-sizing: border-box;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 :host(:not(:first-child)) {
@@ -448,4 +449,68 @@ button.oc-lang-row {
 
 .oc-link-btn:active {
   opacity: 0.6;
+}
+
+/* ── Star history — appended below the card body for repos the logged-in
+   GitHub account owns (see maybeRenderStarHistory in card.js). Empty until
+   populated so it never reserves layout space for repos it never applies to. */
+.oc-star-history-wrap:empty {
+  display: none;
+}
+
+.oc-star-history {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.oc-star-history-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.oc-star-history-title {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.oc-star-history-count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+.oc-star-history-svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+.oc-star-history-area {
+  fill: var(--accent);
+  fill-opacity: 0.15;
+  stroke: none;
+}
+
+.oc-star-history-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.oc-star-history-axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--fg-dim);
 }

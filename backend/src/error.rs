@@ -76,6 +76,9 @@ impl From<GitHubError> for ApiError {
             GitHubError::RefNotFound => {
                 Self::new(StatusCode::NOT_FOUND, "ref_not_found", error.to_string())
             }
+            GitHubError::NotCollaborator => {
+                Self::new(StatusCode::FORBIDDEN, "not_collaborator", error.to_string())
+            }
             GitHubError::RateLimited => Self::new(
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limited",
