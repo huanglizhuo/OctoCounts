@@ -1,20 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-09-04T07:12:27.197Z
-fmtlib/fmt
+# GitHub Trending daily snapshot generated 2026-09-05T06:55:01.544Z
 mattpocock/skills
-NousResearch/hermes-agent
 DietrichGebert/ponytail
-anthropics/skills
+fmtlib/fmt
 affaan-m/ECC
-JuliusBrussee/caveman
+anthropics/skills
 blader/humanizer
-google-research/timesfm
-averygan/reclip
-bannedbook/fanqiang
-addyosmani/agent-skills
-ByteByteGoHq/system-design-101
+NousResearch/hermes-agent
+JuliusBrussee/caveman
 magnitudedev/magnitude
-Imbad0202/academic-research-skills
-Gitlawb/openclaude
+bikini/exploitarium
+bannedbook/fanqiang
 debpalash/VoiceStudio
-f/prompts.chat
-obra/superpowers
+google-research/timesfm
+radixark/miles
+anomalyco/opencode
+clshortfuse/renodx
+cathrynlavery/diagram-design
