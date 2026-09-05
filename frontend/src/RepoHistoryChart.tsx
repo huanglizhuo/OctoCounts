@@ -113,7 +113,11 @@ export function RepoHistoryChart({
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const progress = Math.min((now - start) / 1400, 1);
+      // rAF's timestamp can land a hair before the `performance.now()` call
+      // above (it marks when the frame began, not when this callback runs),
+      // which produced a barely-negative progress on the first tick and fed
+      // an invalid negative width into the SVG reveal <rect>. Clamp both ends.
+      const progress = Math.max(0, Math.min((now - start) / 1400, 1));
       setReveal(progress);
       setDisplayedLines(Math.round(currentLines * progress));
       if (progress < 1) raf = requestAnimationFrame(tick);

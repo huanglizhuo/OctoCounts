@@ -269,7 +269,7 @@ async function reportResponse(context, route, options = {}) {
   if (options.markdown) {
     return markdownResponse(reportMarkdown(report, relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
-  return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400");
+  return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "public, s-maxage=300, stale-while-revalidate=600");
 }
 
 /// Markdown twin of injectReport: same report payload, same facts, serialized
@@ -403,7 +403,7 @@ async function listPageResponse(context, kind, url) {
       },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
     }),
-    "public, s-maxage=900, stale-while-revalidate=3600"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
@@ -497,7 +497,7 @@ async function trendingPageResponse(context, options = {}) {
       },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
     }),
-    "public, s-maxage=3600, stale-while-revalidate=86400"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
@@ -671,7 +671,7 @@ async function statsPageResponse(context, options = {}) {
       },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
     }),
-    "public, s-maxage=900, stale-while-revalidate=3600"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
@@ -708,7 +708,7 @@ async function comparePageResponse(context, pathname) {
       jsonLd: null,
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
     }),
-    "public, s-maxage=3600, stale-while-revalidate=86400"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
@@ -729,7 +729,7 @@ async function embedPageResponse(context, parts) {
       jsonLd: null,
       bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC card</h1><p>Loading the embeddable OctoCounts card… <a href="${escapeAttr(reportPath)}">Open the full ${escapeHtml(fullName)} SLOC report</a>.</p></section>`,
     }),
-    "public, s-maxage=3600, stale-while-revalidate=86400",
+    "public, s-maxage=300, stale-while-revalidate=600",
     { frameable: true }
   );
 }
@@ -808,7 +808,7 @@ async function badgesPageResponse(context) {
       },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a permanent, commit-pinned SLOC report.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
     }),
-    "public, s-maxage=3600, stale-while-revalidate=86400"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
@@ -820,7 +820,7 @@ async function badgesPageResponse(context) {
 /// crawler-visible content; React discards it on hydration as everywhere else.
 async function homePageResponse(context) {
   const index = await indexHtml(context);
-  return htmlResponse(injectHome(index), "public, s-maxage=3600, stale-while-revalidate=86400");
+  return htmlResponse(injectHome(index), "public, s-maxage=300, stale-while-revalidate=600");
 }
 
 function injectHome(index) {
@@ -917,7 +917,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
   if (options.markdown) {
     return markdownResponse(compareMarkdown(entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
-  return htmlResponse(injectCuratedCompare(await indexHtml(context), entry, left, right), "public, s-maxage=3600, stale-while-revalidate=86400");
+  return htmlResponse(injectCuratedCompare(await indexHtml(context), entry, left, right), "public, s-maxage=300, stale-while-revalidate=600");
 }
 
 /// Markdown twin of injectCuratedCompare: same two report payloads, same
@@ -1738,6 +1738,6 @@ function securityHeaders(options) {
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "cross-origin-opener-policy": "same-origin",
-    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.octocounts.com https://www.githubstatus.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
   };
 }

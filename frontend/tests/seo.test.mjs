@@ -340,7 +340,7 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
     assert.match(html, /\/compare\/rust-vs-go/);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -373,7 +373,7 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.match(html, /"@type":"CollectionPage"/);
   assert.match(html, /"datePublished":"2026-07-15"/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
 });
 
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
@@ -602,7 +602,7 @@ test("curated comparison SSR renders balanced citable content", async () => {
     }
 
     assert.equal(response.status, 200, slug);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", slug);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", slug);
     assert.ok(html.includes(`<title>${name}: source lines of code compared | OctoCounts</title>`), `${slug} title`);
     assert.ok(html.includes(`<link rel="canonical" href="https://octocounts.com/compare/${slug}" />`), `${slug} canonical`);
     assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" \/>/);
@@ -1225,7 +1225,7 @@ test("retrieval-time AI bots get markdown on reports while search and training c
     ]) {
       const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
       assert.match(response.headers.get("content-type") ?? "", /^text\/html/, ua);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", ua);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", ua);
       assert.equal(response.headers.get("vary"), null, ua);
     }
     // Explicit markdown URLs have their own cache key, so they keep the shared
