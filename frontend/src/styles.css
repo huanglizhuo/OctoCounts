@@ -3932,57 +3932,18 @@ table.report td.lang {
   cursor: crosshair;
 }
 
-.repo-history-star-area {
+.repo-history-sloc-area {
   fill: var(--accent);
   fill-opacity: 0.15;
   stroke: none;
 }
 
-.repo-history-star-line {
+.repo-history-sloc-line {
   fill: none;
   stroke: var(--accent);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
-}
-
-.repo-history-sloc-line {
-  fill: none;
-  stroke: var(--accent-2);
-  stroke-width: 2;
-  stroke-dasharray: 5 3;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.repo-history-legend {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-  font-size: 0.8rem;
-  color: var(--fg-mute);
-}
-
-.repo-history-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35em;
-}
-
-.repo-history-legend-swatch {
-  display: inline-block;
-  width: 0.85em;
-  height: 3px;
-  border-radius: 2px;
-}
-
-.repo-history-legend-swatch--star {
-  background: var(--accent);
-}
-
-.repo-history-legend-swatch--sloc {
-  background: var(--accent-2);
 }
 
 .repo-history-progress {
@@ -4004,10 +3965,6 @@ table.report td.lang {
   fill: var(--accent);
   stroke: var(--bg, #fff);
   stroke-width: 2;
-}
-
-.repo-history-hover-dot--sloc {
-  fill: var(--accent-2);
 }
 
 .repo-history-axis-label {

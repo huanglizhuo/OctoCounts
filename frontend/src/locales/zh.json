@@ -176,11 +176,9 @@
     "noData": "无数据",
     "totalLinesTooltip": "共 {{count}} 行"
   },
-  "starHistory": {
-    "title": "Star 与代码增长历史",
-    "chartAriaLabel": "Star 与代码增长曲线，当前 {{count}} 个 star",
-    "legendStars": "Star",
-    "legendSloc": "代码行数",
+  "codeHistory": {
+    "title": "代码行数增长历史",
+    "chartAriaLabel": "代码行数增长曲线，当前共 {{count}} 行",
     "locAbbrev": "行",
     "gatheringSloc": "正在采集历史代码数据…首次可能需要一分钟",
     "exportGif": "导出 GIF",

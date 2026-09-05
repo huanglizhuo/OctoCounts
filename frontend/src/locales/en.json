@@ -186,11 +186,9 @@
     "noData": "No data",
     "totalLinesTooltip": "{{count}} total lines"
   },
-  "starHistory": {
-    "title": "Star & Code History",
-    "chartAriaLabel": "Star and code growth chart, {{count}} stars currently",
-    "legendStars": "Stars",
-    "legendSloc": "Lines of code",
+  "codeHistory": {
+    "title": "Lines of Code History",
+    "chartAriaLabel": "Lines of code growth chart, {{count}} lines currently",
     "locAbbrev": "lines",
     "gatheringSloc": "Gathering historical code data… this can take a minute the first time",
     "exportGif": "Export GIF",

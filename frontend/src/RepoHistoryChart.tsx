@@ -5,7 +5,7 @@ import { Download, Loader2 } from "lucide-react";
 import { fetchRepoHistory } from "./api";
 import { downloadDataUrl, formatNumber } from "./reportUtils";
 import { AnalyticsEvents, trackEvent } from "./analytics";
-import type { RepoHistory, SlocHistoryPoint, StarHistoryPoint } from "./types";
+import type { RepoHistory, SlocHistoryPoint } from "./types";
 
 const WIDTH = 640;
 const HEIGHT = 220;
@@ -28,26 +28,16 @@ const GIF_FRAME_COUNT = 18;
 /// hammering the endpoint.
 const BACKFILL_POLL_INTERVAL_MS = 5000;
 
-type Coord<T> = { x: number; y: number; point: T };
+type Coord = { x: number; y: number; point: SlocHistoryPoint };
 
-/// Projects an arbitrary time series onto the shared x (time) axis, scaled to
-/// its own y-domain — stars and SLOC live on wildly different scales, so each
-/// series gets its own vertical scale even though both share the same
-/// horizontal one.
-function project<T>(
-  points: T[],
-  getDate: (point: T) => string,
-  getValue: (point: T) => number,
-  domainStart: number,
-  domainEnd: number
-): Coord<T>[] {
+function project(points: SlocHistoryPoint[], domainStart: number, domainEnd: number): Coord[] {
   const span = Math.max(domainEnd - domainStart, 1);
-  const maxValue = Math.max(...points.map(getValue), 1);
+  const maxValue = Math.max(...points.map((p) => p.totalLines), 1);
   return points.map((point) => {
-    const time = new Date(getDate(point) + "T00:00:00Z").getTime();
+    const time = new Date(point.date + "T00:00:00Z").getTime();
     return {
       x: PAD.left + ((time - domainStart) / span) * PLOT_WIDTH,
-      y: BASELINE_Y - (getValue(point) / maxValue) * PLOT_HEIGHT,
+      y: BASELINE_Y - (point.totalLines / maxValue) * PLOT_HEIGHT,
       point,
     };
   });
@@ -64,10 +54,9 @@ function areaPath(coords: { x: number; y: number }[]) {
   return `${linePath(coords)} L${last.x.toFixed(1)},${BASELINE_Y} L${first.x.toFixed(1)},${BASELINE_Y} Z`;
 }
 
-function timeDomain(data: RepoHistory): [number, number] | null {
-  const dates = [...data.starPoints.map((p) => p.date), ...data.slocPoints.map((p) => p.date)];
-  if (dates.length < 2) return null;
-  const times = dates.map((d) => new Date(d + "T00:00:00Z").getTime()).sort((a, b) => a - b);
+function timeDomain(points: SlocHistoryPoint[]): [number, number] | null {
+  if (points.length < 2) return null;
+  const times = points.map((p) => new Date(p.date + "T00:00:00Z").getTime()).sort((a, b) => a - b);
   return [times[0], times[times.length - 1]];
 }
 
@@ -91,21 +80,14 @@ export function RepoHistoryChart({
     refetchInterval: (query) => (query.state.data?.slocBackfillInProgress ? BACKFILL_POLL_INTERVAL_MS : false),
   });
 
-  const domain = useMemo(() => (data ? timeDomain(data) : null), [data]);
-  const starCoords = useMemo(
-    () => (data && domain ? project<StarHistoryPoint>(data.starPoints, (p) => p.date, (p) => p.stars, domain[0], domain[1]) : null),
-    [data, domain]
-  );
-  const slocCoords = useMemo(
-    () =>
-      data && domain
-        ? project<SlocHistoryPoint>(data.slocPoints, (p) => p.date, (p) => p.totalLines, domain[0], domain[1])
-        : null,
+  const domain = useMemo(() => (data ? timeDomain(data.slocPoints) : null), [data]);
+  const coords = useMemo(
+    () => (data && domain ? project(data.slocPoints, domain[0], domain[1]) : null),
     [data, domain]
   );
 
   const [reveal, setReveal] = useState(0);
-  const [displayedCount, setDisplayedCount] = useState(0);
+  const [displayedLines, setDisplayedLines] = useState(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [isExportingGif, setIsExportingGif] = useState(false);
   const [gifError, setGifError] = useState<string | null>(null);
@@ -114,39 +96,39 @@ export function RepoHistoryChart({
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
 
-  const currentStars = data?.currentStars ?? 0;
+  const currentLines = coords ? coords[coords.length - 1].point.totalLines : 0;
 
-  // The one-time entrance animation: draws both lines in and counts stars up,
-  // both driven by the same `reveal` progress value so they finish together.
-  // Skips straight to the end state under reduced-motion.
+  // The one-time entrance animation: draws the line in and counts the total
+  // lines up, both driven by the same `reveal` progress value so they finish
+  // together. Skips straight to the end state under reduced-motion.
   useEffect(() => {
-    if (!starCoords) return;
+    if (!coords) return;
     if (reduceMotion.current) {
       setReveal(1);
-      setDisplayedCount(currentStars);
+      setDisplayedLines(currentLines);
       return;
     }
     setReveal(0);
-    setDisplayedCount(0);
+    setDisplayedLines(0);
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
       const progress = Math.min((now - start) / 1400, 1);
       setReveal(progress);
-      setDisplayedCount(Math.round(currentStars * progress));
+      setDisplayedLines(Math.round(currentLines * progress));
       if (progress < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [starCoords, currentStars]);
+  }, [coords, currentLines]);
 
   const exportGif = async () => {
-    if (!starCoords || !chartRef.current) return;
+    if (!coords || !chartRef.current) return;
     setIsExportingGif(true);
     setGifError(null);
     const priorReveal = reveal;
-    const priorCount = displayedCount;
+    const priorCount = displayedLines;
     try {
       const [{ toCanvas }, { GIFEncoder, quantize, applyPalette }] = await Promise.all([
         import("html-to-image"),
@@ -157,7 +139,7 @@ export function RepoHistoryChart({
       for (let frame = 0; frame <= GIF_FRAME_COUNT; frame += 1) {
         const progress = frame / GIF_FRAME_COUNT;
         setReveal(progress);
-        setDisplayedCount(Math.round(currentStars * progress));
+        setDisplayedLines(Math.round(currentLines * progress));
         // Two rAFs: one for React to commit the state update, one for the
         // browser to actually paint it before html-to-image reads the DOM.
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -179,10 +161,10 @@ export function RepoHistoryChart({
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       trackEvent(AnalyticsEvents.gifExported, { provider, owner, repo });
     } catch {
-      setGifError(t("starHistory.gifExportFailed"));
+      setGifError(t("codeHistory.gifExportFailed"));
     } finally {
       setReveal(priorReveal);
-      setDisplayedCount(priorCount);
+      setDisplayedLines(priorCount);
       setIsExportingGif(false);
     }
   };
@@ -195,26 +177,22 @@ export function RepoHistoryChart({
       </div>
     );
   }
-  if (!data || !starCoords) {
+  if (!data || !coords) {
     // Either the fetch failed, or this is the very first view of this repo's
-    // chart — the star series just started watching and has fewer than two
-    // points (nothing has accumulated since day one yet). Nothing useful to
-    // draw for stars in that case; the SLOC backfill may still be running in
-    // the background for next time.
+    // chart — the SLOC series just started watching and has fewer than two
+    // points (nothing has accumulated since day one yet).
     return null;
   }
 
   const revealWidth = PLOT_WIDTH * reveal;
-  const hoveredStar = hoverIndex !== null ? starCoords[hoverIndex] : null;
-  const hoveredSloc =
-    hoverIndex !== null && slocCoords && hoverIndex < slocCoords.length ? slocCoords[hoverIndex] : null;
+  const hovered = hoverIndex !== null ? coords[hoverIndex] : null;
 
   const handleMove = (event: React.MouseEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * WIDTH;
     let nearest = 0;
     let nearestDistance = Infinity;
-    starCoords.forEach((c, i) => {
+    coords.forEach((c, i) => {
       const distance = Math.abs(c.x - x);
       if (distance < nearestDistance) {
         nearestDistance = distance;
@@ -225,27 +203,17 @@ export function RepoHistoryChart({
   };
 
   return (
-    <section className="repo-history" aria-label={t("starHistory.title")}>
+    <section className="repo-history" aria-label={t("codeHistory.title")}>
       <div className="repo-history-head">
-        <h2>{t("starHistory.title")}</h2>
-        <span className="repo-history-count">&#9733; {formatNumber(displayedCount)}</span>
+        <h2>{t("codeHistory.title")}</h2>
+        <span className="repo-history-count">{formatNumber(displayedLines)} {t("codeHistory.locAbbrev")}</span>
       </div>
-      {slocCoords && slocCoords.length >= 2 ? (
-        <div className="repo-history-legend">
-          <span className="repo-history-legend-item">
-            <span className="repo-history-legend-swatch repo-history-legend-swatch--star" /> {t("starHistory.legendStars")}
-          </span>
-          <span className="repo-history-legend-item">
-            <span className="repo-history-legend-swatch repo-history-legend-swatch--sloc" /> {t("starHistory.legendSloc")}
-          </span>
-        </div>
-      ) : null}
       <div className="repo-history-chart" ref={chartRef}>
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"
           role="img"
-          aria-label={t("starHistory.chartAriaLabel", { count: currentStars })}
+          aria-label={t("codeHistory.chartAriaLabel", { count: formatNumber(currentLines) })}
           onMouseMove={handleMove}
           onMouseLeave={() => setHoverIndex(null)}
         >
@@ -255,61 +223,44 @@ export function RepoHistoryChart({
             </clipPath>
           </defs>
           <g clipPath="url(#repo-history-reveal)">
-            <path d={areaPath(starCoords)} className="repo-history-star-area" />
-            <path d={linePath(starCoords)} className="repo-history-star-line" />
-            {slocCoords && slocCoords.length >= 2 ? (
-              <path d={linePath(slocCoords)} className="repo-history-sloc-line" />
-            ) : null}
+            <path d={areaPath(coords)} className="repo-history-sloc-area" />
+            <path d={linePath(coords)} className="repo-history-sloc-line" />
           </g>
-          {hoveredStar ? (
+          {hovered ? (
             <>
               <line
-                x1={hoveredStar.x}
-                x2={hoveredStar.x}
+                x1={hovered.x}
+                x2={hovered.x}
                 y1={PAD.top}
                 y2={BASELINE_Y}
                 className="repo-history-hover-line"
               />
-              <circle cx={hoveredStar.x} cy={hoveredStar.y} r={4} className="repo-history-hover-dot" />
-              {hoveredSloc ? (
-                <circle
-                  cx={hoveredSloc.x}
-                  cy={hoveredSloc.y}
-                  r={4}
-                  className="repo-history-hover-dot repo-history-hover-dot--sloc"
-                />
-              ) : null}
+              <circle cx={hovered.x} cy={hovered.y} r={4} className="repo-history-hover-dot" />
             </>
           ) : null}
           <text x={PAD.left} y={HEIGHT - 6} className="repo-history-axis-label">
-            {starCoords[0].point.date}
+            {coords[0].point.date}
           </text>
           <text x={WIDTH - PAD.right} y={HEIGHT - 6} textAnchor="end" className="repo-history-axis-label">
-            {starCoords[starCoords.length - 1].point.date}
+            {coords[coords.length - 1].point.date}
           </text>
         </svg>
-        {hoveredStar ? (
-          <div className="repo-history-tooltip" style={{ left: `${(hoveredStar.x / WIDTH) * 100}%` }}>
-            <strong>{formatNumber(hoveredStar.point.stars)}</strong> &#9733; {hoveredStar.point.date}
-            {hoveredSloc ? (
-              <>
-                {" "}
-                &middot; <strong>{formatNumber(hoveredSloc.point.totalLines)}</strong> {t("starHistory.locAbbrev")}
-              </>
-            ) : null}
+        {hovered ? (
+          <div className="repo-history-tooltip" style={{ left: `${(hovered.x / WIDTH) * 100}%` }}>
+            <strong>{formatNumber(hovered.point.totalLines)}</strong> {t("codeHistory.locAbbrev")} &middot; {hovered.point.date}
           </div>
         ) : null}
       </div>
       {data.slocBackfillInProgress ? (
         <div className="repo-history-progress">
-          <Loader2 className="spin" size={13} /> {t("starHistory.gatheringSloc")}
+          <Loader2 className="spin" size={13} /> {t("codeHistory.gatheringSloc")}
         </div>
       ) : null}
       <div className="repo-history-actions">
         <button className="copybtn" disabled={isExportingGif} onClick={() => void exportGif()}>
           {isExportingGif ? <Loader2 className="spin" size={13} /> : <Download size={13} />}
           {" "}
-          {t("starHistory.exportGif")}
+          {t("codeHistory.exportGif")}
         </button>
         {gifError ? <span className="repo-history-error">{gifError}</span> : null}
       </div>
