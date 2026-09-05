@@ -827,34 +827,10 @@ html[data-scheme="paper"] .btn {
   color: var(--fg-dim);
 }
 
-.badge-embed {
-  margin-top: 12px;
-  border: 1px solid var(--rule);
-  background: linear-gradient(180deg, var(--panel-hi), var(--panel));
-  padding: 10px 14px;
-  box-shadow: 0 0 0 1px var(--bg) inset;
-}
-
 .badge-embed-desc {
   margin: 0 0 8px;
   font-size: var(--text-sm);
   color: var(--fg-dim);
-}
-
-.badge-embed-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.badge-embed-code {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ---- embeddable iframe card (/embed/:provider/:owner/:repo) ---- */
@@ -2250,41 +2226,70 @@ table.report tr.totals td.lang {
   flex-wrap: wrap;
 }
 
-.report-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4);
+/* The growth moment: a visible shareable card (this used to be exported off
+   screen only, never actually shown to the person about to share it) next to
+   the one-click share targets and the two primary CTAs. Prominent on purpose
+   — this is the one part of the result page meant to look like an ad for
+   itself. */
+.share-showcase {
+  padding: var(--space-5);
   border-top: 1px solid var(--rule);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%),
     var(--panel);
 }
 
-.report-actions-copy {
+.share-showcase-head {
   min-width: 0;
   display: grid;
   gap: 4px;
+  margin-bottom: var(--space-4);
 }
 
-.report-actions-copy strong {
+.share-showcase-head strong {
   color: var(--fg);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
-.report-actions-copy span:last-child {
+.share-showcase-head span:last-child {
   color: var(--fg-mute);
   font-size: var(--text-xs);
 }
 
-.report-actions-buttons {
+.share-showcase-body {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+/* The card itself always renders at its native 1200x630 export size; this
+   wrapper clips a scaled-down view of it. The scale comes from a
+   ResizeObserver (--card-scale, set in main.tsx) measuring the wrapper's
+   actual rendered width, not a guessed breakpoint — the wrapper's width
+   varies with page padding in ways fixed breakpoints kept getting wrong. */
+.share-showcase-card {
+  flex: 1 1 280px;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 1200 / 630;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+}
+
+.share-showcase-card .share-card {
+  transform: scale(var(--card-scale, .5));
+  transform-origin: top left;
+}
+
+.share-showcase-actions {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
 }
 
 .trust-details {
@@ -2353,34 +2358,6 @@ table.report tr.totals td.lang {
 .copybtn:disabled {
   opacity: .55;
   cursor: wait;
-}
-
-.share-export-host {
-  position: fixed;
-  left: -10000px;
-  top: 0;
-  width: 1200px;
-  height: 630px;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.share-preview {
-  display: grid;
-  gap: 12px;
-}
-
-.share-preview-frame {
-  width: min(100%, 600px);
-  height: 315px;
-  overflow: hidden;
-  border: 1px dashed var(--rule);
-  background: var(--bg);
-}
-
-.share-preview-frame .share-card {
-  transform: scale(.5);
-  transform-origin: top left;
 }
 
 .share-card {
@@ -2950,10 +2927,6 @@ footer a {
     grid-template-columns: 1fr;
   }
 
-  .insight-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .trust-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3141,13 +3114,8 @@ footer a {
     overflow-wrap: anywhere;
   }
 
-  .report-actions {
+  .share-showcase-body {
     align-items: stretch;
-    display: grid;
-  }
-
-  .report-actions-buttons {
-    justify-content: flex-start;
   }
 
   .report-index-head {
@@ -3440,6 +3408,14 @@ a.proof-badge:hover {
 
 .sticky-bar .copybtn {
   padding: 4px 10px;
+}
+
+/* The one persistent share entry point while scrolled — worth a hint of
+   accent color so it reads as the primary action next to the neutral "top"
+   button. */
+.sticky-bar .copybtn.share-cta {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 @media (prefers-reduced-motion: no-preference) {

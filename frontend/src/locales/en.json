@@ -42,7 +42,8 @@
   "stickyBar": {
     "ariaLabel": "Report summary",
     "lines": "{{lines}} lines",
-    "top": "top"
+    "top": "top",
+    "share": "share"
   },
   "runner": {
     "title": "Runner",
@@ -112,8 +113,6 @@
     "copyUrl": "report URL",
     "copyEmbed": "embed iframe",
     "exportPng": "PNG card",
-    "installChrome": "Chrome",
-    "installEdge": "Edge",
     "copied": "copied"
   },
   "similarRepos": {
@@ -134,16 +133,9 @@
     "kicker": "insight",
     "title": "Codebase readout",
     "scale": "Scale",
-    "topLanguage": "Primary language",
-    "codeShare": "Code share",
-    "languageMix": "Language mix",
     "cacheState": "Result",
     "speed": "Speed",
     "speedDetail": "{{lines}} lines via {{version}}",
-    "topLanguageDetail": "{{percent}} of total lines",
-    "noLanguageDetail": "No language rows detected",
-    "codeShareDetail": "{{code}} code lines across {{lines}} total lines",
-    "mixDetail": "{{count}} detected languages",
     "scaleValues": {
       "tiny": "Tiny",
       "small": "Small",
@@ -157,12 +149,6 @@
       "medium": "10k-100k code lines",
       "large": "100k-500k code lines",
       "huge": "500k+ code lines"
-    },
-    "mixValues": {
-      "single": "Single language",
-      "focused": "Focused",
-      "mixed": "Mixed",
-      "polyglot": "Polyglot"
     }
   },
   "trust": {
@@ -340,11 +326,6 @@
   },
   "languageSwitcher": {
     "label": "Language"
-  },
-  "badgeEmbed": {
-    "description": "Add to your GitHub README to show live SLOC stats:",
-    "copy": "copy",
-    "copied": "copied!"
   },
   "badgeBuilder": {
     "title": "Badge Builder",
@@ -546,10 +527,6 @@
         "subtitle": "The largest public repositories OctoCounts has measured, ranked by counted lines."
       }
     }
-  },
-  "sharePreview": {
-    "debug": "debug",
-    "pngExportPreview": "PNG export preview"
   },
   "textReport": {
     "language": "Language",

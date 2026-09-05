@@ -103,8 +103,6 @@
     "copyUrl": "报告链接",
     "copyEmbed": "嵌入 iframe",
     "exportPng": "PNG 卡片",
-    "installChrome": "Chrome",
-    "installEdge": "Edge",
     "copied": "已复制"
   },
   "similarRepos": {
@@ -125,16 +123,9 @@
     "kicker": "洞察",
     "title": "代码库读数",
     "scale": "规模",
-    "topLanguage": "主语言",
-    "codeShare": "代码占比",
-    "languageMix": "语言结构",
     "cacheState": "结果",
     "speed": "速度",
     "speedDetail": "{{version}} 统计 {{lines}} 行",
-    "topLanguageDetail": "占总行数 {{percent}}",
-    "noLanguageDetail": "未检测到语言行",
-    "codeShareDetail": "{{lines}} 总行中有 {{code}} 行代码",
-    "mixDetail": "检测到 {{count}} 种语言",
     "scaleValues": {
       "tiny": "极小",
       "small": "小型",
@@ -148,12 +139,6 @@
       "medium": "10k-100k 行代码",
       "large": "100k-500k 行代码",
       "huge": "500k+ 行代码"
-    },
-    "mixValues": {
-      "single": "单语言",
-      "focused": "主语言集中",
-      "mixed": "多语言混合",
-      "polyglot": "多语言项目"
     }
   },
   "trust": {
@@ -331,11 +316,6 @@
   },
   "languageSwitcher": {
     "label": "语言"
-  },
-  "badgeEmbed": {
-    "description": "添加到您的 GitHub README 以显示实时 SLOC 统计：",
-    "copy": "复制",
-    "copied": "已复制！"
   },
   "badgeBuilder": {
     "title": "Badge 生成器",
@@ -538,10 +518,6 @@
       }
     }
   },
-  "sharePreview": {
-    "debug": "调试",
-    "pngExportPreview": "PNG 导出预览"
-  },
   "textReport": {
     "language": "语言",
     "files": "文件",
@@ -558,6 +534,7 @@
   "stickyBar": {
     "ariaLabel": "报告摘要",
     "lines": "{{lines}} 行",
-    "top": "顶部"
+    "top": "顶部",
+    "share": "分享"
   }
 }

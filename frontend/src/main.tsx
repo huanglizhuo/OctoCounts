@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronRight, Clipboard, Download, ExternalLink, FileJson, History, Loader2, Play, RotateCcw, Share2 } from "lucide-react";
 import React, { FormEvent, ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import i18n, { ready as i18nReady } from "./i18n";
@@ -67,7 +67,6 @@ const queryClient = new QueryClient({
     queries: { staleTime: 60_000, retry: 1 },
   },
 });
-const showSharePreview = import.meta.env.DEV && import.meta.env.VITE_DEBUG_SHARE_PREVIEW === "true";
 const samples = [
   { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
@@ -124,6 +123,28 @@ function useNearViewport<T extends HTMLElement>(rootMargin = "600px") {
   }, [rootMargin]);
 
   return { ref, isNear };
+}
+
+// Scales a fixed-size child (the 1200x630 share card) down to fit whatever
+// width its wrapper actually ends up with. A handful of guessed breakpoints
+// clipped the card at in-between widths once page padding was accounted for
+// — measuring is the only way to always match exactly. Written straight to
+// the CSS variable via the DOM node rather than through React state: the
+// value only ever feeds that one property, so there's no reason to re-render
+// the share card and its buttons on every resize tick.
+function useElementScale(baseWidth: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) el.style.setProperty("--card-scale", String(width / baseWidth));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [baseWidth]);
+  return ref;
 }
 
 function DeferredContent({ children, minHeight = 1, rootMargin = "300px" }: { children: ReactNode; minHeight?: number; rootMargin?: string }) {
@@ -426,7 +447,6 @@ function App() {
               </button>
             </form>
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
-            {report && <BadgeEmbed report={report} refName={refName} />}
             {!isReportRoute && (
               <>
                 <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
@@ -965,8 +985,15 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <span className={report.cached ? "ok" : ""}>{report.cached ? t("runner.cacheHit") : t("runner.freshRun")}</span>
           </span>
           <div className="sticky-actions">
-            <button className="copybtn" onClick={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report), placement: "sticky" }); }}><Clipboard size={13} /> {t("runner.exportText")}</button>
-            <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={13} /> {t("runner.exportPng")}</button>
+            <button
+              className="copybtn share-cta"
+              onClick={() => {
+                trackEvent(AnalyticsEvents.shareClicked, { share_type: "sticky_jump", placement: "sticky" });
+                document.getElementById("share-showcase")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+              }}
+            >
+              <Share2 size={13} /> {t("stickyBar.share")}
+            </button>
             <button className="copybtn" onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })} aria-label={t("stickyBar.top")}><ArrowUp size={13} /> {t("stickyBar.top")}</button>
           </div>
         </div>
@@ -998,10 +1025,26 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
       {status === "failed" ? <ErrorState code={errorCode} message={error} onRetry={onRerun} /> : null}
       {report ? (
         <>
-          <ReportGrowthActions
+          <Summary stats={report.total} />
+          <Charts report={report} />
+          <Insights report={report} />
+          <ShareShowcase
             report={report}
+            stars={liveStars ?? report.repository.stars ?? null}
+            cardRef={shareCardRef}
             copiedCta={copiedCta}
             isExporting={isExporting}
+            exportError={exportError}
+            onCopyUrl={() => {
+              copyText(buildCanonicalReportUrl(report, report.refName));
+              trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "share_showcase" });
+              showCopiedCta("url");
+            }}
+            onExportPng={() => void exportPng()}
+          />
+          <ReportUtilityActions
+            report={report}
+            copiedCta={copiedCta}
             onCopyBadge={() => {
               const url = buildCanonicalReportUrl(report, report.refName);
               const badgeUrl = normalizedProvider(report) === "github"
@@ -1009,43 +1052,20 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
                 : "";
               if (!badgeUrl) return;
               copyText(`[![OctoCounts](${badgeUrl})](${url})`);
-              trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_cta" });
+              trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_utility" });
               showCopiedCta("badge");
-            }}
-            onCopyUrl={() => {
-              copyText(buildCanonicalReportUrl(report, report.refName));
-              trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "report_cta" });
-              showCopiedCta("url");
             }}
             onCopyEmbed={() => {
               const provider = normalizedProvider(report);
               copyText(buildEmbedSnippet(buildEmbedUrl(provider, report.repository.owner, report.repository.name)));
-              trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_cta" });
+              trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_utility" });
               showCopiedCta("embed");
             }}
-            onExportPng={() => void exportPng()}
+            onExportText={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report) }); }}
+            onExportJson={() => { copyText(JSON.stringify(report, null, 2)); trackEvent("report_json_copied", { provider: normalizedProvider(report) }); }}
+            onRerun={onRerun}
+            onReset={onReset}
           />
-          <ShareButtons
-            url={buildCanonicalReportUrl(report, report.refName)}
-            text={t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) })}
-            placement="report"
-          />
-          {exportError ? <p className="export-error" role="alert">{exportError}</p> : null}
-          <Insights report={report} />
-          <Summary stats={report.total} />
-          <DeferredContent minHeight={820} rootMargin="100px"><Charts report={report} /></DeferredContent>
-          <div className="runner-foot">
-            <span>{t("runner.generated", { date: new Date(report.generatedAt).toLocaleString(), duration: report.durationMs, version: report.tokeiVersion })}</span>
-            <div className="actions">
-              <button className="copybtn" onClick={() => { copyText(textReport(report)); trackEvent("report_text_copied", { provider: normalizedProvider(report) }); }}><Clipboard size={14} /> {t("runner.exportText")}</button>
-              <button className="copybtn" onClick={() => { copyText(JSON.stringify(report, null, 2)); trackEvent("report_json_copied", { provider: normalizedProvider(report) }); }}><FileJson size={14} /> {t("runner.exportJson")}</button>
-              <button className="copybtn" onClick={() => { copyText(buildCanonicalReportUrl(report, report.refName)); trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "report_footer" }); }}><Clipboard size={14} /> {t("runner.copyReportUrl")}</button>
-              <button className="copybtn" disabled={isExporting} onClick={() => void exportPng()}><Download size={14} /> {t("runner.exportPng")}</button>
-              <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
-              <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
-              <button className="copybtn" onClick={onReset}>{t("runner.clear")}</button>
-            </div>
-          </div>
           <TrustDetails report={report} stars={liveStars ?? report.repository.stars ?? null} />
           <RepoHistoryChart
             provider={normalizedProvider(report)}
@@ -1057,74 +1077,117 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <summary>{t("runner.runDetails")}</summary>
             <RunnerLog status={status} report={report} error={error} />
           </details>
-          <div className="share-export-host" aria-hidden="true">
-            <ShareTickerCard ref={shareCardRef} report={report} stars={liveStars ?? report.repository.stars ?? null} />
-          </div>
-          {showSharePreview ? (
-            <section className="share-preview" aria-label={t("sharePreview.pngExportPreview")}>
-              <div className="section-h">
-                <span>{t("sharePreview.debug")}</span>
-                <span className="sub">{t("sharePreview.pngExportPreview")}</span>
-              </div>
-              <div className="share-preview-frame">
-                <ShareTickerCard report={report} stars={liveStars ?? report.repository.stars ?? null} />
-              </div>
-            </section>
-          ) : null}
         </>
       ) : null}
     </div>
   );
 }
 
-function ReportGrowthActions({
+// The visual and behavioral centerpiece of the "make this grow" funnel: the
+// shareable card is rendered for real (it used to sit off-screen, used only
+// as an export source — nobody ever saw the thing they'd be posting) right
+// next to the one-click share targets and the two primary CTAs.
+function ShareShowcase({
   report,
+  stars,
+  cardRef,
   copiedCta,
   isExporting,
-  onCopyBadge,
+  exportError,
   onCopyUrl,
-  onCopyEmbed,
   onExportPng,
 }: {
   report: Report;
+  stars: number | null;
+  cardRef: React.RefObject<HTMLDivElement | null>;
   copiedCta: string | null;
   isExporting: boolean;
-  onCopyBadge: () => void;
+  exportError: string | null;
   onCopyUrl: () => void;
-  onCopyEmbed: () => void;
   onExportPng: () => void;
+}) {
+  const { t } = useTranslation();
+  const cardWrapRef = useElementScale(1200);
+  return (
+    <section id="share-showcase" className="share-showcase" aria-label={t("reportCta.ariaLabel")}>
+      <div className="share-showcase-head">
+        <span className="chart-tag">{t("reportCta.kicker")}</span>
+        <strong>{t("reportCta.title")}</strong>
+        <span>{t("reportCta.subtitle")}</span>
+      </div>
+      <div className="share-showcase-body">
+        <div className="share-showcase-card" ref={cardWrapRef}>
+          <ShareTickerCard ref={cardRef} report={report} stars={stars} />
+        </div>
+        <div className="share-showcase-actions">
+          <div className="row-flex">
+            <button className="btn install-btn" type="button" onClick={onCopyUrl}>
+              <Clipboard size={14} />
+              {copiedCta === "url" ? t("reportCta.copied") : t("reportCta.copyUrl")}
+            </button>
+            <button className="btn install-btn" type="button" disabled={isExporting} onClick={onExportPng}>
+              <Download size={14} />
+              {t("reportCta.exportPng")}
+            </button>
+          </div>
+          <ShareButtons
+            url={buildCanonicalReportUrl(report, report.refName)}
+            text={t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) })}
+            placement="report"
+          />
+          {exportError ? <p className="export-error" role="alert">{exportError}</p> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Everything else a report can be turned into: badge markdown, an embed
+// snippet, raw text/JSON, the source repo, or another run. One row instead
+// of the two (report-actions + runner-foot) this used to be split across —
+// which also used to each carry their own "copy report URL" and "export PNG"
+// buttons; both now live once, in ShareShowcase above.
+function ReportUtilityActions({
+  report,
+  copiedCta,
+  onCopyBadge,
+  onCopyEmbed,
+  onExportText,
+  onExportJson,
+  onRerun,
+  onReset,
+}: {
+  report: Report;
+  copiedCta: string | null;
+  onCopyBadge: () => void;
+  onCopyEmbed: () => void;
+  onExportText: () => void;
+  onExportJson: () => void;
+  onRerun: () => void;
+  onReset: () => void;
 }) {
   const { t } = useTranslation();
   const isGitHub = normalizedProvider(report) === "github";
 
   return (
-    <div className="report-actions" role="group" aria-label={t("reportCta.ariaLabel")}>
-      <div className="report-actions-copy">
-        <span className="chart-tag">{t("reportCta.kicker")}</span>
-        <strong>{t("reportCta.title")}</strong>
-        <span>{t("reportCta.subtitle")}</span>
-      </div>
-      <div className="report-actions-buttons">
+    <div className="runner-foot">
+      <span>{t("runner.generated", { date: new Date(report.generatedAt).toLocaleString(), duration: report.durationMs, version: report.tokeiVersion })}</span>
+      <div className="actions">
         {isGitHub ? (
           <button className="copybtn" type="button" onClick={onCopyBadge}>
             <Clipboard size={14} />
             {copiedCta === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
           </button>
         ) : null}
-        <button className="copybtn" type="button" onClick={onCopyUrl}>
-          <Clipboard size={14} />
-          {copiedCta === "url" ? t("reportCta.copied") : t("reportCta.copyUrl")}
-        </button>
         <button className="copybtn" type="button" onClick={onCopyEmbed}>
           <Clipboard size={14} />
           {copiedCta === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}
         </button>
-        <button className="copybtn" type="button" disabled={isExporting} onClick={onExportPng}>
-          <Download size={14} />
-          {t("reportCta.exportPng")}
-        </button>
-        <StoreLink store="chrome" placement="report_cta" className="copybtn install-btn secondary-install" size={14}>{t("reportCta.installChrome")}</StoreLink>
-        <StoreLink store="edge" placement="report_cta" className="copybtn install-btn secondary-install" size={14}>{t("reportCta.installEdge")}</StoreLink>
+        <button className="copybtn" onClick={onExportText}><Clipboard size={14} /> {t("runner.exportText")}</button>
+        <button className="copybtn" onClick={onExportJson}><FileJson size={14} /> {t("runner.exportJson")}</button>
+        <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
+        <button className="copybtn" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
+        <button className="copybtn" onClick={onReset}>{t("runner.clear")}</button>
       </div>
     </div>
   );
@@ -1250,40 +1313,6 @@ function ShareStat({ color, label, value }: { color: string; label: string; valu
       <span style={{ background: color }} />
       <p>{label}</p>
       <strong>{formatNumber(value)}</strong>
-    </div>
-  );
-}
-
-function BadgeEmbed({ report, refName }: { report: Report; refName: string }) {
-  const { t } = useTranslation();
-  const { copiedKey: copied, showCopied } = useCopied(2000);
-
-  if (normalizedProvider(report) !== "github") {
-    return null;
-  }
-
-  const { owner, name } = report.repository;
-  const effectiveRef = report.refName || refName;
-  const badgeUrl = buildBadgeUrl(owner, name, effectiveRef, "summary", "");
-  const frontendUrl = buildPublicReportUrl(owner, name, effectiveRef || refName, "github");
-  const markdown = `[![OctoCounts](${badgeUrl})](${frontendUrl})`;
-
-  const handleCopy = () => {
-    copyText(markdown);
-    trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report" });
-    showCopied("badge");
-  };
-
-  return (
-    <div className="badge-embed">
-      <p className="badge-embed-desc">{t("badgeEmbed.description")}</p>
-      <div className="badge-embed-row">
-        <code className="badge-embed-code">{markdown}</code>
-        <button className="copybtn" type="button" onClick={handleCopy}>
-          <Clipboard size={14} />
-          {copied ? t("badgeEmbed.copied") : t("badgeEmbed.copy")}
-        </button>
-      </div>
     </div>
   );
 }
@@ -1573,16 +1602,14 @@ function Summary({ stats }: { stats: Stats }) {
 
 function Insights({ report }: { report: Report }) {
   const { t } = useTranslation();
-  const topLanguage = report.languages[0];
   const totalLines = report.total.lines;
   const totalCode = report.total.code;
-  const totalLanguages = report.languages.length;
-  const topLanguageShare = topLanguage ? formatPercent(topLanguage.stats.lines, totalLines) : t("charts.noData");
-  const codeShare = formatPercent(totalCode, totalLines);
   const scale = projectScale(totalCode);
-  const mix = languageMix(report.languages, totalLines);
   const cacheState = report.cached ? t("runner.cacheHit") : t("runner.freshRun");
   const commitLabel = `${report.refName} / ${report.commitSha.slice(0, 12)}`;
+  // Primary language / code share / language mix used to live here too, but
+  // the donut + table right above already show all three at a glance —
+  // keeping them here just repeated the chart in prose.
   const insightItems = [
     {
       label: t("insights.scale"),
@@ -1594,24 +1621,6 @@ function Insights({ report }: { report: Report }) {
       label: t("insights.speed"),
       value: `${report.durationMs}ms`,
       detail: t("insights.speedDetail", { lines: formatNumber(totalLines), version: report.tokeiVersion }),
-      tone: "warn",
-    },
-    {
-      label: t("insights.topLanguage"),
-      value: topLanguage?.name ?? t("charts.noData"),
-      detail: topLanguage ? t("insights.topLanguageDetail", { percent: topLanguageShare }) : t("insights.noLanguageDetail"),
-      tone: "blue",
-    },
-    {
-      label: t("insights.codeShare"),
-      value: codeShare,
-      detail: t("insights.codeShareDetail", { code: formatNumber(totalCode), lines: formatNumber(totalLines) }),
-      tone: "violet",
-    },
-    {
-      label: t("insights.languageMix"),
-      value: t(`insights.mixValues.${mix}`),
-      detail: t("insights.mixDetail", { count: formatNumber(totalLanguages) }),
       tone: "warn",
     },
     {
@@ -1647,14 +1656,6 @@ function projectScale(codeLines: number) {
   if (codeLines < 100_000) return "medium";
   if (codeLines < 500_000) return "large";
   return "huge";
-}
-
-function languageMix(languages: LanguageReport[], totalLines: number) {
-  if (languages.length <= 1) return "single";
-  const topShare = totalLines > 0 ? languages[0].stats.lines / totalLines : 0;
-  if (topShare >= 0.8) return "focused";
-  if (languages.length >= 6 && topShare < 0.55) return "polyglot";
-  return "mixed";
 }
 
 function Metric({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
