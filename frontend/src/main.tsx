@@ -1326,23 +1326,23 @@ function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOption
       <div className="analysis-options-grid">
         <label>
           <span>{t("analysisOptions.profile")}</span>
-          <select value={options.profile} onChange={(event) => update({ profile: event.target.value as AnalysisOptions["profile"] })}>
+          <select name="analysisProfile" value={options.profile} onChange={(event) => update({ profile: event.target.value as AnalysisOptions["profile"] })}>
             <option value="default">{t("analysisOptions.defaultProfile")}</option>
             <option value="source-only">{t("analysisOptions.sourceOnlyProfile")}</option>
           </select>
         </label>
         <label>
           <span>{t("analysisOptions.ignoredDirs")}</span>
-          <input value={options.ignoredDirs.join(", ")} onChange={(event) => update({ ignoredDirs: csvList(event.target.value) })} placeholder="examples, fixtures" />
+          <input name="ignoredDirs" value={options.ignoredDirs.join(", ")} onChange={(event) => update({ ignoredDirs: csvList(event.target.value) })} placeholder="examples, fixtures" />
         </label>
         <label>
           <span>{t("analysisOptions.ignoredLanguages")}</span>
-          <input value={options.ignoredLanguages.join(", ")} onChange={(event) => update({ ignoredLanguages: csvList(event.target.value) })} placeholder="Markdown, JSON" />
+          <input name="ignoredLanguages" value={options.ignoredLanguages.join(", ")} onChange={(event) => update({ ignoredLanguages: csvList(event.target.value) })} placeholder="Markdown, JSON" />
         </label>
         <div className="analysis-toggles">
-          <label><input type="checkbox" checked={options.includeDocs} onChange={(event) => update({ includeDocs: event.target.checked })} />{t("analysisOptions.includeDocs")}</label>
-          <label><input type="checkbox" checked={options.includeTests} onChange={(event) => update({ includeTests: event.target.checked })} />{t("analysisOptions.includeTests")}</label>
-          <label><input type="checkbox" checked={options.includeGenerated} onChange={(event) => update({ includeGenerated: event.target.checked })} />{t("analysisOptions.includeGenerated")}</label>
+          <label><input type="checkbox" name="includeDocs" checked={options.includeDocs} onChange={(event) => update({ includeDocs: event.target.checked })} />{t("analysisOptions.includeDocs")}</label>
+          <label><input type="checkbox" name="includeTests" checked={options.includeTests} onChange={(event) => update({ includeTests: event.target.checked })} />{t("analysisOptions.includeTests")}</label>
+          <label><input type="checkbox" name="includeGenerated" checked={options.includeGenerated} onChange={(event) => update({ includeGenerated: event.target.checked })} />{t("analysisOptions.includeGenerated")}</label>
         </div>
       </div>
     </details>
