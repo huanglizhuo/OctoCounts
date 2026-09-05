@@ -846,6 +846,7 @@ function injectHome(index) {
   </ul></nav>`;
   const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
     <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Public GitLab repositories are supported as well, and neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>
+    <img src="/og-image.jpg" width="1200" height="630" alt="OctoCounts mascot next to a terminal card reading Total LOC 5,505 with Code, Comments, and Blanks counts, and the tagline: Making your code count (literally)." />
     <p><small>Last updated: ${STATIC_SITEMAP_LASTMOD} &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></small></p>
     <h2>How it works</h2>
     <ol>
@@ -1432,7 +1433,14 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
-  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  // Visible, not just linked from <meta property="og:image">: a crawler that
+  // never executes JavaScript otherwise sees a text-only page even though a
+  // per-repo chart image already exists at this URL. AI answer engines weigh
+  // multi-modal pages more heavily, and the alt text doubles as another
+  // self-contained citable summary next to the one in #octocounts-citation.
+  const ogImageUrl = `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
+  const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" />`;
+  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   // Peer links between report pages: every long-tail /github/* URL both
   // receives and hands out crawl paths, so the report corpus is a web instead
   // of a list of dead ends reachable only from /recent and /popular.
@@ -1447,7 +1455,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     description: report.description,
     canonical: report.canonicalUrl,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
-    ogImage: `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`,
+    ogImage: ogImageUrl,
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,

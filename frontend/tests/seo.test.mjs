@@ -161,7 +161,9 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(badges, /width="180" height="20"/);
   assert.match(main, /path\.startsWith\("\/github\/"\) \|\| path\.startsWith\("\/gitlab\/"\)/);
   assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?applyPageMetadata\(\{[\s\S]*?return;/);
-  assert.match(main, /minHeight=\{820\} rootMargin="100px"><Charts/);
+  // Charts render eagerly (no DeferredContent) by design: they're the primary
+  // above-the-fold content once a report loads, not a below-the-fold extra.
+  assert.match(main, /<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} \/>/);
   assert.match(main, /Suspense fallback=\{null\}><CompareRepos/);
 });
 

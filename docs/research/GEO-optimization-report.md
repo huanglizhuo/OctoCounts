@@ -21,6 +21,24 @@
 
 ---
 
+## 2026-09-05 更新：多模态图片缺口 + 内容新鲜度机制静默失效，均已修复
+
+用 `seo-geo` skill 对生产环境（而非仅代码库）做了一轮复核：直接抓取 https://octocounts.com/ 的 robots.txt、llms.txt、首页与 `/github/facebook/react` 报告页的 SSR HTML、JSON-LD、docs 页面。发现并修复了两项此前两版报告都未覆盖到的问题：
+
+1. **多模态信号缺口（新发现，已修复）**：报告页和首页的 SSR 可见 HTML 里完全没有 `<img>` 标签——尽管 `og:image` 元标签早就指向一张真实存在、按仓库动态生成的图表卡片（`https://api.octocounts.com/og/github/:owner/:repo`，1200x630，展示 Total Lines / Code / Comments / Blanks 和 Top Languages 条形图）。不执行 JavaScript 的 AI 爬虫（GPTBot、ClaudeBot、PerplexityBot 等）因此只能看到纯文本页面，拿不到 GEO 评分体系里权重 15% 的"多模态内容"分（多模态页面的选中率高 156%）。已在 `frontend/functions/[[path]].js` 的报告页和首页 SSR 输出中各插入一个真实可见的 `<img>`：报告页复用已核实过图像内容的 `report.citation` 文本作为 `alt`，首页用实际截取并确认过内容的 `og-image.jpg` 描述作为 `alt`，不新增任何后端资源，零额外请求成本（同一张图之前已经在下载）。
+2. **内容新鲜度机制静默失效一周以上（新发现，已修复）**：`.github/workflows/refresh-llms-lastupdated.yml` 的自动提交步骤里，`git add` 只列了 `llms.txt`、`llms-full.txt`、`sitemap.xml`、`functions/[[path]].js` 四个文件，但 `scripts/refresh-llms-lastupdated.mjs` 早就已经扩展到同时改写 8 个 `/docs/*.html`、首页 `index.html`（含可见的 "Last updated" 文案和 noscript 的 `<time>`）、`src/constants.ts` 的 `siteLastUpdated`。这个每次 push 到 main 都会跑的 CI job 因为 `git add` 没跟上脚本改动，一直把改好的日期写进工作区又在 runner 销毁时悄悄丢掉。结果是：`sitemap.xml`/`llms.txt` 已经推进到 2026-09-05，而首页对真人可见的 "Last updated" 文案、8 个 docs 页面的 `TechArticle.dateModified`，全部停留在 2026-08-28~30，即同一个站点自己的可见文案和自己的 `sitemap.xml`/`llms.txt` 就"最后更新时间"这件事互相矛盾了一周多——这正是 08-29 版报告 P0 表格里标记"✅ 已上线"的那一项在悄悄失效，而且没有任何测试发现它（直到这次跑 `test:seo` 才暴露）。已修复 workflow 的 `git add` 列表，补全全部受影响文件，并手动运行了一次脚本把当前所有日期同步到 2026-09-05。
+3. 顺带修了一条因为上一次前端改版而过时、开始报错的 `frontend/tests/seo.test.mjs` 断言——上次改版把 Charts 从"滚动到才加载"改成"报告一出来就在首屏立刻显示"（这是用户明确要的效果，让结果图表更突出），但测试里还留着一条硬编码检查旧的懒加载写法的正则，改版之后一直是红的，没人发现。
+
+以上三处改动均已通过 `frontend npm run test:seo`（60/60）与 `npm run build`。
+
+**深度复核确认**：08-29 版报告记录的 P0/P1 事项（首页定义段、`TechArticle` Schema、比较页定义句、`/badges` FAQ、`/docs/faq`、`/docs/octocounts-vs-cloc`、`/about`）在生产环境目前都真实存在且结构正确；额外确认了报告页还带有本报告此前未记录的 `Dataset.measurementTechnique`/`distribution`、`SpeakableSpecification`（面向语音/AI 摘要抽取）、`SoftwareSourceCode`，以及每个报告页、比较页、文档页都有 `.md`/`?format=md` 的纯 Markdown 镜像——这些都是相当进阶的 GEO 实现，好于本报告最初评估。
+
+**仍未开始、结论与 08-29 版一致**：中文站点、YouTube/Bilibili 教程视频、Wikipedia/Reddit/LinkedIn 品牌实体建设、原创研究型内容。这些都是站外内容/运营动作，不是这次代码复核能直接实现的，按第 9 节和 P2 矩阵单独排期。
+
+**一个不需要开发、只需要一条信息的小优化**：首页 `Person` Schema 的 `sameAs` 目前只挂了 GitHub 一个链接（`https://github.com/huanglizhuo`）。如果作者本人有 LinkedIn / X（Twitter）/ 个人网站，把链接加进 `sameAs` 数组对"权威与品牌信号"这一项是直接、免费的加分，且没有编造任何信息的风险——这一项特意没有在本次改动中假设或虚构任何 URL。
+
+---
+
 ## 1. 执行摘要
 
 ### 1.1 GEO 准备度评分：72/100
