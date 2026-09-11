@@ -1,14 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-09-10T07:16:53.101Z
+# GitHub Trending daily snapshot generated 2026-09-11T07:15:49.287Z
 ayghri/i-have-adhd
-Tencent/teamai-cli
+bilawalsidhu/gods-eye-view
 obra/superpowers
-pascalorg/editor
-earthtojake/text-to-cad
-cathrynlavery/diagram-design
-TauricResearch/TradingAgents
+alsk1992/CloddsBot
+Tencent/teamai-cli
+AlexsJones/llmfit
 liquidslr/system-design-notes
-openai/plugins
+cathrynlavery/diagram-design
 freestylefly/awesome-gpt-image-2
-rohitg00/ai-engineering-from-scratch
+armory3d/armorpaint
+diegosouzapw/OmniRoute
+JustVugg/colibri
+THU-MAIC/OpenMAIC
+nashsu/llm_wiki
+vercel-labs/skills
 vastsa/PI-Desktop
-affaan-m/ECC
