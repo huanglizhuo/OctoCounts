@@ -121,6 +121,42 @@ Notes:
 - The current extension build talks to `https://api.octocounts.com` from `extension/src/shared/api.js`, so it uses the deployed API by default.
 - The Chrome manifest is copied from `extension/manifests/manifest.chrome.json` during the build.
 
+### GitHub login in the extension (Chrome Web Store)
+
+The extension's optional "Connect GitHub" login uses a dedicated
+extension-only GitHub OAuth App (client ID `Ov23liY7HsMdrzErq8Qv`, shipped in
+`extension/src/shared/github-auth.js`). `chrome.identity.getRedirectURL()`
+derives the OAuth redirect from the installed extension's ID, so the OAuth
+App's **Authorization callback URL** must match the store build exactly:
+
+```
+https://gkgjpjdnaklagijmekoolhcpebmoldbj.chromiumapp.org/
+```
+
+`gkgjpjdnaklagijmekoolhcpebmoldbj` is the Chrome Web Store item ID. GitHub
+OAuth Apps accept a single callback URL, so:
+
+- Local unpacked builds get a different extension ID and cannot complete
+  login while the callback points at the store ID. To test login locally,
+  temporarily point the callback at the unpacked build's
+  `chrome.identity.getRedirectURL()` value, then switch it back before release.
+- The Edge Add-ons build has its own extension ID and therefore its own
+  redirect URL, which cannot match the OAuth App's single callback URL. The
+  login entry point is therefore compiled out of the edge and firefox builds
+  (`isLoginSupported()` is false for non-chrome build targets, and their
+  manifests omit the `identity` permission); only the Chrome Web Store build
+  shows "Connect GitHub". To bring login to Edge, create a second OAuth App
+  for the Edge item ID and switch `GITHUB_EXTENSION_OAUTH_CLIENT_ID` to a
+  per-target value.
+
+The backend never sees a redirect; it only exchanges the authorization code
+server-side (`backend/src/oauth.rs`) using:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `GITHUB_EXTENSION_OAUTH_CLIENT_ID` | — | Must match the OAuth App above; unset disables the extension-token route |
+| `GITHUB_EXTENSION_OAUTH_CLIENT_SECRET` | — | Secret of that OAuth App; keep server-side only |
+
 ### Extension release flow
 
 GitHub Actions builds and packages both browser extensions from `.github/workflows/extension-release.yml`.
@@ -200,6 +236,8 @@ on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 | `INDEXNOW_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout |
 | `INDEXNOW_DRY_RUN` | `false` | Log batches without sending HTTP requests (testing) |
 | `INDEXNOW_ENDPOINT` | `https://api.indexnow.org/indexnow` | Submission endpoint; override to point at a mock server |
+| `GITHUB_EXTENSION_OAUTH_CLIENT_ID` | — | GitHub OAuth App client ID for the extension's "Connect GitHub" login (see [Chrome Extension](#chrome-extension)); unset disables the route |
+| `GITHUB_EXTENSION_OAUTH_CLIENT_SECRET` | — | Secret for the same OAuth App; server-side only, never ship in the extension |
 
 ### IndexNow submission
 

@@ -30,8 +30,7 @@
   ],
   "permissions": [
     "storage",
-    "alarms",
-    "identity"
+    "alarms"
   ],
   "host_permissions": [
     "https://github.com/*",

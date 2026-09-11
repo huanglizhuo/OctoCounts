@@ -41,15 +41,23 @@ test("each browser artifact exposes target-specific build information", async ()
 });
 
 test("built manifests keep the source permission set and packaged version", async () => {
+  // "identity" backs the Chrome-store-only GitHub login (see
+  // src/shared/github-auth.js — the OAuth App's single callback URL can only
+  // match the Chrome item ID); edge and firefox ship without it.
+  const expectedPermissions = {
+    chrome: ["storage", "alarms", "identity"],
+    edge: ["storage", "alarms"],
+    firefox: ["storage", "alarms"],
+  };
   const permissionBaseline = JSON.parse(await readFile(new URL("manifests/manifest.chrome.json", ROOT), "utf8"));
   for (const target of Object.keys(expected)) {
     const sourceName = target === "firefox" ? "firefox" : target;
     const source = JSON.parse(await readFile(new URL(`manifests/manifest.${sourceName}.json`, ROOT), "utf8"));
     const manifest = JSON.parse(await artifact(target, "manifest.json"));
     assert.equal(manifest.version, pkg.version);
-    assert.deepEqual(manifest.permissions, source.permissions);
+    assert.deepEqual(source.permissions, expectedPermissions[target]);
+    assert.deepEqual(manifest.permissions, expectedPermissions[target]);
     assert.deepEqual(manifest.host_permissions, source.host_permissions);
-    assert.deepEqual(manifest.permissions, permissionBaseline.permissions);
     assert.deepEqual(manifest.host_permissions, permissionBaseline.host_permissions);
   }
 });
