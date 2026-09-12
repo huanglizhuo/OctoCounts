@@ -886,6 +886,52 @@ test("report page answers 503 + no-store when the report API is unreachable", as
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
+test("report page carries a semantic timestamp and answers conditional GETs", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  try {
+    const context = await renderedContext("/github/facebook/react");
+    // Stale conditional request: full 200 with a machine-readable freshness
+    // trail — Last-Modified from the report's own generatedAt, plus <time>
+    // around the visible date so agents parse it without regexes.
+    const fresh = await onRequest({
+      ...context,
+      request: new Request("https://octocounts.com/github/facebook/react", {
+        headers: { "if-modified-since": "Wed, 01 Jan 2026 00:00:00 GMT" },
+      }),
+    });
+    assert.equal(fresh.status, 200);
+    assert.equal(fresh.headers.get("last-modified"), "Mon, 20 Jul 2026 00:00:00 GMT");
+    assert.match(await fresh.text(), /<time datetime="2026-07-20T00:00:00Z">2026-07-20T00:00:00Z<\/time>/);
+
+    // Same-second-or-newer conditional request: 304 with no body.
+    const notModified = await onRequest({
+      ...context,
+      request: new Request("https://octocounts.com/github/facebook/react", {
+        headers: { "if-modified-since": "Mon, 20 Jul 2026 00:00:00 GMT" },
+      }),
+    });
+    assert.equal(notModified.status, 304);
+    assert.equal(notModified.headers.get("last-modified"), "Mon, 20 Jul 2026 00:00:00 GMT");
+    assert.equal(await notModified.text(), "");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("curated comparison dataset is speakable and anchors its summary sentence", async () => {
+  const restore = stubReportFetch(CURATED_FIXTURES);
+  let html;
+  try {
+    const response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    restore();
+  }
+  assert.match(html, /<p id="octocounts-compare-summary">/);
+  assert.match(html, /"speakable":\{"@type":"SpeakableSpecification","cssSelector":\["#root h1","#octocounts-compare-summary"\]\}/);
+});
+
 test("report page answers 503 + no-store when the payload belongs to a different repository", async () => {
   // The contamination shape search consoles flagged as duplicate meta
   // descriptions: some tier between this function and the store answers

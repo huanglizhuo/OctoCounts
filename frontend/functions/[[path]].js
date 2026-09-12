@@ -294,7 +294,21 @@ async function reportResponse(context, route, options = {}) {
   if (options.markdown) {
     return markdownResponse(reportMarkdown(report, relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
-  return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "public, s-maxage=300, stale-while-revalidate=600");
+  // Conditional GET for crawlers: the report corpus is tens of thousands of
+  // URLs and Googlebot/Bingbot both send If-Modified-Since. generatedAt is
+  // the page's own data date, so Last-Modified is the report's, not a
+  // synthetic response time, and a matching conditional request costs the
+  // crawler no body transfer (crawl-budget efficiency per Google's crawling
+  // docs; freshness signals per every 2026 GEO study).
+  const lastModified = httpDate(report.generatedAt);
+  const cacheControl = "public, s-maxage=300, stale-while-revalidate=600";
+  if (lastModified && notModifiedSince(context.request, lastModified)) {
+    return new Response(null, {
+      status: 304,
+      headers: { "cache-control": cacheControl, "last-modified": lastModified, ...securityHeaders() },
+    });
+  }
+  return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), cacheControl, { lastModified });
 }
 
 /// Markdown twin of injectReport: same report payload, same facts, serialized
@@ -1367,6 +1381,25 @@ function seoReportUrl(context, target) {
   return `${apiBase(context)}/api/seo/report?${params.toString()}`;
 }
 
+/// RFC 1123 date for Last-Modified, or null when the source date is absent
+/// or unparseable (never invent one).
+function httpDate(value) {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : new Date(ms).toUTCString();
+}
+
+/// If-Modified-Since has second granularity while generatedAt carries
+/// fractional seconds; compare truncated to whole seconds so a same-second
+/// conditional request still earns its 304. Invalid dates never match.
+function notModifiedSince(request, lastModified) {
+  const header = request.headers.get("if-modified-since");
+  if (!header) return false;
+  const headerMs = Date.parse(header);
+  const lastMs = Date.parse(lastModified);
+  return !Number.isNaN(headerMs) && !Number.isNaN(lastMs) && Math.floor(headerMs / 1000) >= Math.floor(lastMs / 1000);
+}
+
 /// A fetched report is usable for a route only when it describes that route's
 /// repository. Case-insensitive on purpose: the store returns the canonical
 /// casing for a differently-cased URL, which the caller then 308s to — that is
@@ -1413,7 +1446,7 @@ function injectCuratedCompare(index, model) {
         .map((source) => `<a href="${escapeAttr(source.url)}" rel="noreferrer">${escapeHtml(source.label)}</a>`)
         .join(" · ")}. Statements verified ${escapeHtml(model.editorial.verifiedAt)}.</p></section>`
     : "";
-  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.definitionText)}</p><p>${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}${editorialHtml}<p>Evidence and next steps:</p><ul>
+  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.definitionText)}</p><p id="octocounts-compare-summary">${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}${editorialHtml}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(model.left.publicPath)}">${escapeHtml(model.left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.right.publicPath)}">${escapeHtml(model.right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.interactiveHref)}">Compare ${escapeHtml(model.left.repoFullName)} and ${escapeHtml(model.right.repoFullName)} interactively</a></li>
@@ -1546,6 +1579,12 @@ function compareJsonLd(model) {
         description: model.description,
         url: model.canonical,
         dateModified: model.updatedAt,
+        // Mirrors the report pages: the h1 plus the summary sentence are the
+        // self-contained block an answer engine would read aloud or quote.
+        speakable: {
+          "@type": "SpeakableSpecification",
+          cssSelector: ["#root h1", "#octocounts-compare-summary"],
+        },
         measurementTechnique: "tokei via OctoCounts",
         variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
         creator: {
@@ -1743,7 +1782,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at ${escapeHtml(report.generatedAt)}.</p>` + faqHtml + similarReposHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + faqHtml + similarReposHtml + internalLinks,
   });
 }
 
@@ -1973,13 +2012,13 @@ function formatNumber(value) {
 }
 
 function htmlResponse(html, cacheControl, options) {
-  return new Response(html, {
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": cacheControl,
-      ...securityHeaders(options),
-    },
-  });
+  const headers = {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": cacheControl,
+    ...securityHeaders(options),
+  };
+  if (options?.lastModified) headers["last-modified"] = options.lastModified;
+  return new Response(html, { headers });
 }
 
 /// Markdown twins share the cache policy of their HTML page and the lockdown
