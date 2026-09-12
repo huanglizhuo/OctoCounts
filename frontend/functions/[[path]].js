@@ -259,22 +259,20 @@ async function reportResponse(context, route, options = {}) {
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60");
   }
   if (result.state === "unavailable") {
-    const fullName = `${route.owner}/${route.repo}`;
-    return serviceUnavailableResponse(await indexHtml(context), {
-      title: `${fullName} SLOC report | OctoCounts`,
-      description: `Source line count report for ${fullName} is temporarily unavailable. Please try again shortly.`,
-      canonical: `https://octocounts.com/${route.provider}/${route.owner}/${route.repo}`,
-      // Not noindex: the 503 status alone tells crawlers this is transient
-      // and to retry later. Stacking noindex on top risks a crawler
-      // deindexing a normally-indexable URL over a passing backend blip.
-      robots: "index,follow,max-image-preview:large,max-snippet:-1",
-      ogImage: "https://octocounts.com/og-image.jpg",
-      jsonLd: null,
-      bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>This report is temporarily unavailable. Please try again in a moment.</p></section>`,
-    });
+    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
   }
 
   const report = await result.response.json();
+  // The report must belong to the URL that requested it. Any upstream mixup
+  // (a mis-keyed cache tier serving one repo's payload for another) would
+  // otherwise SSR one repository's numbers under a different repository's
+  // URL — a 200 with a wrong, page-identical meta description, which is
+  // exactly the "duplicate meta descriptions" class Bing Webmaster Tools
+  // flagged across /github/* pages. Fail closed: 503 + no-store (never
+  // cached) asks crawlers to retry instead of indexing wrong content.
+  if (!reportMatchesRoute(report, route)) {
+    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
+  }
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
   const relatedReports = await fetchRelatedReports(context, route);
@@ -1084,6 +1082,21 @@ function homeFaq(index) {
   return [];
 }
 
+/// Per-URL 503 for curated compare pages: backend down or an integrity-guard
+/// mismatch. Not noindex — see reportUnavailableMeta.
+async function compareUnavailableResponse(context, entry) {
+  return serviceUnavailableResponse(await indexHtml(context), {
+    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    description: `The ${entry.name} source line count comparison is temporarily unavailable. Please try again shortly.`,
+    canonical: `https://octocounts.com/compare/${entry.slug}`,
+    robots: "index,follow,max-image-preview:large,max-snippet:-1",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: null,
+    extraHead: `<script type="application/json" id="octocounts-compare-data">${escapeScriptJson(compareFallbackViewModel(entry, "unavailable"))}</script>`,
+    bodyContent: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>This comparison is temporarily unavailable. Please try again in a moment.</p></section>`,
+  });
+}
+
 async function curatedCompareResponse(context, entry, options = {}) {
   const [leftResult, rightResult] = await Promise.all([
     fetchSeoReport(context, entry.left),
@@ -1091,17 +1104,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
   ]);
 
   if (leftResult.state === "unavailable" || rightResult.state === "unavailable") {
-    return serviceUnavailableResponse(await indexHtml(context), {
-      title: `${entry.name}: source lines of code compared | OctoCounts`,
-      description: `The ${entry.name} source line count comparison is temporarily unavailable. Please try again shortly.`,
-      canonical: `https://octocounts.com/compare/${entry.slug}`,
-      // Not noindex — see the comment in the report-page 503 branch above.
-      robots: "index,follow,max-image-preview:large,max-snippet:-1",
-      ogImage: "https://octocounts.com/og-image.jpg",
-      jsonLd: null,
-      extraHead: `<script type="application/json" id="octocounts-compare-data">${escapeScriptJson(compareFallbackViewModel(entry, "unavailable"))}</script>`,
-      bodyContent: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>This comparison is temporarily unavailable. Please try again in a moment.</p></section>`,
-    });
+    return compareUnavailableResponse(context, entry);
   }
 
   if (leftResult.state === "missing" || rightResult.state === "missing") {
@@ -1110,6 +1113,12 @@ async function curatedCompareResponse(context, entry, options = {}) {
   }
 
   const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
+  // Same integrity guard as report pages: a compare page's title, description,
+  // and table all derive from these two payloads, so a mis-keyed cache tier
+  // would publish one repository's numbers under another's name. Fail closed.
+  if (!reportMatchesRoute(left, entry.left) || !reportMatchesRoute(right, entry.right)) {
+    return compareUnavailableResponse(context, entry);
+  }
   const model = buildCompareViewModel(entry, left, right);
   if (options.markdown) {
     return markdownResponse(compareMarkdown(model), "public, s-maxage=3600, stale-while-revalidate=86400", options);
@@ -1356,6 +1365,35 @@ function seoReportUrl(context, target) {
   const ref = target.ref || target.refName;
   if (ref) params.set("refName", ref);
   return `${apiBase(context)}/api/seo/report?${params.toString()}`;
+}
+
+/// A fetched report is usable for a route only when it describes that route's
+/// repository. Case-insensitive on purpose: the store returns the canonical
+/// casing for a differently-cased URL, which the caller then 308s to — that is
+/// a redirect, not contamination. A genuinely different repo means some tier
+/// between this function and the store answered with the wrong payload.
+function reportMatchesRoute(report, target) {
+  return (
+    typeof report?.repoFullName === "string" &&
+    report.repoFullName.toLowerCase() === `${target.owner}/${target.repo}`.toLowerCase()
+  );
+}
+
+/// Per-URL metadata for the 503 branch (backend down) and the integrity
+/// guard (wrong-repo payload). Not noindex: the 503 status alone tells
+/// crawlers this is transient and to retry later. Stacking noindex on top
+/// risks a crawler deindexing a normally-indexable URL over a passing blip.
+function reportUnavailableMeta(route) {
+  const fullName = `${route.owner}/${route.repo}`;
+  return {
+    title: `${fullName} SLOC report | OctoCounts`,
+    description: `Source line count report for ${fullName} is temporarily unavailable. Please try again shortly.`,
+    canonical: `https://octocounts.com/${route.provider}/${route.owner}/${route.repo}`,
+    robots: "index,follow,max-image-preview:large,max-snippet:-1",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: null,
+    bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>This report is temporarily unavailable. Please try again in a moment.</p></section>`,
+  };
 }
 
 function injectCuratedCompare(index, model) {

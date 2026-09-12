@@ -260,6 +260,24 @@ The key must be a hex/alphanumeric token (8–128 characters) of your choosing.
 Set `INDEXNOW_DRY_RUN=true` first if you want to verify wiring in the logs
 before real submissions go out.
 
+#### Resubmitting flagged URLs (Bing Webmaster Tools exports)
+
+When Bing Webmaster Tools reports stale issues (duplicate meta descriptions,
+duplicate titles) on URLs that are already fixed and deployed, resubmit them
+so Bing recrawls and clears the flags:
+
+```bash
+INDEXNOW_KEY=<same key as Pages> node scripts/resubmit-urls-indexnow.mjs \
+  ~/Downloads/octocounts.com_FailingUrls_9_12_2026.csv
+```
+
+The script reads any file containing octocounts.com URLs (quoted CSV columns
+or bare one-per-line lists), deduplicates, batches, and POSTs them to
+IndexNow using the same `{host, key, keyLocation, urlList}` payload the
+backend submits. `INDEXNOW_HOST` / `INDEXNOW_ENDPOINT` override the defaults
+(`octocounts.com` / `https://api.indexnow.org/indexnow`); `DRY_RUN=1` prints
+batches without sending.
+
 ### Cloudflare edge cache rule for `/` and `/compare/*`
 
 The Pages Function already sends `Cache-Control: public, s-maxage=3600,

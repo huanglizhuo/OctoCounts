@@ -597,6 +597,23 @@ function stubReportFetch(available) {
   };
 }
 
+test("report page hydration never adopts an SSR summary for a different repository", async () => {
+  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  // The URL is the only authority for which report a page is: the SSR summary
+  // is dropped unless its owner/repo matches the /github/:owner/:repo path,
+  // so contaminated edge-cached HTML can never render another repo's meta
+  // description client-side (the "duplicate meta descriptions" failure).
+  assert.match(main, /const parsedRoute = route \? parsePublicRepo\(route\.repoUrl\) : null;/);
+  assert.match(main, /if \(summaryOwner !== parsedRoute\.owner\.toLowerCase\(\) \|\| summaryRepo !== parsedRoute\.repo\.toLowerCase\(\)\) return null;/);
+  // A report route without a matching seed must not fall back to the bundled
+  // demo repository either: that would put one repo's numbers under every
+  // unseeded report URL until the auto-run completes.
+  assert.match(
+    main,
+    /: window\.location\.pathname\.startsWith\("\/github\/"\)\s*\n\s*\? null\s*\n\s*: normalizeReport\(initialReportData/
+  );
+});
+
 test("curated comparison SSR renders balanced citable content", async () => {
   const cases = [
     ["react-vs-vue", "React vs Vue", "facebook/react", "vuejs/core"],
@@ -867,6 +884,69 @@ test("report page answers 503 + no-store when the report API is unreachable", as
 
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("report page answers 503 + no-store when the payload belongs to a different repository", async () => {
+  // The contamination shape search consoles flagged as duplicate meta
+  // descriptions: some tier between this function and the store answers
+  // repo A's URL with repo B's cached payload. The page must fail closed
+  // instead of SSRing (and edge-caching) B's numbers under A's URL.
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  let response;
+  let html;
+  let otherHtml;
+  try {
+    response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    html = await response.text();
+    otherHtml = await (await onRequest(await renderedContext("/github/another-org/another-repo"))).text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.doesNotMatch(html, /facebook\/react/);
+  assert.match(html, /<title>octo-org\/octo-repo SLOC report \| OctoCounts<\/title>/);
+  assert.match(html, /<h1>octo-org\/octo-repo SLOC report<\/h1>/);
+  assert.notEqual(html, otherHtml, "different repos must not render byte-identical guard pages");
+});
+
+test("a differently-cased report URL still canonicalizes instead of tripping the integrity guard", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  let response;
+  try {
+    response = await onRequest(await renderedContext("/github/Facebook/React"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  // Same repository, different casing is a canonicalization case, not
+  // contamination: the guard must pass and the existing 308 must fire.
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://octocounts.com/github/facebook/react");
+});
+
+test("curated comparison answers 503 + no-store when a payload belongs to a different repository", async () => {
+  const restore = stubReportFetch({
+    "facebook/react": CURATED_FIXTURES["facebook/react"],
+    // vuejs/core's slot answered with facebook/react's payload.
+    "vuejs/core": CURATED_FIXTURES["facebook/react"],
+  });
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    restore();
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.match(html, /This comparison is temporarily unavailable/);
+  assert.doesNotMatch(html, /Counted at commit aaaaaa111111/);
+  assert.doesNotMatch(html, /<table>/);
 });
 
 test("sitemap drops curated comparisons whose reports are missing but keeps them on transient failure", async () => {

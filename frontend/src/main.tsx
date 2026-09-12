@@ -175,6 +175,17 @@ function seedReportFromSsrSummary(): Report | null {
   if (!node) return null;
   try {
     const summary = JSON.parse(node.textContent ?? "");
+    // The URL is the only authority for which report this page is. A summary
+    // describing any other repository (contaminated edge-cached HTML, a wrong
+    // pairing upstream) must never drive the page — accepting it would render
+    // another repo's line counts and meta description under this URL, the
+    // exact "duplicate meta description" failure search consoles flag.
+    const route = parsePublicReportPath(window.location.pathname);
+    const parsedRoute = route ? parsePublicRepo(route.repoUrl) : null;
+    if (!parsedRoute) return null;
+    const summaryOwner = String(summary.repository?.owner ?? "").toLowerCase();
+    const summaryRepo = String(summary.repository?.repo ?? "").toLowerCase();
+    if (summaryOwner !== parsedRoute.owner.toLowerCase() || summaryRepo !== parsedRoute.repo.toLowerCase()) return null;
     return {
       id: "",
       repository: {
@@ -204,7 +215,16 @@ function seedReportFromSsrSummary(): Report | null {
 }
 
 const ssrSeed = seedReportFromSsrSummary();
-const seedReport = normalizeReport(ssrSeed ?? (initialReportData as unknown as Report));
+// On a report route with no URL-matching SSR seed, no seed at all beats the
+// bundled demo repository: metadata falls back to the per-repo "Source line
+// count report for owner/repo" line while the auto-run fetches the real
+// report, so this URL can never present another repository's numbers. The
+// demo seed stays for the homepage, where it is the point.
+const seedReport = ssrSeed
+  ? normalizeReport(ssrSeed)
+  : window.location.pathname.startsWith("/github/")
+    ? null
+    : normalizeReport(initialReportData as unknown as Report);
 
 function App() {
   const { t, i18n } = useTranslation();
