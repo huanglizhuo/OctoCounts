@@ -1,17 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-09-12T07:07:43.599Z
-ayghri/i-have-adhd
+# GitHub Trending daily snapshot generated 2026-09-13T07:26:39.802Z
 bilawalsidhu/gods-eye-view
-nab138/iloader
 melgarafael/DeskcommCRM
-vastsa/PI-Desktop
-armory3d/armorpaint
-alsk1992/CloddsBot
-nashsu/llm_wiki
-obra/superpowers
-Sonarr/Sonarr
+asgeirtj/system_prompts_leaks
+nab138/iloader
+Flowseal/zapret-discord-youtube
 jihe520/MathModelAgent
+Sonarr/Sonarr
+alsk1992/CloddsBot
+yuliskov/SmartTube
+Shubhamsaboo/awesome-llm-apps
 p1neappleXpress/OpenFlux
-jordan-gibbs/hyperresearch
-alphaXiv/OpenResearch
-github/spec-kit
-pascalorg/editor
+armory3d/armorpaint
+SnailSploit/Claude-Red
+multimodal-art-projection/YuE
+max-sixty/worktrunk
+vxcontrol/pentagi
