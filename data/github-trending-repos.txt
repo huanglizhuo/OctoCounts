@@ -1,17 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-09-13T07:26:39.802Z
+# GitHub Trending daily snapshot generated 2026-09-14T07:52:24.447Z
+JustVugg/colibri
+ever-co/ever-gauzy
 bilawalsidhu/gods-eye-view
+tech-leads-club/agent-skills
 melgarafael/DeskcommCRM
+calesthio/OpenMontage
 asgeirtj/system_prompts_leaks
-nab138/iloader
-Flowseal/zapret-discord-youtube
-jihe520/MathModelAgent
-Sonarr/Sonarr
-alsk1992/CloddsBot
-yuliskov/SmartTube
-Shubhamsaboo/awesome-llm-apps
-p1neappleXpress/OpenFlux
-armory3d/armorpaint
-SnailSploit/Claude-Red
-multimodal-art-projection/YuE
-max-sixty/worktrunk
 vxcontrol/pentagi
+multimodal-art-projection/YuE
+yuliskov/SmartTube
+alphaXiv/OpenResearch
+debpalash/VoiceStudio
+SnailSploit/Claude-Red
+alibaba/open-code-review
+jihe520/MathModelAgent
+tonhowtf/omniget
+jiji262/douyin-downloader
+Swordfish90/cool-retro-term
+huggingface/transformers
