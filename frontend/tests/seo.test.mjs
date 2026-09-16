@@ -1673,6 +1673,48 @@ test("docs pages serve their pre-generated markdown twins", async () => {
   }
 });
 
+test("/research serves its static HTML without a directory-redirect loop and honors markdown twins", async () => {
+  const researchAssetContext = (pathname, userAgent) => ({
+    request: new Request(`https://octocounts.com${pathname}`, userAgent ? { headers: { "user-agent": userAgent } } : undefined),
+    env: {
+      ASSETS: {
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          try {
+            const body = await readFile(new URL(`public${path}`, ROOT), "utf8");
+            return new Response(body, {
+              status: 200,
+              headers: { "content-type": path.endsWith(".md") ? "text/markdown; charset=utf-8" : "text/html; charset=utf-8" },
+            });
+          } catch {
+            return new Response("not found", { status: 404 });
+          }
+        },
+      },
+    },
+  });
+
+  const html = await readFile(new URL("public/research/index.html", ROOT), "utf8");
+  for (const path of ["/research", "/research/"]) {
+    const response = await onRequest(researchAssetContext(path));
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/html/, path);
+    assert.equal(await response.text(), html, path);
+  }
+
+  const md = await readFile(new URL("public/research/index.md", ROOT), "utf8");
+  for (const path of ["/research?format=md", "/research.md"]) {
+    const response = await onRequest(researchAssetContext(path));
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+    assert.equal(await response.text(), md, path);
+  }
+
+  const bot = await onRequest(researchAssetContext("/research", "ClaudeBot/1.0"));
+  assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/, "bot twin");
+  assert.equal(bot.headers.get("cache-control"), "private, no-store", "bot twin");
+});
+
 test("HTML pages advertise their markdown twin with a text/markdown alternate link", async () => {
   const restoreReports = stubReportAndRelatedFetch({ reports: [] });
   try {
