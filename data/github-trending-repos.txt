@@ -1,21 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-09-15T07:41:41.118Z
-JustVugg/colibri
+# GitHub Trending daily snapshot generated 2026-09-16T07:39:45.455Z
 alibaba/open-code-review
-multimodal-art-projection/YuE
-debpalash/VoiceStudio
-666ghj/MiroFish
-Panniantong/Agent-Reach
-asgeirtj/system_prompts_leaks
-rlaope/oh-my-hermes
-localsend/localsend
-dani-garcia/vaultwarden
-TauricResearch/TradingAgents
-ruvnet/RuView
-tech-leads-club/agent-skills
-OpenBMB/VoxCPM
-huggingface/transformers
+JustVugg/colibri
 ever-co/ever-gauzy
-Crosstalk-Solutions/project-nomad
-reconurge/flowsint
-peetzweg/opendisplay
-SnailSploit/Claude-Red
+debpalash/VoiceStudio
+Homebrew/BrewUI
+melgarafael/DeskcommCRM
+alphaXiv/OpenResearch
+NationalSecurityAgency/ghidra
+danny-avila/LibreChat
+pacifio/atlas
+MG1937/ASC
+addyosmani/agent-skills
+tonhowtf/omniget
+earendil-works/pi
