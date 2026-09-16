@@ -3,7 +3,7 @@
 - 制定日期：2026-09-08。
 - 状态（2026-09-08 第二轮，本地验证通过，未部署）：
   - 已实施并通过本地验证：SG-01、SG-02、SG-03、SG-05（首批 5 页）、SG-07、SG-08（仓库侧）、SG-10（事件字典与测量文档）。
-  - SG-04 部分实施：报告页复制引用（含配置简述与快照链接）已交付；analysisOptions/optionsHash 等后端字段扩展被阻塞——本机无 Rust 工具链，无法编译验证 backend/src/seo.rs 改动。
+  - SG-04 后端字段扩展已交付（2026-09-16，本地验证通过，未部署）：Rust 工具链已安装，backend SeoReport 现在输出 analysisKey（即规范化有效配置的稳定摘要，承担 optionsHash 角色）、analysisOptions（统计配置快照）与 snapshotUrl（commit 固定 + ?analysis= 的可复现链接）；citation 增加配置简述，历史报告配置缺失时标注未知而非默认。cargo test 183 通过（含新增 seo/store 单测；DB 门禁的 golden/store 集成测试本机无 TEST_DATABASE_URL 跳过，seo_* fixtures 已按新输出精确更新）。frontend 侧 reportSummaryJson / JSON-LD / Markdown 消费接入仍属 SG-04 剩余前端工作。
   - SG-06 试点已完成（2026-09-08）：2 仓库 × 4 配置、8/8 成功、零失败，单次 1.2–1.9 秒；核心发现：排除测试使 code 行数降 26.6%（vite）至 47.7%（react），排除文档/生成文件在两样本几乎无命中（规则覆盖面信息）。研究方案、manifest 模板、采集脚本、原始样本与报告见 research/filtering-effects/ 与 scripts/collect-research-sample.mjs。全量 10–20 仓库预计约 80 次请求、数分钟串行耗时，待按试点实测成本二次批准。
   - SG-09 按用户决策暂缓（2026-09-08）：待搜索后台数据证明中文需求后启动；计划原文允许保留为后续任务。
   - 用户追加要求已完成：GitLab 支持与文案已从全部前端与公开文案中移除（GitHub-only）；后端 parse_repo_url 已在本仓库代码中拒绝 gitlab.com（cargo test 178 通过，含 rejects_gitlab_urls；部署待发布流程）。存储层保留对历史 provider 行的容忍。

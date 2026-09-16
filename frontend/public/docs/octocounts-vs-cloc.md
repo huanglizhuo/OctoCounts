@@ -1,5 +1,9 @@
 # OctoCounts vs cloc, scc, and tokei
 
+Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+
+OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while cloc, tokei, and scc are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.
+
 OctoCounts is not a replacement for every SLOC workflow. This page explains how it differs from popular local line counters so you can choose the right tool for the job.
 
 ## Quick comparison

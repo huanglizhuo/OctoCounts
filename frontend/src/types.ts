@@ -43,6 +43,7 @@ export type Report = {
   tokeiVersion: string;
   analysisKey: string;
   analysisOptions: AnalysisOptions;
+  snapshotUrl?: string;
   languages: LanguageReport[];
   total: Stats;
 };

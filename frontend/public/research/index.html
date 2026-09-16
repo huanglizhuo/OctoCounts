@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How Filtering Changes SLOC Counts: OctoCounts Pilot Study | OctoCounts Research</title>
+    <meta name="description" content="OctoCounts original research: counting the same two GitHub repositories at the same commit with four analysis configurations (default, excluding tests, excluding docs, excluding generated files) shows that test filtering alone removes 26–48% of code lines." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/research" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/research.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="How Filtering Changes SLOC Counts: OctoCounts Pilot Study" />
+    <meta property="og:description" content="An OctoCounts pilot study counts facebook/react and vitejs/vite at identical commits under four analysis configurations. Excluding tests removes 47.7% of react's code lines and 26.6% of Vite's." />
+    <meta property="og:url" content="https://octocounts.com/research" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How Filtering Changes SLOC Counts: OctoCounts Pilot Study" />
+    <meta name="twitter:description" content="Same commit, four counting configurations: test filtering removes 26–48% of code lines in this two-repository OctoCounts pilot." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How Filtering Changes SLOC Counts: OctoCounts Pilot Study",
+      "description": "OctoCounts counts facebook/react and vitejs/vite at identical commits under four analysis configurations. Test filtering removes 47.7% of react's code lines and 26.6% of Vite's; docs and generated-file filters barely move.",
+      "datePublished": "2026-09-16",
+      "dateModified": "2026-09-16",
+      "author": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/research"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "OctoCounts", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Research", "item": "https://octocounts.com/research" }
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / Research</nav>
+    <main>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>How Filtering Changes SLOC Counts: OctoCounts Pilot Study</h1>
+      <p class="note">This is an OctoCounts original research page. All measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to <a href="/research">octocounts.com/research</a>.</p>
+
+      <h2>Research question</h2>
+      <p>For the same repository at the same commit, how much do OctoCounts' analysis options &mdash; excluding tests, docs, or generated files &mdash; change the reported line counts, and what does that imply for comparing reports?</p>
+      <p>The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. OctoCounts reports always state their configuration, but until this study we had no measured estimate of how large the effect actually is.</p>
+
+      <h2>Method</h2>
+      <p>The pilot sampled two public GitHub repositories already present in the OctoCounts corpus &mdash; <a href="/github/facebook/react">facebook/react</a> and <a href="/github/vitejs/vite">vitejs/vite</a> &mdash; and counted each one under four configurations: the site default (docs, tests, and generated files all included), <code>exclude-tests</code>, <code>exclude-docs</code>, and <code>exclude-generated</code>. That is 2 repositories &times; 4 configurations = 8 counted runs, all recorded on 2026-09-08.</p>
+      <p>Two design choices make the deltas pure configuration effects rather than drift:</p>
+      <ul>
+        <li><strong>Commit pinning.</strong> The default configuration ran first and recorded the resolved commit SHA; every other configuration pinned <code>refName</code> to that exact SHA. All four runs per repository therefore count identical source material &mdash; react at <code>9b7a0d4029ee</code>, Vite at <code>e6f6b3e31192</code>.</li>
+        <li><strong>Bounded execution.</strong> Requests ran sequentially (concurrency 1) with no force-refresh and at most one retry per request &mdash; none was needed. Every run recorded the repository, commit, configuration, wall time, and returned totals; failures would have been recorded, never dropped.</li>
+      </ul>
+
+      <h2>Key findings</h2>
+      <table>
+        <thead>
+          <tr><th>Code lines</th><th>default</th><th>exclude-tests</th><th>exclude-docs</th><th>exclude-generated</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>facebook/react</strong> @ <code>9b7a0d4029ee</code></td><td>696,459</td><td>364,248 (&minus;47.7%)</td><td>696,459 (0)</td><td>696,459 (0)</td></tr>
+          <tr><td><strong>vitejs/vite</strong> @ <code>e6f6b3e31192</code></td><td>112,297</td><td>82,439 (&minus;26.6%)</td><td>110,808 (&minus;1.3%)</td><td>112,297 (0)</td></tr>
+        </tbody>
+      </table>
+      <ol>
+        <li><strong>Test exclusion is the dominant filter in both samples.</strong> It removes 26&ndash;48% of code lines. Any SLOC comparison that mixes test-inclusive and test-exclusive counts is not a valid comparison.</li>
+        <li><strong>Docs exclusion barely moved</strong> &mdash; 0 for react and &minus;1.3% for Vite. The filter's path and extension rules matched almost nothing in these two trees. A zero delta is information about rule coverage, not proof that these repositories lack documentation.</li>
+        <li><strong>Generated-file exclusion matched nothing</strong> in either sample &mdash; the same caveat applies: this measures which trees the rules match, not ground truth about generated code.</li>
+      </ol>
+      <p>The instrument itself worked: commit pinning, per-run timing, and totals were all recorded, with the tokei-12.1 engine on every run, wall time of 1,254&ndash;1,842&nbsp;ms per request (&asymp;13&nbsp;s total), and zero failures or retries across the 8 requests.</p>
+
+      <h2>Limitations</h2>
+      <ul>
+        <li>The sample is not random and n=2: these are two JavaScript/TypeScript tooling repositories. No claim about open source in general is possible from it.</li>
+        <li>Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.</li>
+        <li>A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits.</li>
+      </ul>
+
+      <h2>Next steps</h2>
+      <p>The measured cost clears the gate for a full study: 10&ndash;20 repositories &times; 4 configurations (&asymp;80 requests) would take roughly 3&ndash;4 minutes of sequential requests at the pilot's per-request cost. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under <code>/research/</code>.</p>
+
+      <h2>Data</h2>
+      <p>The complete pilot dataset is published as newline-delimited JSON, one recorded run per row (8 rows): <a href="/research/pilot-samples.jsonl">pilot-samples.jsonl</a>. Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version (<code>tokei-12.1</code>), and full totals (files, lines, code, comments, blanks). This is original data collected by OctoCounts; if you use it, please cite OctoCounts as the source and link to <a href="/research">octocounts.com/research</a>.</p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li><a href="/docs/methodology">OctoCounts counting methodology</a></li>
+        <li><a href="/github/facebook/react">facebook/react SLOC report</a> and <a href="/github/vitejs/vite">vitejs/vite SLOC report</a></li>
+        <li><a href="/compare">Compare two repositories side by side</a></li>
+        <li><a href="/stats">OctoCounts public growth stats</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

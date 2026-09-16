@@ -1,5 +1,9 @@
 # GitHub Language Bar Alternative: Real Line Counts
 
+Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+
+OctoCounts is a free alternative to GitHub's language bar for public GitHub repositories. GitHub's bar shows byte-based language percentages; OctoCounts downloads the source archive at a pinned commit, counts lines with tokei, and reports actual files, total lines, code lines, comments, and blanks per language, with exportable results and a browser extension that shows the same counts on GitHub repository pages.
+
 OctoCounts is a free alternative to GitHub's language bar. It shows actual files, total lines, code lines, comments, and blanks per language for any public repository, instead of a single byte-based percentage bar.
 
 ## What does GitHub's language bar actually measure?

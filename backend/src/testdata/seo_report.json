@@ -1,6 +1,15 @@
 {
+  "analysisKey": "tokei-14.0.0:default",
+  "analysisOptions": {
+    "ignoredDirs": [],
+    "ignoredLanguages": [],
+    "includeDocs": false,
+    "includeGenerated": false,
+    "includeTests": false,
+    "profile": "default"
+  },
   "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
-  "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Counted with tokei via OctoCounts.",
+  "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
   "commitSha": "9f8e7d6c5b4a39281706",
   "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
   "durationMs": 91234,
@@ -158,6 +167,7 @@
   "refName": "main",
   "repo": "rust",
   "repoFullName": "rust-lang/rust",
+  "snapshotUrl": "https://octocounts.com/github/rust-lang/rust/commit/9f8e7d6c5b4a39281706?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D",
   "title": "rust-lang/rust: 2,306,821 lines of code | OctoCounts",
   "tokeiVersion": "tokei-14.0.0",
   "topLanguage": {

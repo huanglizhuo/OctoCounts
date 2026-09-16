@@ -10,6 +10,36 @@ use crate::models::{
     Report, RepositoryProvider,
 };
 
+/// The per-row projection shared by every card query. A macro rather than a
+/// `const` so `concat!` can splice it into each order's `&'static str`.
+/// `$3` is the language cap; see [`SEO_CARD_LANGUAGES`].
+macro_rules! card_projection {
+    () => {
+        r#"
+        SELECT
+            r.provider AS provider,
+            r.owner AS owner,
+            r.repo AS repo,
+            r.language_count AS language_count,
+            r.body->'repository'->>'htmlUrl' AS html_url,
+            r.body->>'refName' AS ref_name,
+            r.body->>'commitSha' AS commit_sha,
+            r.body->>'generatedAt' AS generated_at,
+            r.body->>'durationMs' AS duration_ms,
+            r.body->>'tokeiVersion' AS tokei_version,
+            r.body->>'analysisKey' AS analysis_key,
+            (r.body->'analysisOptions')::text AS analysis_options,
+            (r.body->'total')::text AS total,
+            COALESCE((
+                SELECT jsonb_agg(entry ORDER BY idx)
+                FROM jsonb_array_elements(r.body->'languages')
+                     WITH ORDINALITY AS elements(entry, idx)
+                WHERE idx <= $3
+            ), '[]'::jsonb)::text AS languages
+        "#
+    };
+}
+
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
@@ -1195,6 +1225,42 @@ impl Store {
             .transpose()
     }
 
+    /// The newest report for one repository, projected as a [`ReportCard`].
+    ///
+    /// The SEO report endpoint uses this instead of `latest_report` because it
+    /// needs the analysis configuration for reproducibility (SG-04) and must
+    /// not detoast the whole body to get it. Unlike `latest_report`, which
+    /// deserializes into `Report` and therefore has serde defaults fill in a
+    /// missing `analysisKey`/`analysisOptions` on legacy rows, the SQL
+    /// projection keeps them `NULL`, so an unknown configuration surfaces as
+    /// unknown instead of looking like a verified default.
+    pub async fn latest_report_card(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Option<ReportCard>> {
+        // `card_projection!` consumes `$3` for the language cap, so the repo
+        // predicate binds as `$4` after provider, owner and the cap.
+        let row = sqlx::query(concat!(
+            card_projection!(),
+            r#"
+            FROM reports r
+            WHERE r.provider = $1 AND r.owner = $2 AND r.repo = $4
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            "#
+        ))
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(SEO_CARD_LANGUAGES as i64)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(row_to_report_card).transpose()
+    }
+
     pub async fn recent_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<ReportCard>> {
         self.report_cards(ReportOrder::Recent, limit, offset).await
     }
@@ -2168,6 +2234,13 @@ pub struct ReportCard {
     pub generated_at: DateTime<Utc>,
     pub duration_ms: u128,
     pub tokei_version: String,
+    /// The stored `analysisKey`, `None` when the row predates the field. Never
+    /// synthesize a default here: SG-04 requires unknown configuration to stay
+    /// unknown instead of masquerading as "default configuration".
+    pub analysis_key: Option<String>,
+    /// The stored `analysisOptions` snapshot, `None` when the row predates the
+    /// field (same rule as `analysis_key`).
+    pub analysis_options: Option<AnalysisOptions>,
     pub total: LanguageStats,
     /// The number of languages in the report, *not* `languages.len()`.
     pub language_count: usize,
@@ -2187,6 +2260,8 @@ impl From<&Report> for ReportCard {
             generated_at: report.generated_at,
             duration_ms: report.duration_ms,
             tokei_version: report.tokei_version.clone(),
+            analysis_key: Some(report.analysis_key.clone()),
+            analysis_options: Some(report.analysis_options.clone()),
             total: report.total.clone(),
             language_count: report.languages.len(),
             languages: report
@@ -2206,34 +2281,9 @@ enum ReportOrder {
     Monolith,
 }
 
-/// The per-row projection shared by every card query. A macro rather than a
-/// `const` so `concat!` can splice it into each order's `&'static str`.
-/// `$3` is the language cap; see [`SEO_CARD_LANGUAGES`].
-macro_rules! card_projection {
-    () => {
-        r#"
-        SELECT
-            r.provider AS provider,
-            r.owner AS owner,
-            r.repo AS repo,
-            r.language_count AS language_count,
-            r.body->'repository'->>'htmlUrl' AS html_url,
-            r.body->>'refName' AS ref_name,
-            r.body->>'commitSha' AS commit_sha,
-            r.body->>'generatedAt' AS generated_at,
-            r.body->>'durationMs' AS duration_ms,
-            r.body->>'tokeiVersion' AS tokei_version,
-            (r.body->'total')::text AS total,
-            COALESCE((
-                SELECT jsonb_agg(entry ORDER BY idx)
-                FROM jsonb_array_elements(r.body->'languages')
-                     WITH ORDINALITY AS elements(entry, idx)
-                WHERE idx <= $3
-            ), '[]'::jsonb)::text AS languages
-        "#
-    };
-}
-
+/// The projection itself lives at the top of the file because
+/// `latest_report_card` uses it inside `impl Store`, and `macro_rules` is
+/// textually scoped.
 impl ReportOrder {
     fn card_sql(self) -> &'static str {
         match self {
@@ -2386,6 +2436,7 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
     let provider: String = row.try_get("provider")?;
     let generated_at: String = row.try_get("generated_at")?;
     let duration_ms: String = row.try_get("duration_ms")?;
+    let analysis_options: Option<String> = row.try_get("analysis_options")?;
     let total: String = row.try_get("total")?;
     let languages: String = row.try_get("languages")?;
     let language_count: Option<i32> = row.try_get("language_count")?;
@@ -2402,6 +2453,12 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
         generated_at: DateTime::parse_from_rfc3339(&generated_at)?.with_timezone(&Utc),
         duration_ms: duration_ms.parse()?,
         tokei_version: row.try_get("tokei_version")?,
+        analysis_key: row.try_get("analysis_key")?,
+        // `::text` on a missing jsonb key yields SQL NULL, on an explicit
+        // JSON null the text "null"; `Option<AnalysisOptions>` handles both.
+        analysis_options: analysis_options
+            .map(|json| serde_json::from_str(&json))
+            .transpose()?,
         total: serde_json::from_str(&total)?,
         // Maintained by the reports_materialize_stats trigger, so it is only NULL
         // if a row escaped both the trigger and the backfill. The projected slice
@@ -3043,6 +3100,8 @@ mod tests {
         assert_eq!(actual.generated_at, expected.generated_at);
         assert_eq!(actual.duration_ms, expected.duration_ms);
         assert_eq!(actual.tokei_version, expected.tokei_version);
+        assert_eq!(actual.analysis_key, expected.analysis_key);
+        assert_eq!(actual.analysis_options, expected.analysis_options);
         assert_eq!(
             serde_json::to_value(&actual.total).unwrap(),
             serde_json::to_value(&expected.total).unwrap()
@@ -3078,6 +3137,55 @@ mod tests {
         assert_eq!(cards.len(), 1);
         assert!(cards[0].languages.is_empty());
         assert_eq!(cards[0].language_count, 0);
+        store.drop_schema().await;
+    }
+
+    /// A row written before `analysisKey` / `analysisOptions` existed must
+    /// project both as `None`. Deserializing the same body into `Report`
+    /// would have serde defaults fill them in, which is exactly the
+    /// "unknown configuration pretending to be the default" SG-04 forbids.
+    #[tokio::test]
+    async fn projected_card_marks_legacy_configuration_as_unknown() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        store
+            .insert_raw_report(
+                "report-card-legacy",
+                "github",
+                &owner,
+                "count",
+                "abc123",
+                "tokei-test",
+                r#"{
+                    "id": "report-card-legacy",
+                    "repository": {"owner": "LEGACY", "name": "count", "htmlUrl": "https://github.com/octo/count"},
+                    "refName": "main",
+                    "commitSha": "abc123",
+                    "generatedAt": "2024-02-29T11:30:15.123456789Z",
+                    "durationMs": 42,
+                    "cached": false,
+                    "tokeiVersion": "tokei-test",
+                    "languages": [],
+                    "total": {"files": 0, "lines": 0, "code": 0, "comments": 0, "blanks": 0}
+                }"#,
+                Utc::now(),
+            )
+            .await
+            .unwrap();
+
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
+            .await
+            .unwrap()
+            .expect("one card");
+        assert_eq!(card.analysis_key, None);
+        assert_eq!(card.analysis_options, None);
+
+        let cards = store.recent_reports(10, 0).await.unwrap();
+        assert_eq!(cards[0].analysis_key, None);
+        assert_eq!(cards[0].analysis_options, None);
         store.drop_schema().await;
     }
 

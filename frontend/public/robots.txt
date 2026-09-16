@@ -44,6 +44,11 @@ Allow: /
 User-agent: CCBot
 Allow: /
 
+# Bytespider (ByteDance) is a training-use crawler; allowed as a deliberate
+# choice, like GPTBot/CCBot above. See docs/ai-crawling-policy.md.
+User-agent: Bytespider
+Allow: /
+
 Sitemap: https://octocounts.com/sitemap.xml
 
 # Machine-readable product summary for answer engines:

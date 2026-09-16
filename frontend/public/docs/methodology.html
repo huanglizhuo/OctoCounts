@@ -51,7 +51,7 @@
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
       "datePublished": "2026-07-06",
-      "dateModified": "2026-09-08",
+      "dateModified": "2026-09-16",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -62,7 +62,22 @@
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/docs/methodology"
+      "mainEntityOfPage": "https://octocounts.com/docs/methodology",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "OctoCounts Methodology", "item": "https://octocounts.com/docs/methodology" }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -112,8 +127,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Methodology</nav>
     <main>
-      <p class="meta">Updated August 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts Methodology</h1>
+      <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with tokei, an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.</p>
       <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
 
       <h2>What is SLOC?</h2>

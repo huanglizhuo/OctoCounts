@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-09-08
+Last-Updated: 2026-09-16
 
 ## What OctoCounts Does
 
@@ -58,6 +58,7 @@ For private repositories, run tokei locally.
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
+- Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 

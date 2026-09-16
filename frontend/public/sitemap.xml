@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://octocounts.com/</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/docs/github-sloc-counter</loc><lastmod>2026-09-05</lastmod></url>
-  <url><loc>https://octocounts.com/docs/api</loc><lastmod>2026-09-05</lastmod></url>
-  <url><loc>https://octocounts.com/docs/methodology</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/docs/glossary</loc><lastmod>2026-09-05</lastmod></url>
-  <url><loc>https://octocounts.com/docs/faq</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/docs/octocounts-vs-cloc</loc><lastmod>2026-09-05</lastmod></url>
-  <url><loc>https://octocounts.com/docs/github-language-bar-alternative</loc><lastmod>2026-09-05</lastmod></url>
-  <url><loc>https://octocounts.com/docs/best-sloc-counter-tools</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/about</loc><lastmod>2026-09-05</lastmod></url>
+  <url><loc>https://octocounts.com/</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/github-sloc-counter</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/api</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/methodology</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/glossary</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/faq</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/octocounts-vs-cloc</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/github-language-bar-alternative</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/docs/best-sloc-counter-tools</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/research</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/about</loc><lastmod>2026-09-16</lastmod></url>
   <url><loc>https://octocounts.com/stats</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/recent</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/popular</loc><lastmod>2026-09-05</lastmod></url>
@@ -17,8 +18,8 @@
   <url><loc>https://octocounts.com/hall-of-monoliths</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/badges</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/extension</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/llms.txt</loc><lastmod>2026-09-08</lastmod></url>
-  <url><loc>https://octocounts.com/llms-full.txt</loc><lastmod>2026-09-08</lastmod></url>
+  <url><loc>https://octocounts.com/llms.txt</loc><lastmod>2026-09-16</lastmod></url>
+  <url><loc>https://octocounts.com/llms-full.txt</loc><lastmod>2026-09-16</lastmod></url>
   <url><loc>https://octocounts.com/privacy</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/contact</loc><lastmod>2026-09-05</lastmod></url>
   <url><loc>https://octocounts.com/compare/react-vs-vue</loc><lastmod>2026-09-08</lastmod></url>

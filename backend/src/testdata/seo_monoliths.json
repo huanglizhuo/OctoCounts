@@ -3,8 +3,17 @@
   "page": 1,
   "reports": [
     {
+      "analysisKey": "tokei-14.0.0:default",
+      "analysisOptions": {
+        "ignoredDirs": [],
+        "ignoredLanguages": [],
+        "includeDocs": false,
+        "includeGenerated": false,
+        "includeTests": false,
+        "profile": "default"
+      },
       "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
-      "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
       "commitSha": "9f8e7d6c5b4a39281706",
       "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
       "durationMs": 91234,
@@ -162,6 +171,7 @@
       "refName": "main",
       "repo": "rust",
       "repoFullName": "rust-lang/rust",
+      "snapshotUrl": "https://octocounts.com/github/rust-lang/rust/commit/9f8e7d6c5b4a39281706?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D",
       "title": "rust-lang/rust: 2,306,821 lines of code | OctoCounts",
       "tokeiVersion": "tokei-14.0.0",
       "topLanguage": {
@@ -178,8 +188,17 @@
       }
     },
     {
+      "analysisKey": "tokei-14.0.0:default",
+      "analysisOptions": {
+        "ignoredDirs": [],
+        "ignoredLanguages": [],
+        "includeDocs": false,
+        "includeGenerated": false,
+        "includeTests": false,
+        "profile": "default"
+      },
       "canonicalUrl": "https://octocounts.com/gitlab/gitlab-org/ci-cd/gitlab-runner",
-      "citation": "As of 2024-05-20 (commit aabbccddeeff), gitlab-org/ci-cd/gitlab-runner contains 431,818 total lines: 350,000 code, 50,000 comments, 31,818 blank, across 2,189 files in 2 languages (top: Go 98.8%). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-05-20 (commit aabbccddeeff), gitlab-org/ci-cd/gitlab-runner contains 431,818 total lines: 350,000 code, 50,000 comments, 31,818 blank, across 2,189 files in 2 languages (top: Go 98.8%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
       "commitSha": "aabbccddeeff00112233",
       "description": "gitlab-org/ci-cd/gitlab-runner contains 350,000 code lines across 2,189 files and 2 languages; top language: Go 98.8%.",
       "durationMs": 4567,
@@ -215,6 +234,7 @@
       "refName": "main",
       "repo": "gitlab-runner",
       "repoFullName": "gitlab-org/ci-cd/gitlab-runner",
+      "snapshotUrl": "https://octocounts.com/gitlab/gitlab-org/ci-cd/gitlab-runner/commit/aabbccddeeff00112233?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D",
       "title": "gitlab-org/ci-cd/gitlab-runner: 350,000 lines of code | OctoCounts",
       "tokeiVersion": "tokei-14.0.0",
       "topLanguage": {
@@ -232,7 +252,7 @@
     },
     {
       "canonicalUrl": "https://octocounts.com/github/octocounts/legacy",
-      "citation": "As of 2024-02-29 (commit 111122223333), octocounts/legacy contains 900 total lines: 700 code, 120 comments, 80 blank, across 9 files in 1 languages (top: Perl 100.0%). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-02-29 (commit 111122223333), octocounts/legacy contains 900 total lines: 700 code, 120 comments, 80 blank, across 9 files in 1 languages (top: Perl 100.0%). Configuration unknown; this report predates option tracking. Counted with tokei via OctoCounts.",
       "commitSha": "1111222233334444aaaa",
       "description": "octocounts/legacy contains 700 code lines across 9 files and 1 languages; top language: Perl 100.0%.",
       "durationMs": 1234,
@@ -273,8 +293,17 @@
       }
     },
     {
+      "analysisKey": "tokei-14.0.0:default",
+      "analysisOptions": {
+        "ignoredDirs": [],
+        "ignoredLanguages": [],
+        "includeDocs": false,
+        "includeGenerated": false,
+        "includeTests": false,
+        "profile": "default"
+      },
       "canonicalUrl": "https://octocounts.com/github/octocounts/empty",
-      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
       "commitSha": "ffffffffffffffffffff",
       "description": "octocounts/empty contains 0 code lines across 0 files and 0 languages.",
       "durationMs": 7,
@@ -287,6 +316,7 @@
       "refName": "main",
       "repo": "empty",
       "repoFullName": "octocounts/empty",
+      "snapshotUrl": "https://octocounts.com/github/octocounts/empty/commit/ffffffffffffffffffff?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D",
       "title": "octocounts/empty: 0 lines of code | OctoCounts",
       "tokeiVersion": "tokei-14.0.0",
       "topLanguage": null,

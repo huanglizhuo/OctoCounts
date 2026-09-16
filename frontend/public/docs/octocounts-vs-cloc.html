@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs cloc, scc, and tokei",
       "description": "Compare OctoCounts with cloc, scc, and tokei for counting source lines of code in public GitHub repositories, local workflows, CI, and sharing.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-09-05",
+      "dateModified": "2026-09-16",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -63,7 +63,22 @@
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/docs/octocounts-vs-cloc"
+      "mainEntityOfPage": "https://octocounts.com/docs/octocounts-vs-cloc",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "OctoCounts vs cloc, scc, and tokei", "item": "https://octocounts.com/docs/octocounts-vs-cloc" }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -121,8 +136,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / vs cloc, scc, tokei</nav>
     <main>
-      <p class="meta">Updated August 28, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs cloc, scc, and tokei</h1>
+      <p class="answer">OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while cloc, tokei, and scc are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.</p>
       <p class="note">OctoCounts is not a replacement for every SLOC workflow. This page explains how it differs from popular local line counters so you can choose the right tool for the job.</p>
 
       <h2>Quick comparison</h2>

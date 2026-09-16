@@ -1,6 +1,8 @@
 # SLOC Glossary
 
-Updated August 27, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+
+OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from tokei, an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.
 
 > Precise definitions of source lines of code terms, and how each one appears in OctoCounts reports. OctoCounts counts public GitHub repositories with [tokei](https://github.com/XAMPPRocky/tokei) at a pinned commit; see the [methodology](https://octocounts.com/docs/methodology) for the full counting policy.
 

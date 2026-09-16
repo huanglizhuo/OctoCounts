@@ -49,7 +49,7 @@
       "headline": "SLOC Glossary",
       "description": "Precise definitions of source lines of code terms and how each one maps to OctoCounts reports.",
       "datePublished": "2026-08-28",
-      "dateModified": "2026-09-05",
+      "dateModified": "2026-09-16",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -60,7 +60,22 @@
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/docs/glossary"
+      "mainEntityOfPage": "https://octocounts.com/docs/glossary",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "SLOC Glossary", "item": "https://octocounts.com/docs/glossary" }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -193,8 +208,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Glossary</nav>
     <main>
-      <p class="meta">Updated August 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>SLOC Glossary</h1>
+      <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from tokei, an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.</p>
       <p class="note">Precise definitions of source lines of code terms, and how each one appears in OctoCounts reports. OctoCounts counts public GitHub repositories with <a href="https://github.com/XAMPPRocky/tokei">tokei</a> at a pinned commit; see the <a href="/docs/methodology">methodology</a> for the full counting policy.</p>
 
       <section id="sloc">

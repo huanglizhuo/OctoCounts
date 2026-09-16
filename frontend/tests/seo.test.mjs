@@ -1090,7 +1090,7 @@ const RELATED_REPORT_FIXTURE = {
   languages: [{ name: "Rust", stats: { files: 80, lines: 16000, code: 12000, comments: 2500, blanks: 1500 } }],
 };
 
-function stubReportAndRelatedFetch(relatedPayload) {
+function stubReportAndRelatedFetch(relatedPayload, report = RELATED_REPORT_FIXTURE) {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     const request = new URL(url);
@@ -1098,7 +1098,7 @@ function stubReportAndRelatedFetch(relatedPayload) {
       if (relatedPayload instanceof Response) return relatedPayload;
       return Response.json(relatedPayload);
     }
-    return Response.json(RELATED_REPORT_FIXTURE);
+    return Response.json(report);
   };
   return () => {
     globalThis.fetch = originalFetch;
@@ -1394,6 +1394,78 @@ test("report markdown twins mirror the SSR report via ?format=md and the .md suf
       // Markdown must not leak HTML markup from the page templates.
       assert.doesNotMatch(md, /<[a-z][^>]*>/i, path);
     }
+  } finally {
+    restore();
+  }
+});
+
+const REPRODUCIBLE_OPTIONS = {
+  ignoredDirs: [],
+  ignoredLanguages: [],
+  profile: "default",
+  includeDocs: true,
+  includeTests: true,
+  includeGenerated: true,
+};
+const REPRODUCIBLE_SNAPSHOT_URL = `https://octocounts.com/github/octo-org/octo-repo/commit/${RELATED_REPORT_FIXTURE.commitSha}?analysis=${encodeURIComponent(JSON.stringify(REPRODUCIBLE_OPTIONS))}`;
+const REPRODUCIBLE_REPORT_FIXTURE = {
+  ...RELATED_REPORT_FIXTURE,
+  analysisKey: "tokei-13.0.0:default",
+  analysisOptions: REPRODUCIBLE_OPTIONS,
+  snapshotUrl: REPRODUCIBLE_SNAPSHOT_URL,
+};
+
+test("report SSR, JSON-LD, summary, and markdown expose the reproducible snapshot link when the configuration is known", async () => {
+  const restore = stubReportAndRelatedFetch({ reports: [] }, REPRODUCIBLE_REPORT_FIXTURE);
+  try {
+    const htmlResponse = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    const html = await htmlResponse.text();
+    assert.match(html, /<h2>Reproduce this report<\/h2>/);
+    assert.ok(html.includes(`<a href="${REPRODUCIBLE_SNAPSHOT_URL}">Reproduce this exact report and configuration</a>`));
+    assert.doesNotMatch(html, /Configuration unknown/);
+    // The Dataset node carries the stable configuration digest.
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(jsonLd);
+    assert.match(jsonLd[1], /"identifier":"tokei-13\.0\.0:default"/);
+    // The hydration summary passes the new fields through to the client.
+    const summary = html.match(/<script type="application\/json" id="octocounts-report-summary">([\s\S]*?)<\/script>/);
+    assert.ok(summary);
+    assert.match(summary[1], /"analysisKey":"tokei-13\.0\.0:default"/);
+    assert.ok(summary[1].includes(`"snapshotUrl":"${REPRODUCIBLE_SNAPSHOT_URL}"`));
+
+    const mdResponse = await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"));
+    const md = await mdResponse.text();
+    assert.ok(md.includes(`[Reproduce this exact report and configuration](${REPRODUCIBLE_SNAPSHOT_URL}).`));
+    assert.doesNotMatch(md, /Configuration unknown/);
+    assert.doesNotMatch(md, /<[a-z][^>]*>/i);
+  } finally {
+    restore();
+  }
+});
+
+test("reports without option tracking say the configuration is unknown instead of claiming defaults", async () => {
+  // RELATED_REPORT_FIXTURE predates analysisKey/analysisOptions/snapshotUrl.
+  const restore = stubReportAndRelatedFetch({ reports: [] });
+  try {
+    const htmlResponse = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    const html = await htmlResponse.text();
+    assert.match(html, /<h2>Reproduce this report<\/h2>/);
+    assert.ok(html.includes("<p>Configuration unknown; this report predates option tracking.</p>"));
+    assert.doesNotMatch(html, /Reproduce this exact report/);
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    assert.ok(jsonLd);
+    assert.doesNotMatch(jsonLd[1], /"identifier"/);
+    const summary = html.match(/<script type="application\/json" id="octocounts-report-summary">([\s\S]*?)<\/script>/);
+    assert.ok(summary);
+    assert.doesNotMatch(summary[1], /"analysisKey"/);
+    assert.doesNotMatch(summary[1], /"snapshotUrl"/);
+    assert.doesNotMatch(html, /default configuration/i);
+
+    const mdResponse = await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"));
+    const md = await mdResponse.text();
+    assert.ok(md.includes("Configuration unknown; this report predates option tracking."));
+    assert.doesNotMatch(md, /Reproduce this exact report/);
+    assert.doesNotMatch(md, /default configuration/i);
   } finally {
     restore();
   }

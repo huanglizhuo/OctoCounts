@@ -52,7 +52,7 @@
       "headline": "GitHub Language Bar Alternative: Real Line Counts",
       "description": "GitHub's language bar shows byte-based percentages, not line counts. OctoCounts is a free alternative that shows actual files, total lines, code, comments, and blanks per language.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-09-05",
+      "dateModified": "2026-09-16",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -63,7 +63,22 @@
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/docs/github-language-bar-alternative"
+      "mainEntityOfPage": "https://octocounts.com/docs/github-language-bar-alternative",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "GitHub Language Bar Alternative: Real Line Counts", "item": "https://octocounts.com/docs/github-language-bar-alternative" }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -121,8 +136,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / GitHub language bar alternative</nav>
     <main>
-      <p class="meta">Updated August 29, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub Language Bar Alternative: Real Line Counts</h1>
+      <p class="answer">OctoCounts is a free alternative to GitHub's language bar for public GitHub repositories. GitHub's bar shows byte-based language percentages; OctoCounts downloads the source archive at a pinned commit, counts lines with tokei, and reports actual files, total lines, code lines, comments, and blanks per language, with exportable results and a browser extension that shows the same counts on GitHub repository pages.</p>
       <p class="note">OctoCounts is a free alternative to GitHub's language bar. It shows actual files, total lines, code lines, comments, and blanks per language for any public repository, instead of a single byte-based percentage bar.</p>
 
       <h2>What does GitHub's language bar actually measure?</h2>

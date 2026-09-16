@@ -1,5 +1,9 @@
 # OctoCounts FAQ
 
+Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+
+OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning: the requested branch, tag, or commit SHA is resolved to an exact commit and counted with tokei, an open-source Rust line counter. No account is required, private repositories are not supported, and results can be exported as plain text, JSON, or a PNG card.
+
 Frequently asked questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and the API.
 
 ## Getting started

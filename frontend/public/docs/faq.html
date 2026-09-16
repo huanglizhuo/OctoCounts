@@ -53,7 +53,7 @@
       "headline": "OctoCounts FAQ",
       "description": "Frequently asked questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and API usage.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-09-08",
+      "dateModified": "2026-09-16",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -64,7 +64,22 @@
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/docs/faq"
+      "mainEntityOfPage": "https://octocounts.com/docs/faq",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "OctoCounts FAQ", "item": "https://octocounts.com/docs/faq" }
+      ]
     }
     </script>
     <script type="application/ld+json">
@@ -250,8 +265,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / FAQ</nav>
     <main>
-      <p class="meta">Updated August 28, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts FAQ</h1>
+      <p class="answer">OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning: the requested branch, tag, or commit SHA is resolved to an exact commit and counted with tokei, an open-source Rust line counter. No account is required, private repositories are not supported, and results can be exported as plain text, JSON, or a PNG card.</p>
       <p class="note">Answers to common questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and the API.</p>
 
       <div class="faq-section">

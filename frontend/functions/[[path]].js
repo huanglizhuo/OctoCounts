@@ -7,7 +7,7 @@ const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='"
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-09-08" },
+  { loc: "https://octocounts.com/", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-09-05" },
@@ -15,24 +15,25 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/about", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-09-08" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/about", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-05" },
 ];
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const HOME_CONTENT_LASTMOD = "2026-09-08";
-const COMPARE_CONTENT_LASTMOD = "2026-09-08";
+const HOME_CONTENT_LASTMOD = "2026-09-16";
+const COMPARE_CONTENT_LASTMOD = "2026-09-16";
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -162,6 +163,14 @@ export async function onRequest(context) {
     return docsMarkdownResponse(context, parts[1], { uaOnly: aiMarkdown && !markdownRequested });
   }
 
+  // /research is a static article pair (public/research/index.html plus its
+  // pre-generated index.md), served through the function — like the docs
+  // articles — so ?format=md and retrieval-bot requests get a guaranteed
+  // text/markdown type instead of relying on the bare .md asset.
+  if (parts[0] === "research" && parts.length === 1 && (markdownRequested || aiMarkdown)) {
+    return researchMarkdownResponse(context, { uaOnly: aiMarkdown && !markdownRequested });
+  }
+
   if (url.pathname === "/") {
     return homePageResponse(context);
   }
@@ -193,6 +202,15 @@ const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology",
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
   url.pathname = `/docs/${slug}.md`;
+  url.search = "";
+  const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
+  if (!asset.ok) return asset;
+  return markdownResponse(asset.body, "public, max-age=3600", options);
+}
+
+async function researchMarkdownResponse(context, options = {}) {
+  const url = new URL(context.request.url);
+  url.pathname = "/research/index.md";
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
@@ -347,6 +365,8 @@ function reportMarkdown(report, relatedReports = []) {
 
 > ${report.citation}
 
+${reportCapsuleText(report)}
+
 ${reportLeadText(report)}
 
 ## Repository size insights
@@ -356,6 +376,8 @@ ${reportInsightsText(report)}
 ${table}
 
 Top language${top}. Generated at ${report.generatedAt}. Canonical report: ${report.canonicalUrl}
+
+${reportReproduceMarkdown(report)}
 
 ## Report FAQ
 
@@ -734,7 +756,7 @@ async function comparePageResponse(context, pathname) {
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const curatedLinks = isCompare
-    ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul></section>`
+    ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul><p>OctoCounts also publishes original research on how measurement choices affect line counts: <a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a> (pilot study, September 2026).</p></section>`
     : "";
 
   return htmlResponse(
@@ -1191,6 +1213,11 @@ function buildCompareViewModel(entry, left, right) {
     // browser locale (Intl grouping) can never disagree with the SSR body.
     rows: metrics.map(([label, leftValue, rightValue]) => ({ label, left: formatNumber(leftValue), right: formatNumber(rightValue) })),
     definitionText: `This page compares the source lines of code (SLOC) of ${left.repoFullName} and ${right.repoFullName} using cached OctoCounts reports. Code size is not code quality: a larger count only means more source material, not a better or worse project.`,
+    // Declarative answer capsule rendered right after the h1 in the SSR body
+    // and as the first paragraph of the markdown twin. It names only real
+    // repository names and defers every number to the methodology line, so
+    // the three renderers stay consistent without restating figures here.
+    capsuleText: `The ${entry.name} comparison on OctoCounts shows side-by-side source line counts for ${left.repoFullName} and ${right.repoFullName}, counted with the same engine and analysis options on the dates shown in the methodology line: files, total lines, code lines, comment lines, blank lines, and per-language totals, pinned to the exact commits listed below.`,
     summaryText: compareSummaryText(left, right, leftDate, rightDate),
     languageMixText: compareLanguageMixText(left, right),
     methodologyText: compareMethodologyText(left, right, leftDate, rightDate),
@@ -1239,6 +1266,8 @@ function compareMarkdown(model) {
     "See the [counting methodology](https://octocounts.com/docs/methodology)"
   );
   return `# ${model.name}: source lines of code compared
+
+${model.capsuleText}
 
 ${model.summaryText}
 
@@ -1446,7 +1475,7 @@ function injectCuratedCompare(index, model) {
         .map((source) => `<a href="${escapeAttr(source.url)}" rel="noreferrer">${escapeHtml(source.label)}</a>`)
         .join(" · ")}. Statements verified ${escapeHtml(model.editorial.verifiedAt)}.</p></section>`
     : "";
-  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.definitionText)}</p><p id="octocounts-compare-summary">${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}${editorialHtml}<p>Evidence and next steps:</p><ul>
+  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.capsuleText)}</p><p>${escapeHtml(model.definitionText)}</p><p id="octocounts-compare-summary">${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}${editorialHtml}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(model.left.publicPath)}">${escapeHtml(model.left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.right.publicPath)}">${escapeHtml(model.right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.interactiveHref)}">Compare ${escapeHtml(model.left.repoFullName)} and ${escapeHtml(model.right.repoFullName)} interactively</a></li>
@@ -1763,7 +1792,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // self-contained citable summary next to the one in #octocounts-citation.
   const ogImageUrl = `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
   const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" />`;
-  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(reportCapsuleText(report))}</p><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   // Peer links between report pages: every long-tail /github/* URL both
   // receives and hands out crawl paths, so the report corpus is a web instead
   // of a list of dead ends reachable only from /recent and /popular.
@@ -1782,8 +1811,16 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + faqHtml + similarReposHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + internalLinks,
   });
+}
+
+/// Declarative answer capsule for report pages, rendered right after the h1
+/// in the SSR body and as the first body paragraph of the markdown twin.
+/// Every figure comes straight from the report payload so the capsule cannot
+/// disagree with the table, FAQ, or client summary it sits next to.
+function reportCapsuleText(report) {
+  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} by the OctoCounts tokei engine on ${report.generatedAt.slice(0, 10)}. The report is cached by commit, tokei version, and analysis options, so recounting the same revision returns exactly these numbers.`;
 }
 
 /// Plain-text core of the report lead, shared by the HTML page and the
@@ -1793,6 +1830,24 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
 /// method and reproducibility without depending on the rest of the page.
 function reportLeadText(report) {
   return `OctoCounts produced this report by resolving ${report.repoFullName} to commit ${report.commitSha.slice(0, 12)}, downloading the repository source archive, and counting every source file with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options, so counting the same revision again reproduces exactly these numbers.`;
+}
+
+/// Reproducibility block for report pages, rendered by the HTML page and the
+/// markdown twin with identical wording. The backend only sends snapshotUrl
+/// when the configuration is known; pre-tracking reports must say "unknown"
+/// explicitly and never fall back to claiming a default configuration.
+function reportReproduceHtml(report) {
+  if (report.snapshotUrl) {
+    return `<section><h2>Reproduce this report</h2><p><a href="${escapeAttr(report.snapshotUrl)}">Reproduce this exact report and configuration</a>.</p></section>`;
+  }
+  return `<section><h2>Reproduce this report</h2><p>Configuration unknown; this report predates option tracking.</p></section>`;
+}
+
+function reportReproduceMarkdown(report) {
+  if (report.snapshotUrl) {
+    return `## Reproduce this report\n\n[Reproduce this exact report and configuration](${report.snapshotUrl}).`;
+  }
+  return `## Reproduce this report\n\nConfiguration unknown; this report predates option tracking.`;
 }
 
 function reportInsights(report) {
@@ -1845,6 +1900,9 @@ function reportSummaryJson(report) {
     commitSha: report.commitSha,
     tokeiVersion: report.tokeiVersion,
     durationMs: report.durationMs,
+    analysisKey: report.analysisKey,
+    analysisOptions: report.analysisOptions,
+    snapshotUrl: report.snapshotUrl,
     totals: report.total,
     topLanguage: report.topLanguage,
     languages: report.languages,
@@ -1864,6 +1922,9 @@ function reportJsonLd(report) {
         description: report.description,
         url: report.canonicalUrl,
         dateModified: report.generatedAt,
+        // The backend's stable configuration digest; absent on reports stored
+        // before option tracking, matching analysisKey in the JSON payload.
+        ...(report.analysisKey ? { identifier: report.analysisKey } : {}),
         // No datePublished: the SEO report payload carries only generatedAt
         // (the latest regeneration), not the report's first-creation time,
         // and inventing one would be worse than omitting the field.

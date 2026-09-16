@@ -200,8 +200,9 @@ function seedReportFromSsrSummary(): Report | null {
       durationMs: summary.durationMs ?? 0,
       cached: true,
       tokeiVersion: summary.tokeiVersion ?? "",
-      analysisKey: "",
-      analysisOptions: defaultAnalysisOptions,
+      analysisKey: summary.analysisKey ?? "",
+      analysisOptions: summary.analysisOptions ?? defaultAnalysisOptions,
+      snapshotUrl: summary.snapshotUrl,
       languages: (summary.languages ?? []).map((language: { name: string; stats: Stats }) => ({
         name: language.name,
         stats: language.stats,

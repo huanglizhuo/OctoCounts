@@ -18,6 +18,7 @@
 | ClaudeBot / Claude-User | Anthropic | Indexing / user-initiated fetch | Allow | Markdown twin or HTML |
 | Google-Extended | Google | Gemini grounding & training (does not control Google Search indexing) | Allow | HTML |
 | CCBot | Common Crawl | Open corpus building (training pipelines downstream) | Allow | HTML |
+| Bytespider | ByteDance | Training corpus crawl (TikTok/Douyin AI) | Allow | HTML |
 | Applebot | Apple | Apple Intelligence / Siri grounding | Allow | Markdown twin or HTML |
 
 Key distinction this matrix exists to keep straight (SG-08 finding): **GPTBot
