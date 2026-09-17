@@ -1678,13 +1678,16 @@ test("/research serves its static HTML without a directory-redirect loop and hon
     request: new Request(`https://octocounts.com${pathname}`, userAgent ? { headers: { "user-agent": userAgent } } : undefined),
     env: {
       ASSETS: {
+        // Mirrors Cloudflare Pages asset serving: extensionless URLs resolve
+        // to the .html file; requesting an .html path directly would 308.
         fetch: async (request) => {
           const path = new URL(request.url).pathname;
+          const filePath = path === "/research" ? "/research.html" : path;
           try {
-            const body = await readFile(new URL(`public${path}`, ROOT), "utf8");
+            const body = await readFile(new URL(`public${filePath}`, ROOT), "utf8");
             return new Response(body, {
               status: 200,
-              headers: { "content-type": path.endsWith(".md") ? "text/markdown; charset=utf-8" : "text/html; charset=utf-8" },
+              headers: { "content-type": filePath.endsWith(".md") ? "text/markdown; charset=utf-8" : "text/html; charset=utf-8" },
             });
           } catch {
             return new Response("not found", { status: 404 });
@@ -1694,20 +1697,25 @@ test("/research serves its static HTML without a directory-redirect loop and hon
     },
   });
 
-  const html = await readFile(new URL("public/research/index.html", ROOT), "utf8");
-  for (const path of ["/research", "/research/"]) {
-    const response = await onRequest(researchAssetContext(path));
-    assert.equal(response.status, 200, path);
-    assert.match(response.headers.get("content-type") ?? "", /^text\/html/, path);
-    assert.equal(await response.text(), html, path);
-  }
+  const html = await readFile(new URL("public/research.html", ROOT), "utf8");
+  const response = await onRequest(researchAssetContext("/research"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
+  assert.equal(await response.text(), html);
 
-  const md = await readFile(new URL("public/research/index.md", ROOT), "utf8");
+  // The canonical URL is slash-free: /research/ redirects to it instead of
+  // looping (the asset server 308s /research → /research/ for directories;
+  // research is a single research.html file, so the slash-strip rule wins).
+  const slashed = await onRequest(researchAssetContext("/research/"));
+  assert.equal(slashed.status, 308);
+  assert.equal(slashed.headers.get("location"), "https://octocounts.com/research");
+
+  const md = await readFile(new URL("public/research.md", ROOT), "utf8");
   for (const path of ["/research?format=md", "/research.md"]) {
-    const response = await onRequest(researchAssetContext(path));
-    assert.equal(response.status, 200, path);
-    assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
-    assert.equal(await response.text(), md, path);
+    const mdResponse = await onRequest(researchAssetContext(path));
+    assert.equal(mdResponse.status, 200, path);
+    assert.match(mdResponse.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
+    assert.equal(await mdResponse.text(), md, path);
   }
 
   const bot = await onRequest(researchAssetContext("/research", "ClaudeBot/1.0"));

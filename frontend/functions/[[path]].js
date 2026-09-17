@@ -46,21 +46,6 @@ export async function onRequest(context) {
     return Response.redirect(target, 308);
   }
 
-  // /research is a static article pair whose asset lives at
-  // /research/index.html. The asset server 308s the directory URL
-  // /research → /research/, which the slash-strip rule below would 308
-  // straight back — serve the asset directly instead. Markdown twins
-  // (.md / ?format=md / retrieval-bot UA) fall through to the research
-  // markdown branch below, which mirrors the docs twins.
-  if (
-    (url.pathname === "/research" || url.pathname === "/research/") &&
-    !url.pathname.endsWith(".md") &&
-    url.searchParams.get("format") !== "md" &&
-    (context.env.AI_MARKDOWN_UA === "0" || !isAiRetrievalBot(context.request.headers.get("user-agent")))
-  ) {
-    return context.env.ASSETS.fetch(new Request(new URL("/research/index.html", url).toString(), context.request));
-  }
-
   // Every canonical URL on this site is extensionless and slash-free (see
   // STATIC_SITEMAP_ENTRIES and every canonical: below). Without this, dynamic
   // routes like /github/:owner/:repo/ and /compare/:slug/ served 200s instead
@@ -178,8 +163,8 @@ export async function onRequest(context) {
     return docsMarkdownResponse(context, parts[1], { uaOnly: aiMarkdown && !markdownRequested });
   }
 
-  // /research is a static article pair (public/research/index.html plus its
-  // pre-generated index.md), served through the function — like the docs
+  // /research is a static article pair (public/research.html plus its
+  // pre-generated research.md), served through the function — like the docs
   // articles — so ?format=md and retrieval-bot requests get a guaranteed
   // text/markdown type instead of relying on the bare .md asset.
   if (parts[0] === "research" && parts.length === 1 && (markdownRequested || aiMarkdown)) {
@@ -225,7 +210,7 @@ async function docsMarkdownResponse(context, slug, options = {}) {
 
 async function researchMarkdownResponse(context, options = {}) {
   const url = new URL(context.request.url);
-  url.pathname = "/research/index.md";
+  url.pathname = "/research.md";
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
