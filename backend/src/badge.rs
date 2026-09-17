@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{ConnectInfo, Extension, Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
@@ -12,6 +12,7 @@ use crate::{
     api::AppState,
     coordinator::{job_is_finished, AnalysisCoordinator},
     models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider},
+    ratelimit::client_ip,
     repo_history::ensure_repo_history,
 };
 
@@ -22,36 +23,105 @@ pub(crate) struct BadgeParams {
     badge_type: Option<String>,
 }
 
+/// The per-IP check every badge handler runs before any cache-miss work.
+/// Cached responses stay unthrottled: only requests that could trigger a full
+/// analysis spend a token, which bounds the badge endpoint as an analysis
+/// amplifier without choking README renders.
+async fn check_badge_quota(state: &AppState, ip: Option<std::net::IpAddr>, params: &BadgeParams) -> Option<Response> {
+    let ip = ip?;
+    if state.rate_limits.badge.check(&ip).is_ok() {
+        return None;
+    }
+    // A limited badge renders as the error glyph and asks the fetcher (GitHub
+    // camo re-fetches README images) to come back later.
+    Some(
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [
+                (header::CONTENT_TYPE, "image/svg+xml"),
+                (header::RETRY_AFTER, "60"),
+                (header::CACHE_CONTROL, "no-cache, no-store"),
+            ],
+            render_error_for_params(params),
+        )
+            .into_response(),
+    )
+}
+
 pub async fn badge_default(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: header::HeaderMap,
     Path((owner, repo)): Path<(String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, None, false, params).await
+    serve_badge(
+        state,
+        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        owner,
+        repo,
+        None,
+        false,
+        params,
+    )
+    .await
 }
 
 pub async fn badge_branch(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: header::HeaderMap,
     Path((owner, repo, branch)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(branch), false, params).await
+    serve_badge(
+        state,
+        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        owner,
+        repo,
+        Some(branch),
+        false,
+        params,
+    )
+    .await
 }
 
 pub async fn badge_tag(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: header::HeaderMap,
     Path((owner, repo, tag)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(tag), true, params).await
+    serve_badge(
+        state,
+        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        owner,
+        repo,
+        Some(tag),
+        true,
+        params,
+    )
+    .await
 }
 
 pub async fn badge_commit(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: header::HeaderMap,
     Path((owner, repo, sha)): Path<(String, String, String)>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
-    serve_badge(state, owner, repo, Some(sha), true, params).await
+    serve_badge(
+        state,
+        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        owner,
+        repo,
+        Some(sha),
+        true,
+        params,
+    )
+    .await
 }
 
 /// `owner:repo:ref:badge_type:lang` — everything that can change the rendered
@@ -77,6 +147,7 @@ fn badge_cache_key(
 
 async fn serve_badge(
     state: AppState,
+    ip: Option<std::net::IpAddr>,
     owner: String,
     repo: String,
     ref_name: Option<String>,
@@ -99,6 +170,10 @@ async fn serve_badge(
     let cache_key = badge_cache_key(&owner, &repo, ref_name.as_deref(), &params);
     if let Some(svg) = svg_cache.get(&cache_key).await {
         return svg_response(svg, cache);
+    }
+
+    if let Some(limited) = check_badge_quota(&state, ip, &params).await {
+        return limited;
     }
 
     let request = AnalyzeRequest {
@@ -532,11 +607,29 @@ fn single_badge_svg(label: &str, value: &str, color: &str) -> String {
 /// interactive report-page chart only).
 pub async fn star_history_badge(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: header::HeaderMap,
     Path((owner, repo)): Path<(String, String)>,
 ) -> Response {
     let cache_key = format!("star-history-svg:{owner}:{repo}");
     if let Some(svg) = state.caches.badge_svg.get(&cache_key).await {
         return svg_response(svg, "public, s-maxage=3600, stale-while-revalidate=86400");
+    }
+
+    // The first request for a repo triggers the star backfill, so it pays a
+    // quota token like every other badge cache miss.
+    let params = BadgeParams {
+        lang: None,
+        badge_type: None,
+    };
+    if let Some(limited) = check_badge_quota(
+        &state,
+        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        &params,
+    )
+    .await
+    {
+        return limited;
     }
 
     let (history, current_stars, _, _, _, _) =

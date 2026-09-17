@@ -90,7 +90,7 @@ impl Bucket {
     }
 }
 
-/// The two knobs `/api/analyze` is limited by.
+/// The knobs the stateful endpoints are limited by.
 #[derive(Clone)]
 pub struct RateLimits {
     /// The everyday analyze limit: 10 requests/minute with a burst of 5.
@@ -103,6 +103,12 @@ pub struct RateLimits {
     /// share one modest quota to bound how much abuse a single IP can push
     /// through them.
     pub github_auth: RateLimiter,
+    /// `/badge/*` has no limiter-shaped abuse surface of its own (most badge
+    /// hits are served from the SVG cache or the CDN), but a cache miss can
+    /// trigger a full archive download + count. README renderers fetch through
+    /// GitHub camo from a small set of shared IPs, so this bucket is much
+    /// looser than `analyze`: a 60-badge burst, refilling at 120/minute.
+    pub badge: RateLimiter,
 }
 
 impl RateLimits {
@@ -111,6 +117,7 @@ impl RateLimits {
             analyze: RateLimiter::per_minute(5, 10),
             force_refresh: RateLimiter::per_minute(2, 2),
             github_auth: RateLimiter::per_minute(3, 5),
+            badge: RateLimiter::per_minute(60, 120),
         }
     }
 }

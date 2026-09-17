@@ -136,6 +136,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/popular", get(seo::popular))
         .route("/api/seo/monoliths", get(seo::monoliths))
         .route("/api/seo/sitemap", get(seo::sitemap))
+        .route("/api/seo/repos-indexable", post(seo::repos_indexable))
         .route("/api/seo/related", get(seo::related))
         .route("/api/seo/repo-history", get(repo_history::repo_history))
         .route("/api/auth/github/extension-token", post(oauth::github_extension_token_exchange))

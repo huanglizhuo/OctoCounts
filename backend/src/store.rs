@@ -1352,6 +1352,62 @@ impl Store {
             .collect()
     }
 
+    /// Which of the requested provider/owner/repo pairs have at least one
+    /// cached report, in an unspecified order.
+    ///
+    /// One query answering the Pages Function's compare-sitemap existence
+    /// check, which used to fan out to one HTTPS report fetch per repository
+    /// (about 200 subrequests against a Cloudflare Workers budget of 50 on the
+    /// free plan). The VALUES join keeps it a single round trip over the
+    /// `reports` columns only.
+    pub async fn repos_with_reports(
+        &self,
+        wanted: &[(RepositoryProvider, String, String)],
+    ) -> anyhow::Result<Vec<(RepositoryProvider, String, String)>> {
+        if wanted.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut sql = String::from("WITH wanted(provider, owner, repo) AS (VALUES ");
+        for index in 0..wanted.len() {
+            if index > 0 {
+                sql.push_str(", ");
+            }
+            let base = index * 3 + 1;
+            sql.push_str(&format!(
+                "(${base}::text, ${}::text, ${}::text)",
+                base + 1,
+                base + 2
+            ));
+        }
+        sql.push_str(
+            ") SELECT DISTINCT w.provider, w.owner, w.repo \
+             FROM wanted w \
+             JOIN reports r ON r.provider = w.provider AND r.owner = w.owner AND r.repo = w.repo",
+        );
+
+        let mut query = sqlx::query(&sql);
+        for (provider, owner, repo) in wanted {
+            query = query
+                .bind(provider_to_str(provider))
+                .bind(owner)
+                .bind(repo);
+        }
+        let rows = query.fetch_all(&self.pool).await?;
+
+        rows.into_iter()
+            .map(|row| {
+                let provider: String = row.try_get("provider")?;
+                Ok((
+                    provider_from_str(&provider)
+                        .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
+                    row.try_get("owner")?,
+                    row.try_get("repo")?,
+                ))
+            })
+            .collect()
+    }
+
     /// Repository identity plus last-modified date for every distinct repository,
     /// newest first.
     ///

@@ -358,6 +358,75 @@ pub(crate) fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError
     })
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ReposIndexableRequest {
+    /// Repositories to check, most naturally taken from the compare registry.
+    pub repos: Vec<RepoPair>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RepoPair {
+    pub owner: String,
+    pub repo: String,
+    /// Optional; defaults to github, which is the only provider whose report
+    /// pages the site serves.
+    pub provider: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IndexedRepo {
+    pub provider: String,
+    pub owner: String,
+    pub repo: String,
+}
+
+/// `POST /api/seo/repos-indexable` — which of the requested repositories have
+/// at least one cached report. The Pages Function's /sitemap.xml used to ask
+/// this one report fetch at a time (~200 subrequests per cold sitemap against
+/// a Workers budget that starts at 50 on the free plan); now it asks once.
+pub async fn repos_indexable(
+    State(state): State<AppState>,
+    Json(request): Json<ReposIndexableRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    if request.repos.len() > 1_000 {
+        return Err(ApiError::new(
+            axum::http::StatusCode::BAD_REQUEST,
+            "too_many_repos",
+            "at most 1000 repositories per request",
+        ));
+    }
+
+    let wanted = request
+        .repos
+        .iter()
+        .map(|pair| {
+            Ok((
+                parse_provider(pair.provider.as_deref().unwrap_or("github"))?,
+                pair.owner.clone(),
+                pair.repo.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    let found = state
+        .coordinator
+        .store()
+        .repos_with_reports(&wanted)
+        .await
+        .map_err(ApiError::internal)?;
+
+    let repos: Vec<IndexedRepo> = found
+        .into_iter()
+        .map(|(provider, owner, repo)| IndexedRepo {
+            provider: provider_to_str(&provider).to_string(),
+            owner,
+            repo,
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({ "repos": repos })))
+}
+
 fn pagination(query: PageQuery) -> (i64, i64, i64) {
     let page = query.page.unwrap_or(1).max(1);
     let limit = query.limit.unwrap_or(24).clamp(1, 100);

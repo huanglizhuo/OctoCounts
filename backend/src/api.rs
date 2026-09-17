@@ -182,7 +182,7 @@ pub async fn report(
 pub async fn repo_info(
     State(state): State<AppState>,
     Query(params): Query<RepoInfoQuery>,
-) -> Result<Json<serde_json::Value>, ApiError> {
+) -> Result<Response, ApiError> {
     let provider = match params.provider.as_deref() {
         Some("gitlab") | Some("gitLab") | Some("GitLab") => RepositoryProvider::GitLab,
         _ => RepositoryProvider::GitHub,
@@ -202,7 +202,14 @@ pub async fn repo_info(
         .repo_stars(&provider, &params.owner, &params.repo)
         .await;
 
-    Ok(Json(serde_json::json!({ "stars": stars })))
+    // One minute of shared caching: concurrent share-card renders of the same
+    // repo dedupe at the CDN instead of each hitting the GitHub API, while a
+    // minute-old star count is indistinguishable from a live one here.
+    Ok((
+        [(header::CACHE_CONTROL, "public, max-age=60")],
+        Json(serde_json::json!({ "stars": stars })),
+    )
+        .into_response())
 }
 
 #[derive(Debug, serde::Deserialize)]
