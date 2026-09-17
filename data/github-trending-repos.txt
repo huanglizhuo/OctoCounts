@@ -1,15 +1,21 @@
-# GitHub Trending daily snapshot generated 2026-09-16T07:39:45.455Z
+# GitHub Trending daily snapshot generated 2026-09-17T07:36:37.941Z
 alibaba/open-code-review
+cloudflare/security-audit-skill
 JustVugg/colibri
+abue-ammar/tinycast
+jamiepine/voicebox
+Lakr233/vphone-cli
+anthropics/knowledge-work-plugins
 ever-co/ever-gauzy
-debpalash/VoiceStudio
-Homebrew/BrewUI
-melgarafael/DeskcommCRM
-alphaXiv/OpenResearch
+ankitects/anki
 NationalSecurityAgency/ghidra
-danny-avila/LibreChat
-pacifio/atlas
-MG1937/ASC
+anthropics/claude-code
+roboflow/supervision
+alphaXiv/OpenResearch
+supabase/supabase
+rlaope/oh-my-hermes
+Tencent/WeKnora
+SnailSploit/Claude-Red
+multimodal-art-projection/YuE
 addyosmani/agent-skills
-tonhowtf/omniget
-earendil-works/pi
+cline/cline
