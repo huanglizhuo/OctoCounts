@@ -74,8 +74,9 @@ Create a fine-grained personal access token:
 
 For host-native runs:
 ```bash
+cd backend
 export GITHUB_TOKEN=github_pat_your_token_here
-./run-local.sh
+DATABASE_URL=postgres://octocount:octocount@127.0.0.1:5432/octocounts cargo run
 ```
 
 For Docker Compose, put it in `.env`:
@@ -205,8 +206,9 @@ Cut a release by pushing a version tag (`git tag v0.4.0 && git push origin v0.4.
 which also tags the images `:v0.4.0` and `:latest`.
 
 **2. Deploy — from the private `sloc-infra` repo.**
-The running stack (Caddy + Cloudflare Tunnel + this API, and the librivox service)
-lives in `huanglizhuo/sloc-infra`. It pulls the pinned GHCR images — no `docker build`
+The running stack (Caddy + Cloudflare Tunnel + this API, and other
+services in the `sloc-infra` compose file) lives in `huanglizhuo/sloc-infra`.
+It pulls the pinned GHCR images — no `docker build`
 on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 `sloc-infra/secrets/prod.env` and run `make deploy`. Roll back by setting the tag back.
 
@@ -219,8 +221,8 @@ on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 |---|---|---|
 | `GITHUB_TOKEN` | — | Strongly recommended |
 | `ANALYSIS_CONCURRENCY` | `2` | Max parallel analysis jobs |
-| `DATABASE_URL` | required | Postgres connection string, for example a Neon pooled URL |
-| `BIND_ADDR` | `0.0.0.0:8080` | Backend listen address |
+| `DATABASE_URL` | required | Postgres connection string, for example `postgres://user:password@host:5432/octocounts` |
+| `BIND_ADDR` | `127.0.0.1:8080` | Backend listen address; Docker Compose overrides this to `0.0.0.0:8080` |
 | `CLEANUP_INTERVAL_SECONDS` | `3600` | Storage cleanup cadence |
 | `JOB_RETENTION_COMPLETED_DAYS` | `1` | Retain completed/failed jobs this many days |
 | `JOB_RETENTION_STALE_HOURS` | `6` | Retain stale queued/running jobs this many hours |
@@ -302,11 +304,6 @@ can't be fixed by a code change — apply it by hand:
    and the same for a `/compare/*` URL — expect `HIT` on the second request
    within an hour, matching `/github/*` today.
 
-To stop:
-```bash
-docker compose down
-```
-
 ### Putting it behind a reverse proxy
 
 For a public domain, put Caddy or Nginx in front:
@@ -315,3 +312,8 @@ For a public domain, put Caddy or Nginx in front:
 - Route everything else → `web:80`
 
 Or expose them under separate subdomains — whatever your ops setup prefers. OctoCounts doesn't care.
+
+In production today the frontend is hosted on Cloudflare Pages and the API is
+reached through a Cloudflare Tunnel back to the VPS backend (see the private
+`sloc-infra` repo), so this section only applies to self-hosted single-machine
+`docker compose` deployments.

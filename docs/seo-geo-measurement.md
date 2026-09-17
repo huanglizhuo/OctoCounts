@@ -13,17 +13,24 @@
 | `ai_visit` | Landing visit whose `document.referrer` host matches a known AI answer host (`chatgpt.com`, `openai.com`, `perplexity.ai`, `pplx.ai`, `gemini.google.com`, `copilot.microsoft.com`, `claude.ai`, `kimi.com`) | `source` (chatgpt/perplexity/gemini/copilot/claude/kimi), `path` | Once per source per session (`sessionStorage` `octocounts.ai_visit`); storage-blocked browsers skip the event rather than spam it | Total AI citations (unclicked citations are invisible); AI traffic without referrer | 
 | `analyze_submitted` | User submits an analysis | `provider`, plus runner context | Per submission | That an analysis succeeded |
 | `analyze_completed` | An analysis returns a report | `provider`, cached flag optional | Per completion | That every visit analyzed something |
-| `extension_store_click` | Click on any store install link | `store` (chrome/edge/firefox), `placement` (`hero`, `topbar`, `extension_section`, …) | Per click, no dedup by design | That the user installed or kept the extension |
+| `extension_store_click` | Click on any store install link | `store` (chrome/edge/firefox), `placement` (`hero`, `topbar`, `extension_section`, `extension_page`, …) | Per click, no dedup by design | That the user installed or kept the extension |
 | `report_url_copied` / `share_clicked` | Copy/share actions on reports | share type / target | Per action | Reach of the shared link |
 | `report_citation_copied` | Copy-citation button on report pages (SG-04) | `provider` | Per click | That the citation was pasted or read anywhere |
+| `report_text_copied` / `report_json_copied` | Copy text / JSON export on report pages | `provider` | Per successful copy | Downstream usage |
+| `compare_run` | User clicks Run on the compare / diff page | `mode` (repos/diff), `provider` / `leftProvider` + `rightProvider` | Per click | That the comparison succeeded or was shared |
+| `recent_chip_clicked` | Click a recent-analysis chip on the home page | `provider` | Per click | — |
+| `sample_chip_clicked` | Click a sample repository chip on the home page | `sample`, `provider` | Per click | — |
+| `similar_repo_clicked` | Click a similar-repository card on report pages | `provider`, `placement` (`report_similar`), `target` (`owner/repo`) | Per click | — |
 | `png_exported`, `gif_exported`, `badge_markdown_copied`, `embed_snippet_copied` | Export/copy actions | context of the builder | Per action | Downstream usage |
 
 Known limitations to verify before relying on early-fire events (SG-10 step 5):
 the analytics script is deferred, so an event fired before the script loads may
 be dropped; confirm with a browser test before adding a queue.
 
-Planned additions for /extension (SG-03) must extend this table — `placement:
-"extension_page"` plus `page_type` — rather than renaming existing events.
+Landed for /extension (SG-03): the page is live and its store links fire
+`extension_store_click` with `placement: "extension_page"`
+(`frontend/src/pages/marketing.tsx` via `StoreLink`), extending the existing
+event rather than renaming it.
 
 ## 2. Source classification
 
@@ -43,7 +50,7 @@ the templates below and mark unavailable cells as *unknown*, never as zero.
 
 - **Google Search Console** — per 28 days: page, queries, impressions, clicks,
   CTR, position. Filter groups: `/compare/*`, `/github/*`, `/docs/*`, `/`,
-  `/extension` (once live).
+  `/extension`.
 - **Bing Webmaster Tools** — same fields plus *AI Performance* (citations,
   AI-expanded queries; fields as the account exposes them).
 - **Web analytics (umami; plausible loader also wired)** — visits by page and
@@ -60,7 +67,7 @@ the templates below and mark unavailable cells as *unknown*, never as zero.
 
 1. Landing (by source class) → `analyze_completed` (same session) →
    `extension_store_click` (same session).
-2. Landing on `/extension` (once live) → `extension_store_click`.
+2. Landing on `/extension` → `extension_store_click`.
 3. Installs/active users: store aggregates only, reported beside — never
    joined to — the click funnel. No per-user cross-site attribution is claimed.
 
