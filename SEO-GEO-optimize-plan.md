@@ -1,12 +1,10 @@
 # OctoCounts SEO / GEO 优化执行计划
 
 - 制定日期：2026-09-08。
-- 状态（2026-09-08 第二轮，本地验证通过，未部署）：
-  - 已实施并通过本地验证：SG-01、SG-02、SG-03、SG-05（首批 5 页）、SG-07、SG-08（仓库侧）、SG-10（事件字典与测量文档）。
-  - SG-04 后端字段扩展已交付（2026-09-16，本地验证通过，未部署）：Rust 工具链已安装，backend SeoReport 现在输出 analysisKey（即规范化有效配置的稳定摘要，承担 optionsHash 角色）、analysisOptions（统计配置快照）与 snapshotUrl（commit 固定 + ?analysis= 的可复现链接）；citation 增加配置简述，历史报告配置缺失时标注未知而非默认。cargo test 183 通过（含新增 seo/store 单测；DB 门禁的 golden/store 集成测试本机无 TEST_DATABASE_URL 跳过，seo_* fixtures 已按新输出精确更新）。frontend 侧 reportSummaryJson / JSON-LD / Markdown 消费接入仍属 SG-04 剩余前端工作。
-  - SG-06 试点已完成（2026-09-08）：2 仓库 × 4 配置、8/8 成功、零失败，单次 1.2–1.9 秒；核心发现：排除测试使 code 行数降 26.6%（vite）至 47.7%（react），排除文档/生成文件在两样本几乎无命中（规则覆盖面信息）。研究方案、manifest 模板、采集脚本、原始样本与报告见 research/filtering-effects/ 与 scripts/collect-research-sample.mjs。全量 10–20 仓库预计约 80 次请求、数分钟串行耗时，待按试点实测成本二次批准。
-  - SG-09 按用户决策暂缓（2026-09-08）：待搜索后台数据证明中文需求后启动；计划原文允许保留为后续任务。
-  - 用户追加要求已完成：GitLab 支持与文案已从全部前端与公开文案中移除（GitHub-only）；后端 parse_repo_url 已在本仓库代码中拒绝 gitlab.com（cargo test 178 通过，含 rejects_gitlab_urls；部署待发布流程）。存储层保留对历史 provider 行的容忍。
+- 状态（2026-09-17，第三轮已合并并部署，commit 395b375、54b0063、1722612）：
+  - 第三轮已部署（2026-09-16/17）：全站答案胶囊（首页/9 个 docs/101 个对比页/报告页，SSR + markdown + 客户端同源）；对比页编辑内容全量 5/101 → **101/101**（compare-editorial.js）；/research 原创研究页上线（frontend/public/research.html + research.md + research/pilot-samples.jsonl）；SG-04 前端接入完成（报告页 "Reproduce this exact report and configuration" 链接，reportSummaryJson/JSON-LD/markdown 消费 analysisKey/analysisOptions/snapshotUrl，新增 2 个测试）；docs 可见日期与 JSON-LD/manifest 统一；robots.txt 显式放行 Bytespider；api.html 重构为问题式标题 + FAQPage schema；docs 页补 BreadcrumbList + Speakable；Person 补 jobTitle/image。
+  - 遗留不变：SG-08 生产验证 5 项未做；SG-09 中文页按用户决策暂缓；SG-10 测量基线未建（GSC/Bing/umami 无访问权）。
+  - SG-06 试点样本（2026-09-08）：2 仓库 × 4 配置、8/8 成功、零失败，单次 1.2–1.9 秒；核心发现：排除测试使 code 行数降 26.6%（vite）至 47.7%（react），排除文档/生成文件在两样本几乎无命中。扩样 10–20 仓库（约 80 次请求、数分钟串行耗时）仍待按试点实测成本二次批准。
   - 发布后效果观察（§14）仍未开始；本地测试不能证明收录与排名。
 - 范围：将本轮 10 项 SEO / GEO 建议转化为可开发、可验证、可衡量的任务。
 - 执行分工：按照当前协作约定，后续具体实现交由 GPT-5.6 Terra subagent；当前主模型负责方案复核、代码审查和独立验收。内容事实核实、研究编辑与后台数据接入属于相应任务的一部分。
@@ -164,6 +162,8 @@
 
 ## 6. SG-04：补全报告引用、统计口径和可复现性
 
+> ✅ 前后端均已交付（后端 2026-09-16；前端接入随第三轮部署 2026-09-16/17）：报告页含 "Reproduce this exact report and configuration" 链接，reportSummaryJson/JSON-LD/markdown 消费 analysisKey/analysisOptions/snapshotUrl，新增 2 个测试。
+
 ### 已确认问题
 
 报告已有计数、生成日期、ref、commit 和引擎版本，但当前 SeoReport 与 reportSummaryJson 没有完整输出分析选项。比较方法说明仅指向通用文档，不能证明每份结果实际使用了哪些排除项。
@@ -201,6 +201,8 @@
 
 ## 7. SG-05：提升重点对比页的内容质量
 
+> ✅ 全量扩量已完成（2026-09-16，随第三轮部署）：编辑内容覆盖 101/101 个对比页（首批 5 页 → 全量，compare-editorial.js）。本节步骤保留作为内容与验收原则记录。
+
 ### 落地步骤
 
 1. 首批选择 5 个页面；优先按真实曝光、访问及产品相关性排序。无数据时可先选 React vs Vue、Vite vs webpack 等现有页面作为编辑试点，不能声称它们搜索量最高。
@@ -231,6 +233,8 @@
 发布后比较这些页面与未改动页面的曝光、有效访问和后续操作变化；记录更新日期及观察窗口，不将变化直接归因于单项优化。失效的解释可单独撤回，不必删除仍有效的数据报告。
 
 ## 8. SG-06：发布一份可复现的原创数据研究
+
+> ✅ 试点已发布为 /research（2026-09-16，随第三轮部署：frontend/public/research.html + research.md + research/pilot-samples.jsonl）。扩样 10–20 仓库仍待按试点实测成本二次批准。
 
 ### 首篇建议
 
@@ -424,7 +428,7 @@ analytics.ts 已定义 ai_visit、analyze_submitted、analyze_completed、extens
 |---|---|---|---|
 | A：修复与基线 | SG-01、SG-02；启动 SG-10 | 对比正文保留、产品事实清单、基线与事件字典 | 初始 HTML 与浏览器一致；事实有依据；未改变已有 ref 行为 |
 | B：引用与发现 | SG-04、SG-07、SG-08 | 口径与快照、真实更新时间、抓取格式验证 | 数值与配置一致；日期不虚刷；格式缓存不污染 |
-| C：安装与重点内容 | SG-03、SG-05；完善 SG-10 | 扩展落地页、5 个重点比较页、转化统计 | 安装链路正确；正文有独立价值；点击不冒充安装 |
+| C：安装与重点内容 | SG-03、SG-05；完善 SG-10 | 扩展落地页、101 个比较页编辑内容全量、转化统计 | 安装链路正确；正文有独立价值；点击不冒充安装 |
 | D：原创研究与语言 | SG-06；按投入意愿启动 SG-09 | 研究和数据包、首批中文页面 | 独立复算；样本限制；语言页面可索引 |
 | E：效果复盘 | 覆盖所有已发布任务 | 发布记录及前后观察报告 | 按真实数据决定扩展、修订或停止实验 |
 
@@ -475,15 +479,15 @@ analytics.ts 已定义 ai_visit、analyze_submitted、analyze_completed、extens
 
 ### 16.1 本地证据入口
 
-以下链接指向本次审查时的真实文件；行号随实施变化后应重新定位。新增文件建议均在对应任务中明确标为建议新增。
+以下链接指向本次审查时的真实文件；行号已删除，定位以当前版本为准（行号随实施变化后应重新定位）。新增文件建议均在对应任务中明确标为建议新增。
 
-- [具体比较页 SSR](</Users/bytedance/traeProjects/OctoCounts/frontend/functions/[[path]].js:1102>) 与 [客户端 ComparePage](/Users/bytedance/traeProjects/OctoCounts/frontend/src/pages/marketing.tsx:274)。
-- [首页 SSR 产品描述](</Users/bytedance/traeProjects/OctoCounts/frontend/functions/[[path]].js:838>)、[产品支持矩阵](/Users/bytedance/traeProjects/OctoCounts/frontend/public/llms-full.txt:30) 与 [方法说明](/Users/bytedance/traeProjects/OctoCounts/frontend/public/docs/methodology.html:124)。
-- [报告 JSON 摘要](</Users/bytedance/traeProjects/OctoCounts/frontend/functions/[[path]].js:1520>) 与 [后端 SeoReport](/Users/bytedance/traeProjects/OctoCounts/backend/src/seo.rs:34)。
-- [比较页 Sitemap 条目](</Users/bytedance/traeProjects/OctoCounts/frontend/functions/[[path]].js:1074>) 与 [批量更新日期脚本](/Users/bytedance/traeProjects/OctoCounts/scripts/refresh-llms-lastupdated.mjs:1)。
-- [现有来源和转化事件](/Users/bytedance/traeProjects/OctoCounts/frontend/src/analytics.ts:15)、[语言选择逻辑](/Users/bytedance/traeProjects/OctoCounts/frontend/src/i18n/index.ts:29) 与 [爬虫规则](/Users/bytedance/traeProjects/OctoCounts/frontend/public/robots.txt:1)。
+- [具体比较页 SSR](frontend/functions/[[path]].js)（SSR 注入与比较 view model）与 [客户端 ComparePage](frontend/src/pages/marketing.tsx)。
+- [首页 SSR 产品描述](frontend/functions/[[path]].js)、[产品支持矩阵](frontend/public/llms-full.txt) 与 [方法说明](frontend/public/docs/methodology.html)。
+- [报告 JSON 摘要](frontend/functions/[[path]].js)（reportSummaryJson / JSON-LD / markdown 输出）与 [后端 SeoReport](backend/src/seo.rs)。
+- [比较页 Sitemap 条目](frontend/functions/[[path]].js) 与 [批量更新日期脚本](scripts/refresh-llms-lastupdated.mjs)。
+- [现有来源和转化事件](frontend/src/analytics.ts)、[语言选择逻辑](frontend/src/i18n/index.ts) 与 [爬虫规则](frontend/public/robots.txt)。
 
-Codebase Memory 核对：项目 OctoCounts，根路径 /Users/bytedance/traeProjects/OctoCounts，状态 ready；本轮 metadata generation 为 2026-09-08T06:46:24Z，recorded_at 为 2026-09-08T07:05:03Z。相关结构代码路径返回 metadata_match；图工具通过已安装 CLI 调用。上一轮检查发现 frontend/index.html 和 FAQ HTML 有局部解析缺口，已使用相应源码范围核对；robots/llms 等文本直接读取。图覆盖是尽力而为的信号，不构成全库完整性证明。
+Codebase Memory 核对：项目 OctoCounts，根路径 /Users/lizhuo/owork/sloc，状态 ready；本轮 metadata generation 为 2026-09-08T06:46:24Z，recorded_at 为 2026-09-08T07:05:03Z。相关结构代码路径返回 metadata_match；图工具通过已安装 CLI 调用。上一轮检查发现 frontend/index.html 和 FAQ HTML 有局部解析缺口，已使用相应源码范围核对；robots/llms 等文本直接读取。图覆盖是尽力而为的信号，不构成全库完整性证明。
 
 ### 16.2 外部官方依据
 

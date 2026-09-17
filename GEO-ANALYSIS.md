@@ -1,5 +1,7 @@
 # OctoCounts GEO/SEO 分析报告
 
+> ⚠️ **历史快照（2026-09-16）**：除 SG-10 测量基线外，本文 §8/§10/§12 所列问题均已于 2026-09-16/17 修复并部署（见 SEO-GEO-optimize-plan.md 头部状态）。品牌提及分析（§5）与权威建设路线（§11）仍是有效的中长期计划。
+
 生成日期:2026-09-16。审计范围:仓库内 frontend(静态资产 + Cloudflare Pages Functions SSR)、docs、scripts;线上行为(Cloudflare 规则、Bing/GSC 数据)无法从仓库验证的部分已标注。
 
 ---
@@ -11,7 +13,7 @@
 | 技术可访问性(robots/llms/SSR/sitemap) | 90 | robots 全面放行 AI 爬虫、llms.txt 结构完整、关键页边缘 SSR;扣分项:Bytespider 未表态、生产验证未做 |
 | 结构化数据 | 85 | 11 文件 33 处 JSON-LD,类型齐全;扣分项:静态 docs 页缺 BreadcrumbList/Speakable |
 | 段落可引用性 | 75 | FAQ 答案块质量高;扣分项:缺页首 40-75 词"答案胶囊"、api.html 结构化最弱 |
-| 内容覆盖率 | 55 | 编辑内容仅覆盖 5/103 对比页;研究试点未发布;扣分最重 |
+| 内容覆盖率 | 55 | 编辑内容仅覆盖 5/101 对比页;研究试点未发布;扣分最重 |
 | 新鲜度 | 65 | manifest 机制防日期虚刷(好),但正文可见 "Updated" 与 JSON-LD 系统性不一致 |
 | 权威/品牌信号 | 60 | 作者署名+GitHub+商店外链齐全;缺 YouTube、Reddit/Wikipedia 提及、原创公开研究 |
 | 测量闭环 | 30 | GSC/Bing/umami 全部 "unknown",基线未建,无法验证任何优化效果 |

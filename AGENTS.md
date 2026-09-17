@@ -11,7 +11,7 @@ or reading whole source files to discover code.
 
 - MCP server: `codebase-memory-mcp`.
 - Graph project: **`OctoCounts`** (case-sensitive; pass `project: "OctoCounts"`).
-- Local checkout: `/Users/bytedance/traeProjects/OctoCounts`.
+- Local checkout: `/Users/lizhuo/owork/sloc`.
 - Index mode: `full`, including frontend, backend, extension, scripts, and docs
   that the indexer supports; existing `.gitignore` exclusions remain effective.
 - Local MCP executable: `/Users/bytedance/.local/bin/codebase-memory-mcp`.

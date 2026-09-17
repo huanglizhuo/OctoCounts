@@ -28,6 +28,7 @@ Install the extension for instant stats directly on GitHub, or use the web app f
 | [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
 | [README badges](#badges) | Add a live SLOC badge that links to a permanent report page. |
 | [Launch kit](https://octocounts.com/launch-kit) | Copy product descriptions, launch posts, links, screenshots, and badges. |
+| [Research](https://octocounts.com/research) | Original research: a pilot study on how test/doc/generated file filtering affects SLOC counts. |
 
 ## Preview
 
@@ -56,7 +57,7 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 |---|---|
 | Backend | Rust · Axum · Tokio · SQLx · Postgres · tokei |
 | Frontend | React · TypeScript · Vite · TanStack Query |
-| Infra | Docker Compose (dev + prod configs) |
+| Infra | Cloudflare Pages (Pages Functions SSR) · GHCR image + sloc-infra dual VPS (VPS-A/VPS-B) + Cloudflare Tunnel · Postgres on VPS-B (Neon frozen snapshot as fallback) · Docker Compose (local dev only) |
 
 ## Badges
 
