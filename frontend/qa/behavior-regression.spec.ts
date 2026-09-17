@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-const BASE_URL = "http://127.0.0.1:5173";
+// Overridable so the suite runs against any local dev-server port
+// (5173 is not always free); playwright.config baseURL stays the default.
+const BASE_URL = process.env.QA_BASE_URL ?? "http://127.0.0.1:5173";
 
 function reportFor(repoUrl: string, code: number, options = { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: false, includeTests: false, includeGenerated: false }) {
   const [, owner = "owner", repo = "repo"] = new URL(repoUrl).pathname.split("/");

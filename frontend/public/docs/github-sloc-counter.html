@@ -52,7 +52,7 @@
       "headline": "GitHub SLOC Counter Guide",
       "description": "A practical guide to counting source lines of code in public GitHub repositories with OctoCounts.",
       "datePublished": "2026-06-12",
-      "dateModified": "2026-09-16",
+      "dateModified": "2026-09-17",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -128,7 +128,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/api">API docs</a> / SLOC guide</nav>
     <main>
-      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 17, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub SLOC Counter Guide</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.</p>
       <p class="note">OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.</p>
@@ -161,7 +161,7 @@
         <li>Generated and heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default.</li>
         <li>The report is cached by repository, commit SHA, tokei version, and analysis options.</li>
       </ol>
-      <p>For the full counting policy, cache key, exclusions, limitations, and citation format, see the <a href="/docs/methodology">OctoCounts methodology</a>. Agent-readable context is also available in <a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>.</p>
+      <p>For the full counting policy, cache key, exclusions, limitations, and citation format, see the <a href="/docs/methodology">OctoCounts methodology</a>. Agent-readable context is also available in <a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>. For measured examples of how the exclusion options change the reported numbers, see the <a href="/research">pilot study on SLOC filtering effects</a>.</p>
 
       <h2>Metrics Explained</h2>
       <table>

@@ -49,7 +49,8 @@
   },
   "recent": {
     "label": "recent",
-    "ariaLabel": "Recently analyzed repositories"
+    "ariaLabel": "Recently analyzed repositories",
+    "clear": "Clear history"
   },
   "stickyBar": {
     "ariaLabel": "Report summary",
@@ -59,6 +60,7 @@
   },
   "runner": {
     "title": "Runner",
+    "cancel": "Cancel",
     "status": {
       "idle": "Paste a repository URL and run the analyzer.",
       "queued": "Job accepted. Waiting for an analysis slot.",
@@ -84,7 +86,8 @@
       "resolvedRef": "resolved {{ref}} -> {{sha}}",
       "cacheHit": "cache hit returned",
       "freshReport": "fresh report saved to cache",
-      "languageRows": "{{count}} language rows rendered",
+      "languageRows_one": "{{count}} language row rendered",
+      "languageRows_other": "{{count}} language rows rendered",
       "counted": "counted {{lines}} lines in {{duration}}ms",
       "runningWaiting": "running: the analysis worker is processing this repository ({{elapsed}}s)"
     },
@@ -220,6 +223,7 @@
     "lines": "Code lines"
   },
   "table": {
+    "caption": "Source line counts by language for {{repo}}",
     "language": "Language",
     "files": "files",
     "lines": "lines",
@@ -313,7 +317,8 @@
   },
   "theme": {
     "switchToDay": "Switch to day mode",
-    "switchToNight": "Switch to night mode"
+    "switchToNight": "Switch to night mode",
+    "toggle": "Toggle dark or light theme"
   },
   "error": {
     "privateRepo": "Private repositories are not supported.",
@@ -421,7 +426,8 @@
     "previewAlt": "OctoCounts embed card preview",
     "copy": "copy iframe",
     "snippetAria": "Embed iframe output",
-    "defaultConfigNote": "Embeds show the latest cached default-branch report and do not carry custom analysis options."
+    "defaultConfigNote": "Embeds show the latest cached default-branch report and do not carry custom analysis options.",
+    "languageNote": "The embedded card's language follows each visitor's browser. Append ?lng=en or ?lng=zh to the embed URL to pin a language."
   },
   "embedCard": {
     "ariaLabel": "{{repo}} SLOC summary card",
@@ -460,7 +466,26 @@
     "delta": "Delta",
     "copyUrl": "copy URL",
     "running": "running: analyzing both reports, this can take a minute",
-    "resultPending": "Run a comparison to create a result link."
+    "resultPending": "Run a comparison to create a result link.",
+    "defaultRef": "default",
+    "analysisFailed": "Analysis failed. Wait a few minutes and try again.",
+    "analysisTimedOut": "The comparison is taking too long. Wait a few minutes and try again.",
+    "swap": "Swap left and right repositories",
+    "noSharedLanguages": "The two reports share no languages, so there is no per-language delta to show."
+  },
+  "curatedCompare": {
+    "unavailable": "This comparison is temporarily unavailable. Please try again in a moment, or run a fresh comparison with the tool below.",
+    "missing": "A cached OctoCounts report is not available for both repositories yet. Run the analyses with the tool below, then revisit this page.",
+    "resultsAria": "Comparison results",
+    "aboutAria": "About this comparison",
+    "aboutTitle": "About this comparison",
+    "sourcesLabel": "Sources:",
+    "verified": "Statements verified {{date}}.",
+    "nextSteps": "Evidence and next steps:",
+    "slocReport": "{{repo}} SLOC report",
+    "interactive": "Compare {{left}} and {{right}} interactively",
+    "faqTitle": "Compare FAQ",
+    "relatedAria": "Related OctoCounts pages"
   },
   "diff": {
     "title": "Ref Diff",
@@ -588,7 +613,8 @@
       "mixed": "mixed",
       "code": "code",
       "trendingFallback": "GitHub Trending repository",
-      "starsToday": "+{{count}} stars today · {{total}} total"
+      "starsToday_one": "+{{count}} star today · {{total}} total",
+      "starsToday_other": "+{{count}} stars today · {{total}} total"
     }
   },
   "textReport": {
@@ -643,6 +669,8 @@
     }
   },
   "extensionLanding": {
+    "heroTitle": "See GitHub code statistics in your browser",
+    "heroIntro": "OctoCounts is a free browser extension that adds a SLOC (source lines of code) card to public GitHub repository pages. The card shows the repository's total line count at a glance; clicking it opens a full panel with files, code lines, comment lines, blank lines, and a per-language breakdown — the same counts the OctoCounts web app produces with tokei, pinned to an exact commit.",
     "installTitle": "Install OctoCounts",
     "installSubtitle": "Free, no account, no API token",
     "stepsTitle": "Install in three steps",

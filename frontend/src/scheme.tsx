@@ -71,7 +71,11 @@ export function ThemeSwitch() {
   const { t } = useTranslation();
   const { scheme, setScheme } = useSchemeToggle();
   const isNight = scheme === "matrix";
-  const label = t(isNight ? "theme.switchToDay" : "theme.switchToNight");
+  // Stable accessible name + aria-pressed: a label that changes with state
+  // ("Switch to day mode") contradicts the pressed state announced alongside
+  // it, so screen readers hear both and can't tell which is authoritative.
+  const label = t("theme.toggle");
+  const stateHint = t(isNight ? "theme.switchToDay" : "theme.switchToNight");
   return (
     <button
       className="theme-toggle"
@@ -79,7 +83,7 @@ export function ThemeSwitch() {
       onClick={() => setScheme(isNight ? "paper" : "matrix")}
       aria-label={label}
       aria-pressed={isNight}
-      title={label}
+      title={`${label} — ${stateHint}`}
     >
       {isNight ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
       <span className="visually-hidden">{label}</span>

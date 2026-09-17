@@ -52,6 +52,25 @@ test("legacy documentation .html URLs permanently redirect to extensionless cano
   }
 });
 
+test("every static .html asset path redirects to its extensionless canonical", async () => {
+  for (const [pathname, canonical] of [
+    ["/about.html", "https://octocounts.com/about"],
+    ["/contact.html", "https://octocounts.com/contact"],
+    ["/privacy.html", "https://octocounts.com/privacy"],
+    ["/research.html", "https://octocounts.com/research"],
+    ["/index.html", "https://octocounts.com/"],
+    ["/docs/faq.html?x=1", "https://octocounts.com/docs/faq?x=1"],
+  ]) {
+    const response = await onRequest(requestContext(pathname));
+    assert.equal(response.status, 308, pathname);
+    assert.equal(response.headers.get("location"), canonical, pathname);
+  }
+  // The error document itself is not a canonical page; it must keep serving
+  // with its 404 status instead of redirecting.
+  const errorDoc = await onRequest(requestContext("/404.html"));
+  assert.notEqual(errorDoc.status, 308);
+});
+
 test("legacy launch-kit URLs permanently redirect to the extension guide", async () => {
   for (const [pathname, canonical] of [
     ["/launch-kit", "https://octocounts.com/#extension"],
@@ -159,7 +178,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
 
   assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
   assert.match(html, /preload" as="font" href="\/fonts\/jetbrains-mono-800-latin\.woff2"/);
-  assert.match(html, /<script>document\.documentElement\.dataset\.scheme=/);
+  assert.match(html, /<script>\{let t=null;try\{t=localStorage\.getItem\("octocounts\.theme"\)\}catch\{\}document\.documentElement\.dataset\.scheme=/);
   assert.doesNotMatch(html, /\/boot\.js/);
   assert.doesNotMatch(html, /octocounts-(?:light|dark)-card\.webp" as="image"/);
   assert.doesNotMatch(styles, /data:font/);
@@ -238,7 +257,14 @@ test("static and Pages Function responses apply production security headers", as
   assert.equal(response.headers.get("strict-transport-security"), "max-age=63072000; includeSubDomains; preload");
   assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
   const csp = response.headers.get("content-security-policy");
-  assert.match(csp, /'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='/);
+  // Compute the boot-script hash from the same dist/index.html the browser
+  // executes, so the CSP constant in [[path]].js can never drift from the
+  // script it pins (the hash was once hardcoded here and rotted).
+  const { createHash } = await import("node:crypto");
+  const builtIndex = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  const bootScript = builtIndex.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const bootHash = createHash("sha256").update(bootScript).digest("base64");
+  assert.ok(csp.includes(`'sha256-${bootHash}'`), `CSP must pin the built boot script hash ${bootHash}: ${csp}`);
   // The nonce was removed: nothing ever consumed it and cached HTML replayed
   // the same nonce, defeating its purpose. The pinned boot-script hash remains.
   assert.doesNotMatch(csp, /'nonce-/);
@@ -995,16 +1021,19 @@ test("curated comparison answers 503 + no-store when a payload belongs to a diff
   assert.doesNotMatch(html, /<table>/);
 });
 
-test("sitemap drops curated comparisons whose reports are missing but keeps them on transient failure", async () => {
+test("sitemap drops curated comparisons whose reports are missing but keeps them when the backend fails", async () => {
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, init) => {
     const request = new URL(url);
     if (request.pathname === "/api/seo/sitemap") return Response.json([]);
-    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
-    if (key === "vuejs/core") return new Response("not found", { status: 404 });
-    if (key === "webpack/webpack") return new Response("backend exploded", { status: 500 });
-    return Response.json(CURATED_FIXTURES["facebook/react"]);
+    if (init?.method === "POST" && request.pathname === "/api/seo/repos-indexable") {
+      const body = JSON.parse(init.body);
+      return Response.json({
+        repos: body.repos.filter((repo) => `${repo.owner}/${repo.repo}` !== "vuejs/core"),
+      });
+    }
+    return Response.json({});
   };
   let xml;
   try {
@@ -1024,10 +1053,37 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
   // svelte-vs-vue / angular-vs-vue share the missing vuejs/core side.
   assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/svelte-vs-vue<\/loc>/);
   assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/angular-vs-vue<\/loc>/);
-  // vite-vs-webpack: right side (webpack/webpack) failed transiently -> kept.
+  // Everything with both sides cached stays listed.
   assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/vite-vs-webpack<\/loc>/);
   // The rest of the sitemap is untouched.
   assert.match(xml, /<loc>https:\/\/octocounts\.com\/trending<\/loc>/);
+
+  // An unreachable backend fails open: no curated entry is dropped, and the
+  // failed answer is not cached (the next pass retries).
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async (url, init) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/sitemap") return Response.json([]);
+    if (init?.method === "POST" && request.pathname === "/api/seo/repos-indexable") {
+      return new Response("backend exploded", { status: 500 });
+    }
+    return Response.json({});
+  };
+  let xmlOnFailure;
+  try {
+    const response = await onRequest(await renderedContext("/sitemap.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    xmlOnFailure = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.match(xmlOnFailure, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>/);
+  const curatedCount = (xmlOnFailure.match(/<loc>https:\/\/octocounts\.com\/compare\//g) ?? []).length;
+  assert.equal(curatedCount, COMPARE_REGISTRY.length);
 });
 
 test("bare /compare noscript links every curated comparison", async () => {
@@ -1042,9 +1098,16 @@ test("bare /compare noscript links every curated comparison", async () => {
 test("generated and static sitemaps include every curated comparison", async () => {
   const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   const originalFetch = globalThis.fetch;
-  // Every report exists, so no curated entry is filtered out.
+  // Every repository answers as indexed, so no curated entry is filtered out.
   __resetCompareExistenceCacheForTests();
-  globalThis.fetch = async () => Response.json([]);
+  globalThis.fetch = async (url, init) => {
+    const request = new URL(url);
+    if (init?.method === "POST" && request.pathname === "/api/seo/repos-indexable") {
+      const body = JSON.parse(init.body);
+      return Response.json({ repos: body.repos });
+    }
+    return Response.json([]);
+  };
   let generatedXml;
   try {
     const generatedSitemap = await onRequest(await renderedContext("/sitemap.xml", {
@@ -1612,10 +1675,18 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
     assert.match(md, /^# Trending GitHub repositories today\n/, path);
     assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. (1,234 stars today, Rust)"), path);
   }
-  // UA-based markdown is scoped to reports, comparisons, and docs; /trending
-  // and /stats stay HTML for bots unless they explicitly ask for markdown.
+  // Retrieval-bot UAs get the markdown twin here too, same as reports,
+  // comparisons, docs, extension, and research: /trending and /stats are two
+  // of the most quotable data pages. uaOnly responses are forced private and
+  // uncacheable so a UA-negotiated format can never be edge-cached for a human.
   const bot = await onRequest(withUserAgent(await renderedContext("/trending", snapshot), "PerplexityBot/1.0"));
-  assert.match(bot.headers.get("content-type") ?? "", /^text\/html/);
+  assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/);
+  assert.equal(bot.headers.get("cache-control"), "private, no-store");
+  assert.match(bot.headers.get("vary") ?? "", /User-Agent/i);
+
+  // Ordinary browsers (and Googlebot, deliberately) keep HTML.
+  const browser = await onRequest(await renderedContext("/trending", snapshot));
+  assert.match(browser.headers.get("content-type") ?? "", /^text\/html/);
 
   const stats = {
     totals: { reportsGenerated: 4200, repositoriesAnalyzed: 3100, linesCounted: 123456789, codeLinesCounted: 98765432, languagesDetected: 87 },

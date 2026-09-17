@@ -51,7 +51,7 @@
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
       "datePublished": "2026-07-06",
-      "dateModified": "2026-09-16",
+      "dateModified": "2026-09-17",
       "author": {
         "@type": "Person",
         "name": "huanglizhuo",
@@ -127,7 +127,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Methodology</nav>
     <main>
-      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated September 17, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts Methodology</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with tokei, an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.</p>
       <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
@@ -183,6 +183,7 @@ vendor</code></pre>
         <li>Language classification follows tokei's rules and supported file types.</li>
         <li>GitHub repositories that are empty, private, unavailable, or too large may fail analysis.</li>
       </ul>
+      <p>For measured examples of how these analysis options change reported counts across real repositories, see <a href="/research">the pilot study on how test, docs, and generated-file filtering changes SLOC counts</a>.</p>
 
       <h2>Recommended Citation</h2>
       <pre><code>As of {date} (commit {sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei via OctoCounts.</code></pre>

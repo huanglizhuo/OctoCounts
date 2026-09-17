@@ -1,6 +1,7 @@
-import { Loader2, Play, Clipboard } from "lucide-react";
+import { ArrowLeftRight, Loader2, Play, Clipboard } from "lucide-react";
 import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "./i18n";
 import { analyzeRepository, fetchJson } from "./api";
 import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { defaultRefName, defaultRepoUrl } from "./constants";
@@ -57,6 +58,20 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
       {showHelp ? <p className="compare-help">{t("compare.help")}</p> : null}
       <form className="compare-form" onSubmit={(event) => { event.preventDefault(); void runCompare(); }}>
         <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
+        <button
+          type="button"
+          className="copybtn compare-swap"
+          aria-label={t("compare.swap")}
+          title={t("compare.swap")}
+          onClick={() => {
+            setLeftRepo(rightRepo);
+            setRightRepo(leftRepo);
+            setLeftRef(rightRef);
+            setRightRef(leftRef);
+          }}
+        >
+          <ArrowLeftRight size={14} aria-hidden="true" />
+        </button>
         <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
         <button className="btn compare-run" disabled={compareStatus === "running"}>
           {compareStatus === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
@@ -108,11 +123,11 @@ function CompareInput({
       <legend>{label}</legend>
       <label>
         <span>{t("compare.repoUrl")}</span>
-        <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" aria-label={label} />
+        <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
       </label>
       <label>
         <span>{t("compare.ref")}</span>
-        <input value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} aria-label={`${label} ref`} />
+        <input value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} />
       </label>
     </fieldset>
   );
@@ -223,12 +238,12 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
       <div className="compare-head">
         <div>
           <span>{left.repository.owner}/{left.repository.name}</span>
-          <small>{left.refName || "default"} · {left.commitSha.slice(0, 12)}</small>
+          <small>{left.refName || t("compare.defaultRef")} · {left.commitSha.slice(0, 12)}</small>
           <strong>{topLeft}</strong>
         </div>
         <div>
           <span>{right.repository.owner}/{right.repository.name}</span>
-          <small>{right.refName || "default"} · {right.commitSha.slice(0, 12)}</small>
+          <small>{right.refName || t("compare.defaultRef")} · {right.commitSha.slice(0, 12)}</small>
           <strong>{topRight}</strong>
         </div>
       </div>
@@ -255,6 +270,7 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
         </table>
       </div>
       <div className="compare-language-grid">
+        {languageRows.length === 0 ? <p className="compare-help">{t("compare.noSharedLanguages")}</p> : null}
         {languageRows.map((row) => (
           <div className="compare-lang" key={row.name}>
             <span className="key-sw" style={{ background: visibleLanguageColor(languageColor(row.name), scheme) }} />
@@ -278,17 +294,19 @@ async function analyzeAndWait(repoUrl: string, refName: string) {
   const result = await analyzeRepository({ repoUrl, refName, forceRefresh: false });
   if (result.kind === "cached") return result.report;
 
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    await delay(attempt < 5 ? 1_200 : 2_500);
-    const job = await fetchJson<JobRecord>(`/api/jobs/${result.jobId}`);
+  for (let attempt = 0; attempt < 14; attempt += 1) {
+    await delay(1_500);
+    // Long-poll (backend holds each request up to 20s per status change);
+    // 14 attempts ≈ the ~5-minute wall-clock cap the tight poll used to have.
+    const job = await fetchJson<JobRecord>(`/api/jobs/${result.jobId}?wait=20`);
     if (job.status === "failed") {
-      throw new Error(job.error?.message ?? "analysis failed");
+      throw new Error(job.error?.message ?? i18n.t("compare.analysisFailed"));
     }
     if (job.status === "completed" && job.reportId) {
       return fetchJson<Report>(`/api/reports/${job.reportId}`);
     }
   }
-  throw new Error("analysis timed out");
+  throw new Error(i18n.t("compare.analysisTimedOut"));
 }
 
 function delay(ms: number) {

@@ -42,7 +42,8 @@ export function logLines(status: AppStatus, report: Report | null, error: string
       {
         ts: "00:03",
         kind: "ok",
-        text: i18n.t("runner.log.languageRows", { count: formatNumber(report.languages.length) }),
+        // Numeric count: i18next needs a number to pick the plural form.
+        text: i18n.t("runner.log.languageRows", { count: report.languages.length }),
       },
       {
         ts: "00:04",

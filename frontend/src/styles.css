@@ -149,8 +149,19 @@ body::before {
 
 button,
 input,
+select,
+textarea,
 a {
   font: inherit;
+}
+
+/* iOS Safari auto-zooms the viewport when a focused text control renders
+   below 16px. Component styles keep terminal-style 14px rows; pin the zoom
+   threshold on every text-entry control so focusing never triggers it. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+select,
+textarea {
+  font-size: 16px;
 }
 
 a {
@@ -1953,7 +1964,7 @@ body.embed-mode::before {
   gap: 10px;
   color: var(--fg);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 400;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--rule);
   margin-bottom: 14px;
@@ -2113,7 +2124,7 @@ table.report td {
 
 table.report th {
   color: var(--fg-mute);
-  font-weight: 500;
+  font-weight: 400;
   font-size: var(--text-xs);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -2501,7 +2512,7 @@ table.report tr.totals td.lang {
   gap: 6px;
   color: var(--fg-mute);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
@@ -2519,7 +2530,7 @@ table.report tr.totals td.lang {
   margin-left: 8px;
   color: var(--fg-mute);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   vertical-align: middle;
 }
@@ -3979,7 +3990,7 @@ table.report td.lang {
 
 .repo-history-approx {
   font-size: 0.75em;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--fg-mute);
 }
 
@@ -4266,4 +4277,85 @@ table.report td.lang {
   .topbar-install > summary { padding-inline: 7px; }
   .topbar-install .topbar-menu-label { display: none; }
   .topbar-install .topbar-menu-short { display: inline; }
+}
+
+/* Print: the report page is a share artifact, so print it as a clean data
+   sheet — paper palette regardless of on-screen theme, interactive chrome
+   dropped, collapsed sections expanded. */
+@media print {
+  :root,
+  html[data-scheme="matrix"],
+  html[data-scheme="paper"] {
+    --bg: #ffffff;
+    --bg-2: #ffffff;
+    --bg-3: #f6f8fa;
+    --fg: #111827;
+    --fg-dim: #374151;
+    --fg-mute: #57606a;
+    --accent: #116329;
+    --accent-ink: #ffffff;
+    --accent-2: #0969da;
+    --warn: #9a6700;
+    --err: #cf222e;
+    --blue: #0969da;
+    --violet: #8250df;
+    --rule: #d0d7de;
+    --rule-2: #eaeef2;
+    --selection: #ffffff;
+    --grid-line: transparent;
+    --terminal-shadow: none;
+    --active-shadow: none;
+  }
+
+  body {
+    background: #fff;
+    color: #111827;
+  }
+
+  .topbar,
+  footer,
+  .sticky-bar,
+  .skip-link,
+  .share-buttons,
+  .extension-panel,
+  .input-row,
+  .input-hint,
+  .analysis-options,
+  .copybtn,
+  .btn,
+  .theme-toggle,
+  .lang-btn,
+  .glow,
+  .dot {
+    display: none !important;
+  }
+
+  /* Collapsed sections (trust notes, run details) print expanded. */
+  details:not([open]) > *:not(summary) {
+    display: block !important;
+  }
+
+  a {
+    color: #0969da;
+    text-decoration: none;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table {
+    min-width: 0 !important;
+  }
+
+  tr,
+  td,
+  th {
+    page-break-inside: avoid;
+  }
+
+  section,
+  .panel {
+    box-shadow: none !important;
+  }
 }

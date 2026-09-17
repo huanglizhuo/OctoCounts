@@ -83,8 +83,10 @@ export function Topbar() {
         </>)}
       </nav>
       <div className="topbar-controls" role="group" aria-label={t("languageSwitcher.label")}>
-        <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "page" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
-        <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "page" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
+        {/* aria-current="true" (not "page"): these are buttons marking the
+            active item in a set, and styles.css keys the highlight off it. */}
+        <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
+        <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "true" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
         <ThemeSwitch />
         <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>GitHub</a>
       </div>

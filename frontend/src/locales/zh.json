@@ -49,6 +49,7 @@
   },
   "runner": {
     "title": "运行器",
+    "cancel": "取消",
     "status": {
       "idle": "粘贴仓库链接并运行分析器。",
       "queued": "任务已接受。等待分析槽位。",
@@ -72,7 +73,7 @@
       "resolvedRef": "已解析 {{ref}} -> {{sha}}",
       "cacheHit": "缓存命中已返回",
       "freshReport": "新报告已保存到缓存",
-      "languageRows": "{{count}} 种语言行已渲染",
+      "languageRows_other": "{{count}} 种语言行已渲染",
       "counted": "已统计 {{lines}} 行，耗时 {{duration}}ms",
       "stillQueued": "已等待 {{elapsed}} 秒，任务会逐个运行",
       "stillCounting": "已运行 {{elapsed}} 秒；大型仓库可能需要更久",
@@ -210,6 +211,7 @@
     "lines": "代码行"
   },
   "table": {
+    "caption": "{{repo}} 的分语言代码行数统计",
     "language": "语言",
     "files": "文件",
     "lines": "行数",
@@ -303,7 +305,8 @@
   },
   "theme": {
     "switchToDay": "切换到日间模式",
-    "switchToNight": "切换到夜间模式"
+    "switchToNight": "切换到夜间模式",
+    "toggle": "切换深色 / 浅色主题"
   },
   "error": {
     "privateRepo": "不支持私有仓库。",
@@ -411,7 +414,8 @@
     "previewAlt": "OctoCounts 嵌入卡片预览",
     "copy": "复制 iframe",
     "snippetAria": "嵌入 iframe 输出",
-    "defaultConfigNote": "嵌入卡显示默认分支的最新缓存报告，不携带自定义分析选项。"
+    "defaultConfigNote": "嵌入卡显示默认分支的最新缓存报告，不携带自定义分析选项。",
+    "languageNote": "嵌入卡片语言跟随访客浏览器。可在嵌入链接后附加 ?lng=zh 或 ?lng=en 固定语言。"
   },
   "embedCard": {
     "ariaLabel": "{{repo}} SLOC 概览卡片",
@@ -450,7 +454,26 @@
     "delta": "差异",
     "copyUrl": "复制链接",
     "running": "运行中：正在分析两份报告，可能需要一分钟",
-    "resultPending": "运行比较后生成结果链接。"
+    "resultPending": "运行比较后生成结果链接。",
+    "defaultRef": "默认分支",
+    "analysisFailed": "分析失败。请稍等几分钟后再试。",
+    "analysisTimedOut": "对比耗时过长。请稍等几分钟后再试。",
+    "swap": "交换左右仓库",
+    "noSharedLanguages": "两份报告没有共同语言，无法显示分语言差异。"
+  },
+  "curatedCompare": {
+    "unavailable": "该对比页暂时不可用。请稍后再试，或使用下方工具重新发起对比。",
+    "missing": "两个仓库的缓存报告尚未就绪。请先用下方工具分别分析，稍后再回到本页。",
+    "resultsAria": "对比结果",
+    "aboutAria": "关于本次对比",
+    "aboutTitle": "关于本次对比",
+    "sourcesLabel": "资料来源：",
+    "verified": "内容核实于 {{date}}。",
+    "nextSteps": "证据与后续步骤：",
+    "slocReport": "{{repo}} SLOC 报告",
+    "interactive": "交互式对比 {{left}} 与 {{right}}",
+    "faqTitle": "对比常见问题",
+    "relatedAria": "OctoCounts 相关页面"
   },
   "diff": {
     "title": "引用差异",
@@ -579,7 +602,7 @@
       "mixed": "多语言",
       "code": "代码",
       "trendingFallback": "GitHub 热门仓库",
-      "starsToday": "今日 +{{count}} 星 · 共 {{total}} 星"
+      "starsToday_other": "今日 +{{count}} 星 · 共 {{total}} 星"
     }
   },
   "textReport": {
@@ -593,7 +616,8 @@
   },
   "recent": {
     "label": "最近",
-    "ariaLabel": "最近分析过的仓库"
+    "ariaLabel": "最近分析过的仓库",
+    "clear": "清空历史"
   },
   "stickyBar": {
     "ariaLabel": "报告摘要",
@@ -644,6 +668,8 @@
     }
   },
   "extensionLanding": {
+    "heroTitle": "在浏览器中查看 GitHub 代码统计",
+    "heroIntro": "OctoCounts 是一款免费浏览器扩展，在公开 GitHub 仓库页面添加 SLOC（源代码行数）卡片。卡片一眼显示仓库总行数，点击展开完整面板：文件数、代码行、注释行、空行和分语言统计——与 OctoCounts 网页版由 tokei 统计、固定到精确 commit 的结果一致。",
     "installTitle": "安装 OctoCounts",
     "installSubtitle": "免费，无需账号，无需 API 令牌",
     "stepsTitle": "三步安装",

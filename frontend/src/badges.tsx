@@ -78,6 +78,7 @@ export function EmbedBuilder({ repoUrl, report }: { repoUrl: string; report: Rep
     <div className="badge-builder embed-builder">
       <p className="badge-embed-desc">{t("embedBuilder.description")}</p>
       <p className="badge-semantics">{t("embedBuilder.defaultConfigNote")}</p>
+      <p className="badge-semantics">{t("embedBuilder.languageNote")}</p>
       <div className="badge-builder-preview embed-builder-preview">
         {embedUrl ? <iframe src={embedUrl} width="400" height="160" frameBorder="0" loading="lazy" title={t("embedBuilder.previewAlt")} /> : <span>{t("badgeBuilder.noRepo")}</span>}
       </div>

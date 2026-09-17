@@ -1,18 +1,21 @@
 {
   "version": 1,
-  "updated": "2026-09-16",
+  "updated": "2026-09-17",
   "purpose": "Per-URL record of real content changes (SG-07). A page's lastmod changes ONLY when that page's content, key links, or structured facts change — build changes, unrelated commits, and date-only edits never bump it. frontend/functions/[[path]].js (STATIC_SITEMAP_ENTRIES) and frontend/public/sitemap.xml mirror this file; tests assert the three stay in sync. Update the manifest, the functions mirror, and the static sitemap together in the same change.",
   "provenance": {
     "2026-09-05": "Inherited from the pre-manifest blanket date (2026-09-05 site-wide update). Replace with the page's true content-change date next time that page actually changes; do not bulk-edit.",
     "2026-09-08": "Real content change made on 2026-09-08: GitLab claims removed, unsupported performance claims rewritten (SG-02), curated-compare body unified (SG-01), /extension page added (SG-03).",
-    "2026-09-16": "Real content change made on 2026-09-16: all 9 docs pages, the homepage, and /about rewritten with verified content, the /research pilot-study page added, and all 101 curated /compare/* pages gained editorial scope/insights/caution plus a page-top answer capsule."
+    "2026-09-16": "Real content change made on 2026-09-16: all 9 docs pages, the homepage, and /about rewritten with verified content, the /research pilot-study page added, and all 101 curated /compare/* pages gained editorial scope/insights/caution plus a page-top answer capsule.",
+    "2026-09-17": "Real content change made on 2026-09-17: homepage, /compare, /diff, and every curated comparison page gained expanded crawler-visible related links (/research, /docs/glossary, and others); five docs pages (methodology, github-sloc-counter, best-sloc-counter-tools, github-language-bar-alternative, octocounts-vs-cloc) gained a /research contextual link; llms.txt gained /compare, /diff, and /stats Key URLs; /contact and /privacy gained OG/Twitter meta, JSON-LD, self-hosted fonts, and (privacy) a day-precision date. /compare and /diff are newly tracked."
   },
   "comparePages": {
-    "lastmod": "2026-09-16",
-    "note": "Every curated /compare/* page gained editorial content (scope, insights, caution, sources) and a page-top answer capsule on 2026-09-16, so all 101 comparison pages' rendered content changed that day."
+    "lastmod": "2026-09-17",
+    "note": "Every curated /compare/* page's rendered related-links nav changed on 2026-09-17 (added /research and /docs/glossary links), after the 2026-09-16 editorial-content expansion."
   },
   "pages": {
-    "https://octocounts.com/": "2026-09-16",
+    "https://octocounts.com/": "2026-09-17",
+    "https://octocounts.com/compare": "2026-09-17",
+    "https://octocounts.com/diff": "2026-09-17",
     "https://octocounts.com/stats": "2026-09-05",
     "https://octocounts.com/recent": "2026-09-05",
     "https://octocounts.com/popular": "2026-09-05",
@@ -20,19 +23,19 @@
     "https://octocounts.com/hall-of-monoliths": "2026-09-05",
     "https://octocounts.com/badges": "2026-09-05",
     "https://octocounts.com/extension": "2026-09-08",
-    "https://octocounts.com/docs/github-sloc-counter": "2026-09-16",
+    "https://octocounts.com/docs/github-sloc-counter": "2026-09-17",
     "https://octocounts.com/docs/api": "2026-09-16",
-    "https://octocounts.com/docs/methodology": "2026-09-16",
+    "https://octocounts.com/docs/methodology": "2026-09-17",
     "https://octocounts.com/docs/glossary": "2026-09-16",
     "https://octocounts.com/docs/faq": "2026-09-16",
-    "https://octocounts.com/docs/octocounts-vs-cloc": "2026-09-16",
-    "https://octocounts.com/docs/github-language-bar-alternative": "2026-09-16",
-    "https://octocounts.com/docs/best-sloc-counter-tools": "2026-09-16",
+    "https://octocounts.com/docs/octocounts-vs-cloc": "2026-09-17",
+    "https://octocounts.com/docs/github-language-bar-alternative": "2026-09-17",
+    "https://octocounts.com/docs/best-sloc-counter-tools": "2026-09-17",
     "https://octocounts.com/research": "2026-09-16",
     "https://octocounts.com/about": "2026-09-16",
-    "https://octocounts.com/llms.txt": "2026-09-16",
+    "https://octocounts.com/llms.txt": "2026-09-17",
     "https://octocounts.com/llms-full.txt": "2026-09-16",
-    "https://octocounts.com/privacy": "2026-09-05",
-    "https://octocounts.com/contact": "2026-09-05"
+    "https://octocounts.com/privacy": "2026-09-17",
+    "https://octocounts.com/contact": "2026-09-17"
   }
 }

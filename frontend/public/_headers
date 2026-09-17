@@ -8,8 +8,19 @@
 /octocounts-*-768.webp
   Cache-Control: public, max-age=31536000, immutable
 
+/octocounts-*-card.webp
+  Cache-Control: public, max-age=31536000, immutable
+
 /octocounts-logo-96.webp
   Cache-Control: public, max-age=31536000, immutable
+
+# og-image.jpg is replaced in-place on deploys rather than content-addressed,
+# so cache it for a week (not immutable) with SWR to absorb revalidation.
+/og-image.jpg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/favicons/*
+  Cache-Control: public, max-age=604800
 
 /
   Cache-Control: public, max-age=0, must-revalidate
@@ -24,6 +35,13 @@
 /github-trending.json
   Content-Type: application/json; charset=utf-8
   Cache-Control: public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400
+
+# The /research pilot dataset is JSON Lines; Pages would otherwise serve it as
+# octet-stream. Versioned data files are planned, so cache a day, not forever.
+/research/pilot-samples.jsonl
+  Content-Type: application/x-ndjson; charset=utf-8
+  Cache-Control: public, max-age=86400
+  Access-Control-Allow-Origin: *
 
 # Security headers for all routes
 /*

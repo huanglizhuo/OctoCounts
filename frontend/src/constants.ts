@@ -1,7 +1,7 @@
 // Bumped by scripts/refresh-llms-lastupdated.mjs on every push to main that
 // touches frontend content, in step with index.html's dateModified and the
 // noscript freshness line.
-export const siteLastUpdated = "2026-09-08";
+export const siteLastUpdated = "2026-09-17";
 
 export const defaultRepoUrl = "https://github.com/huanglizhuo/OctoCounts";
 export const defaultRefName = "e92153946164";

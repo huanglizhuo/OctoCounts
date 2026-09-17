@@ -52,7 +52,12 @@ export function useAnalysisRunner({
       }
       return pollingInterval(Date.now() - (jobStartedAt ?? Date.now()));
     },
-    queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}`),
+    // Long-poll: the backend holds each request until the job's status
+    // changes or 20s elapse (its cap is 25s), so one request covers one
+    // status change instead of one 1.2–5s slice. TanStack Query never
+    // overlaps refetches of the same key, and the interval below becomes
+    // just the gap between polls.
+    queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}?wait=20`),
   });
 
   useEffect(() => {

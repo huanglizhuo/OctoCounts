@@ -4,13 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Get in touch with the OctoCounts team. Report bugs, request features, or ask questions." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/contact" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="Contact | OctoCounts" />
+    <meta property="og:description" content="Report bugs, request features, or ask questions about OctoCounts via GitHub issues." />
+    <meta property="og:url" content="https://octocounts.com/contact" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Contact | OctoCounts" />
+    <meta name="twitter:description" content="Report bugs, request features, or ask questions about OctoCounts via GitHub issues." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <title>Contact | OctoCounts</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" />
     <style>
+      /* Self-hosted so the page does not depend on a third-party font CDN
+         (and so the strict style-src CSP does not block the stylesheet). */
+      @font-face { font-family: "JetBrains Mono"; font-style: normal; font-display: swap; font-weight: 400; src: url("/fonts/jetbrains-mono-400-latin.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-style: normal; font-display: swap; font-weight: 700; src: url("/fonts/jetbrains-mono-700-latin.woff2") format("woff2"); }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         font-family: "JetBrains Mono", monospace;
@@ -57,5 +69,20 @@
       <h2>Author</h2>
       <p>Built by <a href="https://github.com/huanglizhuo">huanglizhuo</a>.</p>
     </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      "name": "Contact OctoCounts",
+      "description": "Get in touch with the OctoCounts team: report bugs, request features, or ask questions via GitHub issues.",
+      "url": "https://octocounts.com/contact",
+      "mainEntity": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      }
+    }
+    </script>
   </body>
 </html>

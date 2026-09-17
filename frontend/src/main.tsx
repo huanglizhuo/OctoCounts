@@ -11,9 +11,11 @@ import { AnalyticsEvents, initAnalytics, providerFromRepoUrl, trackAiVisitIfRefe
 import { Topbar, publicReportLinks } from "./Topbar";
 import { BadgeBuilder, BadgeWall, buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, parsePublicRepo } from "./badges";
 import { ShareButtons } from "./ShareButtons";
-import { RepoHistoryChart } from "./RepoHistoryChart";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
+// The history chart only renders after a report completes, and it drags its
+// own export helpers; keep it out of the critical bundle.
+const RepoHistoryChart = React.lazy(() => import("./RepoHistoryChart").then((m) => ({ default: m.RepoHistoryChart })));
 // Marketing/tool pages are separate chunks; the home bundle no longer carries them.
 const StatsPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.StatsPage })));
 const ReportListPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ReportListPage })));
@@ -67,7 +69,10 @@ import { SchemeProvider, useScheme } from "./scheme";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 60_000, retry: 1 },
+    // refetchOnWindowFocus off: tab refocuses used to re-hit /api/stats and
+    // friends after staleTime expired; the app refetches explicitly where it
+    // matters, and polling jobs carry their own interval.
+    queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false },
   },
 });
 const samples = [
@@ -313,6 +318,9 @@ function App() {
   });
 
   const autoRan = useRef(false);
+  // A run occupies the button from submit through queued/running until the
+  // report (or failure) lands — not just the initial POST.
+  const runActive = isSubmitting || status === "queued" || status === "running";
 
   // Shown only while GitHub self-reports a disruption, so users hitting a
   // failed analysis see the cause before they submit, not after.
@@ -435,7 +443,7 @@ function App() {
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
-      <div className="crt flicker" />
+      <div className="crt" />
       <main id="main" className="page">
         <Topbar />
         <section className={`hero ${isReportRoute ? "hero-compact" : ""}`} aria-labelledby="hero-title">
@@ -499,10 +507,18 @@ function App() {
                 {t("hero.refLabel")}
                 <input id="repo-ref" name="refName" value={refName} onChange={(event) => { refIsExplicit.current = true; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
               </label>
-              <button className="btn" disabled={isSubmitting}>
+              {/* Disabled for the entire run (not just the POST): a second
+                  click during queued/running would silently abort and restart
+                  the job. Cancel is the explicit escape hatch instead. */}
+              <button className="btn" disabled={runActive}>
                 {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
                 {t("hero.analyze")}
               </button>
+              {runActive ? (
+                <button type="button" className="copybtn" onClick={() => reset()}>
+                  {t("runner.cancel")}
+                </button>
+              ) : null}
             </form>
             <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
             {ambiguousRef ? <p className="input-hint" role="status">{t("hero.ambiguousRef")}</p> : null}
@@ -547,6 +563,13 @@ function App() {
                         <span className="k">{t("recent.label")}</span>{entry.label}
                       </button>
                     ))}
+                    <button
+                      className="chip recent-clear"
+                      type="button"
+                      onClick={() => { setRecentRepos([]); saveRecentRepos([]); }}
+                    >
+                      {t("recent.clear")}
+                    </button>
                   </div>
                 ) : null}
               </>
@@ -924,7 +947,7 @@ function LanguageSwitcher() {
           key={loc.code}
           type="button"
           className="lang-btn"
-          aria-current={i18n.language === loc.code ? "page" : undefined}
+          aria-current={i18n.language === loc.code ? "true" : undefined}
           onClick={() => i18n.changeLanguage(loc.code)}
         >
           {loc.label}
@@ -1156,11 +1179,13 @@ function Runner({ command, status, report, error, errorCode, onReset, onRerun }:
             <summary>{t("trust.title")}</summary>
             <TrustDetails report={report} stars={liveStars ?? report.repository.stars ?? null} />
           </details>
-          <RepoHistoryChart
-            provider={normalizedProvider(report)}
-            owner={report.repository.owner}
-            repo={report.repository.name}
-          />
+          <Suspense fallback={null}>
+            <RepoHistoryChart
+              provider={normalizedProvider(report)}
+              owner={report.repository.owner}
+              repo={report.repository.name}
+            />
+          </Suspense>
           <SimilarRepos report={report} />
           <details className="run-details">
             <summary>{t("runner.runDetails")}</summary>
@@ -1950,11 +1975,12 @@ function ReportTable({ report, compact, fullStats, hoveredSlice, sliceForLanguag
   return (
     <div className={`table-wrap ${compact ? "compact" : ""} ${fullStats ? "is-full-stats" : ""}`}>
       <table className="report">
+        <caption className="visually-hidden">{t("table.caption", { repo: `${report.repository.owner}/${report.repository.name}` })}</caption>
         <thead>
           <tr>
-            <SortHead label={t("table.language")} active={sortKey === "name"} dir={sortDir} onClick={() => updateSort("name")} className="lang" />
+            <SortHead label={t("table.language")} active={sortKey === "name"} dir={sortDir} onClick={() => updateSort("name")} className="lang" scope="col" />
             {(["files", "lines", "code", "comments", "blanks"] as const).map((key) => (
-              <SortHead key={key} label={t("table." + key)} active={sortKey === key} dir={sortDir} onClick={() => updateSort(key)} />
+              <SortHead key={key} label={t("table." + key)} active={sortKey === key} dir={sortDir} onClick={() => updateSort(key)} scope="col" />
             ))}
           </tr>
         </thead>
@@ -1986,11 +2012,11 @@ function ReportTable({ report, compact, fullStats, hoveredSlice, sliceForLanguag
   );
 }
 
-function SortHead({ label, active, dir, onClick, className }: { label: string; active: boolean; dir: string; onClick: () => void; className?: string }) {
+function SortHead({ label, active, dir, onClick, className, scope }: { label: string; active: boolean; dir: string; onClick: () => void; className?: string; scope?: "col" | "row" }) {
   return (
     <th
       className={className}
-      role="columnheader"
+      scope={scope}
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <button type="button" className="sort-btn" onClick={onClick}>

@@ -69,6 +69,57 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
+      "@type": "Dataset",
+      "name": "Pilot dataset: how analysis-configuration filtering changes SLOC counts (facebook/react, vitejs/vite)",
+      "description": "Eight recorded counting runs: facebook/react and vitejs/vite at pinned commits (9b7a0d4029ee, e6f6b3e31192), each counted under four OctoCounts analysis configurations (default, exclude-tests, exclude-docs, exclude-generated). Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version, and full totals (files, lines, code, comments, blanks).",
+      "datePublished": "2026-09-16",
+      "dateModified": "2026-09-16",
+      "creator": {
+        "@type": "Person",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "distribution": [
+        {
+          "@type": "DataDownload",
+          "encodingFormat": "application/x-ndjson",
+          "contentUrl": "https://octocounts.com/research/pilot-samples.jsonl"
+        }
+      ],
+      "variableMeasured": [
+        "repository",
+        "commitSha",
+        "analysisOptions",
+        "collectionTimestamp",
+        "outcome",
+        "wallTimeMs",
+        "engineVersion",
+        "files",
+        "totalLines",
+        "codeLines",
+        "commentLines",
+        "blankLines"
+      ],
+      "measurementTechnique": "Source lines counted with tokei 12.1 over the GitHub source archive at a pinned commit, once per analysis configuration (test, docs, and generated-file exclusion toggles).",
+      "isPartOf": { "@id": "https://octocounts.com/research" },
+      "mainEntityOfPage": "https://octocounts.com/research"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SpeakableSpecification",
+      "cssSelector": ["h1", "p.note", ".note"]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "OctoCounts", "item": "https://octocounts.com/" },

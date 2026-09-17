@@ -40,6 +40,23 @@ export default defineConfig({
   ],
   build: {
     modulePreload: { polyfill: false },
+    rollupOptions: {
+      output: {
+        // Split the stable library code out of the app chunk: without this,
+        // every app edit re-downloads react-dom (~180 kB raw) and the i18next
+        // stack together with the app code in one 419 kB chunk. Vendor chunks
+        // keep their hash across app-only deploys, so returning visitors
+        // re-fetch just the app code. The dynamic deps (html-to-image,
+        // gifenc, zh locale) are already lazy-loaded and stay untouched.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "vendor-react";
+          if (id.includes("i18next")) return "vendor-i18n";
+          if (id.includes("@tanstack")) return "vendor-query";
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     // Dev-only: lets the browser talk to the Rust backend through this same

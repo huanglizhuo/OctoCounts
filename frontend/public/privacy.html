@@ -4,13 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="OctoCounts privacy policy. Learn what data we collect, how we use it, and your rights." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/privacy" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="Privacy Policy | OctoCounts" />
+    <meta property="og:description" content="OctoCounts privacy policy: what data is processed, how it is used, and your rights." />
+    <meta property="og:url" content="https://octocounts.com/privacy" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Privacy Policy | OctoCounts" />
+    <meta name="twitter:description" content="OctoCounts privacy policy: what data is processed, how it is used, and your rights." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <title>Privacy Policy | OctoCounts</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" />
     <style>
+      /* Self-hosted so the page does not depend on a third-party font CDN
+         (and so the strict style-src CSP does not block the stylesheet). */
+      @font-face { font-family: "JetBrains Mono"; font-style: normal; font-display: swap; font-weight: 400; src: url("/fonts/jetbrains-mono-400-latin.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-style: normal; font-display: swap; font-weight: 700; src: url("/fonts/jetbrains-mono-700-latin.woff2") format("woff2"); }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         font-family: "JetBrains Mono", monospace;
@@ -58,7 +70,17 @@
       <h2>Contact</h2>
       <p>Questions about this policy? Open an issue on <a href="https://github.com/huanglizhuo/OctoCounts/issues">GitHub</a>.</p>
 
-      <p class="updated">Last updated: September 2026</p>
+      <p class="updated">Last updated: September 17, 2026</p>
     </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "OctoCounts Privacy Policy",
+      "description": "OctoCounts privacy policy: what data is processed, how it is used, and your rights.",
+      "url": "https://octocounts.com/privacy",
+      "dateModified": "2026-09-17"
+    }
+    </script>
   </body>
 </html>

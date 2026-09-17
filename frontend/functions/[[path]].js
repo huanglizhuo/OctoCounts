@@ -1,13 +1,24 @@
 import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
-import { COMPARE_EDITORIAL } from "./compare-editorial.js";
+
+// The editorial corpus (~150 KB) is only read on curated /compare/* routes,
+// so load it on first use instead of parsing it on every isolate boot for
+// every route (reports, sitemap, trending, ...). The promise is shared so
+// concurrent compare requests still trigger a single module load.
+let compareEditorialPromise;
+function loadCompareEditorial() {
+  compareEditorialPromise ??= import("./compare-editorial.js").then((module) => module.COMPARE_EDITORIAL);
+  return compareEditorialPromise;
+}
 
 const API_BASE = "https://api.octocounts.com";
-const BOOT_SCRIPT_HASH = "'sha256-WRZoCRpV9YaIG5sPOijC2jelInnwDvYw9BYBSfp3VQY='";
+const BOOT_SCRIPT_HASH = "'sha256-gJFnkD2yqbv265Nlf3VSDL44MNt3DDcIc1ENS7V0cRY='";
 // Per-URL content lastmod, mirroring frontend/content/content-manifest.json
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/compare", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-09-05" },
@@ -15,25 +26,25 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/research", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/about", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/privacy", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/contact", lastmod: "2026-09-05" },
+  { loc: "https://octocounts.com/privacy", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/contact", lastmod: "2026-09-17" },
 ];
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const HOME_CONTENT_LASTMOD = "2026-09-16";
-const COMPARE_CONTENT_LASTMOD = "2026-09-16";
+const HOME_CONTENT_LASTMOD = "2026-09-17";
+const COMPARE_CONTENT_LASTMOD = "2026-09-17";
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -76,14 +87,21 @@ export async function onRequest(context) {
   // URLs working. Defaults on; see docs/ai-crawling-policy.md.
   const aiMarkdown = context.env.AI_MARKDOWN_UA !== "0" && isAiRetrievalBot(context.request.headers.get("user-agent"));
 
-  const legacyDoc = LEGACY_DOC_REDIRECTS[url.pathname];
-  if (legacyDoc) {
-    return Response.redirect(new URL(legacyDoc, url.origin), 308);
-  }
-
   const legacyQueryReport = legacyQueryReportPath(url);
   if (legacyQueryReport) {
     return Response.redirect(new URL(legacyQueryReport, url.origin), 308);
+  }
+
+  // Static HTML assets are canonically served extensionless — same defect
+  // class as the trailing-slash rule above: a 200 at /about.html leaves a
+  // duplicate crawlable URL behind only a soft rel=canonical. 308 every
+  // .html path to its extensionless form. 404.html is excluded: it is the
+  // platform error document, not a canonical page.
+  if (url.pathname.endsWith(".html") && url.pathname !== "/404.html") {
+    const target = new URL(url);
+    const stripped = url.pathname.slice(0, -5);
+    target.pathname = stripped === "/index" ? "/" : stripped;
+    return Response.redirect(target, 308);
   }
 
   const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
@@ -118,11 +136,11 @@ export async function onRequest(context) {
   }
 
   if (routePath === "/trending") {
-    return trendingPageResponse(context, { markdown: markdownRequested });
+    return trendingPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
   }
 
   if (routePath === "/stats") {
-    return statsPageResponse(context, { markdown: markdownRequested });
+    return statsPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
   }
 
   if (url.pathname === "/hall-of-monoliths") {
@@ -177,12 +195,6 @@ export async function onRequest(context) {
 
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
 }
-
-const LEGACY_DOC_REDIRECTS = {
-  "/docs/github-sloc-counter.html": "/docs/github-sloc-counter",
-  "/docs/methodology.html": "/docs/methodology",
-  "/docs/api.html": "/docs/api",
-};
 
 const LEGACY_REPORT_REDIRECTS = {
   "github/huanglizhuo/octocount": "/github/huanglizhuo/OctoCounts",
@@ -271,6 +283,12 @@ async function reportResponse(context, route, options = {}) {
   // report: serve the noindex fallback. A 5xx, network error, or timeout is
   // transient — answering 503 + no-store keeps crawlers retrying instead of
   // caching a noindex (or letting the CDN cache one) for an indexable page.
+  // The related-repositories endpoint depends only on the route, so start it
+  // alongside the report fetch instead of paying its full latency after the
+  // report answers. It never throws (returns [] on any failure), so the early
+  // "missing"/"unavailable" exits below simply leave its promise unresolved
+  // without rejection risk.
+  const relatedPromise = fetchRelatedReports(context, route);
   const result = await fetchSeoReport(context, route);
   if (result.state === "missing") {
     if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", options);
@@ -293,7 +311,7 @@ async function reportResponse(context, route, options = {}) {
   }
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
-  const relatedReports = await fetchRelatedReports(context, route);
+  const relatedReports = await relatedPromise;
   // The store matches owner/repo case-sensitively, so a mistyped or
   // mixed-case external link (e.g. /github/Facebook/React) resolves to the
   // canonical casing only via the report itself. 308 it so link equity lands
@@ -354,6 +372,8 @@ function reportMarkdown(report, relatedReports = []) {
     ...relatedCompare.map((entry) => `- [${entry.name}](https://octocounts.com/compare/${entry.slug})`),
     "- [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)",
     "- [Counting methodology](https://octocounts.com/docs/methodology)",
+    "- [SLOC and code metrics glossary](https://octocounts.com/docs/glossary)",
+    "- [Original research: how filtering changes SLOC counts](https://octocounts.com/research)",
     "- [OctoCounts API docs](https://octocounts.com/docs/api)",
   ].join("\n");
   const similar = relatedReports.length
@@ -413,11 +433,14 @@ async function fetchRelatedReports(context, route) {
 }
 
 async function listPageResponse(context, kind, url) {
-  const index = await indexHtml(context);
   const page = url.searchParams.get("page") || "1";
-  const response = await fetch(`${apiBase(context)}/api/seo/${kind}?page=${encodeURIComponent(page)}`, {
+  // The API fetch does not need the SPA shell, so start it before reading
+  // the asset and overlap the two instead of paying both serially.
+  const apiResponse = fetch(`${apiBase(context)}/api/seo/${kind}?page=${encodeURIComponent(page)}`, {
     headers: { accept: "application/json" },
   });
+  const index = await indexHtml(context);
+  const response = await apiResponse;
   const payload = response.ok ? await response.json() : { reports: [] };
   const pageMeta = listPageMeta(kind);
   // Page >1 is noindex,follow; pairing that with a canonical back to page 1
@@ -517,7 +540,7 @@ function trendingMarkdown(snapshot) {
 async function trendingPageResponse(context, options = {}) {
   const snapshot = await trendingSnapshot(context);
   if (options.markdown) {
-    return markdownResponse(trendingMarkdown(snapshot), "public, s-maxage=3600, stale-while-revalidate=86400");
+    return markdownResponse(trendingMarkdown(snapshot), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
   const index = await indexHtml(context);
   const title = TRENDING_TITLE;
@@ -663,7 +686,7 @@ async function statsPageResponse(context, options = {}) {
   });
   const stats = response.ok ? await response.json() : null;
   if (options.markdown) {
-    return markdownResponse(statsMarkdown(stats), "public, s-maxage=900, stale-while-revalidate=3600");
+    return markdownResponse(statsMarkdown(stats), "public, s-maxage=900, stale-while-revalidate=3600", options);
   }
   const index = await indexHtml(context);
   const title = STATS_TITLE;
@@ -753,6 +776,7 @@ async function comparePageResponse(context, pathname) {
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
+    <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const curatedLinks = isCompare
@@ -1062,6 +1086,8 @@ function injectHome(index) {
     <li><a href="/extension">OctoCounts browser extension for GitHub SLOC</a></li>
     <li><a href="/badges">GitHub SLOC badges for your README</a></li>
     <li><a href="/compare">Compare two repositories</a></li>
+    <li><a href="/diff">Diff two refs of one repository</a></li>
+    <li><a href="/research">Original research: how filtering changes SLOC counts</a></li>
     <li><a href="/trending">Trending GitHub repositories</a></li>
     <li><a href="/stats">OctoCounts public growth stats</a></li>
     <li><a href="/recent">Recently analyzed repositories</a></li>
@@ -1070,8 +1096,12 @@ function injectHome(index) {
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
+    <li><a href="/docs/faq">Frequently asked questions about SLOC</a></li>
+    <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
+    <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
     <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
     <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared</a></li>
+    <li><a href="/about">About OctoCounts</a></li>
   </ul></nav>`;
   const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
     <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>
@@ -1155,7 +1185,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
   if (!reportMatchesRoute(left, entry.left) || !reportMatchesRoute(right, entry.right)) {
     return compareUnavailableResponse(context, entry);
   }
-  const model = buildCompareViewModel(entry, left, right);
+  const model = await buildCompareViewModel(entry, left, right);
   if (options.markdown) {
     return markdownResponse(compareMarkdown(model), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
@@ -1166,7 +1196,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
 /// the SSR HTML body, the client React page (#octocounts-compare-data), and
 /// the markdown twin. Every reader-visible value — display strings included —
 /// is derived here exactly once, so the representations cannot drift.
-function buildCompareViewModel(entry, left, right) {
+async function buildCompareViewModel(entry, left, right) {
   const leftDate = left.generatedAt.slice(0, 10);
   const rightDate = right.generatedAt.slice(0, 10);
   const canonical = `https://octocounts.com/compare/${entry.slug}`;
@@ -1222,7 +1252,7 @@ function buildCompareViewModel(entry, left, right) {
     languageMixText: compareLanguageMixText(left, right),
     methodologyText: compareMethodologyText(left, right, leftDate, rightDate),
     disclaimerText: "Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.",
-    editorial: COMPARE_EDITORIAL[entry.slug] ?? null,
+    editorial: (await loadCompareEditorial())[entry.slug] ?? null,
     faq: compareFaq(entry, left, right, leftDate, rightDate),
     relatedLinks: [
       { href: "/compare", label: "Interactive repository comparison" },
@@ -1230,8 +1260,10 @@ function buildCompareViewModel(entry, left, right) {
       { href: "/popular", label: "Popular SLOC reports" },
       { href: "/trending", label: "Trending GitHub repositories" },
       { href: "/hall-of-monoliths", label: "Hall of Monoliths" },
+      { href: "/research", label: "Original research: how filtering changes SLOC counts" },
       { href: "/docs/github-sloc-counter", label: "GitHub SLOC counter guide" },
       { href: "/docs/methodology", label: "Counting methodology" },
+      { href: "/docs/glossary", label: "SLOC and code metrics glossary" },
       { href: "/docs/api", label: "OctoCounts API docs" },
     ],
     updatedAt: left.generatedAt > right.generatedAt ? left.generatedAt : right.generatedAt,
@@ -1311,7 +1343,10 @@ function compareMissingMarkdown(entry) {
 
 const SEO_REPORT_TIMEOUT_MS = 8_000;
 // Module-level state survives across requests within a Cloudflare Workers
-// isolate, so one sitemap request does not re-fire ~200 report checks.
+// isolate, so one sitemap regeneration asks the backend for the whole
+// indexable-repository set at most once per TTL. The old check fired one
+// /api/seo/report fetch per unique registry repository — roughly 200
+// subrequests against a Workers budget of 50 on the free plan.
 const COMPARE_EXISTENCE_TTL_MS = 3_600_000;
 const compareExistenceCache = new Map();
 
@@ -1361,46 +1396,62 @@ function serviceUnavailableResponse(index, meta) {
   });
 }
 
-function compareTargetKey(target) {
-  return `${target.owner.toLowerCase()}/${target.repo.toLowerCase()}@${target.ref || ""}`;
-}
-
-async function cachedReportState(context, target) {
-  const key = compareTargetKey(target);
-  const cached = compareExistenceCache.get(key);
-  if (cached && Date.now() - cached.checkedAt < COMPARE_EXISTENCE_TTL_MS) return cached.state;
-  const result = await fetchSeoReport(context, target);
-  // "unavailable" results are never cached: a network blip must not filter a
-  // sitemap entry out (or keep one in) for the next hour.
-  if (result.state !== "unavailable") {
-    compareExistenceCache.set(key, { state: result.state, checkedAt: Date.now() });
-  }
-  return result.state;
-}
-
 /// Sitemap entries for curated comparisons whose both sides have cached
-/// reports. A definitive 404 on either side drops the slug (its SSR page is
-/// noindex, so listing it would teach Google to ignore the sitemap); any
-/// transient failure keeps the entry.
+/// reports. The backend answers for the whole registry in one query; a
+/// definitive "no reports for this repo" drops the slug (its SSR page is
+/// noindex, so listing it would teach Google to ignore the sitemap), while an
+/// unreachable backend fails open and keeps every entry for this pass.
 async function indexableCompareEntries(context) {
-  const targets = new Map();
+  const uniqueRepos = new Map();
   for (const entry of COMPARE_REGISTRY) {
-    for (const target of [entry.left, entry.right]) targets.set(compareTargetKey(target), target);
+    for (const target of [entry.left, entry.right]) {
+      uniqueRepos.set(`${target.owner.toLowerCase()}/${target.repo.toLowerCase()}`, { owner: target.owner, repo: target.repo });
+    }
   }
-  const states = new Map();
-  await Promise.all(
-    [...targets.entries()].map(async ([key, target]) => {
-      states.set(key, await cachedReportState(context, target));
-    })
-  );
+
+  const cached = compareExistenceCache.get("indexable-pairs");
+  let indexable = cached && Date.now() - cached.checkedAt < COMPARE_EXISTENCE_TTL_MS ? cached.pairs : null;
+  if (!indexable) {
+    indexable = await fetchIndexablePairs(context, [...uniqueRepos.values()]);
+    if (!indexable) {
+      // Transient backend failure: keep every entry (same semantics as the
+      // per-report "unavailable keeps the entry" rule) and retry next pass.
+      return COMPARE_REGISTRY.map((entry) => ({
+        loc: `https://octocounts.com/compare/${entry.slug}`,
+        lastmod: COMPARE_CONTENT_LASTMOD,
+      }));
+    }
+    compareExistenceCache.set("indexable-pairs", { pairs: indexable, checkedAt: Date.now() });
+  }
+
   return COMPARE_REGISTRY.filter((entry) => {
-    const left = states.get(compareTargetKey(entry.left));
-    const right = states.get(compareTargetKey(entry.right));
-    return left !== "missing" && right !== "missing";
+    const left = indexable.has(`${entry.left.owner.toLowerCase()}/${entry.left.repo.toLowerCase()}`);
+    const right = indexable.has(`${entry.right.owner.toLowerCase()}/${entry.right.repo.toLowerCase()}`);
+    return left && right;
   }).map((entry) => ({
     loc: `https://octocounts.com/compare/${entry.slug}`,
     lastmod: COMPARE_CONTENT_LASTMOD,
   }));
+}
+
+/// One POST to /api/seo/repos-indexable returns the subset of repositories
+/// with at least one cached report. Returns null on any failure so the
+/// caller can fail open.
+async function fetchIndexablePairs(context, repos) {
+  try {
+    const response = await fetch(`${apiBase(context)}/api/seo/repos-indexable`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ repos }),
+      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload || !Array.isArray(payload.repos)) return null;
+    return new Set(payload.repos.map((repo) => `${String(repo.owner).toLowerCase()}/${String(repo.repo).toLowerCase()}`));
+  } catch {
+    return null;
+  }
 }
 
 function seoReportUrl(context, target) {
@@ -1651,15 +1702,14 @@ function injectCompareFallback(index, entry) {
 }
 
 async function sitemapResponse(context) {
-  const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
-    headers: { accept: "application/json" },
-  });
+  // The three upstreams are independent: overlap them instead of paying the
+  // (potentially slow) compare-existence scan after both other fetches.
+  const [response, snapshot, curatedEntries] = await Promise.all([
+    fetch(`${apiBase(context)}/api/seo/sitemap`, { headers: { accept: "application/json" } }),
+    trendingSnapshot(context),
+    indexableCompareEntries(context),
+  ]);
   const dynamicEntries = response.ok ? await response.json() : [];
-  const snapshot = await trendingSnapshot(context);
-  // Only comparisons whose both sides have cached reports: the rest SSR as
-  // noindex fallbacks, and a sitemap full of noindex URLs trains crawlers to
-  // distrust it.
-  const curatedEntries = await indexableCompareEntries(context);
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
     .concat(curatedEntries)
     .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
@@ -1691,12 +1741,23 @@ async function trendingSnapshot(context) {
     : { source: "https://github.com/trending", generatedAt: "", date: "", repositories: [] };
 }
 
+// The SPA shell is immutable for a deployment, so memoize its text per
+// ASSETS binding (WeakMap: each isolate has one binding; each test context
+// has its own, so memoization never leaks between test fixtures).
+const indexHtmlCache = new WeakMap();
+
 async function indexHtml(context) {
-  const url = new URL(context.request.url);
-  url.pathname = "/";
-  url.search = "";
-  const response = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
-  return response.text();
+  const assets = context.env.ASSETS;
+  let html = indexHtmlCache.get(assets);
+  if (html === undefined) {
+    const url = new URL(context.request.url);
+    url.pathname = "/";
+    url.search = "";
+    const response = await assets.fetch(new Request(url.toString(), context.request));
+    html = await response.text();
+    indexHtmlCache.set(assets, html);
+  }
+  return html;
 }
 
 function apiBase(context) {
@@ -1783,6 +1844,8 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>${relatedCompareHtml}
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
+    <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
+    <li><a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   // Visible, not just linked from <meta property="og:image">: a crawler that
@@ -1808,6 +1871,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     canonical: report.canonicalUrl,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: ogImageUrl,
+    ogImageAlt: report.citation,
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
@@ -2004,6 +2068,10 @@ function injectHeadAndNoscript(index, meta) {
   html = setMeta(html, "property", "og:description", meta.description);
   html = setMeta(html, "property", "og:url", meta.canonical);
   html = setMeta(html, "property", "og:image", meta.ogImage);
+  // Only overridden pages (per-repo report cards) carry a specific alt; the
+  // static pages keep the homepage's generic og:image:alt, which matches
+  // their unchanged og:image.
+  if (meta.ogImageAlt) html = setMeta(html, "property", "og:image:alt", meta.ogImageAlt);
   html = setMeta(html, "name", "twitter:title", meta.title);
   html = setMeta(html, "name", "twitter:description", meta.description);
   html = setMeta(html, "name", "twitter:image", meta.ogImage);

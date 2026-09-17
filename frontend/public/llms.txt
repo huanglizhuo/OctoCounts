@@ -7,7 +7,7 @@ AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Go
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-09-16
+Last-Updated: 2026-09-17
 Full Context: https://octocounts.com/llms-full.txt
 Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/facebook/react.md
 
@@ -61,7 +61,10 @@ GET /badge/:owner/:repo/commit/:sha
 - Recent reports: https://octocounts.com/recent
 - Popular reports: https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
+- Public growth stats: https://octocounts.com/stats
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Compare two repositories (interactive tool and hub of curated comparisons): https://octocounts.com/compare
+- Diff two refs of one repository: https://octocounts.com/diff
 - README badge builder: https://octocounts.com/badges
 - Browser extension landing page: https://octocounts.com/extension
 - Curated comparisons: server-rendered "X vs Y" SLOC pages, one per pair listed below.

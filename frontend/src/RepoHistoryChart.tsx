@@ -5,7 +5,16 @@ import { Download, Loader2 } from "lucide-react";
 import { fetchRepoHistory } from "./api";
 import { downloadDataUrl, formatNumber } from "./reportUtils";
 import { AnalyticsEvents, trackEvent } from "./analytics";
+import { useScheme } from "./scheme";
 import type { RepoHistory, SlocHistoryPoint } from "./types";
+
+// The GIF export rasterizes literal attribute colors (html-to-image clones
+// carry no CSS variables), so pick the palette per on-screen scheme instead
+// of always shipping the light variant to dark-theme users.
+const GIF_PALETTES = {
+  matrix: { bg: "#101713", line: "#55d37a", lineFill: "rgba(85, 211, 122, 0.15)", axis: "#7d9186", count: "#cfead9" },
+  paper: { bg: "#ffffff", line: "#167a3b", lineFill: "rgba(22, 122, 59, 0.15)", axis: "#63706a", count: "#183326" },
+} as const;
 
 const WIDTH = 640;
 const HEIGHT = 220;
@@ -70,6 +79,8 @@ export function RepoHistoryChart({
   repo: string;
 }) {
   const { t, i18n } = useTranslation();
+  const scheme = useScheme();
+  const gifPalette = GIF_PALETTES[scheme];
   const isGitHub = provider === "github";
   const query = useQuery({
     queryKey: ["repo-history", provider, owner, repo],
@@ -151,7 +162,7 @@ export function RepoHistoryChart({
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         const canvas = await toCanvas(gifExportRef.current, {
           pixelRatio: 1,
-          backgroundColor: "#ffffff",
+          backgroundColor: gifPalette.bg,
           // The source is intentionally parked offscreen in the live document.
           // html-to-image clones it, so reset that positioning on the clone
           // before rasterizing or every frame is clipped to a blank canvas.
@@ -299,12 +310,12 @@ export function RepoHistoryChart({
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width={WIDTH} height={HEIGHT}>
           <defs><clipPath id="repo-history-export-reveal"><rect ref={gifClipRef} x={0} y={0} width={PAD.left} height={HEIGHT} /></clipPath></defs>
           <g clipPath="url(#repo-history-export-reveal)">
-            <path d={areaPath(coords)} fill="#167a3b" fillOpacity="0.15" />
-            <path d={linePath(coords)} stroke="#167a3b" fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={areaPath(coords)} fill={gifPalette.line} fillOpacity="0.15" />
+            <path d={linePath(coords)} stroke={gifPalette.line} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
           </g>
-          <text x={PAD.left} y={HEIGHT - 6} fill="#63706a" fontSize="10">{formatHistoryDate(coords[0].point.date, i18n.language)}</text>
-          <text x={WIDTH - PAD.right} y={HEIGHT - 6} textAnchor="end" fill="#63706a" fontSize="10">{formatHistoryDate(coords[coords.length - 1].point.date, i18n.language)}</text>
-          <text ref={gifCountRef} x={PAD.left} y={20} fill="#183326" fontSize="14" fontWeight="700">0</text>
+          <text x={PAD.left} y={HEIGHT - 6} fill={gifPalette.axis} fontSize="10">{formatHistoryDate(coords[0].point.date, i18n.language)}</text>
+          <text x={WIDTH - PAD.right} y={HEIGHT - 6} textAnchor="end" fill={gifPalette.axis} fontSize="10">{formatHistoryDate(coords[coords.length - 1].point.date, i18n.language)}</text>
+          <text ref={gifCountRef} x={PAD.left} y={20} fill={gifPalette.count} fontSize="14" fontWeight="700">0</text>
         </svg>
       </div>
       <div className="repo-history-actions">

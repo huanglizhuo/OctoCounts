@@ -1,6 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 
-const BASE_URL = 'http://127.0.0.1:5173';
+// Overridable so the suite runs against any local dev-server port
+// (5173 is not always free); playwright.config baseURL stays the default.
+const BASE_URL = process.env.QA_BASE_URL ?? 'http://127.0.0.1:5173';
 
 async function waitForReport(page: Page) {
   await page.goto(BASE_URL);
@@ -77,7 +79,8 @@ test.describe('OctoCounts visual QA', () => {
     const bodyText = await page.locator('body').textContent();
     expect(bodyText).toContain('分析');
     expect(bodyText).toContain('Chrome 应用商店');
-    expect(bodyText).toContain('切换到');
+    // The theme toggle's stable accessible label (label + aria-pressed pair).
+    expect(bodyText).toContain('切换深色');
   });
 
   test('5. mobile 375px: summary tiles and table render', async ({ browser }) => {

@@ -113,7 +113,7 @@ function trendingRepoCards(repositories: TrendingRepository[]): RepoCard[] {
     tag: `#${repo.rank} · ${repo.language ?? i18n.t("growth.repoCard.mixed")}`,
     title: repo.fullName,
     line: repo.description || i18n.t("growth.repoCard.trendingFallback"),
-    footer: i18n.t("growth.repoCard.starsToday", { count: formatNumber(repo.starsToday), total: formatNumber(repo.totalStars) }),
+    footer: i18n.t("growth.repoCard.starsToday", { count: repo.starsToday, total: formatNumber(repo.totalStars) }),
     href: repo.publicPath,
   }));
 }
@@ -128,7 +128,7 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
-      <div className="crt flicker" />
+      <div className="crt" />
       <main id="main" className="page growth-page">
         <Topbar />
         {children}
@@ -343,8 +343,8 @@ export function CuratedComparePage() {
   if (!model) return <ComparePage />;
   const notice =
     model.state === "unavailable"
-      ? "This comparison is temporarily unavailable. Please try again in a moment, or run a fresh comparison with the tool below."
-      : "A cached OctoCounts report is not available for both repositories yet. Run the analyses with the tool below, then revisit this page.";
+      ? t("curatedCompare.unavailable")
+      : t("curatedCompare.missing");
   return (
     <MarketingShell>
       <section className="growth-hero tool-hero" aria-label={model.heading}>
@@ -365,18 +365,19 @@ export function CuratedComparePage() {
 }
 
 function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
+  const { t } = useTranslation();
   if (!model.left || !model.right || !model.rows) return null;
   // The methodology sentence embeds the same /docs/methodology link the SSR
   // body carries; split the plain string on the shared anchor phrase.
   const methodology = model.methodologyText ?? "";
   const [methodologyLead, methodologyTail] = methodology.split("See the counting methodology");
   return (
-    <section className="curated-compare-body" aria-label="Comparison results">
+    <section className="curated-compare-body" aria-label={t("curatedCompare.resultsAria")}>
       {model.summaryText ? <p>{model.summaryText}</p> : null}
       <table>
         <thead>
           <tr>
-            <th>Metric</th>
+            <th>{t("compare.metric")}</th>
             <th><a href={model.left.publicPath}>{model.left.repoFullName}</a></th>
             <th><a href={model.right.publicPath}>{model.right.repoFullName}</a></th>
           </tr>
@@ -393,22 +394,23 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
       </table>
       {model.languageMixText ? <p>{model.languageMixText}</p> : null}
       {model.editorial ? (
-        <section aria-label="About this comparison">
-          <h2>About this comparison</h2>
+        <section aria-label={t("curatedCompare.aboutAria")}>
+          <h2>{t("curatedCompare.aboutTitle")}</h2>
           <p>{model.editorial.scope}</p>
           {model.editorial.insights.map((insight) => (
             <p key={insight}>{insight}</p>
           ))}
           <p><em>{model.editorial.caution}</em></p>
           <p>
-            Sources:{" "}
+            {t("curatedCompare.sourcesLabel")}{" "}
             {model.editorial.sources.map((source, index) => (
               <span key={source.url}>
                 {index > 0 ? " · " : ""}
                 <a href={source.url} rel="noreferrer">{source.label}</a>
               </span>
             ))}
-            . Statements verified {model.editorial.verifiedAt}.
+            {" "}
+            {t("curatedCompare.verified", { date: model.editorial.verifiedAt })}
           </p>
         </section>
       ) : null}
@@ -418,20 +420,20 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
           {methodologyTail}
         </p>
       ) : null}
-      <p>Evidence and next steps:</p>
+      <p>{t("curatedCompare.nextSteps")}</p>
       <ul>
-        <li><a href={model.left.publicPath}>{model.left.repoFullName} SLOC report</a></li>
-        <li><a href={model.right.publicPath}>{model.right.repoFullName} SLOC report</a></li>
+        <li><a href={model.left.publicPath}>{t("curatedCompare.slocReport", { repo: model.left.repoFullName })}</a></li>
+        <li><a href={model.right.publicPath}>{t("curatedCompare.slocReport", { repo: model.right.repoFullName })}</a></li>
         <li>
           <a href={model.interactiveHref}>
-            Compare {model.left.repoFullName} and {model.right.repoFullName} interactively
+            {t("curatedCompare.interactive", { left: model.left.repoFullName, right: model.right.repoFullName })}
           </a>
         </li>
       </ul>
       {model.disclaimerText ? <p>{model.disclaimerText}</p> : null}
       {model.faq?.length ? (
         <div className="how">
-          <h2>Compare FAQ</h2>
+          <h2>{t("curatedCompare.faqTitle")}</h2>
           {model.faq.map((item) => (
             <div className="step" key={item.question}>
               <h3>{item.question}</h3>
@@ -443,7 +445,7 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
         </div>
       ) : null}
       {model.relatedLinks?.length ? (
-        <nav aria-label="Related OctoCounts pages">
+        <nav aria-label={t("curatedCompare.relatedAria")}>
           <ul>
             {model.relatedLinks.map((link) => (
               <li key={link.href}><a href={link.href}>{link.label}</a></li>
@@ -464,15 +466,10 @@ export function ExtensionPage() {
   const { t } = useTranslation();
   return (
     <MarketingShell>
-      <section className="growth-hero tool-hero" aria-label="See GitHub code statistics in your browser">
+      <section className="growth-hero tool-hero" aria-label={t("extensionLanding.heroTitle")}>
         <span className="chart-tag">{t("growth.nav.stats.kicker")}</span>
-        <h1>See GitHub code statistics in your browser</h1>
-        <p>
-          OctoCounts is a free browser extension that adds a SLOC (source lines of code) card to public
-          GitHub repository pages. The card shows the repository's total line count at a glance; clicking it
-          opens a full panel with files, code lines, comment lines, blank lines, and a per-language breakdown —
-          the same counts the OctoCounts web app produces with tokei, pinned to an exact commit.
-        </p>
+        <h1>{t("extensionLanding.heroTitle")}</h1>
+        <p>{t("extensionLanding.heroIntro")}</p>
       </section>
       <section aria-label="Install OctoCounts">
         <div className="section-h">

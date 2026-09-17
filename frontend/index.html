@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="OctoCounts" />
     <meta name="keywords" content="SLOC counter, GitHub line count, source lines of code, count lines of code, tokei web app, repository size, code metrics" />
     <meta name="theme-color" content="#151d1a" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2eee4" />
     <link rel="canonical" href="https://octocounts.com/" />
     <link rel="alternate" type="text/plain" href="https://octocounts.com/llms.txt" title="OctoCounts LLM summary" />
     <link rel="help" href="https://octocounts.com/docs/github-sloc-counter" />
@@ -19,7 +20,8 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://api.octocounts.com" crossorigin />
     <link rel="preload" as="font" href="/fonts/jetbrains-mono-800-latin.woff2" type="font/woff2" crossorigin />
-    <script>document.documentElement.dataset.scheme=matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper";try{const p=new URLSearchParams(location.search),l=p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l&&l!=="en")document.documentElement.lang=l}catch{}</script>
+    <link rel="preload" as="font" href="/fonts/jetbrains-mono-700-latin.woff2" type="font/woff2" crossorigin />
+    <script>{let t=null;try{t=localStorage.getItem("octocounts.theme")}catch{}document.documentElement.dataset.scheme="matrix"===t||"paper"===t?t:matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper"}try{const p=new URLSearchParams(location.search),l=p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l&&l!=="en")document.documentElement.lang=l}catch{}</script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4f3a87a4-fd4c-4dc5-8959-8fcf93e858c7"></script>
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
