@@ -3,8 +3,16 @@
 分支：`perf/backend-optimizations`
 测试库：`postgres://postgres:postgres@127.0.0.1:55432/octocounts_test`（容器 `octocounts-test-pg`，一次性，可随时销毁）
 
-> **绝对不要使用 `.env` 里的 `DATABASE_URL`** —— 那是 Neon 生产库。
+> **注意 `DATABASE_URL` 指向哪个库** —— 仓库根 `.env.example` 的默认值是本地 docker Postgres
+> （`postgres://octocount:octocount@postgres:5432/octocounts`），但本机 `.env` 里具体是什么连接串取决于
+> 各人环境；如果它指向远端/生产库（历史上 `.env` 曾指向 Neon 生产库），**绝对不要**拿它跑测试或迁移。
 > 所有测试一律通过 `TEST_DATABASE_URL` 指向上面的本地容器。
+
+## 状态（2026-09-17)
+
+本计划的实施已全部落地：批次 A(A1–A6)、批次 B(B1–B8)、批次 D(D1、D3)，以及批次 C 的 C1–C6。
+两个例外均有文档化的决策记录：C7（免落盘统计）尝试后对拍失败、主动放弃，见批次 C 末尾；
+D2（徽章轮询退避）未实施、被 D1 取代，见批次 D。本文件保留作决策记录，不再是待办计划。
 
 ## 通用规则
 
@@ -42,6 +50,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 - **现状**：`Cargo.toml` 没有 `[profile.release]`。
 - **做法**：加 `lto = "fat"`、`codegen-units = 1`、`panic = "abort"`。若 `panic = "abort"` 与测试冲突（测试需要 unwind），只在 `[profile.release]` 设，`[profile.test]` 保持默认。
 - **验证**：`cargo build --release` 通过并记录构建耗时变化；`cargo test` 全绿。
+- **落地后变更**：`panic = "abort"` 已被回退（c67b225），`lto = "fat"` 与 `codegen-units = 1` 保留。`Cargo.toml` 的长注释记录了原因：分析栈处理的是不可信输入（任意公开仓库的 tarball 经 gzip/tar/tokei 约 200 种语言解析器），unwind 能把 panic 转成失败任务而让服务继续存活；abort 会让一个坏仓库杀掉整个进程及所有在途请求，而实测只省 2.1 MB 二进制体积、无运行时收益。该注释同时是防回归的哨兵（`cargo test` 两种 profile 都忽略 `panic` 设置，测试抓不到它被重新加回）。
 
 ### A4. OG 光栅化移出 async 线程
 - **现状**：`og.rs:65` 的 `render_png`（resvg 渲染 1200×630 + PNG 编码）在 async handler 里同步执行，阻塞 tokio worker。
@@ -126,6 +135,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 - **现状**：tokei 的 `get_statistics` 用 rayon 全局池吃满所有核，外层 `spawn_blocking` 又允许 `ANALYSIS_CONCURRENCY` 个任务并发，两个大仓库同时分析时线程数是核数的两倍。
 - **做法**：建独立的 `rayon::ThreadPool`，线程数 = `max(1, 可用核数 / ANALYSIS_CONCURRENCY)`，在其 `install()` 内调 tokei。
 - **验证**：并发跑两个分析任务的测试，断言结果正确且无 panic。
+- **未实施**。决策依据是实测数据，记录在 `backend/src/analyzer/difftest.rs` 中 `concurrent_real` 基准的文档注释里（"the measurement that decided against giving tokei a private rayon pool"）：为 tokei 建私有 rayon 池的收益经测量不成立，实际保证由 `concurrent_analyses_do_not_interfere` 测试覆盖。
 
 ### C4. GitHub ref 解析合并为一次 GraphQL 请求
 - **现状**：`github.rs:186` 先打 `/repos/{o}/{r}`，再打 `/repos/{o}/{r}/commits/{ref}`，两次串行 RTT。

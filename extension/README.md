@@ -26,9 +26,9 @@ npm run package:release
 From the `extension/` directory:
 
 ```bash
-npm run release patch   # 0.1.7 → 0.1.8
-npm run release minor   # 0.1.7 → 0.2.0
-npm run release major   # 0.1.7 → 1.0.0
+npm run release patch   # 0.5.1 → 0.5.2
+npm run release minor   # 0.5.1 → 0.6.0
+npm run release major   # 0.5.1 → 1.0.0
 npm run release 0.2.3   # explicit version
 ```
 

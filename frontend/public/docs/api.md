@@ -30,7 +30,7 @@ Content-Type: application/json
 }
 ```
 
-`repoUrl` supports public `github.com` repositories. `refName` may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch. `source` is optional and may be `web`, `extension`, `github_action`, `cli`, `mcp`, `api`, `seed`, `github_trending`, or `unknown`; it is used only for aggregate source breakdowns.
+`repoUrl` supports public `github.com` repositories. `refName` may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch. `source` is optional and may be `web`, `extension`, `github_action`, `cli`, `mcp`, `api`, `seed`, `github_trending`, `sloc_backfill`, or `unknown`; it is used only for aggregate source breakdowns.
 
 ## How do I check the status of an analysis job?
 
