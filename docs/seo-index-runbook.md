@@ -1,6 +1,6 @@
 # SEO 收录修复部署手册(Runbook)
 
-> 配套计划:`SEO-INDEX-GEO-PLAN-2026-09-19.md`。本手册是 sitemap 拆分 + llms 移出 sitemap + FAQ 强化上线后的**必须手动步骤**与验证清单。GSC/Bing Webmaster 需要账号权限,无法从仓库自动化(SG-10 遗留)。
+> 配套计划:[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)。本手册是 sitemap 拆分 + llms 移出 sitemap + FAQ 强化上线后的**必须手动步骤**与验证清单。GSC/Bing Webmaster 需要账号权限,无法从仓库自动化(SG-10 遗留)。
 
 ## 1. 部署后立即验证(无需任何账号)
 

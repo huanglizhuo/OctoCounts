@@ -2,7 +2,7 @@
 
 - 工具:geo-seo-claude skill(v16 个子 skill,已安装到 `~/.claude/skills/` 与 `~/.agents/skills/`,含 Python venv)。
 - 审计对象:https://octocounts.com/ 线上行为 + 本仓库实现。
-- 前置:第 1–3 轮 SEO/GEO 计划见 `SEO-GEO-optimize-plan.md`(答案胶囊、101 对比页编辑内容、/research、schema 补强等已完成并部署)。本计划只处理**新诊断出的问题**,不重复已完成项。
+- 前置:第 1–3 轮 SEO/GEO 工作的合并记录见 [seo-geo-history.md](seo-geo-history.md)(答案胶囊、101 对比页编辑内容、/research、schema 补强等已完成并部署)。本计划只处理**新诊断出的问题**,不重复已完成项。
 
 ---
 

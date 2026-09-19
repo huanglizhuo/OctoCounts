@@ -120,7 +120,7 @@
       "claim": "OctoCounts downloads the compressed source archive of the requested ref instead of cloning full git history. No speed or size multiples may be stated without a published, reproducible experiment (repository, commit, machine, tool versions, network, cache state, commands).",
       "sources": [
         "frontend/public/docs/methodology.html — archive download step",
-        "SEO-GEO-optimize-plan.md SG-02 step 5"
+        "SG-02 step 5 (record merged into docs/seo-geo-history.md)"
       ]
     },
     "apiRateLimit": {

@@ -1,6 +1,6 @@
 # OctoCounts SEO / GEO Measurement (SG-10)
 
-- Created: 2026-09-08 (batch A kickoff of SEO-GEO-optimize-plan.md SG-10).
+- Created: 2026-09-08 (batch A kickoff of the SEO/GEO plan's SG-10 (history: docs/seo-geo-history.md)).
 - Status: event dictionary and export templates are authoritative for the
   current code; dashboards and baselines must be filled from real exports.
 - Principle: clicks are not installs, citations without clicks never appear in

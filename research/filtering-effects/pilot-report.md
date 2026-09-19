@@ -20,6 +20,21 @@ roughly 3–4 minutes of sequential requests. Cost is dominated by repositories
 larger than these two; the sequential runner keeps peak load at one analysis
 at a time.
 
+## Study design (from the original plan, merged 2026-09-19)
+
+- Question: for the same repository at the same commit, how much do
+  OctoCounts' analysis options — excluding tests, docs, or generated files —
+  change the reported line counts, and what does that imply for comparing
+  reports? Pilot approved by the site owner on 2026-09-08 (2 repositories
+  only; the full 10–20 repository run still needs a second approval).
+- Method: run `default` first and record the commit SHA; pin every variant
+  (`exclude-tests` / `exclude-docs` / `exclude-generated`) to that exact SHA
+  so all runs count identical source material. Record repository, commit,
+  configuration, cached-vs-job, wall time, and totals; failures are recorded,
+  never dropped. Sequential (concurrency 1), no force-refresh, one retry.
+- Sample criteria: public repositories already in the seeded/popular corpus,
+  medium-sized (10^4–10^6 lines). Pilot: facebook/react, vitejs/vite.
+
 ## Pilot observations (n=2 — NOT generalizable)
 
 Each repository's four runs count the identical commit (facebook/react
