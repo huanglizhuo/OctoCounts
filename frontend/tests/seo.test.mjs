@@ -314,24 +314,20 @@ test("production frontend image includes the extension version source", async ()
 });
 
 test("static and generated sitemaps use extensionless documentation URLs", async () => {
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json([]);
   let generatedXml;
   try {
-    const generatedSitemap = await onRequest(requestContext("/sitemap.xml"));
+    const generatedSitemap = await onRequest(requestContext("/sitemap-static.xml"));
     generatedXml = await generatedSitemap.text();
   } finally {
     globalThis.fetch = originalFetch;
   }
 
   for (const [slug, canonical] of docs) {
-    assert.match(staticSitemap, new RegExp(`<loc>${canonical}</loc>`));
     assert.match(generatedXml, new RegExp(`<loc>${canonical}</loc>`));
-    assert.doesNotMatch(staticSitemap, new RegExp(`/docs/${slug}\\.html`));
     assert.doesNotMatch(generatedXml, new RegExp(`/docs/${slug}\\.html`));
   }
-  assert.doesNotMatch(staticSitemap, /<changefreq>|<priority>/);
   assert.doesNotMatch(generatedXml, /<changefreq>|<priority>/);
 });
 
@@ -425,11 +421,69 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json([{ loc: "https://octocounts.com/github/octo/repo", lastmod: "2026-07-14" }]);
   try {
-    const response = await onRequest(await renderedContext("/sitemap.xml", snapshot));
-    const xml = await response.text();
-    assert.match(xml, /<loc>https:\/\/octocounts.com\/trending<\/loc>\s*<lastmod>2026-07-15<\/lastmod>/);
-    assert.match(xml, /<loc>https:\/\/octocounts.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
-    assert.doesNotMatch(xml, /<changefreq>|<priority>/);
+    const staticXml = await (await onRequest(await renderedContext("/sitemap-static.xml", snapshot))).text();
+    assert.match(staticXml, /<loc>https:\/\/octocounts\.com\/trending<\/loc>\s*<lastmod>2026-07-15<\/lastmod>/);
+    assert.doesNotMatch(staticXml, /<changefreq>|<priority>/);
+
+    const reportsXml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml", snapshot))).text();
+    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
+    assert.doesNotMatch(reportsXml, /<changefreq>|<priority>/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sitemap index lists the child sitemaps and keeps text assets out of every sitemap", async () => {
+  const originalFetch = globalThis.fetch;
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async (url, init) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/sitemap") {
+      return Response.json([{ loc: "https://octocounts.com/github/octo/repo", lastmod: "2026-07-14" }]);
+    }
+    if (init?.method === "POST" && request.pathname === "/api/seo/repos-indexable") {
+      const body = JSON.parse(init.body);
+      return Response.json({ repos: body.repos });
+    }
+    return Response.json([]);
+  };
+  try {
+    const indexXml = await (await onRequest(await renderedContext("/sitemap.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }))).text();
+    assert.match(indexXml, /<sitemapindex xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-static\.xml<\/loc>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>/);
+    assert.doesNotMatch(indexXml, /sitemap-reports-2\.xml/);
+    // The index carries no page URLs itself.
+    assert.doesNotMatch(indexXml, /<urlset/);
+
+    for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
+      const xml = await (await onRequest(await renderedContext(path, {
+        source: "https://github.com/trending",
+        generatedAt: "2026-07-15T02:17:00Z",
+        date: "2026-07-15",
+        repositories: [],
+      }))).text();
+      assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/, path);
+      // text/plain assets never belong in an XML sitemap (FIX-2).
+      assert.doesNotMatch(xml, /llms\.txt|llms-full\.txt/, path);
+    }
+
+    // Out-of-range report chunks answer a valid empty urlset, not a 500.
+    const overflow = await onRequest(await renderedContext("/sitemap-reports-9.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    assert.equal(overflow.status, 200);
+    const overflowXml = await overflow.text();
+    assert.match(overflowXml, /<urlset[^>]*>\s*<\/urlset>|<urlset[^>]*>\n<\/urlset>/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -471,29 +525,33 @@ test("dist index.html keeps the meta shapes the edge injector matches", async ()
   assert.match(html, /<div id="root"><\/div>/);
 });
 
-test("static sitemap entries carry a lastmod date in both sitemap copies", async () => {
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
+test("every generated sitemap child carries a lastmod date per URL", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json([]);
-  let generatedXml;
+  __resetCompareExistenceCacheForTests();
+  globalThis.fetch = async (url, init) => {
+    const request = new URL(url);
+    if (init?.method === "POST" && request.pathname === "/api/seo/repos-indexable") {
+      const body = JSON.parse(init.body);
+      return Response.json({ repos: body.repos });
+    }
+    return Response.json([{ loc: "https://octocounts.com/github/octo/repo", lastmod: "2026-07-14" }]);
+  };
   try {
-    const generatedSitemap = await onRequest(await renderedContext("/sitemap.xml", {
-      source: "https://github.com/trending",
-      generatedAt: "2026-07-15T02:17:00Z",
-      date: "2026-07-15",
-      repositories: [],
-    }));
-    generatedXml = await generatedSitemap.text();
+    for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
+      const xml = await (await onRequest(await renderedContext(path, {
+        source: "https://github.com/trending",
+        generatedAt: "2026-07-15T02:17:00Z",
+        date: "2026-07-15",
+        repositories: [],
+      }))).text();
+      const blocks = xml.match(/<url>[\s\S]*?<\/url>/g) ?? [];
+      assert.ok(blocks.length > 0, path);
+      for (const block of blocks) {
+        assert.match(block, /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/, `${path}: ${block}`);
+      }
+    }
   } finally {
     globalThis.fetch = originalFetch;
-  }
-
-  for (const xml of [staticSitemap, generatedXml]) {
-    const blocks = xml.match(/<url>[\s\S]*?<\/url>/g) ?? [];
-    assert.ok(blocks.length > 0);
-    for (const block of blocks) {
-      assert.match(block, /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/, block);
-    }
   }
 });
 
@@ -1037,7 +1095,7 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
   };
   let xml;
   try {
-    const response = await onRequest(await renderedContext("/sitemap.xml", {
+    const response = await onRequest(await renderedContext("/sitemap-compare.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
@@ -1055,8 +1113,6 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
   assert.doesNotMatch(xml, /<loc>https:\/\/octocounts\.com\/compare\/angular-vs-vue<\/loc>/);
   // Everything with both sides cached stays listed.
   assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/vite-vs-webpack<\/loc>/);
-  // The rest of the sitemap is untouched.
-  assert.match(xml, /<loc>https:\/\/octocounts\.com\/trending<\/loc>/);
 
   // An unreachable backend fails open: no curated entry is dropped, and the
   // failed answer is not cached (the next pass retries).
@@ -1071,7 +1127,7 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
   };
   let xmlOnFailure;
   try {
-    const response = await onRequest(await renderedContext("/sitemap.xml", {
+    const response = await onRequest(await renderedContext("/sitemap-compare.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
@@ -1095,8 +1151,7 @@ test("bare /compare noscript links every curated comparison", async () => {
   }
 });
 
-test("generated and static sitemaps include every curated comparison", async () => {
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
+test("generated compare sitemap includes every curated comparison", async () => {
   const originalFetch = globalThis.fetch;
   // Every repository answers as indexed, so no curated entry is filtered out.
   __resetCompareExistenceCacheForTests();
@@ -1110,7 +1165,7 @@ test("generated and static sitemaps include every curated comparison", async () 
   };
   let generatedXml;
   try {
-    const generatedSitemap = await onRequest(await renderedContext("/sitemap.xml", {
+    const generatedSitemap = await onRequest(await renderedContext("/sitemap-compare.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
@@ -1123,13 +1178,10 @@ test("generated and static sitemaps include every curated comparison", async () 
 
   for (const entry of COMPARE_REGISTRY) {
     const loc = `<loc>https://octocounts.com/compare/${entry.slug}</loc>`;
-    assert.ok(staticSitemap.includes(loc), `static ${entry.slug}`);
     assert.ok(generatedXml.includes(loc), `generated ${entry.slug}`);
   }
-  for (const xml of [staticSitemap, generatedXml]) {
-    const curatedCount = (xml.match(/<loc>https:\/\/octocounts\.com\/compare\//g) ?? []).length;
-    assert.equal(curatedCount, COMPARE_REGISTRY.length);
-  }
+  const curatedCount = (generatedXml.match(/<loc>https:\/\/octocounts\.com\/compare\//g) ?? []).length;
+  assert.equal(curatedCount, COMPARE_REGISTRY.length);
 });
 
 const RELATED_REPORT_FIXTURE = {
@@ -1368,22 +1420,38 @@ test("stats SSR renders the full citable aggregates and Dataset datePublished", 
 test("docs dateModified and sitemap lastmod follow the per-page content manifest", async () => {
   const manifest = JSON.parse(await readFile(new URL("content/content-manifest.json", ROOT), "utf8"));
   const edge = await readFile(new URL("functions/[[path]].js", ROOT), "utf8");
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
 
-  // The functions file's STATIC_SITEMAP_ENTRIES must mirror the manifest.
+  // The functions file's STATIC_SITEMAP_ENTRIES must mirror the manifest's
+  // XML-sitemap pages. llms.txt / llms-full.txt stay in the manifest as a
+  // content-change record but are deliberately not sitemap entries.
+  const manifestSitemapPages = Object.entries(manifest.pages).filter(([loc]) => !/\/llms(-full)?\.txt$/.test(loc));
   const entryRe = /\{ loc: "(https:\/\/octocounts\.com\/[^"]*)", lastmod: "(\d{4}-\d{2}-\d{2})" \}/g;
   const entries = [...edge.matchAll(entryRe)].map((match) => [match[1], match[2]]);
-  assert.equal(entries.length, Object.keys(manifest.pages).length, "STATIC_SITEMAP_ENTRIES count matches manifest");
+  assert.equal(entries.length, manifestSitemapPages.length, "STATIC_SITEMAP_ENTRIES count matches manifest");
   for (const [loc, lastmod] of entries) {
     assert.equal(lastmod, manifest.pages[loc], `${loc} functions lastmod matches manifest`);
   }
 
-  // The static fallback sitemap must carry the same per-URL dates.
-  for (const [loc, lastmod] of Object.entries(manifest.pages)) {
-    if (loc.endsWith("llms.txt") || loc.endsWith("llms-full.txt")) continue;
-    const block = staticSitemap.match(new RegExp(`<url><loc>${loc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}<\/loc><lastmod>([^<]+)<\/lastmod><\/url>`));
-    assert.ok(block, `${loc} present in static sitemap`);
-    assert.equal(block[1], lastmod, `${loc} static sitemap lastmod matches manifest`);
+  // The generated static child must carry the same per-URL dates.
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json([]);
+  let staticXml;
+  try {
+    const response = await onRequest(await renderedContext("/sitemap-static.xml", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }));
+    staticXml = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  for (const [loc, lastmod] of manifestSitemapPages) {
+    if (loc.endsWith("/trending")) continue; // injected from the daily snapshot
+    const block = staticXml.match(new RegExp(`<url>\\s*<loc>${loc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}<\\/loc>\\s*<lastmod>([^<]+)<\\/lastmod>`));
+    assert.ok(block, `${loc} present in generated static sitemap`);
+    assert.equal(block[1], lastmod, `${loc} generated sitemap lastmod matches manifest`);
   }
 
   // Docs TechArticle dateModified follows the same per-page date.
@@ -1887,22 +1955,19 @@ test("docs pages serve the best SLOC counter tools comparison and its markdown t
 });
 
 test("sitemaps list the docs glossary alongside the other docs", async () => {
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
-  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
-  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/github-language-bar-alternative<\/loc>/);
-  assert.match(staticSitemap, /<loc>https:\/\/octocounts\.com\/docs\/best-sloc-counter-tools<\/loc>/);
-
   const originalFetch = globalThis.fetch;
-  __resetCompareExistenceCacheForTests();
   globalThis.fetch = async () => Response.json([]);
   try {
-    const generated = await onRequest(await renderedContext("/sitemap.xml", {
+    const generated = await onRequest(await renderedContext("/sitemap-static.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
       repositories: [],
     }));
-    assert.match(await generated.text(), /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
+    const xml = await generated.text();
+    assert.match(xml, /<loc>https:\/\/octocounts\.com\/docs\/glossary<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/octocounts\.com\/docs\/github-language-bar-alternative<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/octocounts\.com\/docs\/best-sloc-counter-tools<\/loc>/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1932,13 +1997,11 @@ test("extension landing page serves complete SSR content with real store links",
   }
 });
 
-test("sitemap includes the extension landing page in both copies", async () => {
-  const staticSitemap = await readFile(new URL("public/sitemap.xml", ROOT), "utf8");
-  assert.ok(staticSitemap.includes("<loc>https://octocounts.com/extension</loc>"));
+test("sitemap includes the extension landing page", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json([]);
   try {
-    const generated = await (await onRequest(await renderedContext("/sitemap.xml", {
+    const generated = await (await onRequest(await renderedContext("/sitemap-static.xml", {
       source: "https://github.com/trending", generatedAt: "2026-07-15T02:17:00Z", date: "2026-07-15", repositories: [],
     }))).text();
     assert.ok(generated.includes("<loc>https://octocounts.com/extension</loc>"));

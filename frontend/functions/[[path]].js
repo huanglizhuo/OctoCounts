@@ -30,17 +30,20 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-16" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-19" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/research", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/about", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/llms.txt", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/llms-full.txt", lastmod: "2026-09-16" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-17" },
 ];
+
+// llms.txt / llms-full.txt are intentionally absent from every XML sitemap:
+// sitemaps enumerate indexable web pages, and text/plain resources surface in
+// Search Console as unindexable. Answer engines fetch llms.txt directly via
+// the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
 const HOME_CONTENT_LASTMOD = "2026-09-17";
@@ -119,7 +122,20 @@ export async function onRequest(context) {
   }
 
   if (url.pathname === "/sitemap.xml") {
-    return sitemapResponse(context);
+    return sitemapIndexResponse(context);
+  }
+
+  if (url.pathname === "/sitemap-static.xml") {
+    return staticSitemapResponse(context);
+  }
+
+  if (url.pathname === "/sitemap-compare.xml") {
+    return compareSitemapResponse(context);
+  }
+
+  const reportsSitemapPage = url.pathname.match(/^\/sitemap-reports-(\d+)\.xml$/);
+  if (reportsSitemapPage) {
+    return reportsSitemapResponse(context, Number(reportsSitemapPage[1]));
   }
 
   if (parts[0] === "github" && parts.length >= 3) {
@@ -1701,18 +1717,23 @@ function injectCompareFallback(index, entry) {
   });
 }
 
-async function sitemapResponse(context) {
-  // The three upstreams are independent: overlap them instead of paying the
-  // (potentially slow) compare-existence scan after both other fetches.
-  const [response, snapshot, curatedEntries] = await Promise.all([
-    fetch(`${apiBase(context)}/api/seo/sitemap`, { headers: { accept: "application/json" } }),
-    trendingSnapshot(context),
-    indexableCompareEntries(context),
-  ]);
-  const dynamicEntries = response.ok ? await response.json() : [];
-  const entries = STATIC_SITEMAP_ENTRIES.map((entry) => entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry)
-    .concat(curatedEntries)
-    .concat(dynamicEntries.map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod })));
+// Sitemap layout: /sitemap.xml is a sitemap index over three child files so
+// the ~4k programmatic /github/* report pages cannot bury the 20-odd core
+// pages and 100-odd curated comparisons in one 4,000-entry URL list. Search
+// engines report and crawl each child independently, which keeps crawl budget
+// on the pages that actually need indexing. Report pages are chunked because
+// that set keeps growing.
+const REPORTS_SITEMAP_PAGE_SIZE = 10_000;
+
+function sitemapCacheHeaders() {
+  return {
+    "content-type": "application/xml; charset=utf-8",
+    "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    ...securityHeaders(),
+  };
+}
+
+function urlsetResponse(entries) {
   const urls = entries
     .map(
       (entry) => `  <url>
@@ -1721,12 +1742,52 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
     )
     .join("\n");
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, {
-    headers: {
-      "content-type": "application/xml; charset=utf-8",
-      "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
-      ...securityHeaders(),
-    },
+    headers: sitemapCacheHeaders(),
   });
+}
+
+async function fetchReportSitemapEntries(context) {
+  const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, { headers: { accept: "application/json" } });
+  return response.ok ? await response.json() : [];
+}
+
+async function sitemapIndexResponse(context) {
+  // Only the report-page count is unknown up front (compare is a single file
+  // and the static list is compiled in), so skip the compare-existence scan
+  // here: the index is the hottest sitemap request crawlers make.
+  const dynamicEntries = await fetchReportSitemapEntries(context);
+  const reportPages = Math.max(1, Math.ceil(dynamicEntries.length / REPORTS_SITEMAP_PAGE_SIZE));
+  const children = [
+    "https://octocounts.com/sitemap-static.xml",
+    "https://octocounts.com/sitemap-compare.xml",
+    ...Array.from({ length: reportPages }, (_, i) => `https://octocounts.com/sitemap-reports-${i + 1}.xml`),
+  ];
+  const sitemaps = children.map((loc) => `  <sitemap>\n    <loc>${escapeXml(loc)}</loc>\n  </sitemap>`).join("\n");
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemaps}\n</sitemapindex>\n`,
+    { headers: sitemapCacheHeaders() }
+  );
+}
+
+async function staticSitemapResponse(context) {
+  const snapshot = await trendingSnapshot(context);
+  const entries = STATIC_SITEMAP_ENTRIES.map((entry) =>
+    entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry
+  );
+  return urlsetResponse(entries);
+}
+
+async function compareSitemapResponse(context) {
+  return urlsetResponse(await indexableCompareEntries(context));
+}
+
+async function reportsSitemapResponse(context, page) {
+  if (!Number.isInteger(page) || page < 1) return urlsetResponse([]);
+  const dynamicEntries = await fetchReportSitemapEntries(context);
+  const slice = dynamicEntries
+    .slice((page - 1) * REPORTS_SITEMAP_PAGE_SIZE, page * REPORTS_SITEMAP_PAGE_SIZE)
+    .map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod }));
+  return urlsetResponse(slice);
 }
 
 async function trendingSnapshot(context) {

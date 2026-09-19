@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildPayload, parseCsvUrls, submitUrls } from "./resubmit-urls-indexnow.mjs";
+import { buildPayload, extractSitemapLocs, fetchCoreUrls, parseCsvUrls, submitUrls, verifyKeyLocation } from "./resubmit-urls-indexnow.mjs";
 
 test("parses Bing Webmaster Tools CSV exports, keeping only same-host URLs", () => {
   const csv = [
@@ -62,4 +62,54 @@ test("requires the key and handles an empty URL list", async () => {
   await assert.rejects(() => submitUrls({ urls: ["https://octocounts.com/a"], key: "" }), /INDEXNOW_KEY/);
   const empty = await submitUrls({ urls: [], host: "octocounts.com", key: "k", fetchImpl: async () => { throw new Error("must not fetch"); } });
   assert.deepEqual(empty, { batches: 0, submitted: 0, ok: true, failures: [] });
+});
+
+test("verifyKeyLocation passes only when the served key file matches the key", async () => {
+  const ok = await verifyKeyLocation({ host: "octocounts.com", key: "abc123", fetchImpl: async () => new Response("abc123", { status: 200 }) });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.detail, "key file matches INDEXNOW_KEY");
+
+  const mismatch = await verifyKeyLocation({ host: "octocounts.com", key: "abc123", fetchImpl: async () => new Response("other", { status: 200 }) });
+  assert.equal(mismatch.ok, false);
+  assert.match(mismatch.detail, /mismatch/);
+
+  const missing = await verifyKeyLocation({ host: "octocounts.com", key: "abc123", fetchImpl: async () => new Response("not found", { status: 404 }) });
+  assert.equal(missing.ok, false);
+  assert.match(missing.detail, /404/);
+
+  const unreachable = await verifyKeyLocation({ host: "octocounts.com", key: "abc123", fetchImpl: async () => { throw new Error("boom"); } });
+  assert.equal(unreachable.ok, false);
+  assert.match(unreachable.detail, /unreachable: boom/);
+
+  await assert.rejects(() => verifyKeyLocation({ key: "" }), /INDEXNOW_KEY/);
+});
+
+test("extractSitemapLocs pulls every loc, tolerating whitespace", () => {
+  const xml = "<urlset><url><loc> https://octocounts.com/ </loc></url><url><loc>https://octocounts.com/docs/faq</loc></url></urlset>";
+  assert.deepEqual(extractSitemapLocs(xml), ["https://octocounts.com/", "https://octocounts.com/docs/faq"]);
+});
+
+test("fetchCoreUrls merges the static and compare children, deduplicated", async () => {
+  const fetched = [];
+  const fetchImpl = async (url) => {
+    fetched.push(url);
+    if (url.endsWith("/sitemap-static.xml")) {
+      return new Response("<urlset><url><loc>https://octocounts.com/</loc></url><url><loc>https://octocounts.com/docs/faq</loc></url></urlset>", { status: 200 });
+    }
+    return new Response("<urlset><url><loc>https://octocounts.com/compare/react-vs-vue</loc></url><url><loc>https://octocounts.com/</loc></url></urlset>", { status: 200 });
+  };
+  const urls = await fetchCoreUrls({ host: "octocounts.com", fetchImpl });
+  assert.deepEqual(fetched, ["https://octocounts.com/sitemap-static.xml", "https://octocounts.com/sitemap-compare.xml"]);
+  assert.deepEqual(urls, ["https://octocounts.com/", "https://octocounts.com/docs/faq", "https://octocounts.com/compare/react-vs-vue"]);
+
+  // A missing child (split sitemap not deployed yet) is a hard error, not a
+  // silently truncated submission.
+  await assert.rejects(
+    () => fetchCoreUrls({ host: "octocounts.com", fetchImpl: async () => new Response("nope", { status: 404 }) }),
+    /sitemap-static\.xml answered 404/
+  );
+  await assert.rejects(
+    () => fetchCoreUrls({ host: "octocounts.com", fetchImpl: async () => new Response("<urlset></urlset>", { status: 200 }) }),
+    /contains no URLs/
+  );
 });

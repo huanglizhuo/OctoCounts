@@ -6,8 +6,8 @@
 // This script deliberately no longer rewrites ANY date. Last-Updated headers,
 // sitemap lastmod values, docs dateModified, and homepage freshness lines are
 // per-page records of real content changes, maintained by hand in
-// frontend/content/content-manifest.json (mirrored in functions/[[path]].js
-// and public/sitemap.xml; seo.test.mjs asserts the sync). Blanket-refreshing
+// frontend/content/content-manifest.json (mirrored in the functions'
+// STATIC_SITEMAP_ENTRIES; seo.test.mjs asserts the sync). Blanket-refreshing
 // them to "today" on every push is exactly the behavior SG-07 removed.
 import { readFile, writeFile } from "node:fs/promises";
 

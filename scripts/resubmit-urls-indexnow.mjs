@@ -85,17 +85,73 @@ export async function submitUrls({
   return { batches: batches.length, submitted, ok: failures.length === 0, failures };
 }
 
+// FIX-4 (SG-08 leftover): prove the key file the edge function serves from
+// INDEXNOW_KEY is actually reachable and byte-identical to the key we submit.
+// IndexNow rejects submissions whose keyLocation cannot be fetched, so a
+// mismatch here silently voids every ping — check it before blaming quotas.
+export async function verifyKeyLocation({ host = DEFAULT_HOST, key, fetchImpl = fetch }) {
+  if (!key) throw new Error("INDEXNOW_KEY is required (must match the Pages env var serving the key file)");
+  const keyLocation = `https://${host}/${key}.txt`;
+  try {
+    const response = await fetchImpl(keyLocation);
+    const body = response.ok ? (await response.text()).trim() : "";
+    return {
+      ok: response.ok && body === key,
+      status: response.status,
+      keyLocation,
+      detail: !response.ok
+        ? `key file answered ${response.status}`
+        : body === key
+          ? "key file matches INDEXNOW_KEY"
+          : `key file content mismatch (served ${JSON.stringify(body.slice(0, 40))})`,
+    };
+  } catch (error) {
+    return { ok: false, status: 0, keyLocation, detail: `key file unreachable: ${error.message}` };
+  }
+}
+
+export function extractSitemapLocs(xml) {
+  return [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((match) => match[1]);
+}
+
+// FIX-5: the core sitemap children are the canonical "pages worth indexing"
+// list (static pages + curated comparisons, no /github/* report pages).
+// Submitting them once after a deploy nudges IndexNow engines to recrawl the
+// pages that actually rank, instead of waiting for organic rediscovery.
+export async function fetchCoreUrls({ host = DEFAULT_HOST, fetchImpl = fetch } = {}) {
+  const urls = [];
+  for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml"]) {
+    const response = await fetchImpl(`https://${host}${path}`);
+    if (!response.ok) throw new Error(`${path} answered ${response.status} — deploy the split sitemap first`);
+    const locs = extractSitemapLocs(await response.text());
+    if (!locs.length) throw new Error(`${path} contains no URLs`);
+    urls.push(...locs);
+  }
+  return [...new Set(urls)];
+}
+
 async function main(argv) {
+  const flags = argv.filter((arg) => arg.startsWith("--"));
   const files = argv.filter((arg) => !arg.startsWith("--"));
-  if (!files.length) {
+  const key = process.env.INDEXNOW_KEY;
+  const host = process.env.INDEXNOW_HOST || DEFAULT_HOST;
+  const endpoint = process.env.INDEXNOW_ENDPOINT || DEFAULT_ENDPOINT;
+
+  if (flags.includes("--verify-key")) {
+    const result = await verifyKeyLocation({ host, key });
+    console.error(`${result.keyLocation} -> ${result.status}: ${result.detail}`);
+    if (!result.ok) process.exitCode = 1;
+    return;
+  }
+
+  if (!files.length && !flags.includes("--core")) {
     console.error("usage: node scripts/resubmit-urls-indexnow.mjs <bing-export.csv | url-list.txt> [more files...]");
+    console.error("       node scripts/resubmit-urls-indexnow.mjs --core        # submit the static+compare sitemap URLs");
+    console.error("       node scripts/resubmit-urls-indexnow.mjs --verify-key  # check https://<host>/<key>.txt serves INDEXNOW_KEY");
     console.error("env: INDEXNOW_KEY (required), INDEXNOW_HOST, INDEXNOW_ENDPOINT, DRY_RUN=1");
     process.exitCode = 1;
     return;
   }
-  const key = process.env.INDEXNOW_KEY;
-  const host = process.env.INDEXNOW_HOST || DEFAULT_HOST;
-  const endpoint = process.env.INDEXNOW_ENDPOINT || DEFAULT_ENDPOINT;
 
   const urls = [];
   for (const file of files) {
@@ -103,6 +159,11 @@ async function main(argv) {
     const parsed = parseCsvUrls(text, { host });
     console.error(`${file}: ${parsed.length} ${host} URLs`);
     urls.push(...parsed);
+  }
+  if (flags.includes("--core")) {
+    const core = await fetchCoreUrls({ host });
+    console.error(`--core: ${core.length} URLs from ${host}/sitemap-static.xml + /sitemap-compare.xml`);
+    urls.push(...core);
   }
   const unique = [...new Set(urls)];
   console.error(`resubmitting ${unique.length} unique URLs to ${endpoint}`);
