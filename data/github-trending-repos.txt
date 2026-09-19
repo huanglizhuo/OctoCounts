@@ -1,21 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-09-18T07:22:39.375Z
-alibaba/open-code-review
+# GitHub Trending daily snapshot generated 2026-09-19T07:19:19.588Z
 cloudflare/security-audit-skill
-addyosmani/agent-skills
-Tencent/BrowserSkill
-alphaXiv/OpenResearch
 anthropics/claude-code
-NationalSecurityAgency/ghidra
-anthropics/knowledge-work-plugins
-Tencent/WeKnora
-abue-ammar/tinycast
-cilium/cilium
-jamiepine/voicebox
+alibaba/open-code-review
 affaan-m/ECC
-roboflow/supervision
-JustVugg/colibri
+Tencent/BrowserSkill
+addyosmani/agent-skills
 TencentCloud/Octop
-ever-co/ever-gauzy
-cline/cline
+Fission-AI/OpenSpec
+ankitects/anki
+anthropics/knowledge-work-plugins
+supermemoryai/supermemory
+tradesdontlie/tradingview-mcp
+rustfs/rustfs
+supabase/supabase
 coder/coder
-n8n-io/n8n
+ahmedkhaleel2004/gitdiagram
+asciimoo/hister
