@@ -1,18 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-09-19T07:19:19.588Z
+# GitHub Trending daily snapshot generated 2026-09-20T07:43:17.744Z
 cloudflare/security-audit-skill
-anthropics/claude-code
-alibaba/open-code-review
-affaan-m/ECC
-Tencent/BrowserSkill
+trycua/cua
 addyosmani/agent-skills
-TencentCloud/Octop
-Fission-AI/OpenSpec
-ankitects/anki
-anthropics/knowledge-work-plugins
-supermemoryai/supermemory
-tradesdontlie/tradingview-mcp
-rustfs/rustfs
-supabase/supabase
 coder/coder
-ahmedkhaleel2004/gitdiagram
+anthropics/claude-code
+Open-Dev-Society/OpenStock
+higgsfield-ai/higgsfield
+docling-project/docling
+cloudflare/quiche
 asciimoo/hister
+ruanyf/weekly
+ZuodaoTech/everyone-can-use-english
+anthropics/knowledge-work-plugins
+cactus-compute/needle
+yynxxxxx/Codex-X
