@@ -1,16 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-09-20T07:43:17.744Z
+# GitHub Trending daily snapshot generated 2026-09-21T07:55:57.575Z
+affaan-m/ECC
+BuilderIO/agent-native
 cloudflare/security-audit-skill
 trycua/cua
-addyosmani/agent-skills
-coder/coder
+anthropics/financial-services
+paperless-ngx/paperless-ngx
 anthropics/claude-code
-Open-Dev-Society/OpenStock
+mihail911/modern-software-dev-assignments
 higgsfield-ai/higgsfield
-docling-project/docling
-cloudflare/quiche
-asciimoo/hister
-ruanyf/weekly
-ZuodaoTech/everyone-can-use-english
-anthropics/knowledge-work-plugins
-cactus-compute/needle
-yynxxxxx/Codex-X
+Open-Dev-Society/OpenStock
+coder/coder
+vercel-labs/json-render
+addyosmani/agent-skills
