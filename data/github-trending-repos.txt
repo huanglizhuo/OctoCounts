@@ -1,13 +1,9 @@
-# GitHub Trending daily snapshot generated 2026-09-22T07:40:58.458Z
-BuilderIO/agent-native
-trycua/cua
-Open-Dev-Society/OpenStock
-akitaonrails/ai-memory
-coder/coder
+# GitHub Trending daily snapshot generated 2026-09-23T07:43:32.754Z
 anthropics/financial-services
-cloudflare/quiche
+agent-substrate/substrate
+dream-num/univer
+davila7/claude-code-templates
+google/ax
 mvt-project/mvt
-zhouxiaoka/autoclip
-ruanyf/weekly
-Crosstalk-Solutions/project-nomad
-yynxxxxx/Codex-X
+superdesigndev/treg
+browser-use/video-use
