@@ -1,9 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-09-23T07:43:32.754Z
+# GitHub Trending daily snapshot generated 2026-09-24T07:34:26.499Z
 anthropics/financial-services
-agent-substrate/substrate
-dream-num/univer
-davila7/claude-code-templates
 google/ax
-mvt-project/mvt
+davila7/claude-code-templates
+BuilderIO/agent-native
+obra/superpowers
+dream-num/univer
+Open-Dev-Society/OpenStock
+agent-substrate/substrate
+strands-agents/harness-sdk
+HKUDS/CLI-Anything
 superdesigndev/treg
+pbakaus/impeccable
+mvt-project/mvt
+DeusData/codebase-memory-mcp
+harry7557558/spirula-studio
 browser-use/video-use
+TNT-Likely/PanWatch
