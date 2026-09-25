@@ -13,7 +13,9 @@ use crate::{
     coordinator::{job_is_finished, AnalysisCoordinator},
     error::ApiError,
     metrics::Metrics,
-    models::{AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus, RepositoryProvider},
+    models::{
+        AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus, RepositoryProvider,
+    },
     ratelimit::{client_ip, RateLimits},
 };
 
@@ -24,8 +26,17 @@ pub struct AppState {
     pub metrics: Arc<Metrics>,
     pub rate_limits: RateLimits,
     /// How many historical commits `repo_history::ensure_repo_history` samples
-    /// per repo for the SLOC backfill. See `Config::sloc_history_max_samples`.
-    pub sloc_history_max_samples: u64,
+    /// per repo for the SLOC backfill. See `Config::sloc_history_max_points`.
+    pub sloc_history_max_points: u64,
+    /// Wall-clock budget for one SLOC backfill run; an exhausted budget leaves
+    /// the backfill resumable rather than completed. See
+    /// `Config::sloc_backfill_wall_clock_seconds`.
+    pub sloc_backfill_wall_clock: Duration,
+    /// How long an incomplete SLOC backfill claim must age before it can be
+    /// re-claimed (the resume path). Must exceed the wall-clock budget so a
+    /// running backfill is never double-claimed. See
+    /// `Config::sloc_backfill_reclaim_after_seconds`.
+    pub sloc_backfill_reclaim_after: Duration,
     /// See `Config::github_extension_oauth_client_id` /
     /// `github_extension_oauth_client_secret` — threaded onto `AppState`
     /// directly rather than carrying the whole `Config` so `oauth.rs` doesn't
@@ -42,7 +53,10 @@ pub async fn analyze(
 ) -> Result<Json<AnalyzeResponse>, ApiError> {
     // Per-IP token buckets. `connect_info` is absent only in tests driving the
     // handler without the connect-info make service; those skip limiting.
-    if let Some(ip) = client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)) {
+    if let Some(ip) = client_ip(
+        &headers,
+        connect_info.map(|Extension(ConnectInfo(addr))| addr),
+    ) {
         if let Err(seconds) = state.rate_limits.analyze.check(&ip) {
             return Err(ApiError::rate_limited(seconds));
         }
@@ -163,10 +177,7 @@ pub async fn report(
     Ok((
         [
             (header::CONTENT_TYPE, "application/json"),
-            (
-                header::CACHE_CONTROL,
-                "public, max-age=31536000, immutable",
-            ),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
         ],
         body,
     )
@@ -220,7 +231,11 @@ pub struct RepoInfoQuery {
 }
 
 fn is_repo_part(value: &str) -> bool {
-    !value.is_empty() && value.len() <= 100 && value.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+    !value.is_empty()
+        && value.len() <= 100
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
 }
 
 pub async fn stats(
@@ -391,14 +406,21 @@ mod tests {
         store.migrate().await.unwrap();
 
         let metrics = Arc::new(Metrics::new());
-        let coordinator =
-            AnalysisCoordinator::new(store, GitHubClient::new().unwrap(), 1, None, metrics.clone());
+        let coordinator = AnalysisCoordinator::new(
+            store,
+            GitHubClient::new().unwrap(),
+            1,
+            None,
+            metrics.clone(),
+        );
         let state = AppState {
             coordinator: coordinator.clone(),
             caches: AppCaches::new(),
             metrics,
             rate_limits: RateLimits::new(),
-            sloc_history_max_samples: 12,
+            sloc_history_max_points: 12,
+            sloc_backfill_wall_clock: Duration::from_secs(600),
+            sloc_backfill_reclaim_after: Duration::from_secs(900),
             github_extension_oauth_client_id: None,
             github_extension_oauth_client_secret: None,
         };

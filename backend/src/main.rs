@@ -18,11 +18,7 @@ mod repo_history;
 mod seo;
 mod store;
 
-use std::{
-    net::SocketAddr,
-    sync::Arc,
-    time::Duration,
-};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -97,10 +93,26 @@ async fn main() -> anyhow::Result<()> {
         caches: AppCaches::new(),
         metrics,
         rate_limits: RateLimits::new(),
-        sloc_history_max_samples: config.sloc_history_max_samples as u64,
+        sloc_history_max_points: config.sloc_history_max_points as u64,
+        sloc_backfill_wall_clock: Duration::from_secs(config.sloc_backfill_wall_clock_seconds),
+        sloc_backfill_reclaim_after: Duration::from_secs(
+            config.sloc_backfill_reclaim_after_seconds,
+        ),
         github_extension_oauth_client_id: config.github_extension_oauth_client_id.clone(),
         github_extension_oauth_client_secret: config.github_extension_oauth_client_secret.clone(),
     };
+
+    // The SLOC counterparts of the star snapshot task above: the forward
+    // sampler keeps completed repos' curves current (SHA-gated, so an
+    // unchanged repo costs one cheap ref resolution and no analysis), and
+    // the compaction task keeps the stored point count bounded as histories
+    // age. Separate tasks rather than one loop so a failure in one does not
+    // stall the other.
+    repo_history::spawn_sloc_forward_task(state.clone(), config.sloc_forward_interval_seconds);
+    repo_history::spawn_sloc_compaction_task(
+        state.clone(),
+        config.sloc_compaction_interval_seconds,
+    );
 
     let app = build_router(state);
 
@@ -139,7 +151,10 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/repos-indexable", post(seo::repos_indexable))
         .route("/api/seo/related", get(seo::related))
         .route("/api/seo/repo-history", get(repo_history::repo_history))
-        .route("/api/auth/github/extension-token", post(oauth::github_extension_token_exchange))
+        .route(
+            "/api/auth/github/extension-token",
+            post(oauth::github_extension_token_exchange),
+        )
         .route("/api/auth/github/token", post(oauth::github_auth_token))
         .route("/og/github/{owner}/{repo}", get(og::github))
         .route("/og/gitlab/{*path}", get(og::gitlab))
@@ -295,7 +310,9 @@ mod tests {
             caches: AppCaches::new(),
             metrics,
             rate_limits: RateLimits::new(),
-            sloc_history_max_samples: 12,
+            sloc_history_max_points: 12,
+            sloc_backfill_wall_clock: Duration::from_secs(600),
+            sloc_backfill_reclaim_after: Duration::from_secs(900),
             github_extension_oauth_client_id: None,
             github_extension_oauth_client_secret: None,
         };

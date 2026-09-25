@@ -21,12 +21,33 @@ pub struct Config {
     /// default — stars do not move fast enough to need finer granularity, and
     /// each tick costs one GitHub API request per watched repo.
     pub star_snapshot_interval_seconds: u64,
-    /// How many historical commits the SLOC-history backfill samples across a
-    /// repo's lifetime the first time it is viewed. Each sample costs one real
-    /// analysis job (tarball download + tokei run), so this is kept low rather
-    /// than matching the finer-grained star sampling used before GitHub
-    /// restricted that API.
-    pub sloc_history_max_samples: usize,
+    /// Total point budget for the SLOC-history backfill's age-tiered sampling
+    /// schedule (recent history daily, older history progressively coarser;
+    /// see `GitHubClient::sample_dates_tiered`). Each unique sampled commit
+    /// costs one analysis job (tarball download + tokei run) — the budget,
+    /// same-SHA dedup, and the wall-clock limit below are what keep that cost
+    /// flat as a repo ages. `SLOC_HISTORY_MAX_SAMPLES` (the pre-tiering knob)
+    /// is still honored as a fallback default.
+    pub sloc_history_max_points: usize,
+    /// Wall-clock budget for one SLOC backfill run. A run that exhausts it
+    /// stops without marking the backfill completed, so it resumes (cheaply,
+    /// via the report cache) after the reclaim cooldown below.
+    pub sloc_backfill_wall_clock_seconds: u64,
+    /// How long an incomplete SLOC backfill claim must age before a later
+    /// view may re-claim it. Clamped to exceed the wall-clock budget so a
+    /// legitimately running backfill is never double-claimed mid-flight.
+    pub sloc_backfill_reclaim_after_seconds: u64,
+    /// How often the SLOC forward-sampling task refreshes today's point for
+    /// every repo whose backfill completed. Each pass costs one cheap ref
+    /// resolution per repo, plus one analysis only for repos whose HEAD
+    /// commit actually moved (SHA gate). Without it the recorded series
+    /// freezes on the day of the first view.
+    pub sloc_forward_interval_seconds: u64,
+    /// How often the SLOC compaction task soft-deletes aged snapshot points
+    /// (weekly buckets inside a year, monthly beyond; first/last/min/max per
+    /// bucket). Keeps the stored series — and thus the chart's point count —
+    /// bounded as repos age.
+    pub sloc_compaction_interval_seconds: u64,
     /// GitHub OAuth App credentials for the browser extension's "Login with
     /// GitHub" flow (`oauth.rs::github_extension_token_exchange`). This is a
     /// dedicated OAuth App distinct from any web-facing one: its callback URL
@@ -63,10 +84,31 @@ impl Config {
             bind_addr: std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string()),
             analysis_concurrency: env_usize("ANALYSIS_CONCURRENCY", 2).max(1),
             cleanup_interval_seconds: env_u64("CLEANUP_INTERVAL_SECONDS", 3_600).max(1),
-            star_snapshot_interval_seconds: env_u64("STAR_SNAPSHOT_INTERVAL_SECONDS", 86_400).max(1),
-            sloc_history_max_samples: env_usize("SLOC_HISTORY_MAX_SAMPLES", 12).max(2),
+            star_snapshot_interval_seconds: env_u64("STAR_SNAPSHOT_INTERVAL_SECONDS", 86_400)
+                .max(1),
+            sloc_history_max_points: env_usize(
+                "SLOC_HISTORY_MAX_POINTS",
+                env_usize("SLOC_HISTORY_MAX_SAMPLES", 24),
+            )
+            .max(2),
+            sloc_backfill_wall_clock_seconds: env_u64("SLOC_BACKFILL_WALL_CLOCK_SECONDS", 600)
+                .max(30),
+            sloc_backfill_reclaim_after_seconds: {
+                let reclaim = env_u64("SLOC_BACKFILL_RECLAIM_AFTER_SECONDS", 900);
+                // A reclaim window that could elapse while a backfill is
+                // still legitimately running would double-claim it. The
+                // margin covers one worst-case job timeout (320s, see
+                // `repo_history::SLOC_BACKFILL_JOB_TIMEOUT`) plus slack, so
+                // only a genuinely finished-or-crashed run is re-claimable.
+                reclaim.max(env_u64("SLOC_BACKFILL_WALL_CLOCK_SECONDS", 600) + 380)
+            },
+            sloc_forward_interval_seconds: env_u64("SLOC_FORWARD_INTERVAL_SECONDS", 86_400).max(1),
+            sloc_compaction_interval_seconds: env_u64("SLOC_COMPACTION_INTERVAL_SECONDS", 86_400)
+                .max(1),
             github_extension_oauth_client_id: env_string("GITHUB_EXTENSION_OAUTH_CLIENT_ID"),
-            github_extension_oauth_client_secret: env_string("GITHUB_EXTENSION_OAUTH_CLIENT_SECRET"),
+            github_extension_oauth_client_secret: env_string(
+                "GITHUB_EXTENSION_OAUTH_CLIENT_SECRET",
+            ),
             cleanup: CleanupConfig {
                 job_retention_completed_days: env_i64("JOB_RETENTION_COMPLETED_DAYS", 1).max(1),
                 job_retention_stale_hours: env_i64("JOB_RETENTION_STALE_HOURS", 6).max(1),

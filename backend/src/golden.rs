@@ -29,11 +29,11 @@ use crate::{
     coordinator::AnalysisCoordinator,
     github::GitHubClient,
     metrics::Metrics,
-    ratelimit::RateLimits,
     models::{
         AnalysisOptions, AnalysisSource, LanguageReport, LanguageStats, Report, Repository,
         RepositoryProvider,
     },
+    ratelimit::RateLimits,
     store::Store,
 };
 
@@ -114,7 +114,9 @@ async fn harness() -> Option<Harness> {
         caches: AppCaches::new(),
         metrics,
         rate_limits: RateLimits::new(),
-        sloc_history_max_samples: 12,
+        sloc_history_max_points: 12,
+        sloc_backfill_wall_clock: std::time::Duration::from_secs(600),
+        sloc_backfill_reclaim_after: std::time::Duration::from_secs(900),
         github_extension_oauth_client_id: None,
         github_extension_oauth_client_secret: None,
     };
@@ -127,7 +129,8 @@ async fn harness() -> Option<Harness> {
 }
 
 fn at(year: i32, month: u32, day: u32, hour: u32) -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(year, month, day, hour, 30, 15).unwrap()
+    Utc.with_ymd_and_hms(year, month, day, hour, 30, 15)
+        .unwrap()
 }
 
 fn stats(files: usize, code: usize, comments: usize, blanks: usize) -> LanguageStats {

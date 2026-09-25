@@ -81,7 +81,8 @@ pub enum GitHubError {
 /// transient 5xx blips without stretching an analysis minutes past the
 /// client's patience. Exhausting the schedule turns 5xx/timeout into
 /// [`GitHubError::UpstreamUnavailable`] instead of a misleading not-found.
-const UPSTREAM_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(500), Duration::from_millis(1500)];
+const UPSTREAM_RETRY_DELAYS: [Duration; 2] =
+    [Duration::from_millis(500), Duration::from_millis(1500)];
 
 /// Longest we will park a request waiting for an upstream rate limit to
 /// lift. Beyond this the response is handed back and the caller reports a
@@ -548,11 +549,7 @@ impl GitHubClient {
                 if !matches!(response.status(), StatusCode::OK) {
                     return None;
                 }
-                response
-                    .json::<RepoResponse>()
-                    .await
-                    .ok()?
-                    .stargazers_count
+                response.json::<RepoResponse>().await.ok()?.stargazers_count
             }
             RepositoryProvider::GitLab => {
                 let full_path = format!("{owner}/{repo}");
@@ -631,30 +628,184 @@ impl GitHubClient {
         commits.into_iter().next().map(|commit| commit.sha)
     }
 
-    /// Evenly spaced points in time from `start` to `end` inclusive, always
-    /// including both endpoints, capped at `max_samples` regardless of how
-    /// long the span is — the date analogue of the page-sampling approach
-    /// star history used, keeping the number of downstream analysis jobs
-    /// (a tarball download + tokei run per sample) flat regardless of a
-    /// repo's age. Bounded further by the span's length in days so a
-    /// brand-new repo does not get `max_samples` points minutes apart.
-    pub fn sample_dates(start: DateTime<Utc>, end: DateTime<Utc>, max_samples: u64) -> Vec<DateTime<Utc>> {
+    /// Resolves every sample date of a SLOC backfill in one GraphQL request
+    /// (one aliased `history(first: 1, until:)` field per date) instead of one
+    /// REST call each, cutting the backfill's GitHub API footprint from N
+    /// calls to 1 when a token is configured. Falls back to the per-date REST
+    /// path — never worse than today's behavior — on any transport failure,
+    /// unexpected shape, or missing token (GraphQL requires authentication).
+    /// `None` entries mean "no commit at or before that date", same contract
+    /// as [`Self::resolve_commit_before`].
+    pub async fn resolve_commits_before(
+        &self,
+        owner: &str,
+        repo: &str,
+        untils: &[DateTime<Utc>],
+    ) -> Vec<Option<String>> {
+        if !untils.is_empty() && self.has_token {
+            if let Some(resolved) = self
+                .resolve_commits_before_graphql(owner, repo, untils)
+                .await
+            {
+                if resolved.len() == untils.len() {
+                    return resolved;
+                }
+            }
+        }
+        self.resolve_commits_before_rest(owner, repo, untils).await
+    }
+
+    /// The unauthenticated / fallback half of [`Self::resolve_commits_before`]:
+    /// one REST call per date, sequentially. Passes the raw owner/repo through
+    /// — `resolve_commit_before` does its own percent-encoding.
+    async fn resolve_commits_before_rest(
+        &self,
+        owner: &str,
+        repo: &str,
+        untils: &[DateTime<Utc>],
+    ) -> Vec<Option<String>> {
+        let mut resolved = Vec::with_capacity(untils.len());
+        for until in untils {
+            resolved.push(self.resolve_commit_before(owner, repo, *until).await);
+        }
+        resolved
+    }
+
+    /// The GraphQL half of [`Self::resolve_commits_before`]. Returns `None`
+    /// whenever the response is not positively the expected shape, so the
+    /// caller retries over REST rather than trusting a partial answer.
+    async fn resolve_commits_before_graphql(
+        &self,
+        owner: &str,
+        repo: &str,
+        untils: &[DateTime<Utc>],
+    ) -> Option<Vec<Option<String>>> {
+        let mut variables = serde_json::json!({"owner": owner, "name": repo});
+        let mut fields = String::new();
+        for (index, until) in untils.iter().enumerate() {
+            variables[format!("t{index}")] = serde_json::json!(until.to_rfc3339());
+            fields.push_str(&format!(
+                "a{index}: history(first: 1, until: $t{index}) {{ nodes {{ oid }} }} "
+            ));
+        }
+        let declarations = (0..untils.len())
+            .map(|index| format!("$t{index}: GitTimestamp!"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query = format!(
+            "query($owner: String!, $name: String!, {declarations}) {{ \
+                repository(owner: $owner, name: $name) {{ \
+                    defaultBranchRef {{ target {{ ... on Commit {{ {fields} }} }} }} \
+                }} \
+            }}"
+        );
+
+        let response = self
+            .client
+            .post(GRAPHQL_ENDPOINT)
+            .json(&serde_json::json!({"query": query, "variables": variables}))
+            .send()
+            .await
+            .ok()?;
+        if response.status() != StatusCode::OK {
+            return None;
+        }
+        let payload: serde_json::Value = response.json().await.ok()?;
+        let target = &payload["data"]["repository"]["defaultBranchRef"]["target"];
+        if target.is_null() {
+            return None;
+        }
+        Some(
+            (0..untils.len())
+                .map(|index| {
+                    target[format!("a{index}")]["history"]["nodes"][0]["oid"]
+                        .as_str()
+                        .map(str::to_string)
+                })
+                .collect(),
+        )
+    }
+
+    /// Age-tiered sample dates for the SLOC history backfill (see
+    /// `research/sloc-history-adaptive-sampling-design-2026-09-25.md`):
+    /// recent history is sampled daily, older history progressively coarser,
+    /// so the number of downstream analysis jobs stays flat as a repo ages
+    /// while the region users actually hover over keeps its detail. Always
+    /// includes both endpoints. When the tiered schedule exceeds
+    /// `max_samples`, the coarse (older) tiers are thinned first — only a
+    /// budget too small for even the daily window thins the recent tier.
+    pub fn sample_dates_tiered(
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        max_samples: u64,
+    ) -> Vec<DateTime<Utc>> {
         if end <= start || max_samples <= 1 {
             return vec![end];
         }
-        let span_days = (end - start).num_days().max(1) as u64;
-        let count = max_samples.min(span_days + 1).max(2);
-        let step_ms = (end - start).num_milliseconds() as f64 / (count - 1) as f64;
-        let mut dates: Vec<DateTime<Utc>> = (0..count)
-            .map(|i| start + chrono::Duration::milliseconds((i as f64 * step_ms).round() as i64))
-            .collect();
-        dates.dedup();
-        // Anchor the last sample to `end` exactly (the step above can land
-        // just short of it) without exceeding max_samples requests —
-        // replace, never push, so the count stays bounded.
-        if let Some(last) = dates.last_mut() {
-            *last = end;
+        let (mut recent_multiplier, mut old_multiplier) = (1u64, 1u64);
+        loop {
+            let dates =
+                Self::build_tiered_sample_dates(start, end, recent_multiplier, old_multiplier);
+            if dates.len() <= max_samples as usize {
+                return dates;
+            }
+            // Bound the loop for absurdly small budgets over absurdly long
+            // spans; the caller still gets a usable (if coarse) schedule.
+            if old_multiplier <= (1 << 20) {
+                old_multiplier *= 2;
+            } else if recent_multiplier <= (1 << 20) {
+                recent_multiplier *= 2;
+            } else {
+                return dates;
+            }
         }
+    }
+
+    /// The per-age-tier (exclusive upper bound in days, step in days) sampling
+    /// ladder behind [`Self::sample_dates_tiered`]. Recent first: the
+    /// last two weeks daily, the last quarter every other day, the last year
+    /// weekly, the last three years biweekly, anything older roughly quarterly.
+    const SLOC_SAMPLE_TIERS: [(i64, i64); 5] =
+        [(14, 1), (90, 2), (365, 7), (3 * 365, 14), (i64::MAX, 91)];
+
+    fn tier_step_days(age_days: i64, multiplier: u64) -> i64 {
+        let base = Self::SLOC_SAMPLE_TIERS
+            .iter()
+            .find(|(bound, _)| age_days < *bound)
+            .map(|(_, step)| *step)
+            .unwrap_or(91);
+        (base * multiplier as i64).max(1)
+    }
+
+    /// One candidate schedule: walk backwards from `end`, stepping by the age
+    /// tier each cursor lands in, so the recent end is always the densest
+    /// region. `recent_multiplier` scales only the daily tier;
+    /// `old_multiplier` scales every older tier, so budget clamping thins old
+    /// history first and leaves the recent window daily as long as it fits.
+    fn build_tiered_sample_dates(
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        recent_multiplier: u64,
+        old_multiplier: u64,
+    ) -> Vec<DateTime<Utc>> {
+        let mut dates = vec![end];
+        let mut cursor = end;
+        while cursor > start {
+            let age_days = (end - cursor).num_days();
+            let multiplier = if age_days < Self::SLOC_SAMPLE_TIERS[0].0 {
+                recent_multiplier
+            } else {
+                old_multiplier
+            };
+            let next = cursor - chrono::Duration::days(Self::tier_step_days(age_days, multiplier));
+            if next <= start {
+                break;
+            }
+            dates.push(next);
+            cursor = next;
+        }
+        dates.push(start);
+        dates.reverse();
         dates.dedup();
         dates
     }
@@ -757,7 +908,9 @@ impl GitHubClient {
             let Ok(entries) = response.json::<Vec<StarredEntry>>().await else {
                 continue;
             };
-            let Some(first) = entries.first() else { continue };
+            let Some(first) = entries.first() else {
+                continue;
+            };
             let position = (page - 1) * STARGAZERS_PER_PAGE + 1;
             points.push((first.starred_at, position));
         }
@@ -918,9 +1071,7 @@ impl GitHubClient {
                 return Err(GitHubError::RateLimited)
             }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
-            status if status.is_server_error() => {
-                return Err(GitHubError::UpstreamUnavailable)
-            }
+            status if status.is_server_error() => return Err(GitHubError::UpstreamUnavailable),
             _ => return Err(GitHubError::NotFound),
         }
         let repo_body: RepoResponse = repo_response.json().await?;
@@ -1011,9 +1162,7 @@ impl GitHubClient {
                 return Err(GitHubError::RateLimited)
             }
             StatusCode::NOT_FOUND => return Err(GitHubError::NotFound),
-            status if status.is_server_error() => {
-                return Err(GitHubError::UpstreamUnavailable)
-            }
+            status if status.is_server_error() => return Err(GitHubError::UpstreamUnavailable),
             _ => return Err(GitHubError::NotFound),
         }
         let project_body: GitLabProjectResponse = project_response.json().await?;
@@ -1181,21 +1330,21 @@ mod tests {
     };
 
     #[test]
-    fn sample_dates_covers_every_day_under_the_cap() {
+    fn sample_dates_tiered_covers_every_day_for_a_young_repo() {
         let start = "2026-01-01T00:00:00Z".parse().unwrap();
-        let end = "2026-01-06T00:00:00Z".parse().unwrap(); // 5-day span
-        let dates = GitHubClient::sample_dates(start, end, 30);
-        assert_eq!(dates.len(), 6); // bounded by span_days + 1, not max_samples
+        let end = "2026-01-06T00:00:00Z".parse().unwrap(); // 5-day span, all inside the daily tier
+        let dates = GitHubClient::sample_dates_tiered(start, end, 30);
+        assert_eq!(dates.len(), 6);
         assert_eq!(dates.first(), Some(&start));
         assert_eq!(dates.last(), Some(&end));
         assert!(dates.windows(2).all(|pair| pair[0] < pair[1]));
     }
 
     #[test]
-    fn sample_dates_stays_bounded_and_spans_first_to_last() {
+    fn sample_dates_tiered_stays_bounded_and_spans_first_to_last() {
         let start = "2015-01-01T00:00:00Z".parse().unwrap();
         let end = "2026-08-30T00:00:00Z".parse().unwrap(); // ~11-year span
-        let dates = GitHubClient::sample_dates(start, end, 12);
+        let dates = GitHubClient::sample_dates_tiered(start, end, 12);
         assert!(dates.len() <= 12, "got {} dates", dates.len());
         assert_eq!(dates.first(), Some(&start));
         assert_eq!(dates.last(), Some(&end));
@@ -1204,9 +1353,48 @@ mod tests {
     }
 
     #[test]
-    fn sample_dates_handles_a_same_day_repo() {
+    fn sample_dates_tiered_handles_a_same_day_repo() {
         let now = "2026-08-30T12:00:00Z".parse().unwrap();
-        assert_eq!(GitHubClient::sample_dates(now, now, 12), vec![now]);
+        assert_eq!(GitHubClient::sample_dates_tiered(now, now, 12), vec![now]);
+    }
+
+    #[test]
+    fn sample_dates_tiered_keeps_the_recent_window_daily_when_budget_allows() {
+        let start = "2026-01-01T00:00:00Z".parse().unwrap();
+        let end = "2026-09-01T00:00:00Z".parse().unwrap(); // ~8-month span
+        let dates = GitHubClient::sample_dates_tiered(start, end, 24);
+        assert!(dates.len() <= 24);
+        // The daily tier must survive intact: every day of the last two weeks
+        // is present, older tiers only land on the coarser every-other-day+
+        // steps.
+        let daily_tier: Vec<_> = dates
+            .iter()
+            .filter(|date| **date >= end - chrono::Duration::days(14))
+            .collect();
+        assert_eq!(daily_tier.len(), 15, "recent window should be daily");
+        // And the step before it must be at least the every-other-day tier,
+        // proving the coarse region really is coarser than the recent one.
+        let old_steps: Vec<_> = dates
+            .windows(2)
+            .filter(|pair| pair[1] <= end - chrono::Duration::days(14))
+            .map(|pair| (pair[1] - pair[0]).num_days())
+            .collect();
+        assert!(
+            old_steps.iter().all(|step| *step >= 2),
+            "older tiers should be thinned, got steps {old_steps:?}"
+        );
+    }
+
+    #[test]
+    fn sample_dates_tiered_thins_oldest_first_under_tight_budgets() {
+        let start = "2015-01-01T00:00:00Z".parse().unwrap();
+        let end = "2026-08-30T00:00:00Z".parse().unwrap();
+        let dates = GitHubClient::sample_dates_tiered(start, end, 16);
+        assert!(dates.len() <= 16, "got {} dates", dates.len());
+        // With 16 slots the daily tier alone would eat 15, so the old region
+        // gets squeezed to almost nothing — but endpoints are always kept.
+        assert_eq!(dates.first(), Some(&start));
+        assert_eq!(dates.last(), Some(&end));
     }
 
     #[test]
@@ -1263,14 +1451,12 @@ mod tests {
                     if seen >= ok_after {
                         axum::Json(serde_json::json!({"stargazers_count": 42})).into_response()
                     } else {
-                        let mut response =
-                            (axum::http::StatusCode::TOO_MANY_REQUESTS, "slow down")
-                                .into_response();
+                        let mut response = (axum::http::StatusCode::TOO_MANY_REQUESTS, "slow down")
+                            .into_response();
                         if let Some(value) = retry_after {
-                            response.headers_mut().insert(
-                                "retry-after",
-                                axum::http::HeaderValue::from_static(value),
-                            );
+                            response
+                                .headers_mut()
+                                .insert("retry-after", axum::http::HeaderValue::from_static(value));
                         }
                         response
                     }
@@ -1504,10 +1690,7 @@ mod tests {
             }}}"#,
             None,
         );
-        assert_eq!(
-            outcome,
-            GraphQlOutcome::Failed(GraphQlFailure::PrivateRepo)
-        );
+        assert_eq!(outcome, GraphQlOutcome::Failed(GraphQlFailure::PrivateRepo));
     }
 
     #[test]
@@ -1585,7 +1768,10 @@ mod tests {
         );
 
         assert_eq!(
-            interpret(r#"{"data":null,"errors":[{"message":"no type field"}]}"#, None),
+            interpret(
+                r#"{"data":null,"errors":[{"message":"no type field"}]}"#,
+                None
+            ),
             GraphQlOutcome::Unusable
         );
     }
@@ -1601,9 +1787,11 @@ mod tests {
                 .has_token,
             "a blank token is not a token"
         );
-        assert!(GitHubClient::with_token(Some("ghp_example".to_string()))
-            .unwrap()
-            .has_token);
+        assert!(
+            GitHubClient::with_token(Some("ghp_example".to_string()))
+                .unwrap()
+                .has_token
+        );
     }
 
     /// The live differential. Resolves the same refs through GraphQL and
@@ -1621,7 +1809,9 @@ mod tests {
     async fn graphql_and_rest_resolve_refs_identically() {
         let token = std::env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN must be set");
         let graphql = GitHubClient::with_token(Some(token.clone())).unwrap();
-        let rest = GitHubClient::with_token(Some(token)).unwrap().without_graphql();
+        let rest = GitHubClient::with_token(Some(token))
+            .unwrap()
+            .without_graphql();
 
         let cases: &[(&str, Option<&str>)] = &[
             // default branch
@@ -1686,8 +1876,13 @@ mod tests {
     fn rejects_gitlab_urls() {
         // GitLab support removed from the public product: gitlab.com is now
         // an unsupported host, in both https and git@ forms.
-        assert!(GitHubClient::parse_repo_owner_name("https://gitlab.com/group/sub/project.git").is_err());
-        assert!(GitHubClient::parse_repo_owner_name("git@gitlab.com:group/sub/project.git").is_err());
+        assert!(
+            GitHubClient::parse_repo_owner_name("https://gitlab.com/group/sub/project.git")
+                .is_err()
+        );
+        assert!(
+            GitHubClient::parse_repo_owner_name("git@gitlab.com:group/sub/project.git").is_err()
+        );
     }
 
     #[test]
