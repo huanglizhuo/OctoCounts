@@ -652,7 +652,9 @@ impl GitHubClient {
                 }
             }
         }
-        self.resolve_commits_before_rest(owner, repo, untils).await
+        let rest = self.resolve_commits_before_rest(owner, repo, untils).await;
+        eprintln!("DBG rest={:?}", rest);
+        rest
     }
 
     /// The unauthenticated / fallback half of [`Self::resolve_commits_before`]:
@@ -718,7 +720,10 @@ impl GitHubClient {
         Some(
             (0..untils.len())
                 .map(|index| {
-                    target[format!("a{index}")]["history"]["nodes"][0]["oid"]
+                    // The aliased `aN: history(...)` field IS the connection
+                    // object — the alias replaces the whole selection, so
+                    // there is no "history" key to index through.
+                    target[format!("a{index}")]["nodes"][0]["oid"]
                         .as_str()
                         .map(str::to_string)
                 })
