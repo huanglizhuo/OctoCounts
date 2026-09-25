@@ -306,15 +306,19 @@ async fn run_sloc_backfill(
     // GraphQL call with a token, one REST call per date without) instead of
     // interleaving resolution with the much slower analysis jobs.
     let resolved = github.resolve_commits_before(owner, repo, &schedule).await;
+    let resolvable = resolved.iter().filter(|sha| sha.is_some()).count();
 
     let started = std::time::Instant::now();
     // The last analyzed commit and its line count: consecutive samples that
     // resolve to the same commit share content, so only the boundary samples
     // of a plateau need to touch the analysis pipeline at all.
     let mut last: Option<(String, i64)> = None;
+    let mut recorded = 0usize;
+    let mut failed_samples = 0usize;
 
     for (index, sample_at) in schedule.iter().enumerate() {
         if started.elapsed() >= wall_clock {
+            tracing::info!(%owner, %repo, scheduled = schedule.len(), resolvable, recorded, "sloc backfill hit its wall-clock budget; will resume after the reclaim cooldown");
             return Ok(false);
         }
         let Some(commit_sha) = resolved.get(index).cloned().flatten() else {
@@ -340,6 +344,7 @@ async fn run_sloc_backfill(
                             "backfill",
                         )
                         .await?;
+                    recorded += 1;
                 }
             }
             continue;
@@ -364,17 +369,36 @@ async fn run_sloc_backfill(
                     .await
                 {
                     Ok(Some(job)) if job.status == JobStatus::Completed => job,
-                    _ => continue,
+                    Ok(Some(job)) => {
+                        tracing::warn!(%owner, %repo, %commit_sha, ?job.status, "sloc backfill sample job did not complete");
+                        failed_samples += 1;
+                        continue;
+                    }
+                    outcome => {
+                        tracing::warn!(%owner, %repo, %commit_sha, ?outcome, "sloc backfill sample job was not observed to finish");
+                        failed_samples += 1;
+                        continue;
+                    }
                 };
                 let Some(report_id) = job.report_id else {
+                    tracing::warn!(%owner, %repo, %commit_sha, "sloc backfill sample job completed without a report");
+                    failed_samples += 1;
                     continue;
                 };
                 match store.report(&report_id).await {
                     Ok(Some(report)) => report,
-                    _ => continue,
+                    store_outcome => {
+                        tracing::warn!(%owner, %repo, %commit_sha, ?store_outcome, "sloc backfill sample report could not be loaded");
+                        failed_samples += 1;
+                        continue;
+                    }
                 }
             }
-            Err(_) => continue,
+            Err(error) => {
+                tracing::warn!(%owner, %repo, %commit_sha, "sloc backfill sample submit failed: {}", error.body().message);
+                failed_samples += 1;
+                continue;
+            }
         };
 
         let total_lines = report.total.code as i64;
@@ -389,10 +413,25 @@ async fn run_sloc_backfill(
                 "backfill",
             )
             .await?;
+        recorded += 1;
         last = Some((commit_sha, total_lines));
     }
 
-    Ok(true)
+    tracing::info!(%owner, %repo, scheduled = schedule.len(), resolvable, recorded, failed_samples, "sloc backfill run finished");
+
+    // Completion semantics, in order:
+    // - No sample resolved a commit at all → genuinely empty repo (created,
+    //   never pushed): complete.
+    // - Every resolvable sample failed (recorded == 0) → almost always a
+    //   systematic failure (archive over the size limit, upstream refusing);
+    //   retrying forever would re-pay those failures every cooldown. Complete
+    //   anyway — for the rare transient case, the forward sampler retries
+    //   HEAD once a day at bounded cost.
+    // - Some but not all recorded → transient failures mixed with progress:
+    //   leave un-completed so the reclaim cooldown resumes the backfill
+    //   (already-analyzed commits hit the report cache, so the retry is
+    //   cheap) and the gaps actually close.
+    Ok(resolvable == 0 || recorded > 0)
 }
 
 /// Keeps a completed repo's SLOC curve fresh: resolves the default branch's
@@ -418,10 +457,15 @@ pub(crate) async fn run_sloc_forward_sample(
         .await
         .map_err(|error| anyhow::anyhow!("failed to resolve HEAD: {error}"))?;
 
-    let Some((_, _, last_sha)) = store.latest_sloc_snapshot(provider, owner, repo).await? else {
-        return Ok(());
-    };
-    if repo_ref.commit_sha == last_sha {
+    // No snapshot on record means the repo has never been successfully
+    // sampled (e.g. a backfill whose every analysis failed) — that is a
+    // reason to sample now, not to skip, so only a known-unchanged HEAD
+    // short-circuits.
+    let last_sha = store
+        .latest_sloc_snapshot(provider, owner, repo)
+        .await?
+        .map(|(_, _, sha)| sha);
+    if last_sha.as_deref() == Some(repo_ref.commit_sha.as_str()) {
         return Ok(());
     }
 
