@@ -1,18 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-09-24T07:34:26.499Z
-anthropics/financial-services
-google/ax
-davila7/claude-code-templates
-BuilderIO/agent-native
-obra/superpowers
+# GitHub Trending daily snapshot generated 2026-09-25T07:44:50.101Z
+rohitg00/ai-engineering-from-scratch
+vectorize-io/hindsight
 dream-num/univer
-Open-Dev-Society/OpenStock
-agent-substrate/substrate
-strands-agents/harness-sdk
+google/ax
+NVIDIA/Model-Optimizer
+FxEmbed/FxEmbed
+anthropics/financial-services
 HKUDS/CLI-Anything
-superdesigndev/treg
-pbakaus/impeccable
 mvt-project/mvt
-DeusData/codebase-memory-mcp
-harry7557558/spirula-studio
-browser-use/video-use
-TNT-Likely/PanWatch
+obra/superpowers
+strands-agents/harness-sdk
+julyx10/lap
+superdesigndev/treg
+leejet/stable-diffusion.cpp
