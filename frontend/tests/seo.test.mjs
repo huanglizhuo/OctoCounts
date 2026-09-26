@@ -194,11 +194,21 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?applyPageMetadata\(\{[\s\S]*?return;/);
   // Charts render eagerly (no DeferredContent) by design: they're the primary
   // above-the-fold content once a report loads, not a below-the-fold extra.
-  // The report stack lives in src/report/Runner.tsx since the restructure;
-  // Summary must stay directly adjacent to Charts in both variants.
+  // The report stack lives in src/report/Runner.tsx since the restructure:
+  // both variants render Summary directly above Charts (the data contract),
+  // and the full branch puts the ReportActions bar (copy link / export /
+  // re-analyze) ahead of the summary so core actions sit at the top.
   const runner = await readFile(new URL("src/report/Runner.tsx", ROOT), "utf8");
-  const adjacent = runner.match(/<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} \/>/g) ?? [];
-  assert.equal(adjacent.length, 2, "Summary directly precedes Charts in the demo and full Runner branches");
+  assert.match(
+    runner,
+    /isDemo \? \(\s*<>\s*<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} variant="demo" \/>/,
+    "demo branch renders Summary directly above Charts",
+  );
+  assert.match(
+    runner,
+    /\) : \(\s*<>\s*<ReportActions[\s\S]*?\/>\s*<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
+    "full branch renders ReportActions before Summary and Charts",
+  );
   // The homepage embeds no full tool forms anymore (T9): compare and diff are
   // whole-click cards into their own pages, and nothing lazy-loads them here.
   assert.doesNotMatch(main, /<CompareRepos|<DiffRefs|<BadgeBuilder|<BadgeWall/);

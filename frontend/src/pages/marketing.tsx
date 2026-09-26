@@ -124,7 +124,6 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
-      <div className="crt" />
       <main id="main" className="page growth-page">
         <Topbar />
         {children}

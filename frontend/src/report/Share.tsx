@@ -1,18 +1,20 @@
-// Report-page share surface, restructured from the old ShareShowcase +
-// ReportUtilityActions pair into ONE "Share & embed" section: the primary
-// copy-URL action, the PNG card, the one-click share targets, the citation /
-// compare / diff / badges links, and the badge-markdown / embed-iframe
-// copies. Raw text/JSON export moved to the Technical details disclosure in
-// Runner.tsx. Analytics event names and clipboard-fallback behavior are
-// unchanged from the pre-merge components.
+// Report-page share surface: the shareable card preview (collapsed by
+// default on every viewport), the PNG export trigger, the one-click share
+// targets, and the badge-markdown / embed-iframe copies. The primary
+// copy-URL action and the compare/diff/citation/badges links live in the
+// ReportActions bar under the runner head; the PNG capture itself renders an
+// offscreen, fully laid-out copy of the card in Runner.tsx, so exporting
+// never requires opening this preview first. Analytics event names and
+// clipboard-fallback behavior are unchanged from the pre-merge components.
 import React, { useEffect, useRef, useState } from "react";
 import { Clipboard, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AnalyticsEvents, trackEvent } from "../analytics";
+import { buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl } from "../badges";
 import { ShareButtons } from "../ShareButtons";
-import { formatNumber, formatPercent, normalizedProvider, tickerRows, visibleLanguageColor } from "../reportUtils";
+import { copyText, formatNumber, formatPercent, normalizedProvider, tickerRows, visibleLanguageColor } from "../reportUtils";
 import type { Report } from "../types";
-import { ReportToolLinks } from "./ReportContextTools";
-import { StarBadge, buildSnapshotReportUrl } from "./shared";
+import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
 
 // Scales a fixed-size child (the 1200x630 share card) down to fit whatever
 // width its wrapper actually ends up with. A handful of guessed breakpoints
@@ -37,76 +39,75 @@ function useElementScale(baseWidth: number) {
 }
 
 // The visual and behavioral centerpiece of the "make this grow" funnel: the
-// shareable card is rendered for real (it used to sit off-screen, used only
-// as an export source — nobody ever saw the thing they'd be posting) next to
-// the one-click share targets, the primary copy-URL CTA, and every other
-// thing this report can be turned into.
+// shareable card, the one-click share targets, and every other thing this
+// report can be turned into. The preview starts collapsed everywhere; the
+// PNG export does not depend on it being open (Runner captures an offscreen
+// copy of the same card component).
 export function ShareSection({
   report,
   stars,
-  cardRef,
-  copiedCta,
   isExporting,
   exportError,
-  copyError,
-  onCopyUrl,
   onExportPng,
-  onCopyBadge,
-  onCopyEmbed,
 }: {
   report: Report;
   stars: number | null;
-  cardRef: React.RefObject<HTMLDivElement | null>;
-  copiedCta: string | null;
   isExporting: boolean;
   exportError: string | null;
-  copyError: string | null;
-  onCopyUrl: () => void;
   onExportPng: () => void;
-  onCopyBadge: () => Promise<boolean>;
-  onCopyEmbed: () => Promise<boolean>;
 }) {
   const { t } = useTranslation();
   const cardWrapRef = useElementScale(1200);
-  // Expanded by default wherever the summary is a comfortable read (desktop),
-  // collapsed under 720px where the card would otherwise dominate the first
-  // screenful. The toggle reflects and controls this state.
-  const [previewOpen, setPreviewOpen] = useState(() => !window.matchMedia("(max-width: 720px)").matches);
   const isGitHub = normalizedProvider(report) === "github";
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const copied = useCopied();
   const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
   const [manualCopyValue, setManualCopyValue] = useState<string | null>(null);
   const runCopy = async (action: () => Promise<boolean>, fallbackValue?: string) => {
-    const copied = await action();
-    setCopyFeedback(copied ? "copied" : "failed");
-    setManualCopyValue(copied ? null : fallbackValue ?? null);
+    const ok = await action();
+    setCopyFeedback(ok ? "copied" : "failed");
+    setManualCopyValue(ok ? null : fallbackValue ?? null);
+  };
+
+  const copyBadge = async () => {
+    const url = buildSnapshotReportUrl(report);
+    const badgeUrl = isGitHub
+      ? buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
+      : "";
+    if (!badgeUrl) return false;
+    const ok = await copyText(`[![OctoCounts](${badgeUrl})](${url})`);
+    if (ok) { copied.showCopied("badge"); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_utility" }); }
+    return ok;
+  };
+
+  const copyEmbed = async () => {
+    const provider = normalizedProvider(report);
+    const ok = await copyText(buildEmbedSnippet(buildEmbedUrl(provider, report.repository.owner, report.repository.name)));
+    if (ok) { copied.showCopied("embed"); trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_utility" }); }
+    return ok;
   };
 
   return (
     <section id="share-showcase" className="share-showcase" aria-label={t("reportCta.ariaLabel")}>
       <div className="share-showcase-head">
-        <span className="chart-tag">{t("reportCta.kicker")}</span>
         <strong>{t("reportCta.title")}</strong>
         <span>{t("reportCta.subtitle")}</span>
       </div>
       <div className="share-showcase-body">
         <div className="share-preview-col">
-          <p className="share-theme-note">{t("reportCta.darkThemeNote")}</p>
           <details className="share-preview" open={previewOpen} onToggle={(event) => setPreviewOpen(event.currentTarget.open)}>
             <summary>{previewOpen ? t("reportCta.hidePreview") : t("reportCta.showPreview")}</summary>
             <div className="share-showcase-card" ref={cardWrapRef}>
-              <ShareTickerCard ref={cardRef} report={report} stars={stars} />
+              <ShareTickerCard report={report} stars={stars} />
             </div>
           </details>
+          <p className="share-theme-note">{t("reportCta.darkThemeNote")}</p>
         </div>
         <div className="share-showcase-actions">
           <div className="row-flex">
-            <button className="btn install-btn" type="button" onClick={onCopyUrl}>
-              <Clipboard size={14} />
-              {copiedCta === "url" ? t("reportCta.copied") : t("reportCta.copyUrl")}
-            </button>
             <button className="copybtn" type="button" disabled={isExporting} onClick={onExportPng}>
               <Download size={14} />
-              {t("reportCta.exportPng")}
+              {isExporting ? t("reportActions.exporting") : t("reportCta.exportPng")}
             </button>
           </div>
           <ShareButtons
@@ -114,21 +115,25 @@ export function ShareSection({
             text={t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) })}
             placement="report"
           />
-          <ReportToolLinks report={report} repoUrl={report.repository.htmlUrl} refName={report.refName} />
           <div className="row-flex">
             {isGitHub ? (
-              <button className="copybtn" type="button" onClick={() => void runCopy(onCopyBadge)}>
+              <button className="copybtn" type="button" onClick={() => void runCopy(copyBadge)}>
                 <Clipboard size={14} />
-                {copiedCta === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
+                {copied.copiedKey === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
               </button>
             ) : null}
-            <button className="copybtn" type="button" onClick={() => void runCopy(onCopyEmbed)}>
+            <button className="copybtn" type="button" onClick={() => void runCopy(copyEmbed)}>
               <Clipboard size={14} />
-              {copiedCta === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}
+              {copied.copiedKey === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}
             </button>
           </div>
           {copyFeedback ? <span className="copy-feedback" role="status">{copyFeedback === "copied" ? t("reportCta.copied") : t("reportCta.copyFailedShort")}</span> : null}
-          {exportError || copyError ? <div className="export-error" role="alert"><p>{exportError ?? copyError}</p>{copyError ? <textarea className="manual-copy" readOnly value={buildSnapshotReportUrl(report)} aria-label={t("reportCta.manualCopyAria")} onFocus={(event) => event.currentTarget.select()} /> : null}</div> : null}
+          {exportError ? (
+            <div className="export-error" role="alert">
+              <p>{exportError}</p>
+              <button className="copybtn" type="button" disabled={isExporting} onClick={onExportPng}>{t("error.retry")}</button>
+            </div>
+          ) : null}
           {manualCopyValue ? <textarea className="manual-copy utility-manual-copy" readOnly value={manualCopyValue} aria-label={t("reportCta.manualContentAria")} onFocus={(event) => event.currentTarget.select()} /> : null}
         </div>
       </div>

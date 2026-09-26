@@ -21,11 +21,9 @@
     "menu": "菜单"
   },
   "hero": {
-    "title": "GitHub <1>代码统计</1>，一目了然。",
-    "subtitle": "安装浏览器扩展，直接在 GitHub 仓库侧边栏查看 SLOC，或者在此粘贴公开 GitHub 仓库链接获取完整报告。由 <1>tokei</1> 驱动，无需克隆。",
-    "definition": "OctoCounts 是一款免费的公开 GitHub 仓库 SLOC 计数器。无需克隆，即可显示文件数、总行数、代码行、注释行、空行以及各语言统计。",
+    "title": "统计 GitHub 仓库的代码行数",
+    "subtitle": "粘贴公开 GitHub 仓库链接，即可查看文件数、代码行、注释行、空行与各语言统计。免费、无需注册、无需克隆，由 <1>tokei</1> 驱动。",
     "freshnessLabel": "最后更新",
-    "maintainedBy": "维护者",
     "placeholderUrl": "https://github.com/owner/repo",
     "refLabel": "分支",
     "refPlaceholder": "默认分支",
@@ -43,7 +41,7 @@
     "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
     "reportSubtitle": "SLOC 报告",
     "reportSubtitleRef": "SLOC 报告 · {{ref}}",
-    "trustLine": "开源 · 免费无需注册 · 支持 200+ 种语言"
+    "trustLine": "开源 · 支持 200+ 种语言"
   },
   "samples": {
     "label": "示例",
@@ -86,18 +84,25 @@
     "freshRun": "全新运行",
     "demoNote": "下方是一份实时示例报告。在上面粘贴任何公开仓库链接，即可分析你的仓库。",
     "generated": "生成于 {{date}} / {{duration}}ms / {{version}}",
-    "exportText": "文本",
-    "exportJson": "JSON",
-    "copyReportUrl": "链接",
-    "exportPng": "PNG",
-    "exportGitHub": "GitHub",
-    "reRun": "重新运行",
-    "clear": "清除",
     "exportPngFailed": "PNG 导出失败，请重试。",
     "exampleReport": "示例报告",
     "technicalDetails": "技术细节",
     "seeFullReport": "查看完整报告",
-    "scaleTag": "{{scale}}代码库"
+    "methodology": "代码行数不含注释与空行；总行数包含注释与空行。",
+    "methodologyLink": "统计口径说明"
+  },
+  "reportActions": {
+    "barAria": "报告操作",
+    "copyLink": "复制链接",
+    "export": "导出",
+    "exportText": "复制文本报告",
+    "exportJson": "复制 JSON",
+    "exportPng": "导出 PNG",
+    "exporting": "导出中…",
+    "rerun": "重新分析",
+    "more": "更多",
+    "clear": "清空输入",
+    "githubAria": "在 GitHub 打开 {{repo}}"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -111,11 +116,9 @@
   },
   "reportCta": {
     "ariaLabel": "分享报告操作",
-    "kicker": "下一步",
     "title": "分享与嵌入",
     "subtitle": "把徽章放进 README，复制报告链接，或导出分享卡。",
     "copyBadge": "README 徽章",
-    "copyUrl": "报告链接",
     "copyEmbed": "嵌入 iframe",
     "exportPng": "PNG 卡片",
     "copied": "已复制",
@@ -124,7 +127,6 @@
     "darkThemeNote": "导出卡片使用深色主题",
     "copyFailed": "复制失败。请选中链接后手动复制。",
     "copyFailedShort": "复制失败",
-    "manualCopyAria": "用于手动复制的报告链接",
     "manualContentAria": "用于手动复制的内容"
   },
   "similarRepos": {
@@ -177,6 +179,8 @@
   },
   "analysisOptions": {
     "summary": "高级分析选项",
+    "summaryModified_other": "高级分析选项 · 已修改 {{count}} 项",
+    "reset": "恢复默认",
     "profile": "配置",
     "defaultProfile": "默认",
     "sourceOnlyProfile": "仅源码",
@@ -192,14 +196,18 @@
   },
   "charts": {
     "languageShare": "语言构成",
-    "report": "按语言拆分",
     "lines": "行数",
     "other": "其他",
     "noData": "无数据",
     "totalLinesTooltip": "共 {{count}} 行",
     "fullStats": "完整统计",
     "compactStats": "精简统计",
-    "totalCodeTooltip": "共 {{count}} 行代码"
+    "totalCodeTooltip": "共 {{count}} 行代码",
+    "viewLabel": "语言视图",
+    "viewTable": "表格",
+    "viewChart": "图表",
+    "topOf": "前 {{shown}} / 共 {{total}} 种语言",
+    "otherRow": "其他（另 {{count}} 种）"
   },
   "codeHistory": {
     "title": "代码行数变化",
@@ -536,7 +544,6 @@
     "index": {
       "ariaLabel": "OctoCounts 公开报告索引",
       "navAria": "浏览公开报告",
-      "label": "公开索引",
       "fallback": "仅展示公开报告的聚合活动",
       "stats": "{{reports}} 份报告 / {{repos}} 个仓库 / {{lines}} 行代码"
     },
@@ -646,9 +653,6 @@
     "skipToContent": "跳到正文"
   },
   "reportTools": {
-    "ariaLabel": "报告工具",
-    "title": "继续使用此仓库",
-    "subtitle": "在已选定此仓库和引用的工具中继续。",
     "compare": "比较此引用",
     "diff": "比较此引用的差异",
     "badges": "创建徽章",

@@ -21,11 +21,9 @@
     "menu": "Menu"
   },
   "hero": {
-    "title": "GitHub <1>code statistics</1>, at a glance.",
-    "subtitle": "Install the browser extension to see SLOC directly in GitHub's repo sidebar, or paste a public GitHub repo URL here for the full web report. Powered by <1>tokei</1>, no clone required.",
-    "definition": "OctoCounts is a free SLOC counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.",
+    "title": "Count lines of code in GitHub repositories",
+    "subtitle": "Paste a public GitHub repository URL to get files, code, comment, and blank line totals per language. Free, no sign-up, no clone — powered by <1>tokei</1>.",
     "freshnessLabel": "Last updated",
-    "maintainedBy": "Maintained by",
     "placeholderUrl": "https://github.com/owner/repo",
     "refLabel": "ref",
     "refPlaceholder": "default",
@@ -43,7 +41,7 @@
     "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
     "reportSubtitle": "SLOC report",
     "reportSubtitleRef": "SLOC report · {{ref}}",
-    "trustLine": "Open source · Free, no sign-up · 200+ languages"
+    "trustLine": "Open source · 200+ languages"
   },
   "samples": {
     "label": "sample",
@@ -98,18 +96,25 @@
     "freshRun": "fresh run",
     "demoNote": "The report below is a live example. Paste any public repo URL above to analyze yours.",
     "generated": "generated {{date}} / {{duration}}ms / {{version}}",
-    "exportText": "text",
-    "exportJson": "json",
-    "copyReportUrl": "url",
-    "exportPng": "png",
-    "exportGitHub": "github",
-    "reRun": "re-run",
-    "clear": "clear",
     "exportPngFailed": "PNG export failed. Retry the export.",
     "exampleReport": "Example report",
     "technicalDetails": "Technical details",
     "seeFullReport": "See full report",
-    "scaleTag": "{{scale}} codebase"
+    "methodology": "Code lines exclude comments and blank lines; total lines include them.",
+    "methodologyLink": "Counting methodology"
+  },
+  "reportActions": {
+    "barAria": "Report actions",
+    "copyLink": "Copy link",
+    "export": "Export",
+    "exportText": "Copy text report",
+    "exportJson": "Copy JSON",
+    "exportPng": "Export PNG",
+    "exporting": "Exporting…",
+    "rerun": "Re-analyze",
+    "more": "More",
+    "clear": "Clear input",
+    "githubAria": "Open {{repo}} on GitHub"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -123,11 +128,9 @@
   },
   "reportCta": {
     "ariaLabel": "Share report actions",
-    "kicker": "next",
     "title": "Share & embed",
     "subtitle": "Drop the badge into a README, share the report URL, or export a card.",
     "copyBadge": "README badge",
-    "copyUrl": "report URL",
     "copyEmbed": "embed iframe",
     "exportPng": "PNG card",
     "copied": "copied",
@@ -136,7 +139,6 @@
     "darkThemeNote": "Exported card uses the dark theme",
     "copyFailed": "Copy failed. Select the link and copy it manually.",
     "copyFailedShort": "Copy failed",
-    "manualCopyAria": "Report URL for manual copy",
     "manualContentAria": "Content for manual copy"
   },
   "similarRepos": {
@@ -189,6 +191,9 @@
   },
   "analysisOptions": {
     "summary": "Advanced analysis options",
+    "summaryModified_one": "Advanced analysis options · {{count}} modified",
+    "summaryModified_other": "Advanced analysis options · {{count}} modified",
+    "reset": "Reset to defaults",
     "profile": "Profile",
     "defaultProfile": "Default",
     "sourceOnlyProfile": "Source only",
@@ -204,14 +209,18 @@
   },
   "charts": {
     "languageShare": "Languages",
-    "report": "Breakdown by language",
     "lines": "lines",
     "other": "Other",
     "noData": "No data",
     "totalLinesTooltip": "{{count}} total lines",
     "fullStats": "Full statistics",
     "compactStats": "Compact statistics",
-    "totalCodeTooltip": "{{count}} total code lines"
+    "totalCodeTooltip": "{{count}} total code lines",
+    "viewLabel": "Language view",
+    "viewTable": "Table",
+    "viewChart": "Chart",
+    "topOf": "top {{shown}} of {{total}} languages",
+    "otherRow": "Other ({{count}} more)"
   },
   "codeHistory": {
     "title": "Code lines over time",
@@ -547,7 +556,6 @@
     "index": {
       "ariaLabel": "Public OctoCounts report index",
       "navAria": "Explore public reports",
-      "label": "public index",
       "fallback": "public report activity, aggregate only",
       "stats": "{{reports}} reports / {{repos}} repos / {{lines}} code lines"
     },
@@ -647,9 +655,6 @@
     "skipToContent": "Skip to content"
   },
   "reportTools": {
-    "ariaLabel": "Report tools",
-    "title": "Continue with this repository",
-    "subtitle": "Open a focused tool with this repository and ref already selected.",
     "compare": "Compare this ref",
     "diff": "Diff this ref",
     "badges": "Create badges",

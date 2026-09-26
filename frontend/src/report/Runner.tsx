@@ -1,23 +1,23 @@
 // Report-page runner, restructured from the flat sibling stack in main.tsx.
-// Section order: runner head (repo + scale tag + ref/sha/relative time),
-// Summary, Charts, code-lines history, Share & embed, Similar repositories,
-// and a collapsed Technical details disclosure (speed/result readouts, trust
-// details, run timing, raw exports, re-run).
+// Section order: runner head (repo + GitHub link + ref/sha/relative time),
+// the action bar (copy link / export / re-analyze / more), Summary, Charts,
+// code-lines history, Share & embed, Similar repositories, and a collapsed
+// Technical details disclosure (verification facts only — actions moved up).
 import React, { Suspense, useEffect, useRef, useState } from "react";
-import { ArrowUp, Clipboard, ExternalLink, FileJson, RotateCcw, Share2 } from "lucide-react";
+import { ArrowUp, ExternalLink, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { fetchJson } from "../api";
 import { AnalyticsEvents, trackEvent } from "../analytics";
-import { buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl } from "../badges";
+import { downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalizedProvider, progressValue } from "../reportUtils";
 import { isHostDegraded, useGithubStatus } from "../githubStatus";
-import { copyText, downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalizedProvider, progressValue, textReport } from "../reportUtils";
 import type { AppStatus, Report } from "../types";
 import { Charts } from "./Charts";
-import { Insights, projectScale } from "./Insights";
-import { ShareSection } from "./Share";
+import { Insights } from "./Insights";
+import { ReportActions } from "./ReportActions";
+import { ShareSection, ShareTickerCard } from "./Share";
 import { SimilarRepos } from "./SimilarRepos";
-import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
+import { StarBadge, buildSnapshotReportUrl } from "./shared";
 import { Summary } from "./Summary";
 import { TrustDetails } from "./TrustDetails";
 
@@ -34,11 +34,14 @@ function isCommitRef(refName: string) {
 
 export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full", isPinnedRef = false }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full"; isPinnedRef?: boolean }) {
   const { t, i18n } = useTranslation();
-  const shareCardRef = useRef<HTMLDivElement>(null);
+  // Offscreen-but-laid-out mount of the share card, created only while a PNG
+  // export is in flight. html-to-image needs a real layout; the visible
+  // preview stays collapsed by default on every viewport, so the capture
+  // source cannot depend on the user opening it first.
+  const exportCardRef = useRef<HTMLDivElement>(null);
+  const [exportMount, setExportMount] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const { copiedKey: copiedCta, showCopied: showCopiedCta } = useCopied();
 
   // A demo Runner presents a trimmed, read-only view of a seeded report. The
   // moment the visitor actually starts an analysis (or one fails) it must
@@ -106,28 +109,39 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
   }, []);
 
   const exportPng = async () => {
-    if (!report || !shareCardRef.current) return;
+    if (!report || isExporting) return;
     setIsExporting(true);
     setExportError(null);
+    setExportMount(true);
     try {
+      // Two animation frames: the first lets React commit the offscreen card,
+      // the second guarantees a layout pass before anything reads geometry.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      const node = exportCardRef.current;
+      if (!node) throw new Error("share card not mounted");
+      // Fonts must be resolved before capture or the PNG rasterizes fallback
+      // glyphs. (The card embeds no raster images — its star mark is inline
+      // SVG — so there is nothing further to decode.)
+      await document.fonts.ready;
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(shareCardRef.current, {
+      const dataUrl = await toPng(node, {
         cacheBust: true,
         pixelRatio: 2,
         width: 1200,
         height: 630,
         backgroundColor: "#050a06",
-        style: { transform: "none", transformOrigin: "top left" },
       });
       downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
       trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
     } catch {
       setExportError(t("runner.exportPngFailed"));
     } finally {
+      setExportMount(false);
       setIsExporting(false);
     }
   };
 
+  const stars = liveStars ?? report?.repository.stars ?? null;
   const fullTimestamp = report ? new Date(report.generatedAt).toLocaleString(i18n.language) : "";
 
   return (
@@ -136,9 +150,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
         <div className="sticky-bar" role="region" aria-label={t("stickyBar.ariaLabel")}>
           <span className="sticky-repo">
             {report.repository.owner}/{report.repository.name}
-            {typeof (liveStars ?? report.repository.stars ?? null) === "number" ? (
-              <StarBadge className="repo-stars" size={11} stars={(liveStars ?? report.repository.stars)!} />
-            ) : null}
+            {typeof stars === "number" ? <StarBadge className="repo-stars" size={11} stars={stars} /> : null}
           </span>
           <span className="sticky-stats">
             {t("stickyBar.code", { count: report.total.code, code: formatNumber(report.total.code) })}
@@ -146,6 +158,9 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
             <span className={report.cached ? "ok" : ""}>{report.cached ? t("runner.cacheHit") : t("runner.freshRun")}</span>
           </span>
           <div className="sticky-actions">
+            {/* Same component and callbacks as the in-flow action bar; the
+                compact form keeps the fixed strip slim (core actions only). */}
+            <ReportActions compact report={report} onRerun={onRerun} onReset={onReset} onExportPng={() => void exportPng()} isExporting={isExporting} exportError={exportError} placement="sticky" />
             <button
               className="copybtn share-cta"
               onClick={() => {
@@ -170,7 +185,10 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
           {report ? (
             <>
               <strong className="runner-repo">{report.repository.owner}/{report.repository.name}</strong>
-              <span className="scale-tag">{t("runner.scaleTag", { scale: t(`insights.scaleValues.${projectScale(report.total.code)}`) })}</span>
+              {/* Source repository, moved up from the old bottom action row. */}
+              <a className="runner-github-link" href={report.repository.htmlUrl} target="_blank" rel="noreferrer" aria-label={t("reportActions.githubAria", { repo: `${report.repository.owner}/${report.repository.name}` })}>
+                <ExternalLink size={15} aria-hidden="true" />
+              </a>
             </>
           ) : (
             <>
@@ -202,7 +220,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
         isDemo ? (
           <>
             <Summary stats={report.total} />
-            <Charts report={report} />
+            <Charts report={report} variant="demo" />
             <div className="demo-report-more">
               <a className="copybtn" href={buildSnapshotReportUrl(report)}>
                 {t("runner.seeFullReport")} <span aria-hidden="true">→</span>
@@ -211,8 +229,17 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
           </>
         ) : (
           <>
+            <ReportActions
+              report={report}
+              onRerun={onRerun}
+              onReset={onReset}
+              onExportPng={() => void exportPng()}
+              isExporting={isExporting}
+              exportError={exportError}
+              placement="report_actions"
+            />
             <Summary stats={report.total} />
-            <Charts report={report} />
+            <Charts report={report} variant="full" />
             <Suspense fallback={null}>
               <RepoHistoryChart
                 provider={normalizedProvider(report)}
@@ -226,52 +253,26 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
             </Suspense>
             <ShareSection
               report={report}
-              stars={liveStars ?? report.repository.stars ?? null}
-              cardRef={shareCardRef}
-              copiedCta={copiedCta}
+              stars={stars}
               isExporting={isExporting}
               exportError={exportError}
-              copyError={copyError}
-              onCopyUrl={() => {
-                void copyText(buildSnapshotReportUrl(report)).then((copied) => {
-                  if (!copied) { setCopyError(t("reportCta.copyFailed")); return; }
-                  setCopyError(null);
-                  showCopiedCta("url");
-                });
-                trackEvent(AnalyticsEvents.reportUrlCopied, { provider: normalizedProvider(report), placement: "share_showcase" });
-              }}
               onExportPng={() => void exportPng()}
-              onCopyBadge={async () => {
-                const url = buildSnapshotReportUrl(report);
-                const badgeUrl = normalizedProvider(report) === "github"
-                  ? buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
-                  : "";
-                if (!badgeUrl) return false;
-                const copied = await copyText(`[![OctoCounts](${badgeUrl})](${url})`);
-                if (copied) { showCopiedCta("badge"); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_utility" }); }
-                return copied;
-              }}
-              onCopyEmbed={async () => {
-                const provider = normalizedProvider(report);
-                const copied = await copyText(buildEmbedSnippet(buildEmbedUrl(provider, report.repository.owner, report.repository.name)));
-                if (copied) { showCopiedCta("embed"); trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_utility" }); }
-                return copied;
-              }}
             />
             <SimilarRepos report={report} />
             <TechnicalDetails
               report={report}
-              stars={liveStars ?? report.repository.stars ?? null}
+              stars={stars}
               command={command}
               fullTimestamp={fullTimestamp}
               runLog={<RunnerLog status={status} report={report} error={error} />}
-              onExportText={async () => { const copied = await copyText(textReport(report)); if (copied) trackEvent("report_text_copied", { provider: normalizedProvider(report) }); return copied; }}
-              onExportJson={async () => { const copied = await copyText(JSON.stringify(report, null, 2)); if (copied) trackEvent("report_json_copied", { provider: normalizedProvider(report) }); return copied; }}
-              onRerun={onRerun}
-              onReset={onReset}
             />
           </>
         )
+      ) : null}
+      {exportMount && report ? (
+        <div className="share-export-target" aria-hidden="true">
+          <ShareTickerCard ref={exportCardRef} report={report} stars={stars} />
+        </div>
       ) : null}
     </div>
   );
@@ -279,58 +280,37 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
 
 // Collapsed-by-default home for everything a reader verifying the numbers
 // needs: the speed/result readouts, the trust grid (commit, counter, ignored
-// dirs), the run log and timing, and the rawer actions (text/JSON copy,
-// source repo, re-run, clear) that would only clutter the share section.
+// dirs), the run log and timing, and the counting-methodology note. The
+// actions that used to live here moved to the ReportActions bar under the
+// runner head.
 function TechnicalDetails({
   report,
   stars,
   command,
   fullTimestamp,
   runLog,
-  onExportText,
-  onExportJson,
-  onRerun,
-  onReset,
 }: {
   report: Report;
   stars: number | null;
   command: string;
   fullTimestamp: string;
   runLog: React.ReactNode;
-  onExportText: () => Promise<boolean>;
-  onExportJson: () => Promise<boolean>;
-  onRerun: () => void;
-  onReset: () => void;
 }) {
   const { t } = useTranslation();
-  const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
-  const [manualCopyValue, setManualCopyValue] = useState<string | null>(null);
-  const runCopy = async (action: () => Promise<boolean>, fallbackValue?: string) => {
-    const copied = await action();
-    setCopyFeedback(copied ? "copied" : "failed");
-    setManualCopyValue(copied ? null : fallbackValue ?? null);
-  };
-
   return (
     <details className="report-details technical-details">
       <summary>{t("runner.technicalDetails")}</summary>
       <Insights report={report} />
-      <TrustDetails report={report} stars={stars} />
       <div className="run-facts">
         <span>{t("runner.generated", { date: fullTimestamp, duration: report.durationMs, version: report.tokeiVersion })}</span>
         <span className={report.cached ? "ok" : ""}>{report.cached ? t("runner.cacheHit") : t("runner.freshRun")} · {report.durationMs}ms</span>
         <code>$ {command}</code>
       </div>
       {runLog}
-      <div className="run-detail-actions">
-        <button className="copybtn" type="button" onClick={() => void runCopy(onExportText, textReport(report))}><Clipboard size={14} /> {t("runner.exportText")}</button>
-        <button className="copybtn" type="button" onClick={() => void runCopy(onExportJson, JSON.stringify(report, null, 2))}><FileJson size={14} /> {t("runner.exportJson")}</button>
-        <a className="copybtn" href={report.repository.htmlUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t("runner.exportGitHub")}</a>
-        <button className="copybtn" type="button" onClick={onRerun}><RotateCcw size={14} /> {t("runner.reRun")}</button>
-        <button className="copybtn" type="button" onClick={onReset}>{t("runner.clear")}</button>
-        {copyFeedback ? <span className="copy-feedback" role="status">{copyFeedback === "copied" ? t("reportCta.copied") : t("reportCta.copyFailedShort")}</span> : null}
-        {manualCopyValue ? <textarea className="manual-copy utility-manual-copy" readOnly value={manualCopyValue} aria-label={t("reportCta.manualContentAria")} onFocus={(event) => event.currentTarget.select()} /> : null}
-      </div>
+      <TrustDetails report={report} stars={stars} />
+      <p className="methodology-note">
+        {t("runner.methodology")} <a href="/docs/methodology">{t("runner.methodologyLink")}</a>
+      </p>
     </details>
   );
 }

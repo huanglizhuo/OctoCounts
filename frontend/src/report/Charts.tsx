@@ -1,24 +1,60 @@
-// Pure move from main.tsx — behavior unchanged.
+// Language visualization: the sortable per-language table with thin
+// proportional code-share bars is the primary (default) view; the donut is an
+// opt-in secondary view toggled from a small segmented control. The demo
+// (homepage) variant additionally truncates the display to the top languages
+// by code with the tail merged into a clearly labeled Other row — display
+// only: exports, technical details and the full report always see the
+// untruncated report.
 import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { languagePieItems, pieSlices } from "../chartUtils";
 import { formatCompactNumber, formatNumber, formatPercent, languageColor, sortRows, visibleLanguageColor } from "../reportUtils";
 import { useScheme } from "../scheme";
-import type { LanguageReport, PieItem, Report, SortKey } from "../types";
+import type { LanguageReport, PieItem, Report, SortKey, Stats } from "../types";
 
-export function Charts({ report }: { report: Report }) {
+const DEMO_LANGUAGE_LIMIT = 5;
+
+export function Charts({ report, variant = "full" }: { report: Report; variant?: "demo" | "full" }) {
   const { t, i18n } = useTranslation();
   const scheme = useScheme();
-  const languageItems = useMemo(() => languagePieItems(report.languages, t("charts.other"), t("charts.noData")), [report.languages, i18n.language, t]);
+  const isDemo = variant === "demo";
+  const [view, setView] = useState<"table" | "chart">("table");
+  const [showFullStats, setShowFullStats] = useState(false);
+
+  // Demo top-N truncation. Totals stay the full report's totals (not the
+  // top-N sum) so the summary row keeps reporting the real repository.
+  const displayReport = useMemo(() => {
+    if (!isDemo) return report;
+    const sorted = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
+    if (sorted.length <= DEMO_LANGUAGE_LIMIT) return report;
+    const head = sorted.slice(0, DEMO_LANGUAGE_LIMIT);
+    const tail = sorted.slice(DEMO_LANGUAGE_LIMIT);
+    const other = tail.reduce<Stats>(
+      (sum, row) => ({
+        files: sum.files + row.stats.files,
+        lines: sum.lines + row.stats.lines,
+        code: sum.code + row.stats.code,
+        comments: sum.comments + row.stats.comments,
+        blanks: sum.blanks + row.stats.blanks,
+      }),
+      { files: 0, lines: 0, code: 0, comments: 0, blanks: 0 },
+    );
+    return {
+      ...report,
+      languages: [...head, { name: t("charts.otherRow", { count: tail.length }), stats: other, children: [] }],
+    };
+  }, [isDemo, report, i18n.language, t]);
+  const demoTruncated = isDemo && report.languages.length > DEMO_LANGUAGE_LIMIT;
+
+  const languageItems = useMemo(() => languagePieItems(displayReport.languages, t("charts.other"), t("charts.noData")), [displayReport.languages, i18n.language, t]);
   // Lift near-black language colors so slices/swatches stay visible on the dark scheme.
   const visibleItems = useMemo(
     () => languageItems.map((item) => ({ ...item, color: visibleLanguageColor(item.color, scheme) })),
     [languageItems, scheme],
   );
-  const totalLines = report.total.code;
+  const totalCode = report.total.code;
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
-  const [showFullStats, setShowFullStats] = useState(false);
   const otherLabel = t("charts.other");
   const sliceLabels = useMemo(() => new Set(visibleItems.map((item) => item.label)), [visibleItems]);
   const sliceForLanguage = useCallback(
@@ -29,23 +65,29 @@ export function Charts({ report }: { report: Report }) {
     (name: string | null) => setHoveredSlice(name === null ? null : sliceForLanguage(name)),
     [sliceForLanguage],
   );
+  // Leading real language for the mobile summary comes from the untruncated
+  // report: the demo's merged Other row can outweigh any single language and
+  // must not become the headline.
   const leading = [...report.languages].sort((a, b) => b.stats.code - a.stats.code)[0];
 
   return (
-    <>
+    <div className="charts-section">
       {leading ? <div className="mobile-code-summary"><span>{leading.name}</span><strong>{formatNumber(leading.stats.code)} {t("table.code")}</strong><em>{formatPercent(leading.stats.code, report.total.code)}</em></div> : null}
-      <button type="button" className="full-stats-toggle copybtn" onClick={() => setShowFullStats((value) => !value)} aria-expanded={showFullStats}>{showFullStats ? t("charts.compactStats") : t("charts.fullStats")}</button>
-      <div className="charts-grid">
-      <div className="chart-card donut-card">
-        <div className="chart-h"><span className="chart-tag">chart</span>{t("charts.languageShare")}</div>
-        <Donut items={visibleItems} total={totalLines} hovered={hoveredSlice} onHover={setHoveredSlice} />
+      <div className="charts-toolbar">
+        <div className="chart-view-toggle" role="group" aria-label={t("charts.viewLabel")}>
+          <button type="button" className={view === "table" ? "active" : ""} aria-pressed={view === "table"} onClick={() => setView("table")}>{t("charts.viewTable")}</button>
+          <button type="button" className={view === "chart" ? "active" : ""} aria-pressed={view === "chart"} onClick={() => setView("chart")}>{t("charts.viewChart")}</button>
+        </div>
+        {demoTruncated ? <span className="demo-scope-note">{t("charts.topOf", { shown: DEMO_LANGUAGE_LIMIT, total: report.languages.length })}</span> : null}
+        <button type="button" className="full-stats-toggle copybtn" onClick={() => setShowFullStats((value) => !value)} aria-expanded={showFullStats}>{showFullStats ? t("charts.compactStats") : t("charts.fullStats")}</button>
       </div>
-      <div className="chart-card table-card">
-        <div className="chart-h"><span className="chart-tag">table</span>{t("charts.report")}</div>
-        <ReportTable report={report} compact={!showFullStats} fullStats={showFullStats} hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={onHoverLanguage} />
-      </div>
-      </div>
-    </>
+      {view === "chart" ? (
+        <div className="donut-panel">
+          <Donut items={visibleItems} total={totalCode} hovered={hoveredSlice} onHover={setHoveredSlice} />
+        </div>
+      ) : null}
+      <ReportTable report={displayReport} compact={!showFullStats} fullStats={showFullStats} hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={onHoverLanguage} />
+    </div>
   );
 }
 

@@ -7,11 +7,11 @@ import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { ThemeSwitch } from "./scheme";
 
 export const publicReportLinks = [
-  { href: "/stats", key: "stats", command: "stats" },
-  { href: "/recent", key: "recent", command: "tail -f" },
-  { href: "/popular", key: "popular", command: "sort --hits" },
-  { href: "/trending", key: "trending", command: "watch --daily" },
-  { href: "/hall-of-monoliths", key: "hall", command: "top --lines" },
+  { href: "/stats", key: "stats" },
+  { href: "/recent", key: "recent" },
+  { href: "/popular", key: "popular" },
+  { href: "/trending", key: "trending" },
+  { href: "/hall-of-monoliths", key: "hall" },
 ];
 
 type MenuId = "explore" | "tools" | "install" | "site";

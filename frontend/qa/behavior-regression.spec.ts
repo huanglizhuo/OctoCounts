@@ -37,7 +37,7 @@ test.describe("analysis behavior regressions", () => {
     await page.goto(BASE_URL);
     const repo = page.locator("#repo-url");
     await repo.fill("https://github.com/example/old-repo");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await repo.fill("https://github.com/example/new-repo");
     // The regular button is correctly disabled while the first request is in
     // flight. Submit the same form programmatically to model a second caller
@@ -60,12 +60,12 @@ test.describe("analysis behavior regressions", () => {
     const repo = page.locator("#repo-url");
     const ref = page.locator("#repo-ref");
     await expect(ref).toHaveValue("main");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     // An empty form falls back to the demo seed repo (facebook/react) while
     // keeping the homepage's "main" suggestion.
     await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "main")).toBe(true);
     await ref.fill("release");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "release")).toBe(true);
 
     await repo.fill("https://github.com/example/plain-repo");
@@ -103,9 +103,12 @@ test.describe("analysis behavior regressions", () => {
     await ignored.pressSequentially("examples, fixtures");
     await expect(ignored).toHaveValue("examples, fixtures");
     await page.locator("#repo-url").fill("https://github.com/example/custom");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect.poll(() => (received?.options as { ignoredDirs?: string[] } | undefined)?.ignoredDirs).toEqual(["examples", "fixtures"]);
-    await page.locator("button").filter({ hasText: "report URL" }).click();
+    // The copy-link action lives in the report action bar under the runner
+    // head now; clipboard denial must still surface a manual copy containing
+    // the pinned analysis options.
+    await page.getByRole("button", { name: "Copy link" }).click();
     await expect(page.locator(".manual-copy")).toHaveValue(/analysis=/);
   });
 
@@ -134,9 +137,9 @@ test.describe("analysis behavior regressions", () => {
     // The share actions live in the full runner now — the homepage opens on
     // the read-only example report — so finish a (mocked) run first.
     await page.locator("#repo-url").fill("https://github.com/example/manual");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect(page.locator(".runner-repo")).toHaveText("example/manual");
-    await page.locator("button").filter({ hasText: "report URL" }).click();
+    await page.getByRole("button", { name: "Copy link" }).click();
     const manual = page.locator(".manual-copy");
     await expect(manual).toBeVisible();
     await expect(manual).toHaveValue(/\/github\/example\/manual\/commit\//);
@@ -155,9 +158,9 @@ test.describe("analysis behavior regressions", () => {
     });
     await page.goto(BASE_URL);
     await page.locator("#repo-url").fill("https://github.com/example/late");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect(page.getByRole("heading", { name: "The analysis is taking too long." })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Analyze" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Analyze", exact: true })).toBeEnabled();
     await page.waitForTimeout(130);
     await expect(page.locator(".runner-repo")).toHaveCount(0);
   });
@@ -230,7 +233,7 @@ test.describe("analysis behavior regressions", () => {
     // mocked report counts 200 code lines on 2026-09-08, which merges as the
     // series' last point — the value "End" must land on.
     await page.locator("#repo-url").fill("https://github.com/huanglizhuo/OctoCounts");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect(page.locator(".repo-history")).toBeVisible();
     await page.locator(".repo-history-chart svg").focus();
     await page.keyboard.press("End");
@@ -355,7 +358,9 @@ test.describe("language share donut", () => {
     });
     await page.goto(BASE_URL);
     await page.locator("#repo-url").fill("https://github.com/example/wide-count");
-    await page.getByRole("button", { name: "Analyze" }).click();
+    await page.getByRole("button", { name: "Analyze", exact: true }).click();
+    // The donut is opt-in now: open the chart view before asserting ring math.
+    await page.getByRole("button", { name: "Chart", exact: true }).click();
     const donut = page.locator(".donut-wrap");
     await expect(donut).toBeVisible();
     await expect(page.locator(".donut-center strong")).toHaveText("99,999");

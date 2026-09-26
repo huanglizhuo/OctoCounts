@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { History, Loader2, Play } from "lucide-react";
-import React, { FormEvent, ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, ReactNode, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { ready as i18nReady } from "./i18n";
 import { StoreLink } from "./StoreLink";
@@ -10,7 +10,6 @@ import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
 import { buildPublicReportUrl, parsePublicRepo } from "./badges";
-import { ReportContextTools } from "./report/ReportContextTools";
 import { Runner } from "./report/Runner";
 
 const BrowserExtensionSection = React.lazy(() => import("./BrowserExtensionSection"));
@@ -330,7 +329,6 @@ function App() {
 
   const playRecent = (entry: RecentEntry) => {
     trackEvent("recent_chip_clicked", { provider: providerFromRepoUrl(entry.repoUrl) });
-    stopTyping();
     setRepoUrl(entry.repoUrl);
     // A chip owns both fields, so whatever was typed into the ref box is gone
     // on purpose and the next URL edit is free to derive again.
@@ -352,49 +350,21 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The typing animation lives in the RepoUrlInput component so the ~18ms
-  // per-character updates only re-render the input, not the whole page. The
-  // committed value syncs up when the demo finishes (or immediately when the
-  // user types / picks another chip, which cancels the animation).
-  const [typingTarget, setTypingTarget] = useState<string | null>(null);
-  const typingDoneRef = useRef<(() => void) | null>(null);
+  // A sample chip fills the form and submits in one click — no typewriter
+  // animation between the click and the request. busySample keeps the chip
+  // visibly "working" and disables the row so an in-flight run cannot be
+  // double-submitted by another chip.
   const [busySample, setBusySample] = useState<string | null>(null);
-  const stopTyping = useCallback(() => {
-    // A dropped animation also drops the pending runSample callback, so the
-    // chip it came from must be released here or busySample sticks forever.
-    if (typingDoneRef.current) setBusySample(null);
-    typingDoneRef.current = null;
-    setTypingTarget(null);
-  }, []);
-  const finishTyping = useCallback(() => {
-    const done = typingDoneRef.current;
-    typingDoneRef.current = null;
-    setTypingTarget(null);
-    done?.();
-  }, []);
 
   const playSample = (sample: (typeof samples)[number]) => {
     trackEvent("sample_chip_clicked", { sample: sample.label, provider: providerFromRepoUrl(sample.repoUrl) });
-    stopTyping();
     setBusySample(sample.repoUrl);
     refIsExplicit.current = false;
     setRefName(sample.refName);
+    setRepoUrl(sample.repoUrl);
     setLastCommand(commandText(sample.repoUrl, sample.refName, false));
-    const runSample = () => {
-      void runAnalysis(false, { repoUrl: sample.repoUrl, refName: sample.refName })
-        .finally(() => setBusySample(null));
-    };
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setRepoUrl(sample.repoUrl);
-      runSample();
-      return;
-    }
-    setRepoUrl("");
-    typingDoneRef.current = () => {
-      setRepoUrl(sample.repoUrl);
-      runSample();
-    };
-    setTypingTarget(sample.repoUrl);
+    void runAnalysis(false, { repoUrl: sample.repoUrl, refName: sample.refName })
+      .finally(() => setBusySample(null));
   };
 
   // Page metadata only needs the settled input, not every keystroke.
@@ -420,7 +390,6 @@ function App() {
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
-      <div className="crt" />
       <main id="main" className="page">
         <Topbar />
         <section className={`hero ${isReportRoute ? "hero-compact" : ""}`} aria-labelledby="hero-title">
@@ -438,18 +407,11 @@ function App() {
               )
             ) : (
               <>
-                <h1 id="hero-title" className="title">
-                  <Trans i18nKey="hero.title" components={{ 1: <span className="glow" /> }} />
-                </h1>
+                <h1 id="hero-title" className="title">{t("hero.title")}</h1>
                 <p className="subtitle">
                   <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
                 </p>
                 <p className="hero-trust">{t("hero.trustLine")}</p>
-                <p className="hero-definition">{t("hero.definition")}</p>
-                <p className="hero-freshness">
-                  {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time> · {t("hero.maintainedBy")}{" "}
-                  <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer">huanglizhuo</a>
-                </p>
               </>
             )}
             {isHostDegraded(hostStatus) ? (
@@ -460,12 +422,12 @@ function App() {
             ) : null}
             <form className="input-row" onSubmit={submit}>
               <span className="prompt">$</span>
-              <RepoUrlInput
+              <input
+                id="repo-url"
+                name="repoUrl"
                 value={repoUrl}
-                typingTarget={typingTarget}
-                onTypingDone={finishTyping}
-                onCancelTyping={stopTyping}
-                onChange={(next) => {
+                onChange={(event) => {
+                  const next = event.target.value;
                   setRepoUrl(next);
                   setAmbiguousRef(hasAmbiguousRefPath(next));
                   // Only a fresh homepage suggestion may derive a ref from
@@ -487,7 +449,7 @@ function App() {
                   }
                 }}
                 placeholder={t("hero.placeholderUrl")}
-                ariaLabel={t("hero.ariaUrl")}
+                aria-label={t("hero.ariaUrl")}
               />
               <label className="ref">
                 {t("hero.refLabel")}
@@ -525,17 +487,22 @@ function App() {
                     </button>
                   ))}
                 </div>
-                {/* Secondary path to the extension: one outline line below the
-                    samples. Analyze stays the only solid primary button on the
-                    first screen. */}
-                <p className="hero-paths hero-paths-line">
+                {/* Secondary path to the extension: one lightweight Chrome
+                    entry; Edge/Firefox fold into a disclosure so the first
+                    screen carries a single install surface while all three
+                    store links remain present. Analyze stays the only solid
+                    primary button on the first screen. */}
+                <div className="hero-paths hero-paths-line">
                   <span>{t("hero.alsoLine")}</span>
                   <StoreLink store="chrome" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("hero.addToChrome")}</StoreLink>
-                  <span aria-hidden="true">·</span>
-                  <StoreLink store="edge" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.edge")}</StoreLink>
-                  <span aria-hidden="true">·</span>
-                  <StoreLink store="firefox" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.firefox")}</StoreLink>
-                </p>
+                  <details className="hero-other-browsers">
+                    <summary>{t("hero.otherBrowsers")}</summary>
+                    <div>
+                      <StoreLink store="edge" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.edge")}</StoreLink>
+                      <StoreLink store="firefox" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.firefox")}</StoreLink>
+                    </div>
+                  </details>
+                </div>
                 {/* Pre-rendered (CSS-toggled, no JS) coarse-pointer replacement
                     for the install CTAs — see the pointer:coarse media block. */}
                 <p className="mobile-install-note">
@@ -598,7 +565,7 @@ function App() {
           <Suspense fallback={null}><BrowserExtensionSection compact /></Suspense>
         </section> : null}
 
-        {isReportRoute ? <ReportContextTools report={report} repoUrl={repoUrl} refName={refName} /> : <>
+        {!isReportRoute && <>
         <DeferredContent><PublicReportIndex /></DeferredContent>
 
         {/* One Tools grid replaces the four full forms that used to be embedded
@@ -660,6 +627,13 @@ function App() {
               <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
               {" "}{t("footer.copyright")}
             </p>
+            {/* Freshness/maintainer line moved out of the hero: the "last
+                updated" fact serves returning visitors and crawlers, not the
+                first screen's core path. The maintainer is already linked in
+                the builtBy line directly above. */}
+            <p className="footer-freshness">
+              {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time>
+            </p>
           </div>
           <nav className="footer-cols" aria-label={t("footer.navAria")}>
             <div className="footer-col">
@@ -697,64 +671,6 @@ function App() {
   );
 }
 
-// Owns the demo typing animation so per-character state stays local; only the
-// committed value flows through the parent.
-function RepoUrlInput({
-  value,
-  typingTarget,
-  onTypingDone,
-  onCancelTyping,
-  onChange,
-  placeholder,
-  ariaLabel,
-}: {
-  value: string;
-  typingTarget: string | null;
-  onTypingDone: () => void;
-  onCancelTyping: () => void;
-  onChange: (value: string) => void;
-  placeholder: string;
-  ariaLabel: string;
-}) {
-  const [typed, setTyped] = useState<string | null>(null);
-  const doneRef = useRef(onTypingDone);
-  doneRef.current = onTypingDone;
-
-  useEffect(() => {
-    if (typingTarget === null) {
-      setTyped(null);
-      return;
-    }
-    let index = 0;
-    setTyped("");
-    const timer = window.setInterval(() => {
-      index += 1;
-      setTyped(typingTarget.slice(0, index));
-      if (index >= typingTarget.length) {
-        window.clearInterval(timer);
-        doneRef.current();
-      }
-    }, 18);
-    return () => window.clearInterval(timer);
-  }, [typingTarget]);
-
-  return (
-    <input
-      id="repo-url"
-      name="repoUrl"
-      className={typed !== null ? "typing" : undefined}
-      value={typed ?? value}
-      onChange={(event) => {
-        onCancelTyping();
-        setTyped(null);
-        onChange(event.target.value);
-      }}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-    />
-  );
-}
-
 function PublicReportIndex() {
   const { t } = useTranslation();
   const { ref, isNear } = useNearViewport<HTMLElement>();
@@ -771,13 +687,11 @@ function PublicReportIndex() {
   return (
     <section className="report-index" aria-label={t("growth.index.ariaLabel")} ref={ref}>
       <div className="report-index-head">
-        <span className="terminal-label">{t("growth.index.label")}</span>
         <p>{statsCopy}</p>
       </div>
       <nav className="report-index-grid" aria-label={t("growth.index.navAria")}>
         {publicReportLinks.map((item) => (
           <a key={item.href} href={item.href} className={item.href === "/stats" ? "report-index-link primary" : "report-index-link"}>
-            <span>{item.command}</span>
             <strong>{t(`growth.nav.${item.key}.label`)}</strong>
             <em>{t(`growth.nav.${item.key}.detail`)}</em>
           </a>
@@ -815,6 +729,21 @@ function ToolsGrid() {
   );
 }
 
+// How many configured fields differ from the defaults — one point per field,
+// array-valued fields (ignored dirs/languages) counting as a single field.
+// Drives the "N modified" summary so a non-default configuration is visible
+// while the panel stays collapsed.
+function countModifiedAnalysisOptions(options: AnalysisOptions): number {
+  let count = 0;
+  if (options.profile !== defaultAnalysisOptions.profile) count += 1;
+  if (options.ignoredDirs.join("\u0000") !== defaultAnalysisOptions.ignoredDirs.join("\u0000")) count += 1;
+  if (options.ignoredLanguages.join("\u0000") !== defaultAnalysisOptions.ignoredLanguages.join("\u0000")) count += 1;
+  if (options.includeDocs !== defaultAnalysisOptions.includeDocs) count += 1;
+  if (options.includeTests !== defaultAnalysisOptions.includeTests) count += 1;
+  if (options.includeGenerated !== defaultAnalysisOptions.includeGenerated) count += 1;
+  return count;
+}
+
 function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOptions; setOptions: (options: AnalysisOptions) => void }) {
   const { t } = useTranslation();
   // Keep what the person is typing separate from its parsed value. Rebuilding
@@ -823,9 +752,21 @@ function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOption
   const [ignoredDirsDraft, setIgnoredDirsDraft] = useState(() => options.ignoredDirs.join(", "));
   const [ignoredLanguagesDraft, setIgnoredLanguagesDraft] = useState(() => options.ignoredLanguages.join(", "));
   const update = (patch: Partial<AnalysisOptions>) => setOptions({ ...options, ...patch });
+  const modifiedCount = countModifiedAnalysisOptions(options);
+  // Reset must restore the parsed options AND both CSV drafts; leaving a stale
+  // draft would resurrect the old entries on the next keystroke or blur.
+  const resetDefaults = () => {
+    setIgnoredDirsDraft("");
+    setIgnoredLanguagesDraft("");
+    setOptions(defaultAnalysisOptions);
+  };
   return (
     <details className="analysis-options">
-      <summary>{t("analysisOptions.summary")}</summary>
+      <summary>
+        {modifiedCount > 0
+          ? t("analysisOptions.summaryModified", { count: modifiedCount })
+          : t("analysisOptions.summary")}
+      </summary>
       <div className="analysis-options-grid">
         <label>
           <span>{t("analysisOptions.profile")}</span>
@@ -847,6 +788,11 @@ function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOption
           <label><input type="checkbox" name="includeTests" checked={options.includeTests} onChange={(event) => update({ includeTests: event.target.checked })} />{t("analysisOptions.includeTests")}</label>
           <label><input type="checkbox" name="includeGenerated" checked={options.includeGenerated} onChange={(event) => update({ includeGenerated: event.target.checked })} />{t("analysisOptions.includeGenerated")}</label>
         </div>
+        {modifiedCount > 0 ? (
+          <button type="button" className="copybtn options-reset" onClick={resetDefaults}>
+            {t("analysisOptions.reset")}
+          </button>
+        ) : null}
       </div>
     </details>
   );

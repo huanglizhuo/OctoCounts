@@ -46,15 +46,20 @@ function cachedReportFixture(repoUrl: string, code: number, lines: number) {
 }
 
 test.describe('OctoCounts visual QA', () => {
-  test('1. desktop: demo report loads with donut and table rows', async ({ page }) => {
+  test('1. desktop: demo report loads with the table as the default language view', async ({ page }) => {
     await waitForReport(page);
     await expect(page.locator('table.report tbody tr').first()).toBeVisible();
+    // The donut is opt-in: absent until the chart view is toggled on, then the
+    // ring renders at its fixed container-query size.
+    await expect(page.locator('.donut-wrap svg')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Chart', exact: true }).click();
     await expect(page.locator('.donut-wrap svg')).toBeVisible();
   });
 
   test('2. table sorting updates URL and reload restores it', async ({ page }) => {
     await waitForReport(page);
-    const filesHeader = page.locator('table.report thead th').nth(1);
+    // Header-name-based access: column order is a presentation choice.
+    const filesHeader = page.locator('table.report thead th').filter({ hasText: 'files' }).first();
     await filesHeader.click();
     await page.waitForTimeout(200);
     expect(page.url()).toMatch(/\?sort=.*dir=/);
@@ -63,7 +68,7 @@ test.describe('OctoCounts visual QA', () => {
     await page.waitForTimeout(500);
     expect(page.url()).toMatch(/\?sort=.*dir=/);
 
-    const codeHeader = page.locator('table.report thead th').nth(3);
+    const codeHeader = page.locator('table.report thead th').filter({ hasText: 'code' }).first();
     await codeHeader.click();
     await page.waitForTimeout(200);
     expect(page.url()).not.toMatch(/sort=/);
