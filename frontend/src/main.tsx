@@ -4,12 +4,12 @@ import React, { FormEvent, ReactNode, Suspense, useCallback, useEffect, useMemo,
 import { Trans, useTranslation } from "react-i18next";
 import { ready as i18nReady } from "./i18n";
 import { StoreLink } from "./StoreLink";
-import { defaultRepoUrl, defaultRefName, extensionInfo, siteLastUpdated } from "./constants";
+import { defaultRepoUrl, defaultRefName, siteLastUpdated, sourceRepoUrl } from "./constants";
 import { analyzeRepository, fetchGrowthStats } from "./api";
 import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { initAnalytics, providerFromRepoUrl, trackAiVisitIfReferred, trackEvent } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
-import { BadgeBuilder, BadgeWall, buildPublicReportUrl, parsePublicRepo } from "./badges";
+import { buildPublicReportUrl, parsePublicRepo } from "./badges";
 import { ReportContextTools } from "./report/ReportContextTools";
 import { Runner } from "./report/Runner";
 
@@ -24,9 +24,6 @@ const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ def
 const BadgesPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.BadgesPage })));
 const ExtensionPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ExtensionPage })));
 const EmbedPage = React.lazy(() => import("./embed").then((m) => ({ default: m.EmbedPage })));
-// Below-the-fold tool sections on the home page — deferred anyway, so lazy.
-const CompareRepos = React.lazy(() => import("./compare").then((m) => ({ default: m.CompareRepos })));
-const DiffRefs = React.lazy(() => import("./compare").then((m) => ({ default: m.DiffRefs })));
 
 function PageFallback() {
   const { t } = useTranslation();
@@ -49,7 +46,7 @@ import {
   formatNumber,
   normalizedProvider,
 } from "./reportUtils";
-import type { AnalysisOptions, AppStatus, GrowthRepositoryStat, GrowthStats, Report, Stats } from "./types";
+import type { AnalysisOptions, GrowthRepositoryStat, GrowthStats, Report, Stats } from "./types";
 import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 import { SchemeProvider } from "./scheme";
@@ -63,10 +60,10 @@ const queryClient = new QueryClient({
   },
 });
 const samples = [
-  { label: "octocount", repoUrl: defaultRepoUrl, refName: defaultRefName },
-  { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
-  { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
+  { label: "react", repoUrl: defaultRepoUrl, refName: defaultRefName },
   { label: "vscode", repoUrl: "https://github.com/microsoft/vscode", refName: "" },
+  { label: "vite", repoUrl: "https://github.com/vitejs/vite", refName: "" },
+  { label: "axum", repoUrl: "https://github.com/tokio-rs/axum", refName: "" },
 ];
 
 const RECENT_KEY = "octocounts.recentRepos";
@@ -205,6 +202,11 @@ function App() {
   // box on report routes; the homepage keeps the full pitch for first-time
   // visitors who have nothing else to look at yet.
   const isReportRoute = routePath.startsWith("/github/");
+  // Report deep links name the repository in the URL, so the h1 is that
+  // repository — parsed from the pathname, not the report payload, so it
+  // renders before the analysis lands and never flashes a different repo.
+  const reportRoute = isReportRoute ? parsePublicReportPath(routePath) : null;
+  const reportRouteRepo = reportRoute ? parsePublicRepo(reportRoute.repoUrl) : null;
   useEffect(() => {
     let frame = 0;
     let attempts = 0;
@@ -403,6 +405,10 @@ function App() {
     void runAnalysis(false);
   };
 
+  // Demo state = the bundled seed report is showing and no user run has
+  // happened (any run nulls `report` before its own result lands).
+  const demoActive = !isReportRoute && report === seedReport;
+
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
@@ -411,9 +417,17 @@ function App() {
         <Topbar />
         <section className={`hero ${isReportRoute ? "hero-compact" : ""}`} aria-labelledby="hero-title">
           <div className="hero-left">
-            <TopActions status={status} />
             {isReportRoute ? (
-              <h1 id="hero-title" className="title title-compact">OctoCounts</h1>
+              reportRouteRepo ? (
+                <>
+                  <h1 id="hero-title" className="title title-compact">{reportRouteRepo.owner}/{reportRouteRepo.repo}</h1>
+                  <p className="report-route-sub">
+                    {reportRoute?.refName ? t("hero.reportSubtitleRef", { ref: reportRoute.refName }) : t("hero.reportSubtitle")}
+                  </p>
+                </>
+              ) : (
+                <h1 id="hero-title" className="title title-compact">OctoCounts</h1>
+              )
             ) : (
               <>
                 <h1 id="hero-title" className="title">
@@ -422,6 +436,7 @@ function App() {
                 <p className="subtitle">
                   <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
                 </p>
+                <p className="hero-trust">{t("hero.trustLine")}</p>
                 <p className="hero-definition">{t("hero.definition")}</p>
                 <p className="hero-freshness">
                   {t("hero.freshnessLabel")}: <time dateTime={siteLastUpdated}>{siteLastUpdated}</time> · {t("hero.maintainedBy")}{" "}
@@ -487,18 +502,8 @@ function App() {
             {ambiguousRef ? <p className="input-hint" role="status">{t("hero.ambiguousRef")}</p> : null}
             {!isReportRoute && (
               <>
-                <div className="hero-paths" role="group" aria-label={t("hero.sidebarHint")}>
-                  <span>{t("hero.sidebarHint")}</span>
-                  <StoreLink store="chrome" placement="hero" className="btn install-btn hero-install-primary" size={15}>{t("hero.addToChrome")}</StoreLink>
-                  <details className="hero-other-browsers">
-                    <summary>{t("hero.otherBrowsers")}</summary>
-                    <div>
-                      <StoreLink store="edge" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installEdge")}</StoreLink>
-                      <StoreLink store="firefox" placement="hero" className="copybtn install-btn secondary-install" size={14}>{t("hero.installFirefox")}</StoreLink>
-                    </div>
-                  </details>
-                </div>
-                <div className="quick-rows" role="group" aria-label={t("hero.ariaSamples")}>
+                <div className="quick-rows samples-row" role="group" aria-label={t("hero.ariaSamples")}>
+                  <span className="samples-try">{t("samples.try")}</span>
                   {samples.map((sample) => (
                     <button
                       className={`chip ${busySample === sample.repoUrl ? "busy" : ""}`}
@@ -508,10 +513,26 @@ function App() {
                       aria-pressed={busySample === sample.repoUrl}
                       onClick={() => playSample(sample)}
                     >
-                      <span className="k">{t("samples.label")}</span>{sample.label}
+                      {sample.label}
                     </button>
                   ))}
                 </div>
+                {/* Secondary path to the extension: one outline line below the
+                    samples. Analyze stays the only solid primary button on the
+                    first screen. */}
+                <p className="hero-paths hero-paths-line">
+                  <span>{t("hero.alsoLine")}</span>
+                  <StoreLink store="chrome" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("hero.addToChrome")}</StoreLink>
+                  <span aria-hidden="true">·</span>
+                  <StoreLink store="edge" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.edge")}</StoreLink>
+                  <span aria-hidden="true">·</span>
+                  <StoreLink store="firefox" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.firefox")}</StoreLink>
+                </p>
+                {/* Pre-rendered (CSS-toggled, no JS) coarse-pointer replacement
+                    for the install CTAs — see the pointer:coarse media block. */}
+                <p className="mobile-install-note">
+                  {t("extensionSection.desktopOnly")} <a href="/extension">{t("extensionSection.learnMore")}</a>
+                </p>
                 {recentRepos.length > 0 ? (
                   <div className="quick-rows recent-rows" role="group" aria-label={t("recent.ariaLabel")}>
                     {recentRepos.map((entry) => (
@@ -540,20 +561,13 @@ function App() {
           </div>
         </section>
 
-        {!isReportRoute && (
-          <section className="trust-strip" aria-label={t("hero.ariaTrust")}>
-            <div className="social-proof">
-              <a href="https://github.com/huanglizhuo/OctoCounts" target="_blank" rel="noreferrer" className="proof-badge">{t("hero.badgeOpenSource")}</a>
-              <span className="proof-badge">{t("hero.badgeFree")}</span>
-              <span className="proof-badge">{t("hero.badgeLanguages")}</span>
-            </div>
-          </section>
-        )}
-
+        {/* The homepage runner starts as a read-only example report (the bundled
+            seed); the moment a visitor starts a real analysis Runner drops the
+            demo trim and renders the full report. */}
         <section>
           <div className="section-h">
-            <h2>{t("runner.title")}</h2>
-            <span className="sub">{t("runner.status." + status)}</span>
+            <h2>{demoActive ? t("runner.exampleReport") : t("runner.title")}</h2>
+            {demoActive ? null : <span className="sub">{t("runner.status." + status)}</span>}
           </div>
           {!repoUrl && (
             <p className="demo-note">{t("runner.demoNote")}</p>
@@ -566,6 +580,7 @@ function App() {
             errorCode={errorCode}
             onReset={reset}
             onRerun={() => void runAnalysis(true)}
+            variant={isReportRoute ? "full" : "demo"}
           />
         </section>
 
@@ -577,42 +592,18 @@ function App() {
         {isReportRoute ? <ReportContextTools report={report} repoUrl={repoUrl} refName={refName} /> : <>
         <DeferredContent><PublicReportIndex /></DeferredContent>
 
-        <section id="badges">
+        {/* One Tools grid replaces the four full forms that used to be embedded
+            here (badge builder + wall, developer tools, compare, ref diff).
+            Each card is a whole-click link to the page that owns the tool. */}
+        <section id="tools">
           <div className="section-h">
-            <h2>{t("badgeBuilder.title")}</h2>
-            <span className="sub">{t("badgeBuilder.subtitle")} · <a href="/badges">{t("badgeBuilder.openPage")}</a></span>
+            <h2>{t("tools.title")}</h2>
+            <span className="sub">{t("tools.subtitle")}</span>
           </div>
-          <DeferredContent>
-            <BadgeBuilder repoUrl={repoUrl} refName={refName} report={report} />
-            <BadgeWall />
-          </DeferredContent>
+          <DeferredContent><ToolsGrid /></DeferredContent>
         </section>
 
-        <section>
-          <div className="section-h">
-            <h2>{t("developerTools.title")}</h2>
-            <span className="sub">{t("developerTools.subtitle")}</span>
-          </div>
-          <DeferredContent><DeveloperTools /></DeferredContent>
-        </section>
-
-        <section>
-          <div className="section-h">
-            <h2>{t("compare.title")}</h2>
-            <span className="sub">{t("compare.subtitle")}</span>
-          </div>
-          <DeferredContent><Suspense fallback={null}><CompareRepos /></Suspense></DeferredContent>
-        </section>
-
-        <section>
-          <div className="section-h">
-            <h2>{t("diff.title")}</h2>
-            <span className="sub">{t("diff.subtitle")}</span>
-          </div>
-          <DeferredContent><Suspense fallback={null}><DiffRefs /></Suspense></DeferredContent>
-        </section>
-
-        <section>
+        <section className="section-compact">
           <div className="section-h">
             <h2>{t("useCases.title")}</h2>
             <span className="sub">{t("useCases.subtitle")}</span>
@@ -629,7 +620,7 @@ function App() {
           </DeferredContent>
         </section>
 
-        <section>
+        <section className="section-compact">
           <div className="section-h">
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
@@ -654,20 +645,43 @@ function App() {
         </>}
 
         <footer>
-          <span>{t("footer.tagline")}</span>
-          <span>
-            <a href="/about">{t("footer.about")}</a> &middot;
-            <a href="/privacy">{t("footer.privacy")}</a> &middot; <a href="/contact">{t("footer.contact")}</a> &middot;
-            <a href="/docs/api">{t("footer.apiDocs")}</a> &middot;
-            <a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a> &middot;
-            <a href="/docs/faq">{t("footer.faq")}</a> &middot;
-            <a href="/badges">{t("footer.badges")}</a> &middot;
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot;
-            <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot;
-            <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
-            {" "}{t("footer.copyright")}
-          </span>
-          <LanguageSwitcher />
+          <div className="footer-meta">
+            <span>{t("footer.tagline")}</span>
+            <p>
+              <Trans i18nKey="footer.builtBy" components={{ 1: <a href="https://github.com/huanglizhuo" target="_blank" rel="noreferrer" /> }} />
+              {" "}{t("footer.copyright")}
+            </p>
+          </div>
+          <nav className="footer-cols" aria-label={t("footer.navAria")}>
+            <div className="footer-col">
+              <h2>{t("footer.product")}</h2>
+              <ul>
+                <li><a href="/stats">{t("growth.nav.stats.label")}</a></li>
+                <li><a href="/popular">{t("growth.nav.popular.label")}</a></li>
+                <li><a href="/trending">{t("growth.nav.trending.label")}</a></li>
+                <li><a href="/badges">{t("footer.badges")}</a></li>
+                <li><a href="/extension">{t("footer.extension")}</a></li>
+              </ul>
+            </div>
+            <div className="footer-col">
+              <h2>{t("footer.docsCol")}</h2>
+              <ul>
+                <li><a href="/docs/api">{t("footer.apiDocs")}</a></li>
+                <li><a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a></li>
+                <li><a href="/docs/faq">{t("footer.faq")}</a></li>
+                <li><a href="/docs/methodology">{t("footer.methodology")}</a></li>
+              </ul>
+            </div>
+            <div className="footer-col">
+              <h2>{t("footer.aboutCol")}</h2>
+              <ul>
+                <li><a href="/about">{t("footer.about")}</a></li>
+                <li><a href="/privacy">{t("footer.privacy")}</a></li>
+                <li><a href="/contact">{t("footer.contact")}</a></li>
+                <li><a href={sourceRepoUrl} target="_blank" rel="noreferrer">{t("footer.github")}</a></li>
+              </ul>
+            </div>
+          </nav>
         </footer>
       </main>
     </>
@@ -764,59 +778,30 @@ function PublicReportIndex() {
   );
 }
 
-function DeveloperTools() {
+// Whole-click cards to the real tool pages. SPA routes first (they render the
+// tool instantly); CLI / Action / MCP live in the source repository. Stats has
+// no card here on purpose: the public report index above already links it.
+function ToolsGrid() {
   const { t } = useTranslation();
   const tools = [
-    { key: "stats", command: "open https://octocounts.com/stats", href: "/stats" },
-    { key: "action", command: "uses: huanglizhuo/OctoCounts/action@main", href: "https://github.com/huanglizhuo/OctoCounts/tree/main/action" },
-    { key: "cli", command: "npx octocounts https://github.com/owner/repo --json", href: "https://github.com/huanglizhuo/OctoCounts/tree/main/cli" },
-    { key: "mcp", command: "npx octocounts-mcp", href: "https://github.com/huanglizhuo/OctoCounts/tree/main/mcp" },
-    { key: "badge", command: "[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](...)", href: "/badges" },
+    { key: "badges", command: "[![SLOC](https://api.octocounts.com/badge/:owner/:repo)](...)", href: "/badges" },
+    { key: "compare", command: "open /compare?left=…&right=…", href: "/compare" },
+    { key: "diff", command: "open /diff?repo=…&base=v1.0&head=v1.1", href: "/diff" },
     { key: "api", command: "GET https://api.octocounts.com/api/stats", href: "/docs/api" },
+    { key: "cli", command: "npx octocounts https://github.com/owner/repo --json", href: `${sourceRepoUrl}/tree/main/cli` },
+    { key: "action", command: "uses: huanglizhuo/OctoCounts/action@main", href: `${sourceRepoUrl}/tree/main/action` },
+    { key: "mcp", command: "npx octocounts-mcp", href: `${sourceRepoUrl}/tree/main/mcp` },
   ];
 
   return (
-    <div className="developer-tools">
+    <div className="developer-tools tools-grid">
       {tools.map((tool) => (
         <a className="developer-tool" href={tool.href} key={tool.key}>
-          <span className="chart-tag">{t(`developerTools.items.${tool.key}.title`)}</span>
-          <p>{t(`developerTools.items.${tool.key}.text`)}</p>
+          <span className="chart-tag">{t(`tools.items.${tool.key}.title`)}</span>
+          <p>{t(`tools.items.${tool.key}.text`)}</p>
           <code>{tool.command}</code>
         </a>
       ))}
-    </div>
-  );
-}
-
-function LanguageSwitcher() {
-  const { i18n, t } = useTranslation();
-  const locales = [
-    { code: "en", label: "EN" },
-    { code: "zh", label: "\u4e2d\u6587" },
-  ];
-  return (
-    <div className="language-switcher" role="group" aria-label={t("languageSwitcher.label")} style={{ marginTop: 8 }}>
-      {locales.map((loc) => (
-        <button
-          key={loc.code}
-          type="button"
-          className="lang-btn"
-          aria-current={i18n.language === loc.code ? "true" : undefined}
-          onClick={() => i18n.changeLanguage(loc.code)}
-        >
-          {loc.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-
-function TopActions({ status }: { status: AppStatus }) {
-  const { t } = useTranslation();
-  return (
-    <div className="top-actions">
-      <span className="pill"><span className={`dot ${status === "idle" ? "idle" : ""}`} />{t("runner.statusShort." + status)}</span>
     </div>
   );
 }

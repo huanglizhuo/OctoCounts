@@ -59,6 +59,14 @@ html[data-scheme="matrix"] {
   --text-lg: 1rem;
   --text-xl: 1.375rem;
 
+  /* Legibility / touch floors (T17): no interactive or body text below
+     --fs-min, no tap target below --tap-min (44px on coarse pointers). */
+  --fs-min: 12px;
+  --tap-min: 32px;
+  /* Link color follows the theme accent in both modes (paper used to fall
+     back to the UA default blue). */
+  --link: var(--accent);
+
   /* spacing scale */
   --space-1: 4px;
   --space-2: 8px;
@@ -93,6 +101,7 @@ html[data-scheme="paper"] {
   --rule: oklch(84% 0.013 90);
   --rule-2: oklch(88% 0.013 90);
   --selection: oklch(90% 0.045 148);
+  --link: var(--accent);
   /* Paper is flat printed output: keep the keyline, drop the clipped CRT bloom. */
   --terminal-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
   --active-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -326,7 +335,6 @@ body {
 }
 
 
-.top-actions,
 .topbar-links-scroll,
 .row-flex {
   display: flex;
@@ -343,10 +351,6 @@ body {
 .topbar-links-scroll {
   min-width: 0;
   flex-wrap: nowrap;
-}
-
-.hero-left>.top-actions {
-  margin-bottom: var(--space-2);
 }
 
 .marketing-controls {
@@ -880,7 +884,7 @@ body.embed-mode::before {
 
 .embed-card-ref {
   color: #6b7670;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .embed-card-stats {
@@ -926,7 +930,7 @@ body.embed-mode::before {
   position: absolute;
   right: 10px;
   bottom: 6px;
-  font-size: 10px;
+  font-size: 12px;
   color: #59675e;
   text-decoration: none;
 }
@@ -1235,6 +1239,14 @@ body.embed-mode::before {
   gap: 12px;
   align-items: end;
   padding: 16px;
+}
+
+/* The /diff form stacks two uneven fieldsets (REPOSITORY has one input, REFS
+   has two); bottom alignment pushed the shorter one down and detached its
+   legend from the row. Top alignment keeps both columns reading from the same
+   baseline. compare.tsx is off-limits this pass, so this is CSS-only. */
+.compare-form.diff-form {
+  align-items: start;
 }
 
 .compare-swap {
@@ -1720,7 +1732,7 @@ body.embed-mode::before {
   border: 1px solid var(--rule);
   border-radius: 3px;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--fs-min);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--fg-dim);
@@ -2492,7 +2504,9 @@ table.report tr.totals td.lang {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: var(--tap-min);
   white-space: nowrap;
   transition: border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
@@ -2999,17 +3013,58 @@ footer {
   border-top: 1px solid var(--rule);
   color: var(--fg-mute);
   font-size: var(--text-xs);
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.2fr) minmax(0, 2fr);
+  gap: var(--space-5) var(--space-6);
+  align-items: start;
 }
 
 footer a {
-  min-height: 32px;
+  min-height: var(--tap-min);
   display: inline-flex;
   align-items: center;
+  color: var(--link);
+  text-decoration: none;
   white-space: nowrap;
+}
+
+footer a:hover,
+footer a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: .15em;
+}
+
+.footer-meta {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.footer-meta p {
+  margin: 0;
+}
+
+.footer-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.footer-col h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.footer-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
 }
 
 .lang-btn {
@@ -3141,9 +3196,19 @@ footer a {
 
 @media (max-width: 720px) {
   footer {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .footer-cols {
+    grid-template-columns: 1fr;
     gap: var(--space-3);
+  }
+
+  /* Single column: every footer link is a full-width, comfortably tappable row. */
+  footer a {
+    min-height: 44px;
+    white-space: normal;
   }
 
   .page {
@@ -3254,10 +3319,6 @@ footer a {
   }
 
   .hero-paths .install-btn {
-    width: 100%;
-  }
-
-  .top-actions {
     width: 100%;
   }
 
@@ -3403,14 +3464,18 @@ footer a {
 
 /* Touch: enlarge interactive targets to meet 44×44px minimum */
 @media (pointer: coarse) {
+  :root,
+  html[data-scheme="matrix"],
+  html[data-scheme="paper"] {
+    --tap-min: 44px;
+  }
+
   .copybtn {
     padding: 10px 14px;
-    min-height: 44px;
   }
 
   .chip {
     padding: 10px 12px;
-    min-height: 44px;
   }
 
   .expand,
@@ -3494,7 +3559,7 @@ footer a {
 }
 
 .proof-badge {
-  font-size: 11px;
+  font-size: var(--fs-min);
   padding: 2px 8px;
   border: 1px solid var(--rule);
   border-radius: 3px;
@@ -3511,7 +3576,7 @@ a.proof-badge:hover {
 
 /* Demo note above seeded runner result */
 .demo-note {
-  font-size: 11px;
+  font-size: var(--fs-min);
   color: var(--fg-mute);
   margin: 0 0 8px;
   padding: 4px 8px;
@@ -4265,13 +4330,23 @@ td.lang .row-share {
 }
 .topbar-popover a { color: var(--fg-dim); padding: 6px 8px; text-decoration: none; white-space: nowrap; }
 .topbar-nav a:hover, .topbar-menu summary:hover, .topbar-popover a:hover { color: var(--accent); }
+/* Install is a regular menu item now (T7: one primary CTA per screen): same
+   shape as the other menus, marked only by a small accent dot. */
 .topbar-install > summary {
   padding-inline: 10px;
-  border: 1px solid var(--accent);
-  color: var(--accent-ink);
-  background: var(--accent);
+  border: 1px solid var(--rule);
+  color: var(--fg-dim);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
 }
-.topbar-install > summary:hover { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 88%, white); }
+.topbar-install > summary:hover { color: var(--accent); border-color: var(--accent); }
+.install-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 6px;
+  display: inline-block;
+}
 .topbar-menu-short { display: none; }
 .topbar-controls { justify-content: flex-end; }
 .badge-target { margin-bottom: var(--space-3); flex-wrap: wrap; }
@@ -4318,8 +4393,8 @@ td.lang .row-share {
   .table-wrap.is-full-stats .report { min-width: 700px; }
   .table-wrap:not(.is-full-stats) .mobile-code-share { display: block; color: var(--fg-mute); font-size: var(--text-xs); margin-top: 2px; }
   .report { min-width: 0; width: 100%; }
-  .hero-definition, .hero-freshness, .trust-strip { display: none; }
-  .hero-paths > .secondary-install, .hero-paths > span { display: none; }
+  .hero-definition, .hero-freshness, .hero-trust, .trust-strip { display: none; }
+  .hero-paths > .secondary-install { display: none; }
 }
 
 .repo-history-tooltip {
@@ -4443,6 +4518,250 @@ td.lang .row-share {
   .topbar-install > summary { padding-inline: 7px; }
   .topbar-install .topbar-menu-label { display: none; }
   .topbar-install .topbar-menu-short { display: inline; }
+}
+
+/* ---- Report route hero (T5): the repo is the h1, ref rides the subtitle ---- */
+.report-route-sub {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-mute);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Hero trust line (T7): one text line, no badge frames ---- */
+.hero-trust {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-dim);
+}
+
+/* ---- Sample chips as a text-link row (T7) ---- */
+.quick-rows.samples-row {
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.samples-row .samples-try {
+  color: var(--fg-mute);
+}
+
+.samples-row .chip {
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--fg-dim);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--fg-mute) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .18em;
+}
+
+.samples-row .chip:hover,
+.samples-row .chip:active:not(:disabled) {
+  color: var(--accent);
+  border-color: transparent;
+  background: none;
+  text-decoration-color: var(--accent);
+  transform: none;
+}
+
+.samples-row .chip + .chip::before {
+  content: "·";
+  margin-right: 10px;
+  color: var(--fg-mute);
+  text-decoration: none;
+}
+
+/* ---- Hero extension line (T7): secondary, copybtn-style outline links ---- */
+.hero-paths-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: var(--text-sm);
+  color: var(--fg-mute);
+}
+
+.hero-paths-line > span {
+  max-width: none;
+}
+
+.hero-paths-line .install-btn {
+  width: auto;
+}
+
+.hero-store-link {
+  padding: 3px 10px;
+}
+
+/* ---- Coarse-pointer mobile: no extension install CTAs (T8) ----
+   Purely CSS: both the hidden CTAs and the replacement line are always in the
+   DOM, so there is no SSR flash and no JS. Desktop and fine-pointer screens
+   are untouched. */
+.mobile-install-note {
+  display: none;
+  margin: 8px 0 0;
+  font-size: var(--fs-min);
+  color: var(--fg-mute);
+}
+
+.mobile-install-note a {
+  color: var(--link);
+}
+
+@media (pointer: coarse) and (max-width: 899px) {
+  .hero-paths {
+    display: none;
+  }
+
+  .extension-actions .install-btn.primary-install {
+    display: none;
+  }
+
+  .mobile-install-note {
+    display: block;
+  }
+}
+
+/* ---- Tools grid (T9) and compressed trailing sections ---- */
+.tools-grid .developer-tool {
+  min-height: 150px;
+}
+
+section.section-compact {
+  margin-block: var(--space-4);
+}
+
+section.section-compact .section-h {
+  margin-bottom: var(--space-2);
+}
+
+/* ---- Tap/font floors on the elements the review measured (T17) ---- */
+@media (max-width: 720px) {
+  :root,
+  html[data-scheme="matrix"],
+  html[data-scheme="paper"] {
+    --fs-min: 13px;
+  }
+}
+
+/* Summaries are disclosures first: full-row, centered, never below the tap
+   floor. More specific display rules (e.g. .share-preview summary) still win. */
+summary {
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+}
+
+button.chip {
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The expand chevron keeps its 18px visual box; a transparent ::before grows
+   the hit area around it without moving table row layout. */
+button.expand {
+  position: relative;
+}
+
+button.expand::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+
+/* The three analysis-option checkboxes keep their 18px visual square; the hit
+   area extends symmetrically to 32px (44px on touch, via --tap-min). */
+.analysis-toggles input[type="checkbox"] {
+  position: relative;
+}
+
+.analysis-toggles input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+}
+
+.table-wrap:not(.is-full-stats) .mobile-code-share {
+  font-size: var(--fs-min);
+}
+
+/* ---- Mobile topbar (T11): one <=64px row, one menu button ----
+   The nav and controls above stay in the DOM (desktop uses them); on small
+   screens the site menu panel carries the same items through the same
+   topbar-menu machinery, so mutual exclusivity and Escape-to-focus behave
+   exactly like the desktop menus. */
+.topbar-site-menu {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    align-items: center;
+    min-height: 64px;
+    max-height: 64px;
+    padding-bottom: 0;
+  }
+
+  .topbar-nav,
+  .topbar-controls {
+    display: none;
+  }
+
+  .topbar-site-menu {
+    display: block;
+  }
+
+  .topbar-site-menu > summary {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    border: 1px solid var(--rule);
+  }
+
+  .topbar-site-menu .topbar-popover {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    /* Below the one-row topbar: mobile page padding (18px) + row (64px). */
+    top: 84px;
+    max-height: min(72vh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .site-menu-group {
+    display: grid;
+    gap: 2px;
+  }
+
+  .site-menu-group + .site-menu-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .topbar-site-menu .topbar-popover a,
+  .topbar-site-menu .lang-btn,
+  .topbar-site-menu .theme-toggle {
+    min-height: var(--tap-min);
+  }
+
+  .brand .logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brand .brand-name {
+    font-size: 20px;
+  }
 }
 
 /* Print: the report page is a share artifact, so print it as a clean data

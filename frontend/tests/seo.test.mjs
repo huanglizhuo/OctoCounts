@@ -194,8 +194,15 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   assert.match(main, /if \(!isPublicReportPath\) \{[\s\S]*?applyPageMetadata\(\{[\s\S]*?return;/);
   // Charts render eagerly (no DeferredContent) by design: they're the primary
   // above-the-fold content once a report loads, not a below-the-fold extra.
-  assert.match(main, /<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} \/>/);
-  assert.match(main, /Suspense fallback=\{null\}><CompareRepos/);
+  // The report stack lives in src/report/Runner.tsx since the restructure;
+  // Summary must stay directly adjacent to Charts in both variants.
+  const runner = await readFile(new URL("src/report/Runner.tsx", ROOT), "utf8");
+  const adjacent = runner.match(/<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} \/>/g) ?? [];
+  assert.equal(adjacent.length, 2, "Summary directly precedes Charts in the demo and full Runner branches");
+  // The homepage embeds no full tool forms anymore (T9): compare and diff are
+  // whole-click cards into their own pages, and nothing lazy-loads them here.
+  assert.doesNotMatch(main, /<CompareRepos|<DiffRefs|<BadgeBuilder|<BadgeWall/);
+  assert.match(main, /className="developer-tools tools-grid"/);
 });
 
 test("paper panels stay flat and advanced option checkboxes use the theme UI", async () => {
@@ -955,9 +962,10 @@ test("report page answers 503 + no-store when the report API fails transiently",
   assert.doesNotMatch(html, /No cached report exists yet/);
   // Same regression as the curated-compare 503 above: each repo URL must
   // get its own title/H1, not the generic homepage shell repeated for
-  // every URL an outage happens to touch.
+  // every URL an outage happens to touch. The H1 is the repository itself
+  // (owner/repo), matching the hydrated client hero (T5).
   assert.match(html, /<title>octo-org\/octo-repo SLOC report \| OctoCounts<\/title>/);
-  assert.match(html, /<h1>octo-org\/octo-repo SLOC report<\/h1>/);
+  assert.match(html, /<h1>octo-org\/octo-repo<\/h1>/);
   assert.doesNotMatch(html, /<title>OctoCounts – GitHub SLOC Counter<\/title>/);
   assert.notEqual(html, otherHtml, "different repos must not render byte-identical 503 pages");
 });
@@ -1046,7 +1054,7 @@ test("report page answers 503 + no-store when the payload belongs to a different
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.doesNotMatch(html, /facebook\/react/);
   assert.match(html, /<title>octo-org\/octo-repo SLOC report \| OctoCounts<\/title>/);
-  assert.match(html, /<h1>octo-org\/octo-repo SLOC report<\/h1>/);
+  assert.match(html, /<h1>octo-org\/octo-repo<\/h1>/);
   assert.notEqual(html, otherHtml, "different repos must not render byte-identical guard pages");
 });
 

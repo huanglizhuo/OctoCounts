@@ -17,7 +17,8 @@
     "installExtension": "Install extension",
     "compare": "Compare repositories",
     "diff": "Diff refs",
-    "badges": "Badges & embeds"
+    "badges": "Badges & embeds",
+    "menu": "Menu"
   },
   "hero": {
     "title": "GitHub <1>code statistics</1>, at a glance.",
@@ -25,27 +26,28 @@
     "definition": "OctoCounts is a free SLOC counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.",
     "freshnessLabel": "Last updated",
     "maintainedBy": "Maintained by",
-    "badgeOpenSource": "Open source on GitHub",
-    "badgeFree": "Free · no sign-up",
-    "badgeLanguages": "200+ languages",
     "placeholderUrl": "https://github.com/owner/repo",
     "refLabel": "ref",
     "refPlaceholder": "default",
     "ariaUrl": "Repository URL",
     "ariaRef": "Optional ref",
     "ariaSamples": "Example repositories",
-    "ariaTrust": "Trust badges",
     "analyze": "Analyze",
     "installChrome": "Chrome Web Store",
     "installEdge": "Microsoft Edge Add-ons",
     "installFirefox": "Firefox (GitHub download)",
     "addToChrome": "Add to Chrome",
+    "alsoLine": "Also: see SLOC right in GitHub's sidebar",
     "sidebarHint": "See SLOC directly in GitHub's repo sidebar.",
     "otherBrowsers": "Other browsers",
-    "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing."
+    "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
+    "reportSubtitle": "SLOC report",
+    "reportSubtitleRef": "SLOC report · {{ref}}",
+    "trustLine": "Open source · Free, no sign-up · 200+ languages"
   },
   "samples": {
-    "label": "sample"
+    "label": "sample",
+    "try": "try:"
   },
   "recent": {
     "label": "recent",
@@ -94,7 +96,7 @@
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "cache hit",
     "freshRun": "fresh run",
-    "demoNote": "Demo: analyzing OctoCounts itself. Paste any public repo URL above to analyze yours.",
+    "demoNote": "The report below is a live example. Paste any public repo URL above to analyze yours.",
     "generated": "generated {{date}} / {{duration}}ms / {{version}}",
     "exportText": "text",
     "exportJson": "json",
@@ -258,7 +260,8 @@
     "installFirefox": "Download for Firefox (GitHub release)",
     "viewSource": "View source",
     "previewAlt": "OctoCounts browser extension showing SLOC results on a GitHub repository",
-    "learnMore": "Learn more about the extension"
+    "learnMore": "Learn more about the extension",
+    "desktopOnly": "Browser extension available on desktop."
   },
   "useCases": {
     "title": "Use Cases",
@@ -310,13 +313,19 @@
   },
   "footer": {
     "tagline": "OctoCounts // actual SLOC for public GitHub repos",
+    "navAria": "Footer",
+    "product": "Product",
+    "docsCol": "Docs",
+    "aboutCol": "About",
     "about": "About",
     "privacy": "Privacy",
     "contact": "Contact",
     "apiDocs": "API docs",
     "slocGuide": "SLOC guide",
     "faq": "FAQ",
+    "methodology": "Methodology",
     "badges": "Badges",
+    "github": "GitHub",
     "builtBy": "Built by <1>huanglizhuo</1>, indie developer",
     "copyright": "(c) 2026",
     "extension": "Extension"
@@ -646,33 +655,37 @@
     "badges": "Create badges",
     "copyCitation": "Copy citation"
   },
-  "developerTools": {
-    "title": "Developer tools",
-    "subtitle": "Make SLOC reports show up where developers already work.",
+  "tools": {
+    "title": "Tools",
+    "subtitle": "every card opens the real tool, ready to run",
     "items": {
-      "stats": {
-        "title": "Public stats",
-        "text": "Aggregate report totals, language coverage, largest repositories, and source breakdown without user-level tracking."
+      "badges": {
+        "title": "Badges",
+        "text": "Live README badges that link back to a permanent report."
       },
-      "action": {
-        "title": "GitHub Action",
-        "text": "Comment SLOC changes on pull requests so reports travel through review workflows."
+      "compare": {
+        "title": "Compare",
+        "text": "Two repositories side by side: totals, language mix, deltas."
       },
-      "cli": {
-        "title": "CLI",
-        "text": "Run OctoCounts from a terminal or CI script and print text or JSON summaries."
-      },
-      "mcp": {
-        "title": "MCP server",
-        "text": "Expose SLOC reports to agent workflows and developer assistants through MCP tools."
-      },
-      "badge": {
-        "title": "README badge",
-        "text": "Add a live SLOC badge that links back to a permanent report page."
+      "diff": {
+        "title": "Ref diff",
+        "text": "One repository across two refs: growth between releases or branches."
       },
       "api": {
         "title": "API",
-        "text": "Use analyze, jobs, reports, badge, SEO, and stats endpoints directly."
+        "text": "Analyze, jobs, reports, badge, SEO, and stats endpoints."
+      },
+      "cli": {
+        "title": "CLI",
+        "text": "Run OctoCounts from a terminal or CI script; text or JSON output."
+      },
+      "action": {
+        "title": "GitHub Action",
+        "text": "Comment SLOC changes on pull requests, inside review workflows."
+      },
+      "mcp": {
+        "title": "MCP server",
+        "text": "SLOC reports for agent workflows and developer assistants."
       }
     }
   },

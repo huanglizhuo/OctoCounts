@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "./analytics";
-import { defaultRepoUrl, extensionInfo } from "./constants";
+import { sourceRepoUrl, extensionInfo } from "./constants";
 import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { ThemeSwitch } from "./scheme";
 
@@ -13,13 +14,13 @@ export const publicReportLinks = [
   { href: "/hall-of-monoliths", key: "hall", command: "top --lines" },
 ];
 
-type MenuId = "explore" | "tools" | "install";
+type MenuId = "explore" | "tools" | "install" | "site";
 
 export function Topbar() {
   const { t, i18n } = useTranslation();
   const path = window.location.pathname;
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
-  const menuRefs = useRef<Record<MenuId, HTMLDetailsElement | null>>({ explore: null, tools: null, install: null });
+  const menuRefs = useRef<Record<MenuId, HTMLDetailsElement | null>>({ explore: null, tools: null, install: null, site: null });
   const isActive = (href: string) => path === href;
 
   useEffect(() => {
@@ -38,10 +39,10 @@ export function Topbar() {
     requestAnimationFrame(() => summary?.focus());
   };
 
-  const menu = (id: MenuId, label: string, children: React.ReactNode) => (
+  const menu = (id: MenuId, label: React.ReactNode, children: React.ReactNode) => (
     <details
       ref={(node) => { menuRefs.current[id] = node; }}
-      className={`topbar-menu ${id === "install" ? "topbar-install" : ""}`}
+      className={`topbar-menu ${id === "install" ? "topbar-install" : ""} ${id === "site" ? "topbar-site-menu" : ""}`}
       open={openMenu === id}
       onKeyDown={closeOnEscape}
     >
@@ -52,11 +53,14 @@ export function Topbar() {
           event.preventDefault();
           setOpenMenu((current) => current === id ? null : id);
         }}
+        aria-expanded={openMenu === id}
+        aria-controls={`topbar-popover-${id}`}
       >
         <span className="topbar-menu-label">{label}</span>
+        {id === "install" ? <i className="install-dot" aria-hidden="true" /> : null}
         {id === "install" ? <span className="topbar-menu-short">{t("topbar.install")}</span> : null}
       </summary>
-      <div className="topbar-popover">{children}</div>
+      <div className="topbar-popover" id={`topbar-popover-${id}`}>{children}</div>
     </details>
   );
 
@@ -88,8 +92,38 @@ export function Topbar() {
         <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
         <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "true" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
         <ThemeSwitch />
-        <a className="github-link icon-link" href={defaultRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>GitHub</a>
+        <a className="github-link icon-link" href={sourceRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>GitHub</a>
       </div>
+      {/* Mobile (<=720px) whole-site menu: the nav and controls above are
+          display:none there and this panel carries them instead. Same
+          topbar-menu machinery, so mutual exclusivity and Escape-to-focus
+          behave exactly like the desktop menus. */}
+      {menu("site", <>
+        <Menu size={16} aria-hidden="true" />
+        <span className="visually-hidden">{t("topbar.menu")}</span>
+      </>, <>
+        <div className="site-menu-group">
+          <a href="/" aria-current={path === "/" ? "page" : undefined}>{t("topbar.analyze")}</a>
+          {publicReportLinks.map((item) => (
+            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
+          ))}
+          <a href="/compare" aria-current={isActive("/compare") ? "page" : undefined}>{t("topbar.compare")}</a>
+          <a href="/diff" aria-current={isActive("/diff") ? "page" : undefined}>{t("topbar.diff")}</a>
+          <a href="/badges" aria-current={isActive("/badges") ? "page" : undefined}>{t("topbar.badges")}</a>
+          <a href="/extension" aria-current={isActive("/extension") ? "page" : undefined}>{t("footer.extension")}</a>
+        </div>
+        <div className="site-menu-group">
+          <StoreLink store="chrome" label={t("topbar.chrome")} />
+          <StoreLink store="edge" label={t("topbar.edge")} />
+          <StoreLink store="firefox" label={t("topbar.firefox")} />
+        </div>
+        <div className="site-menu-group site-menu-preferences">
+          <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
+          <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "true" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
+          <ThemeSwitch />
+          <a href={sourceRepoUrl} target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </>)}
     </header>
   );
 }

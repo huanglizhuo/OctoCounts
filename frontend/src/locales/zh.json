@@ -17,7 +17,8 @@
     "installExtension": "安装扩展",
     "compare": "比较仓库",
     "diff": "比较引用",
-    "badges": "徽章与嵌入"
+    "badges": "徽章与嵌入",
+    "menu": "菜单"
   },
   "hero": {
     "title": "GitHub <1>代码统计</1>，一目了然。",
@@ -25,27 +26,28 @@
     "definition": "OctoCounts 是一款免费的公开 GitHub 仓库 SLOC 计数器。无需克隆，即可显示文件数、总行数、代码行、注释行、空行以及各语言统计。",
     "freshnessLabel": "最后更新",
     "maintainedBy": "维护者",
-    "badgeOpenSource": "GitHub 开源",
-    "badgeFree": "免费 · 无需注册",
-    "badgeLanguages": "200+ 种语言",
     "placeholderUrl": "https://github.com/owner/repo",
     "refLabel": "分支",
     "refPlaceholder": "默认分支",
     "ariaUrl": "仓库链接",
     "ariaRef": "可选引用",
     "ariaSamples": "示例仓库",
-    "ariaTrust": "信任徽章",
     "analyze": "分析",
     "installChrome": "Chrome 应用商店",
     "installEdge": "Microsoft Edge 加载项",
     "installFirefox": "Firefox（GitHub 下载）",
     "addToChrome": "安装 Chrome 扩展",
+    "alsoLine": "还可以：在 GitHub 侧栏直接看 SLOC",
     "sidebarHint": "直接在 GitHub 仓库侧边栏查看 SLOC。",
     "otherBrowsers": "其他浏览器",
-    "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。"
+    "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
+    "reportSubtitle": "SLOC 报告",
+    "reportSubtitleRef": "SLOC 报告 · {{ref}}",
+    "trustLine": "开源 · 免费无需注册 · 支持 200+ 种语言"
   },
   "samples": {
-    "label": "示例"
+    "label": "示例",
+    "try": "试试："
   },
   "runner": {
     "title": "运行器",
@@ -82,7 +84,7 @@
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "缓存命中",
     "freshRun": "全新运行",
-    "demoNote": "演示：正在分析 OctoCounts 本身。在上面粘贴任何公开仓库链接来分析您的仓库。",
+    "demoNote": "下方是一份实时示例报告。在上面粘贴任何公开仓库链接，即可分析你的仓库。",
     "generated": "生成于 {{date}} / {{duration}}ms / {{version}}",
     "exportText": "文本",
     "exportJson": "JSON",
@@ -246,7 +248,8 @@
     "installFirefox": "下载 Firefox 版（GitHub Release）",
     "viewSource": "查看源码",
     "previewAlt": "OctoCounts 浏览器扩展在 GitHub 仓库上显示 SLOC 结果",
-    "learnMore": "了解更多"
+    "learnMore": "了解更多",
+    "desktopOnly": "浏览器扩展可在桌面端使用。"
   },
   "useCases": {
     "title": "使用场景",
@@ -298,13 +301,19 @@
   },
   "footer": {
     "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
+    "navAria": "页脚",
+    "product": "产品",
+    "docsCol": "文档",
+    "aboutCol": "关于",
     "about": "关于",
     "privacy": "隐私",
     "contact": "联系",
     "apiDocs": "API 文档",
     "slocGuide": "SLOC 指南",
     "faq": "常见问题",
+    "methodology": "统计方法",
     "badges": "徽章",
+    "github": "GitHub",
     "builtBy": "由 <1>huanglizhuo</1> 构建，独立开发者",
     "copyright": "(c) 2026",
     "extension": "浏览器扩展"
@@ -645,33 +654,37 @@
     "badges": "创建徽章",
     "copyCitation": "复制引用"
   },
-  "developerTools": {
-    "title": "开发者工具",
-    "subtitle": "让 SLOC 报告出现在开发者日常工作的地方。",
+  "tools": {
+    "title": "工具",
+    "subtitle": "每张卡片都直达真实工具，开箱即用",
     "items": {
-      "stats": {
-        "title": "公开统计",
-        "text": "查看聚合报告总计、语言覆盖、最大仓库和来源分类，不追踪个人。"
+      "badges": {
+        "title": "徽章",
+        "text": "实时 README 徽章，链接到永久报告页。"
       },
-      "action": {
-        "title": "GitHub Action",
-        "text": "在拉取请求中备注 SLOC 变化，让报告进入评审流程。"
+      "compare": {
+        "title": "仓库对比",
+        "text": "两个仓库并排比较：总量、语言构成、差异。"
       },
-      "cli": {
-        "title": "命令行工具",
-        "text": "在终端或 CI 脚本中运行 OctoCounts，并输出文本或 JSON 摘要。"
-      },
-      "mcp": {
-        "title": "MCP 服务",
-        "text": "通过 MCP 工具向智能体工作流和开发者助手提供 SLOC 报告。"
-      },
-      "badge": {
-        "title": "README 徽章",
-        "text": "添加一个链接到永久报告页的实时 SLOC 徽章。"
+      "diff": {
+        "title": "引用差异",
+        "text": "同一仓库的两个引用：版本或分支之间的规模变化。"
       },
       "api": {
         "title": "API",
-        "text": "直接使用分析、任务、报告、徽章、SEO 和统计端点。"
+        "text": "分析、任务、报告、徽章、SEO 与统计端点。"
+      },
+      "cli": {
+        "title": "命令行工具",
+        "text": "在终端或 CI 脚本中运行 OctoCounts，输出文本或 JSON。"
+      },
+      "action": {
+        "title": "GitHub Action",
+        "text": "在拉取请求中备注 SLOC 变化，进入评审流程。"
+      },
+      "mcp": {
+        "title": "MCP 服务",
+        "text": "面向智能体工作流与开发者助手的 SLOC 报告。"
       }
     }
   },

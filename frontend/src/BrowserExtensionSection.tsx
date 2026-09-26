@@ -26,10 +26,15 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
         </ul>
         <div className="extension-actions">
           <a className="copybtn" href="/extension">{t("extensionSection.learnMore")}</a>
-          <a className="btn install-btn" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "extension_section" })}>
+          <a className="btn install-btn primary-install" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "extension_section" })}>
             <ChromeIcon size={15} />
             {t("extensionSection.installChrome")}
           </a>
+          {/* Pre-rendered coarse-pointer replacement for the install buttons —
+              toggled purely by the pointer:coarse media block in styles.css. */}
+          <p className="mobile-install-note">
+            {t("extensionSection.desktopOnly")} <a href="/extension">{t("extensionSection.learnMore")}</a>
+          </p>
           {compact ? (
             <details className="extension-other-stores">
               <summary>{t("hero.otherBrowsers")}</summary>

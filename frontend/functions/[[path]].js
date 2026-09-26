@@ -1521,7 +1521,9 @@ function reportUnavailableMeta(route) {
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: "https://octocounts.com/og-image.jpg",
     jsonLd: null,
-    bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>This report is temporarily unavailable. Please try again in a moment.</p></section>`,
+    // The h1 is the repository itself (owner/repo), matching the client-side
+    // hero on /github/ routes — page identity, not the product name.
+    bodyContent: `<section><h1>${escapeHtml(fullName)}</h1><p>This report is temporarily unavailable. Please try again in a moment.</p></section>`,
   };
 }
 
@@ -1916,7 +1918,10 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // self-contained citable summary next to the one in #octocounts-citation.
   const ogImageUrl = `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
   const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" />`;
-  const table = `<section><h1>${escapeHtml(report.repoFullName)} SLOC report</h1><p>${escapeHtml(reportCapsuleText(report))}</p><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  // The h1 is the repository (owner/repo): the page's subject and the value
+  // the client-side hero renders on /github/ routes — semantically consistent
+  // pre- and post-hydration, and never a second "OctoCounts" h1.
+  const table = `<section><h1>${escapeHtml(report.repoFullName)}</h1><p>${escapeHtml(reportCapsuleText(report))}</p><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   // Peer links between report pages: every long-tail /github/* URL both
   // receives and hands out crawl paths, so the report corpus is a web instead
   // of a list of dead ends reachable only from /recent and /popular.
@@ -2114,7 +2119,7 @@ function injectFallback(index, route) {
     robots: "noindex,follow,max-image-preview:large",
     ogImage: "https://octocounts.com/og-image.jpg",
     jsonLd: null,
-    bodyContent: `<section><h1>${escapeHtml(fullName)} SLOC report</h1><p>No cached report exists yet. Open this page with JavaScript enabled to run an analysis.</p></section>`,
+    bodyContent: `<section><h1>${escapeHtml(fullName)}</h1><p>No cached report exists yet. Open this page with JavaScript enabled to run an analysis.</p></section>`,
   });
 }
 
