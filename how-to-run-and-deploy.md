@@ -290,29 +290,74 @@ INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --verify-key
 INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
 ```
 
-### Cloudflare edge cache rule for `/` and `/compare/*`
+### Cloudflare edge cache and Web Analytics
 
-The Pages Function already sends `Cache-Control: public, s-maxage=3600,
-stale-while-revalidate=86400` for the homepage and every `/compare/*` page —
-identical to what `/github/*` report pages send. Report pages hit Cloudflare's
-edge cache (`cf-cache-status: HIT`); the homepage and compare pages currently
-don't (`cf-cache-status: DYNAMIC` on every request), because Cloudflare does
-not cache HTML by origin `Cache-Control` alone — it needs a **Cache Rule**
-that explicitly makes HTML documents on those paths eligible, matching
-whatever rule already covers `/github/*`. This is dashboard/API configuration
-outside this repo (no Terraform/wrangler cache-rule config exists here), so it
-can't be fixed by a code change — apply it by hand:
+Applied and checked in the Cloudflare dashboard on 2026-09-27. These settings
+live outside this repository; a code deployment does not recreate them.
 
-1. Cloudflare dashboard → the `octocounts.com` zone → **Rules → Cache Rules**.
-2. Open the existing rule that covers `/github/*` (or find it under **Caching
-   → Configuration** if it's a Cache Level: Cache Everything Page Rule
-   instead) and note its exact match/eligibility settings.
-3. Add `/` (exact) and `/compare/*` to that rule's URL match, or duplicate it
-   with those paths — "Eligible for cache" + "Respect origin TTL" so it keeps
-   honoring the `s-maxage=3600` the Function already sends.
-4. Verify with `curl -sI https://octocounts.com/ | grep -i cf-cache-status`
-   and the same for a `/compare/*` URL — expect `HIT` on the second request
-   within an hour, matching `/github/*` today.
+In the `octocounts.com` zone, keep Cache Rules in this order:
+
+1. `octocounts-public-pages-respect-origin`
+   (rule ID `b36d1aef197a4c52aea66e41994ae031`).
+2. The existing public SEO pages and read-only API cache rule.
+3. The existing retrieval-time AI crawler bypass rule for `/github/`,
+   `/compare/`, and `/docs/`. Keep it after the public rules so it can serve
+   Markdown for the configured crawler User-Agents.
+
+The first rule uses this exact expression:
+
+```text
+http.host eq "octocounts.com" and (http.request.uri.path in {"/" "/compare" "/diff" "/badges" "/extension" "/trending.xml"} or starts_with(http.request.uri.path, "/compare/"))
+```
+
+Settings: **Eligible for cache**; Edge TTL = **Use cache-control header if
+present, bypass cache if not**; Browser TTL = **Respect origin TTL**. Keep
+the default cache key, including the query string. Do not override origin
+TTL or add status-code TTL overrides that could cache `private`/`no-store`
+responses. The rule is restricted to the frontend host, not the API host.
+
+At verification, these HTML pages sent `s-maxage=300,
+stale-while-revalidate=600`: five minutes fresh, with another ten-minute
+stale window while revalidating. `/trending.xml` sent `s-maxage=3600,
+stale-while-revalidate=86400`. Follow the actual response headers when
+changing application policy; do not assume all routes have the same TTL.
+For immediate deployment visibility, purge only affected URLs using
+**Caching → Configuration → Custom Purge → URL**.
+
+Verification: repeat ordinary GETs to `/`, `/compare`, `/diff`, `/badges`,
+`/extension`, `/trending.xml`, and `/compare/react-vs-vue`. All seven showed
+`HIT` in the SIN sample after propagation; `Age: 0` immediately after filling
+the cache is valid. Existing `/stats` and `/github/facebook/react` also hit.
+These samples do not establish global performance or background revalidation
+behavior across TTL expiry.
+
+```sh
+rtk proxy curl -sS -D - -o /dev/null https://octocounts.com/
+rtk proxy curl -sS -D - -o /dev/null 'https://octocounts.com/extension?format=md'
+rtk proxy curl -sS -D - -o /dev/null -A 'PerplexityBot/1.0' https://octocounts.com/compare/react-vs-vue
+```
+
+Check that normal pages remain HTML, explicit `?format=md` responses are
+Markdown under a separate URL key, and the crawler request above remains
+Markdown with `private, no-store` and a bypassed/DYNAMIC cache status. A
+UA-only `no-store` response prevents insertion into shared cache but cannot
+bypass an already-cached HTML response by itself; preserve the crawler rule.
+
+**Web Analytics:** retain the Pages-managed site `octocounts.pages.dev +1`,
+which includes `octocounts.com`. Its beacon token is
+`71af94b0ca2c4711a817b0cb99d9eb5b`. The separate `octocounts.com` Web Analytics
+site has RUM set to **Disable**; its historical record was not deleted.
+Both integrations had been enabled, and browser DOM inspection showed two
+scripts with different tokens. A single script in curl HTML was insufficient
+to detect the duplication. After disabling domain auto-injection and purging
+only the homepage URL, browser checks of `/` and `/compare` showed just the
+Pages beacon. Analytics report aggregation was not revalidated in that check.
+
+Rollback: disable only `octocounts-public-pages-respect-origin`, leaving the
+existing cache and crawler rules intact. To restore the previous duplicate
+analytics configuration, set the separate domain site's RUM back to Enable
+and Update; do not delete the Pages-managed site. Security settings were not
+changed by this work.
 
 ### Putting it behind a reverse proxy
 
