@@ -61,8 +61,8 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
         <button
           type="button"
           className="copybtn compare-swap"
-          aria-label={t("compare.swap")}
-          title={t("compare.swap")}
+          aria-label={t("compare.swapAria")}
+          title={t("compare.swapAria")}
           onClick={() => {
             setLeftRepo(rightRepo);
             setRightRepo(leftRepo);
@@ -70,7 +70,7 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
             setRightRef(leftRef);
           }}
         >
-          <ArrowLeftRight size={14} aria-hidden="true" />
+          <ArrowLeftRight size={16} aria-hidden="true" />
         </button>
         <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
         <button className="btn compare-run" disabled={compareStatus === "running"}>

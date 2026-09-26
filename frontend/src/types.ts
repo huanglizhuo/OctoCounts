@@ -105,7 +105,11 @@ export type RelatedReport = {
 };
 
 export type StarHistoryPoint = { date: string; stars: number };
-export type SlocHistoryPoint = { date: string; totalLines: number };
+export type SlocHistoryPoint = {
+  date: string;
+  // NOTE: stores tokei "code" lines (not total lines); display copy says code lines
+  totalLines: number;
+};
 
 export type RepoHistory = {
   provider: string;

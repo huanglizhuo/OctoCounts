@@ -225,7 +225,7 @@ test("responsive navigation and the two-mode theme control avoid orphaned UI", a
   assert.match(styles, /\.report-index-link\s*\{[\s\S]*?flex: 1 1 180px;/);
 });
 
-test("matrix language colors meet the non-text contrast threshold", async () => {
+test("language colors meet the matrix contrast threshold and the paper ink floor", async () => {
   const source = await readFile(new URL("src/colorContrast.ts", ROOT), "utf8");
   const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled.code).toString("base64")}`;
@@ -235,8 +235,16 @@ test("matrix language colors meet the non-text contrast threshold", async () => 
   for (const color of ["#000080", "#292929", "#083FA1"]) {
     const adjusted = visibleLanguageColor(color, "matrix");
     assert.ok(contrastRatio(parseHexColor(adjusted), matrixSurface) >= MIN_GRAPHIC_CONTRAST);
-    assert.equal(visibleLanguageColor(color, "paper"), color);
   }
+
+  // Paper (light scheme): near-black swatches are lifted to the theme's dim
+  // ink lightness (.25) instead of printing as raw black blocks, hue and
+  // saturation intact; colors already at or above the floor pass through.
+  assert.equal(visibleLanguageColor("#000000", "paper"), "#404040");
+  assert.equal(visibleLanguageColor("#292929", "paper"), "#404040");
+  assert.equal(visibleLanguageColor("#001100", "paper"), "#008000");
+  assert.equal(visibleLanguageColor("#000080", "paper"), "#000080");
+  assert.equal(visibleLanguageColor("#083FA1", "paper"), "#083FA1");
 });
 
 test("static and Pages Function responses apply production security headers", async () => {

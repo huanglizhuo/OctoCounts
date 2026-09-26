@@ -7,7 +7,21 @@ type Rgb = [number, number, number];
 const MATRIX_SURFACE_RGB: Rgb = [20, 27, 23];
 export const MIN_GRAPHIC_CONTRAST = 3.2;
 
+// Paper is printed output on a warm off-white sheet: a raw near-black swatch
+// (JSON #000000, dark neutrals) reads as a harsh sticker, not ink. Lift any
+// color darker than the theme's dim ink — paper --fg-dim, oklch(38% 0.013 90)
+// ≈ #45423b, HSL lightness .25 — up to that floor, keeping hue and
+// saturation so colored languages stay recognizable.
+export const PAPER_MIN_LIGHTNESS = 0.25;
+
 export function visibleLanguageColor(color: string, scheme: Scheme): string {
+  if (scheme === "paper") {
+    const rgb = parseHexColor(color);
+    if (!rgb) return color;
+    const [h, s, l] = rgbToHsl(rgb);
+    if (l >= PAPER_MIN_LIGHTNESS) return color;
+    return rgbToHex(hslToRgb(h, s, PAPER_MIN_LIGHTNESS));
+  }
   if (scheme !== "matrix") return color;
   const rgb = parseHexColor(color);
   if (!rgb || contrastRatio(rgb, MATRIX_SURFACE_RGB) >= MIN_GRAPHIC_CONTRAST) return color;

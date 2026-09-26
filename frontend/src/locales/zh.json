@@ -197,9 +197,9 @@
     "totalCodeTooltip": "共 {{count}} 行代码"
   },
   "codeHistory": {
-    "title": "代码行数增长历史",
-    "chartAriaLabel": "代码行数增长曲线，当前共 {{count}} 行",
-    "locAbbrev": "行",
+    "title": "代码行数变化",
+    "chartAriaLabel": "代码行数变化曲线，当前共 {{count}} 行代码",
+    "locAbbrev": "行代码",
     "gatheringSloc": "正在采集历史代码数据…首次可能需要一分钟",
     "exportGif": "导出 GIF",
     "gifExportFailed": "GIF 导出失败，请重试。",
@@ -208,7 +208,10 @@
     "retry": "重试",
     "dataTable": "历史数据",
     "date": "日期",
-    "lines": "代码行"
+    "lines": "行代码",
+    "thisReport": "本报告 · {{ref}}",
+    "thisReportCount": "本报告：{{count}}",
+    "sampleIncomplete": "该采样点可能不完整"
   },
   "table": {
     "caption": "{{repo}} 的分语言代码行数统计",
@@ -429,12 +432,14 @@
   "share": {
     "ariaLabel": "分享此页面",
     "label": "分享：",
-    "x": "X",
-    "reddit": "Reddit",
-    "hackernews": "HN",
     "native": "分享",
     "reportText": "{{repo}} 共有 {{code}} 行代码 —— OctoCounts SLOC 报告",
     "compareText": "{{left}} vs {{right}} —— OctoCounts 代码行数对比"
+  },
+  "shareButtons": {
+    "postX": "分享到 X",
+    "postReddit": "分享到 Reddit",
+    "postHackerNews": "发到 Hacker News"
   },
   "compare": {
     "draftChanged": "输入已修改。请重新运行以更新结果。",
@@ -458,7 +463,7 @@
     "defaultRef": "默认分支",
     "analysisFailed": "分析失败。请稍等几分钟后再试。",
     "analysisTimedOut": "对比耗时过长。请稍等几分钟后再试。",
-    "swap": "交换左右仓库",
+    "swapAria": "交换仓库",
     "noSharedLanguages": "两份报告没有共同语言，无法显示分语言差异。"
   },
   "curatedCompare": {

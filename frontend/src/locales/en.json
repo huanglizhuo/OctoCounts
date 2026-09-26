@@ -209,9 +209,9 @@
     "totalCodeTooltip": "{{count}} total code lines"
   },
   "codeHistory": {
-    "title": "Lines of Code History",
-    "chartAriaLabel": "Lines of code growth chart, {{count}} lines currently",
-    "locAbbrev": "lines",
+    "title": "Code lines over time",
+    "chartAriaLabel": "Code lines over time chart, {{count}} code lines currently",
+    "locAbbrev": "code lines",
     "gatheringSloc": "Gathering historical code data… this can take a minute the first time",
     "exportGif": "Export GIF",
     "gifExportFailed": "GIF export failed. Try again.",
@@ -220,7 +220,10 @@
     "retry": "Retry",
     "dataTable": "History data",
     "date": "Date",
-    "lines": "Code lines"
+    "lines": "Code lines",
+    "thisReport": "this report · {{ref}}",
+    "thisReportCount": "this report: {{count}}",
+    "sampleIncomplete": "sample may be incomplete"
   },
   "table": {
     "caption": "Source line counts by language for {{repo}}",
@@ -441,12 +444,14 @@
   "share": {
     "ariaLabel": "Share this page",
     "label": "share:",
-    "x": "X",
-    "reddit": "Reddit",
-    "hackernews": "HN",
     "native": "share",
     "reportText": "{{repo}} has {{code}} lines of code — SLOC report by OctoCounts",
     "compareText": "{{left}} vs {{right}} — source lines of code compared by OctoCounts"
+  },
+  "shareButtons": {
+    "postX": "Post on X",
+    "postReddit": "Post on Reddit",
+    "postHackerNews": "Post on Hacker News"
   },
   "compare": {
     "draftChanged": "Inputs changed. Run again to update this result.",
@@ -470,7 +475,7 @@
     "defaultRef": "default",
     "analysisFailed": "Analysis failed. Wait a few minutes and try again.",
     "analysisTimedOut": "The comparison is taking too long. Wait a few minutes and try again.",
-    "swap": "Swap left and right repositories",
+    "swapAria": "Swap repositories",
     "noSharedLanguages": "The two reports share no languages, so there is no per-language delta to show."
   },
   "curatedCompare": {

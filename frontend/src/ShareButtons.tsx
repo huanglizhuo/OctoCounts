@@ -6,12 +6,14 @@ import { AnalyticsEvents, trackEvent } from "./analytics";
 // One-click share row (X / Reddit / Hacker News, plus the native Web Share
 // sheet where the browser offers it). Shared by the report page and the
 // compare/diff results; `placement` tells the placements apart in analytics.
+// Labels are full call-to-action sentences (shareButtons.*) — bare network
+// names left the buttons cryptic after the icon was dropped.
 export function ShareButtons({ url, text, placement }: { url: string; text: string; placement: string }) {
   const { t } = useTranslation();
   const targets = [
-    { key: "x", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}` },
-    { key: "reddit", href: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}` },
-    { key: "hackernews", href: `https://news.ycombinator.com/submitlink?u=${encodeURIComponent(url)}&t=${encodeURIComponent(text)}` },
+    { key: "x", labelKey: "shareButtons.postX", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}` },
+    { key: "reddit", labelKey: "shareButtons.postReddit", href: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}` },
+    { key: "hackernews", labelKey: "shareButtons.postHackerNews", href: `https://news.ycombinator.com/submitlink?u=${encodeURIComponent(url)}&t=${encodeURIComponent(text)}` },
   ];
   const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
@@ -27,7 +29,7 @@ export function ShareButtons({ url, text, placement }: { url: string; text: stri
           rel="noopener"
           onClick={() => trackEvent(AnalyticsEvents.shareClicked, { share_type: target.key, placement })}
         >
-          {t(`share.${target.key}`)}
+          {t(target.labelKey)}
         </a>
       ))}
       {canNativeShare ? (

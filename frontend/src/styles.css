@@ -1231,10 +1231,26 @@ body.embed-mode::before {
 
 .compare-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 12px;
   align-items: end;
   padding: 16px;
+}
+
+.compare-swap {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  align-self: center;
+  justify-self: center;
+}
+
+@media (pointer: coarse) {
+  .compare-swap {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .compare-field {
@@ -1311,6 +1327,10 @@ body.embed-mode::before {
   flex-wrap: wrap;
   border-top: 1px solid var(--rule);
   padding: 10px 16px;
+}
+
+.share-buttons .copybtn {
+  min-height: 44px;
 }
 
 .share-buttons-label {
@@ -3998,10 +4018,13 @@ table.report td.lang {
   position: relative;
 }
 
+/* The interactive chart renders 1:1 at its measured container width (React
+   sets width/height attributes from a ResizeObserver), so axis text stays at
+   its authored pixel size on every screen. max-width only guards the first
+   paint before the observer reports, when the 640px fallback is still wide. */
 .repo-history-chart svg {
   display: block;
-  width: 100%;
-  height: auto;
+  max-width: 100%;
   cursor: crosshair;
 }
 
@@ -4042,8 +4065,68 @@ table.report td.lang {
 
 .repo-history-axis-label {
   fill: var(--fg-mute);
-  font-size: 10px;
+  font-size: 12px;
   font-family: inherit;
+}
+
+.repo-history-axis-tick {
+  fill: var(--fg-mute);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.repo-history-gridline {
+  stroke: var(--fg-mute);
+  stroke-width: 1;
+  opacity: 0.25;
+}
+
+.repo-history-point {
+  fill: var(--accent);
+}
+
+/* Suspect samples (under half of both neighbours) stay on the chart but read
+   as untrusted: hollow marker, dashed flanking segments. */
+.repo-history-point-suspect {
+  fill: var(--bg, #fff);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.repo-history-report-line {
+  stroke: var(--fg-dim, var(--fg-mute));
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+
+.repo-history-report-dot {
+  fill: var(--bg, #fff);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.repo-history-report-label {
+  fill: var(--fg-dim, var(--fg-mute));
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.repo-history-head-values {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.repo-history-report-count {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--fg-mute);
+  text-align: right;
+}
+
+.repo-history-suspect-note {
+  color: var(--fg-mute);
+  font-size: 0.85em;
 }
 
 /* Header and tool-page navigation: compact native menus, no horizontal rail. */

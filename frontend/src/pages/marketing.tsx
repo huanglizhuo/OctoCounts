@@ -58,14 +58,16 @@ type TrendingSnapshot = {
 
 type RepoCard = {
   key: string;
-  tag: string;
   title: string;
   line: string;
-  footer: string;
+  footer?: string;
   href: string;
 };
 
 // One card grid for all repo listings; adapters below map each API shape.
+// owner/repo is the card's identity and its loudest line. The former
+// provider tag ("GITHUB") and uppercase date footer only restated the link
+// path — noise between the reader and the repo name.
 function RepoCardGrid({ cards }: { cards: RepoCard[] }) {
   const { t } = useTranslation();
   if (cards.length === 0) {
@@ -75,10 +77,9 @@ function RepoCardGrid({ cards }: { cards: RepoCard[] }) {
     <div className="growth-repo-grid">
       {cards.map((card) => (
         <a className="growth-repo-card" href={card.href} key={card.key}>
-          <span className="chart-tag">{card.tag}</span>
           <strong>{card.title}</strong>
           <span>{card.line}</span>
-          <em>{card.footer}</em>
+          {card.footer ? <em>{card.footer}</em> : null}
         </a>
       ))}
     </div>
@@ -88,10 +89,8 @@ function RepoCardGrid({ cards }: { cards: RepoCard[] }) {
 function growthRepoCards(reports: GrowthRepositoryStat[]): RepoCard[] {
   return reports.map((report) => ({
     key: `${report.provider}:${report.owner}/${report.repo}`,
-    tag: String(report.provider),
     title: `${report.owner}/${report.repo}`,
     line: `${report.topLanguage ?? i18n.t("growth.repoCard.mixed")} · ${formatNumber(report.total.code)} ${i18n.t("growth.repoCard.code")}`,
-    footer: new Date(report.generatedAt).toLocaleDateString(i18n.language),
     href: report.publicPath,
   }));
 }
@@ -99,10 +98,8 @@ function growthRepoCards(reports: GrowthRepositoryStat[]): RepoCard[] {
 function seoReportCards(reports: SeoReportSummary[]): RepoCard[] {
   return reports.map((report) => ({
     key: `${report.provider}:${report.owner}/${report.repo}`,
-    tag: report.provider,
     title: report.repoFullName,
     line: `${report.topLanguage?.name ?? i18n.t("growth.repoCard.mixed")} · ${formatNumber(report.total.code)} ${i18n.t("growth.repoCard.code")}`,
-    footer: new Date(report.generatedAt).toLocaleDateString(i18n.language),
     href: report.publicPath,
   }));
 }
@@ -110,9 +107,8 @@ function seoReportCards(reports: SeoReportSummary[]): RepoCard[] {
 function trendingRepoCards(repositories: TrendingRepository[]): RepoCard[] {
   return repositories.map((repo) => ({
     key: repo.fullName,
-    tag: `#${repo.rank} · ${repo.language ?? i18n.t("growth.repoCard.mixed")}`,
     title: repo.fullName,
-    line: repo.description || i18n.t("growth.repoCard.trendingFallback"),
+    line: `#${repo.rank} · ${repo.language ?? i18n.t("growth.repoCard.mixed")} — ${repo.description || i18n.t("growth.repoCard.trendingFallback")}`,
     footer: i18n.t("growth.repoCard.starsToday", { count: repo.starsToday, total: formatNumber(repo.totalStars) }),
     href: repo.publicPath,
   }));
