@@ -121,7 +121,10 @@ pub async fn related(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
 ) -> Result<(HeaderMap, Json<RelatedList>), ApiError> {
-    let cache_key = format!("related:{}", seo_report_cache_key(&query));
+    // `related:v2:` — the v2 ranking (case-insensitive self-exclusion, mirror
+    // and size-signature dedupe, relative size distance) must not be served
+    // from entries cached under the v1 ordering.
+    let cache_key = format!("related:v2:{}", seo_report_cache_key(&query));
     if let Some(list) = state.caches.seo_related.get(&cache_key).await {
         return Ok((related_cache_headers(), Json(list)));
     }
@@ -150,6 +153,9 @@ pub async fn related(
             &card.repo,
             card.languages.first().map(|language| language.name.as_str()),
             card.total.code as i64,
+            // The source's own line total feeds the mirror exclusion: a copy
+            // of this repo matches BOTH its code and line counts exactly.
+            card.total.lines as i64,
             RELATED_LIMIT,
         )
         .await

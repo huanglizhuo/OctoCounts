@@ -11,7 +11,8 @@
     "test:seo": "npm run build && node --test tests/seo.test.mjs",
     "test:unit": "node --test tests/github-status.test.mjs",
     "test:facts": "node ../scripts/check-product-facts.mjs",
-    "test": "npm run test:unit && npm run test:facts && npm run test:seo",
+    "test:csp": "node scripts/check-csp-hash.mjs",
+    "test": "npm run test:csp && npm run test:unit && npm run test:facts && npm run test:seo",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

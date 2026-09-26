@@ -47,6 +47,15 @@ pub struct StarHistoryPoint {
 pub struct SlocHistoryPoint {
     date: String,
     total_lines: i64,
+    /// Present (and true) only on interior points that failed the suspect
+    /// check — a value less than half of BOTH neighbours, which a normal git
+    /// history cannot produce between adjacent samples but a partial backfill
+    /// (an analysis that saw only part of the tree) can. Absent on every
+    /// other point, so consumers of healthy series see byte-identical
+    /// payloads and a background re-sample quietly corrects the rest (see
+    /// `spawn_sloc_resample`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suspect: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -85,7 +94,10 @@ pub struct RepoHistoryResponse {
 /// cost exist in one place.
 ///
 /// Returns `(star_history, current_stars, sloc_history, sloc_backfill_in_progress,
-/// star_backfill_available, star_backfill_in_progress)`.
+/// star_backfill_available, star_backfill_in_progress)`. The SLOC series
+/// carries each point's commit SHA alongside its date and line count, so the
+/// suspect-point re-sampler can re-analyze the exact commits behind
+/// implausible dips.
 pub(crate) async fn ensure_repo_history(
     state: &AppState,
     provider: RepositoryProvider,
@@ -94,7 +106,7 @@ pub(crate) async fn ensure_repo_history(
 ) -> anyhow::Result<(
     Vec<(NaiveDate, i64)>,
     Option<u64>,
-    Vec<(NaiveDate, i64)>,
+    Vec<(NaiveDate, i64, String)>,
     bool,
     bool,
     bool,
@@ -194,6 +206,16 @@ pub async fn repo_history(
         .await
         .map_err(ApiError::internal)?;
 
+    // Interior points that dip below half of BOTH neighbours are flagged (and
+    // queued for repair); see `sloc_point_is_suspect` for why that shape is
+    // diagnostic of a partial backfill rather than a real history rewrite.
+    let suspect_indices = suspect_sloc_indices(
+        &sloc_history
+            .iter()
+            .map(|(_, total_lines, _)| *total_lines)
+            .collect::<Vec<_>>(),
+    );
+
     let response = RepoHistoryResponse {
         provider: query.provider.clone(),
         owner: query.owner.clone(),
@@ -207,10 +229,12 @@ pub async fn repo_history(
             })
             .collect(),
         sloc_points: sloc_history
-            .into_iter()
-            .map(|(date, total_lines)| SlocHistoryPoint {
+            .iter()
+            .enumerate()
+            .map(|(index, (date, total_lines, _))| SlocHistoryPoint {
                 date: date.to_string(),
-                total_lines,
+                total_lines: *total_lines,
+                suspect: suspect_indices.contains(&index).then_some(true),
             })
             .collect(),
         sloc_backfill_in_progress,
@@ -229,11 +253,175 @@ pub async fn repo_history(
             .await;
     }
 
+    // A series with suspect points triggers a bounded, cooldown-guarded
+    // re-sample of the offending commits. Not while the SLOC backfill is
+    // still running — the backfill may still be about to overwrite those
+    // rows, and the response above is deliberately uncached in that state.
+    // The trigger itself only spawns; the request path never waits on the
+    // re-analysis.
+    if !sloc_backfill_in_progress && !suspect_indices.is_empty() {
+        let samples: Vec<(NaiveDate, String)> = suspect_indices
+            .iter()
+            .filter_map(|&index| {
+                sloc_history
+                    .get(index)
+                    .map(|(date, _, commit_sha)| (*date, commit_sha.clone()))
+            })
+            .take(SLOC_RESAMPLE_MAX_POINTS)
+            .collect();
+        spawn_sloc_resample(state.clone(), query.owner.clone(), query.repo.clone(), samples);
+    }
+
     Ok((repo_history_cache_headers(), Json(response)))
 }
 
 fn repo_history_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
+}
+
+/// An interior SLOC point is suspect when its value is less than half of BOTH
+/// its neighbours. A repository's line count between two adjacent samples can
+/// only fall that far through a genuine history rewrite (a squash, a filter
+/// — vanishingly rare between sample-sized intervals), but a *partial*
+/// backfill — an analysis that saw only part of the tree, a truncated archive
+/// — records exactly this shape at the full neighbors' scale (live example:
+/// facebook/react sampled 19,134 lines in 2019 and 17,952 in 2023 between
+/// ~170K neighbours). The strict `<` keeps an exact 50% dip (a real big
+/// rewrite) out of the suspect set.
+pub(crate) fn sloc_point_is_suspect(prev: i64, value: i64, next: i64) -> bool {
+    value * 2 < prev && value * 2 < next
+}
+
+/// Indices of the interior points of `values` (oldest first) that fail the
+/// suspect check. The endpoints are never eligible: they have no neighbour on
+/// one side, so there is no implausible-dip shape to test for.
+pub(crate) fn suspect_sloc_indices(values: &[i64]) -> Vec<usize> {
+    (1..values.len().saturating_sub(1))
+        .filter(|&index| {
+            sloc_point_is_suspect(values[index - 1], values[index], values[index + 1])
+        })
+        .collect()
+}
+
+/// At most this many suspect commits are re-analyzed per trigger; a series
+/// with more suspects than that gets its oldest ones fixed first and the rest
+/// on a later trigger once the cooldown has elapsed.
+const SLOC_RESAMPLE_MAX_POINTS: usize = 3;
+
+/// Minimum time between re-sample triggers for the same repo (the cooldown is
+/// enforced by `Store::start_sloc_resample_if_needed`, so it holds across
+/// replicas and restarts).
+const SLOC_RESAMPLE_COOLDOWN: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// Bounded, best-effort repair of suspect SLOC points (see
+/// `sloc_point_is_suspect`): re-analyzes the exact commits behind implausible
+/// dips and upserts the corrected snapshots.
+///
+/// Cost is bounded three ways: the per-trigger sample cap
+/// ([`SLOC_RESAMPLE_MAX_POINTS`]), the per-repo cooldown
+/// ([`SLOC_RESAMPLE_COOLDOWN`], claimed in the database so a burst of views
+/// spawns at most one repair), and idempotence — `record_sloc_snapshot`'s
+/// upsert means a repeat run corrects rather than duplicates. Runs entirely
+/// off the request path: the caller spawns and returns immediately.
+fn spawn_sloc_resample(state: AppState, owner: String, repo: String, samples: Vec<(NaiveDate, String)>) {
+    tokio::spawn(async move {
+        let store = state.coordinator.store();
+        match store
+            .start_sloc_resample_if_needed(
+                RepositoryProvider::GitHub,
+                &owner,
+                &repo,
+                SLOC_RESAMPLE_COOLDOWN,
+            )
+            .await
+        {
+            Ok(true) => {}
+            // Another trigger recently claimed the repair; the cooldown is
+            // doing its job, not an error.
+            Ok(false) => return,
+            Err(error) => {
+                tracing::warn!(%error, %owner, %repo, "failed to claim sloc suspect-point resample");
+                return;
+            }
+        }
+
+        let repo_url = format!("https://github.com/{owner}/{repo}");
+        let mut corrected = 0usize;
+        let mut failed = 0usize;
+        for (date, commit_sha) in samples {
+            match resample_sloc_point(&state, &repo_url, &owner, &repo, date, &commit_sha).await {
+                Ok(()) => corrected += 1,
+                Err(error) => {
+                    tracing::warn!(%error, %owner, %repo, %commit_sha, "sloc suspect-point resample failed");
+                    failed += 1;
+                }
+            }
+        }
+        tracing::info!(%owner, %repo, corrected, failed, "sloc suspect-point resample finished");
+    });
+}
+
+/// Re-analyzes one pinned commit and upserts its snapshot for `date`. Same
+/// submit → await-with-bounded-timeout → record pipeline the backfill and
+/// forward samplers use, with one deliberate difference: `force_refresh` is
+/// set, because the value being repaired may itself be sitting in the report
+/// cache — a cache hit would replay the very partial analysis being fixed.
+async fn resample_sloc_point(
+    state: &AppState,
+    repo_url: &str,
+    owner: &str,
+    repo: &str,
+    date: NaiveDate,
+    commit_sha: &str,
+) -> anyhow::Result<()> {
+    let request = AnalyzeRequest {
+        repo_url: repo_url.to_string(),
+        ref_name: Some(commit_sha.to_string()),
+        force_refresh: true,
+        options: Default::default(),
+        source: AnalysisSource::SlocBackfill,
+    };
+    let total_lines = match state.coordinator.submit(request).await {
+        Ok(AnalyzeResponse::Cached { report, .. }) => report.total.code as i64,
+        Ok(AnalyzeResponse::Job { job_id, .. }) => {
+            let job = state
+                .coordinator
+                .await_job(job_id, SLOC_BACKFILL_JOB_TIMEOUT, |job| {
+                    job_is_finished(job.status)
+                })
+                .await
+                .map_err(|error| anyhow::anyhow!("resample job failed: {error}"))?
+                .ok_or_else(|| anyhow::anyhow!("resample job finished without a final state"))?;
+            if job.status != JobStatus::Completed {
+                anyhow::bail!("resample job did not complete: {:?}", job.status);
+            }
+            let Some(report_id) = job.report_id else {
+                anyhow::bail!("completed resample job has no report");
+            };
+            let report = state
+                .coordinator
+                .store()
+                .report(&report_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("resample report vanished"))?;
+            report.total.code as i64
+        }
+        Err(error) => anyhow::bail!("resample submit failed: {}", error.body().message),
+    };
+    state
+        .coordinator
+        .store()
+        .record_sloc_snapshot(
+            RepositoryProvider::GitHub,
+            owner,
+            repo,
+            date,
+            total_lines,
+            commit_sha,
+            "resample",
+        )
+        .await?;
+    Ok(())
 }
 
 fn spawn_sloc_backfill(
@@ -607,10 +795,16 @@ async fn compact_repo_sloc_history(
         return Ok(0);
     }
 
-    let keep = compaction_keep_dates(&points, Utc::now().date_naive());
+    let keep = compaction_keep_dates(
+        &points
+            .iter()
+            .map(|(date, total_lines, _)| (*date, *total_lines))
+            .collect::<Vec<_>>(),
+        Utc::now().date_naive(),
+    );
     let drop: Vec<chrono::NaiveDate> = points
         .iter()
-        .map(|(date, _)| *date)
+        .map(|(date, _, _)| *date)
         .filter(|date| !keep.contains(date))
         .collect();
     store
@@ -708,10 +902,53 @@ pub(crate) fn compaction_keep_dates(
 mod tests {
     use chrono::{Datelike, Duration as ChronoDuration, NaiveDate};
 
-    use super::compaction_keep_dates;
+    use super::{compaction_keep_dates, sloc_point_is_suspect, suspect_sloc_indices};
 
     fn date(days_ago: i64) -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 9, 25).unwrap() - ChronoDuration::days(days_ago)
+    }
+
+    #[test]
+    fn a_dip_below_half_of_both_neighbours_is_suspect() {
+        // The live partial-backfill shape: ~170K neighbours around a ~19K dip.
+        assert!(sloc_point_is_suspect(170_000, 19_134, 171_500));
+        assert!(sloc_point_is_suspect(100, 49, 100), "49 < 50% of both");
+    }
+
+    #[test]
+    fn a_dip_below_only_one_neighbour_is_not_suspect() {
+        // A real decline (or growth spurt) on one side must not be flagged.
+        assert!(!sloc_point_is_suspect(100, 40, 60), "40 >= 50% of next");
+        assert!(!sloc_point_is_suspect(60, 40, 100), "40 >= 50% of prev");
+        assert!(!sloc_point_is_suspect(100, 100, 100), "flat is fine");
+    }
+
+    #[test]
+    fn an_exactly_half_dip_is_not_suspect() {
+        // 50 is exactly 50% of both neighbours: a genuine big rewrite, kept
+        // out of the suspect set by the strict comparison.
+        assert!(!sloc_point_is_suspect(100, 50, 100));
+    }
+
+    #[test]
+    fn suspect_indices_flag_only_interior_points() {
+        // The endpoints have no neighbour on one side and are never flagged,
+        // even at extreme values.
+        assert!(suspect_sloc_indices(&[1, 100, 100]).is_empty());
+        assert!(suspect_sloc_indices(&[100, 100, 1]).is_empty());
+        assert!(suspect_sloc_indices(&[]).is_empty());
+        assert!(suspect_sloc_indices(&[42]).is_empty());
+
+        // Two independent interior dips in one series.
+        let values = [100_000, 10_000, 110_000, 5_000, 120_000];
+        assert_eq!(suspect_sloc_indices(&values), vec![1, 3]);
+    }
+
+    #[test]
+    fn suspect_indices_skip_plausible_series() {
+        // Ordinary growth, plateaus and modest dips produce no flags.
+        let values = [1_000, 2_000, 2_050, 4_000, 3_900, 8_000];
+        assert!(suspect_sloc_indices(&values).is_empty());
     }
 
     #[test]

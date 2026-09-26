@@ -814,6 +814,17 @@ impl Store {
             .execute(&self.pool)
             .await?;
 
+        // The suspect-point re-sampler's cooldown marker (see
+        // `start_sloc_resample_if_needed`): a repo's implausible dips are
+        // re-analyzed at most once per 24h, and the marker lives here — next
+        // to the other per-repo history state — rather than in process memory
+        // so multiple replicas respect the same cooldown.
+        sqlx::query(
+            "ALTER TABLE star_watch ADD COLUMN IF NOT EXISTS sloc_resample_started_at TIMESTAMPTZ",
+        )
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 
@@ -988,6 +999,42 @@ impl Store {
         Ok(())
     }
 
+    /// Atomically claims a suspect-point re-sample for a repo, with a
+    /// cooldown: only the caller that moves `sloc_resample_started_at` from
+    /// NULL (or from older than `cooldown`) gets `true` back, so a repo with
+    /// implausible dips is re-analyzed at most once per cooldown window even
+    /// under a burst of views. Unlike the backfill claim there is no
+    /// completed marker to set — each trigger is a bounded, idempotent fix-up
+    /// (see `repo_history::spawn_sloc_resample`), and the next eligible
+    /// window simply re-checks the series.
+    pub async fn start_sloc_resample_if_needed(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        cooldown: std::time::Duration,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            r#"
+            UPDATE star_watch
+            SET sloc_resample_started_at = NOW()
+            WHERE provider = $1 AND owner = $2 AND repo = $3
+              AND (
+                sloc_resample_started_at IS NULL
+                OR sloc_resample_started_at < NOW() - make_interval(secs => $4)
+              )
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .bind(cooldown.as_secs_f64())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     /// Whether a repo's SLOC backfill has been claimed but not yet finished —
     /// used to tell the frontend "still gathering historical data" apart from
     /// "this repo genuinely has no history yet".
@@ -1058,16 +1105,18 @@ impl Store {
     }
 
     /// The full recorded SLOC history for a repo, oldest first, excluding
-    /// points the compaction task has superseded.
+    /// points the compaction task has superseded. Each point carries the
+    /// commit SHA it was sampled from, so consumers can re-analyze a specific
+    /// suspect point rather than the whole series.
     pub async fn sloc_history(
         &self,
         provider: RepositoryProvider,
         owner: &str,
         repo: &str,
-    ) -> anyhow::Result<Vec<(NaiveDate, i64)>> {
+    ) -> anyhow::Result<Vec<(NaiveDate, i64, String)>> {
         let rows = sqlx::query(
             r#"
-            SELECT snapshot_date, total_lines
+            SELECT snapshot_date, total_lines, commit_sha
             FROM sloc_snapshots
             WHERE provider = $1 AND owner = $2 AND repo = $3 AND superseded_at IS NULL
             ORDER BY snapshot_date ASC
@@ -1083,7 +1132,8 @@ impl Store {
             .map(|row| {
                 let date: NaiveDate = row.try_get("snapshot_date")?;
                 let total_lines: i64 = row.try_get("total_lines")?;
-                Ok((date, total_lines))
+                let commit_sha: String = row.try_get("commit_sha")?;
+                Ok((date, total_lines, commit_sha))
             })
             .collect()
     }
@@ -1460,6 +1510,19 @@ impl Store {
     /// top language (or no size), the ranking degrades to that same order
     /// rather than returning nothing. The query reads only the materialized
     /// stat columns -- no report bodies are detoasted.
+    ///
+    /// Quality guards against the failure modes seen on real data:
+    /// - Self-exclusion is case-insensitive (`Facebook/React` vs
+    ///   `facebook/react` are the same repository as far as GitHub is
+    ///   concerned).
+    /// - Mirrors and renamed copies of the source repo carry an identical
+    ///   `(total_code, total_lines)` signature and are excluded outright.
+    /// - More generally, at most one repository survives per distinct
+    ///   `(total_code, total_lines)` signature: several repos of exactly the
+    ///   same size add link-farm noise, not variety.
+    /// - Size distance is relative (`|ln(code) - ln(source)|`) so a
+    ///   1k-line source is not recommended a 300k-line monolith just because
+    ///   the absolute difference to some tiny repo happened to be smaller.
     pub async fn related_reports(
         &self,
         provider: RepositoryProvider,
@@ -1467,33 +1530,58 @@ impl Store {
         repo: &str,
         top_language: Option<&str>,
         total_code: i64,
+        total_lines: i64,
         limit: i64,
     ) -> anyhow::Result<Vec<RelatedReportRow>> {
         let rows = sqlx::query(
             r#"
             SELECT
-                latest.provider AS provider,
-                latest.owner AS owner,
-                latest.repo AS repo,
-                latest.top_language AS top_language,
-                latest.total_code AS total_code,
-                latest.total_lines AS total_lines
+                deduped.provider AS provider,
+                deduped.owner AS owner,
+                deduped.repo AS repo,
+                deduped.top_language AS top_language,
+                deduped.total_code AS total_code,
+                deduped.total_lines AS total_lines
             FROM (
-                SELECT DISTINCT ON (provider, owner, repo)
-                    provider, owner, repo, top_language, total_code, total_lines, created_at
-                FROM reports
-                WHERE provider = $1
-                ORDER BY provider, owner, repo, created_at DESC
-            ) latest
-            WHERE NOT (latest.owner = $2 AND latest.repo = $3)
+                -- One row per distinct size signature: `DISTINCT ON` keeps the
+                -- first row of each (total_code, total_lines) group under the
+                -- relevance ordering, so the surviving representative is
+                -- deterministic.
+                SELECT DISTINCT ON (filtered.total_code, filtered.total_lines)
+                    filtered.provider, filtered.owner, filtered.repo,
+                    filtered.top_language, filtered.total_code,
+                    filtered.total_lines, filtered.created_at
+                FROM (
+                    SELECT DISTINCT ON (provider, owner, repo)
+                        provider, owner, repo, top_language, total_code, total_lines, created_at
+                    FROM reports
+                    WHERE provider = $1
+                    ORDER BY provider, owner, repo, created_at DESC
+                ) filtered
+                WHERE NOT (lower(filtered.owner) = lower($2) AND lower(filtered.repo) = lower($3))
+                  -- NULL-safe mirror exclusion: rows with an unknown size
+                  -- signature stay eligible, only exact matches on BOTH
+                  -- columns are dropped.
+                  AND (filtered.total_code IS DISTINCT FROM $5
+                       OR filtered.total_lines IS DISTINCT FROM $6)
+                ORDER BY filtered.total_code, filtered.total_lines,
+                    COALESCE(filtered.top_language = $4, false) DESC,
+                    ABS(ln(GREATEST(COALESCE(filtered.total_code, 0), 1)::float8)
+                        - ln(GREATEST($5, 1)::float8)) ASC,
+                    filtered.total_lines DESC NULLS LAST,
+                    filtered.created_at DESC,
+                    filtered.owner ASC,
+                    filtered.repo ASC
+            ) deduped
             ORDER BY
-                COALESCE(latest.top_language = $4, false) DESC,
-                ABS(COALESCE(latest.total_code, 0) - $5) ASC,
-                latest.total_lines DESC NULLS LAST,
-                latest.created_at DESC,
-                latest.owner ASC,
-                latest.repo ASC
-            LIMIT $6
+                COALESCE(deduped.top_language = $4, false) DESC,
+                ABS(ln(GREATEST(COALESCE(deduped.total_code, 0), 1)::float8)
+                    - ln(GREATEST($5, 1)::float8)) ASC,
+                deduped.total_lines DESC NULLS LAST,
+                deduped.created_at DESC,
+                deduped.owner ASC,
+                deduped.repo ASC
+            LIMIT $7
             "#,
         )
         .bind(provider_to_str(&provider))
@@ -1501,6 +1589,7 @@ impl Store {
         .bind(repo)
         .bind(top_language)
         .bind(total_code)
+        .bind(total_lines)
         .bind(limit.clamp(1, 24))
         .fetch_all(&self.pool)
         .await?;
@@ -4541,7 +4630,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(history, vec![(today, 1_200)]);
+        assert_eq!(history, vec![(today, 1_200, "sha2".to_string())]);
         store.drop_schema().await;
     }
 
@@ -4598,7 +4687,11 @@ mod tests {
 
         assert_eq!(
             history,
-            vec![(last_week, 1_000), (yesterday, 2_000), (today, 3_000)]
+            vec![
+                (last_week, 1_000, "sha-lw".to_string()),
+                (yesterday, 2_000, "sha-y".to_string()),
+                (today, 3_000, "sha-today".to_string())
+            ]
         );
         store.drop_schema().await;
     }
@@ -4660,7 +4753,13 @@ mod tests {
             .sloc_history(RepositoryProvider::GitHub, "octo", "counts")
             .await
             .unwrap();
-        assert_eq!(history, vec![(two_months_ago, 100), (today, 400)]);
+        assert_eq!(
+            history,
+            vec![
+                (two_months_ago, 100, "sha-old".to_string()),
+                (today, 400, "sha-now".to_string())
+            ]
+        );
 
         // Re-recording a superseded date revives it: a fresh write always
         // beats a soft delete.
@@ -4682,7 +4781,269 @@ mod tests {
             .unwrap();
         assert_eq!(
             history,
-            vec![(two_months_ago, 100), (last_month, 210), (today, 400)]
+            vec![
+                (two_months_ago, 100, "sha-old".to_string()),
+                (last_month, 210, "sha-mid2".to_string()),
+                (today, 400, "sha-now".to_string())
+            ]
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn start_sloc_resample_if_needed_enforces_its_cooldown() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, &owner, "count")
+            .await
+            .unwrap();
+
+        let cooldown = std::time::Duration::from_secs(24 * 60 * 60);
+        assert!(
+            store
+                .start_sloc_resample_if_needed(
+                    RepositoryProvider::GitHub,
+                    &owner,
+                    "count",
+                    cooldown
+                )
+                .await
+                .unwrap(),
+            "the first claim wins"
+        );
+        assert!(
+            !store
+                .start_sloc_resample_if_needed(
+                    RepositoryProvider::GitHub,
+                    &owner,
+                    "count",
+                    cooldown
+                )
+                .await
+                .unwrap(),
+            "a second claim inside the cooldown is refused"
+        );
+        assert!(
+            !store
+                .start_sloc_resample_if_needed(
+                    RepositoryProvider::GitHub,
+                    "nobody",
+                    "watched-this",
+                    cooldown
+                )
+                .await
+                .unwrap(),
+            "a repo that was never watched claims nothing"
+        );
+
+        // Age the marker past the cooldown: the claim becomes eligible again.
+        sqlx::query(
+            "UPDATE star_watch SET sloc_resample_started_at = NOW() - INTERVAL '25 hours' WHERE owner = $1",
+        )
+        .bind(&owner)
+        .execute(&store.pool)
+        .await
+        .unwrap();
+        assert!(
+            store
+                .start_sloc_resample_if_needed(
+                    RepositoryProvider::GitHub,
+                    &owner,
+                    "count",
+                    cooldown
+                )
+                .await
+                .unwrap(),
+            "an aged-out claim can be retaken"
+        );
+        store.drop_schema().await;
+    }
+
+    /// A `test_report` variant for `related_reports` tests: arbitrary repo
+    /// name, top language and size, with `total_lines` overridable so a
+    /// candidate can share its code count with the source without sharing
+    /// the full size signature.
+    fn related_repo_report(
+        id: &str,
+        owner: &str,
+        repo: &str,
+        language: &str,
+        code: usize,
+        lines: Option<usize>,
+    ) -> Report {
+        let mut report = test_report(id, owner, code);
+        report.repository.name = repo.to_string();
+        let stats = LanguageStats {
+            files: 1,
+            lines: lines.unwrap_or(code + 10),
+            code,
+            comments: 7,
+            blanks: 3,
+        };
+        report.languages = vec![LanguageReport {
+            name: language.to_string(),
+            stats: stats.clone(),
+            children: Vec::new(),
+        }];
+        report.total = stats;
+        report
+    }
+
+    async fn save_related_repo_report(store: &Store, report: &Report) {
+        store
+            .save_report(report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+    }
+
+    fn related_full_names(rows: &[super::RelatedReportRow]) -> Vec<String> {
+        rows.iter()
+            .map(|row| format!("{}/{}", row.owner, row.repo))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn related_reports_excludes_case_insensitive_self_mirrors_and_duplicate_sizes() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("Example");
+
+        // Source: "Example/Widget", 1_000 code / 1_010 lines, top language Rust.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-src", &owner, "Widget", "Rust", 1_000, None),
+        )
+        .await;
+        // Same repo in a different case but a DIFFERENT size: only the
+        // case-insensitive self-exclusion can drop it.
+        save_related_repo_report(
+            &store,
+            &related_repo_report(
+                "rel-self-case",
+                &owner.to_uppercase(),
+                "widget",
+                "Rust",
+                500,
+                None,
+            ),
+        )
+        .await;
+        // A different repo with the source's exact (code, lines) signature:
+        // a mirror or renamed copy, excluded outright.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-mirror", "someone-else", "clone", "Rust", 1_000, None),
+        )
+        .await;
+        // Only the code count matches (lines differ): NOT a mirror, must stay.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-half-sig", "third-party", "similar", "Rust", 1_000, Some(1_400)),
+        )
+        .await;
+        // Two distinct repos sharing a (2_000, 2_010) signature: only one
+        // survives the size-signature dedupe.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-dup-one", "dup-one", "one", "Rust", 2_000, None),
+        )
+        .await;
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-dup-two", "dup-two", "two", "Rust", 2_000, None),
+        )
+        .await;
+        // An unambiguous healthy candidate.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-healthy", "healthy", "neighbour", "Rust", 1_500, None),
+        )
+        .await;
+
+        let rows = store
+            .related_reports(
+                RepositoryProvider::GitHub,
+                &owner,
+                "Widget",
+                Some("Rust"),
+                1_000,
+                1_010,
+                6,
+            )
+            .await
+            .unwrap();
+        let names = related_full_names(&rows);
+
+        assert!(
+            !names.iter().any(|name| name.to_lowercase() == format!("{owner}/widget").to_lowercase()),
+            "the source itself (in any case) must not be recommended: {names:?}"
+        );
+        assert!(
+            !names.contains(&"someone-else/clone".to_string()),
+            "an exact size-signature mirror must be excluded: {names:?}"
+        );
+        assert_eq!(
+            names.iter().filter(|name| name.starts_with("dup-")).count(),
+            1,
+            "one row per distinct size signature: {names:?}"
+        );
+        assert_eq!(
+            names.len(),
+            3,
+            "exactly the healthy candidate, the half-signature match and one duplicate survive: {names:?}"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn related_reports_orders_by_relative_size_distance() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("Example");
+
+        // Source: 1_000 code lines.
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-src", &owner, "Widget", "Rust", 1_000, None),
+        )
+        .await;
+        // Absolute distance prefers the tiny repo (|100-1000| = 900 versus
+        // |5000-1000| = 4000); relative distance correctly prefers the big
+        // one (ratio 5 versus ratio 10).
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-tiny", "tiny", "repo", "Rust", 100, None),
+        )
+        .await;
+        save_related_repo_report(
+            &store,
+            &related_repo_report("rel-big", "big", "repo", "Rust", 5_000, None),
+        )
+        .await;
+
+        let rows = store
+            .related_reports(
+                RepositoryProvider::GitHub,
+                &owner,
+                "Widget",
+                Some("Rust"),
+                1_000,
+                1_010,
+                6,
+            )
+            .await
+            .unwrap();
+        let names = related_full_names(&rows);
+
+        assert_eq!(
+            names,
+            vec!["big/repo".to_string(), "tiny/repo".to_string()],
+            "ln-based distance ranks the 5x repo ahead of the 10x repo"
         );
         store.drop_schema().await;
     }
