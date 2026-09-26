@@ -3470,6 +3470,15 @@ footer a:focus-visible {
     --tap-min: 44px;
   }
 
+  /* Sentence links (subtitle's tokei credit, the coarse-pointer extension
+     note) are ~17px as bare inline boxes; give them a real hit box. */
+  .subtitle a,
+  .mobile-install-note a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+
   .copybtn {
     padding: 10px 14px;
   }
@@ -4483,7 +4492,9 @@ td.lang .row-share {
 
 .extension-other-stores { position: relative; }
 .extension-other-stores summary {
-  min-height: 34px;
+  /* Never below the tap floor (44px on touch) — the T17 summary rule, kept
+     alive here by max() instead of being overridden by this older 34px. */
+  min-height: max(34px, var(--tap-min));
   display: inline-flex;
   align-items: center;
   color: var(--fg-dim);
@@ -4761,6 +4772,12 @@ button.expand::before {
 
   .brand .brand-name {
     font-size: 20px;
+  }
+
+  /* T11 row is 64px tall; the brand link itself must clear the 44px touch
+     floor, not just the row it sits in. */
+  .brand {
+    min-height: 44px;
   }
 }
 

@@ -166,7 +166,17 @@ export function RepoHistoryChart({
   }, [data, isPinnedRef, reportCode, normalizedReportDate]);
 
   const suspects = useMemo(() => detectSuspects(mergedPoints), [mergedPoints]);
-  const domain = useMemo(() => timeDomain(mergedPoints), [mergedPoints]);
+  const domain = useMemo(() => {
+    const base = timeDomain(mergedPoints);
+    if (!base) return null;
+    // A pinned report is never merged, so its date can sit past the last
+    // sample (a fresh analysis of an old tag, or samples lagging a day).
+    // The dashed "this report" marker must still be reachable, so widen the
+    // domain to include the report date instead of dropping the marker.
+    if (!isPinnedRef || !normalizedReportDate) return base;
+    const reportTime = timeOf(normalizedReportDate);
+    return [Math.min(base[0], reportTime), Math.max(base[1], reportTime)];
+  }, [mergedPoints, isPinnedRef, normalizedReportDate]);
 
   // Interactive chart: rendered 1:1 at the measured container width so the
   // 12px axis text stays readable on phones (no viewBox downscaling). Fallback

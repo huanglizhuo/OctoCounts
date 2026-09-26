@@ -24,6 +24,27 @@ async function scrollUntilVisible(page: Page, selector: string) {
   await page.waitForSelector(selector, { timeout: 10000 });
 }
 
+// Minimal cached analyze response for tests that need a finished run without
+// the live API. `code` and `lines` are independent so assertions can tell a
+// code-line number from a total-lines number.
+function cachedReportFixture(repoUrl: string, code: number, lines: number) {
+  const [, owner = 'owner', repo = 'repo'] = new URL(repoUrl).pathname.split('/');
+  return {
+    id: `${owner}-${repo}-${code}`,
+    repository: { owner, name: repo, htmlUrl: repoUrl, provider: 'github' },
+    refName: 'main',
+    commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
+    generatedAt: '2026-09-08T01:02:03.000Z',
+    durationMs: 12,
+    cached: true,
+    tokeiVersion: 'tokei-12.1',
+    analysisKey: `key-${code}`,
+    analysisOptions: { ignoredDirs: [], ignoredLanguages: [], profile: 'default', includeDocs: false, includeTests: false, includeGenerated: false },
+    languages: [{ name: 'TypeScript', stats: { files: 1, lines, code, comments: 0, blanks: lines - code }, children: [] }],
+    total: { files: 1, lines, code, comments: 0, blanks: lines - code },
+  };
+}
+
 test.describe('OctoCounts visual QA', () => {
   test('1. desktop: demo report loads with donut and table rows', async ({ page }) => {
     await waitForReport(page);
@@ -50,7 +71,9 @@ test.describe('OctoCounts visual QA', () => {
 
   test('3. theme toggle switches matrix/paper and persists across reload', async ({ page }) => {
     await waitForReport(page);
-    const toggle = page.locator('button.theme-toggle');
+    // Two toggles exist in the DOM (desktop controls + the <=720px site menu
+    // panel); scope to the desktop one this viewport actually shows.
+    const toggle = page.locator('.topbar-controls .theme-toggle');
     await expect(toggle).toBeVisible();
 
     const readScheme = () => page.evaluate(() => document.documentElement.dataset.scheme);
@@ -65,9 +88,9 @@ test.describe('OctoCounts visual QA', () => {
 
     await page.reload();
     // Theme restores before first paint via localStorage; wait for React to mount.
-    await page.waitForSelector('button.theme-toggle', { timeout: 10000 });
+    await page.waitForSelector('.topbar-controls .theme-toggle', { timeout: 10000 });
     expect(await readScheme()).toBe(expected);
-    await expect(page.locator('button.theme-toggle')).toHaveAttribute('aria-pressed', String(expected === 'matrix'));
+    await expect(page.locator('.topbar-controls .theme-toggle')).toHaveAttribute('aria-pressed', String(expected === 'matrix'));
   });
 
   test('4. language switcher to Chinese renders new strings', async ({ page }) => {
@@ -93,8 +116,21 @@ test.describe('OctoCounts visual QA', () => {
     await context.close();
   });
 
-  test('6. sticky bar appears after scrolling past runner header', async ({ page }) => {
-    await waitForReport(page);
+  test('6. sticky bar appears after scrolling past runner header and shows code lines', async ({ page }) => {
+    // The homepage now opens on the read-only example report (demo mode has
+    // no sticky bar); run a real — mocked, cached — analysis to get the full
+    // runner. Total lines differ from code lines so the assertion can tell
+    // the sticky bar reports CODE.
+    await page.route('**/api/analyze', (route) => route.fulfill({ json: {
+      kind: 'cached',
+      reportId: 'sticky-demo',
+      report: cachedReportFixture('https://github.com/example/sticky', 4321, 5555),
+    } }));
+    await page.goto(BASE_URL);
+    await page.locator('#repo-url').fill('https://github.com/example/sticky');
+    await page.getByRole('button', { name: 'Analyze' }).click();
+    await expect(page.locator('.runner-repo')).toHaveText('example/sticky');
+
     const hasSticky = async () => page.evaluate(() => !!document.querySelector('.sticky-bar'));
     expect(await hasSticky()).toBe(false);
 
@@ -106,6 +142,8 @@ test.describe('OctoCounts visual QA', () => {
     await page.waitForTimeout(400);
 
     expect(await hasSticky()).toBe(true);
+    await expect(page.locator('.sticky-bar .sticky-stats')).toContainText('4,321 code');
+    await expect(page.locator('.sticky-bar .sticky-stats')).not.toContainText('5,555');
   });
 
   test('7. pipeline section is present in How It Works', async ({ page }) => {

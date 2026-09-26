@@ -25,15 +25,14 @@ import { TrustDetails } from "./TrustDetails";
 // own export helpers; keep it out of the critical bundle.
 const RepoHistoryChart = React.lazy(() => import("../RepoHistoryChart").then((m) => ({ default: m.RepoHistoryChart })));
 
-// Runner receives no explicit-ref signal from its host (the input form lives
-// in main.tsx), so "pinned" is decided from the ref itself: a commit sha is
-// by definition a pinned observation, anything else (branch/tag) is the kind
-// of ref the history series can merge into.
+// A commit sha is by definition a pinned observation even when the host did
+// not say so (e.g. a sha typed into the homepage ref box); anything else
+// (branch/tag) merges into the history series unless the URL pinned it.
 function isCommitRef(refName: string) {
   return /^[0-9a-f]{7,40}$/i.test(refName);
 }
 
-export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full" }) {
+export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full", isPinnedRef = false }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full"; isPinnedRef?: boolean }) {
   const { t, i18n } = useTranslation();
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -222,7 +221,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
                 reportDate={report.generatedAt.slice(0, 10)}
                 reportCode={report.total.code}
                 reportRef={report.refName}
-                isPinnedRef={isCommitRef(report.refName)}
+                isPinnedRef={isPinnedRef || isCommitRef(report.refName)}
               />
             </Suspense>
             <ShareSection

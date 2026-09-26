@@ -61,10 +61,12 @@ test.describe("analysis behavior regressions", () => {
     const ref = page.locator("#repo-ref");
     await expect(ref).toHaveValue("main");
     await page.getByRole("button", { name: "Analyze" }).click();
-    await expect.poll(() => requests.some((request) => request.repoUrl.includes("huanglizhuo/OctoCounts") && request.refName === "main")).toBe(true);
+    // An empty form falls back to the demo seed repo (facebook/react) while
+    // keeping the homepage's "main" suggestion.
+    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "main")).toBe(true);
     await ref.fill("release");
     await page.getByRole("button", { name: "Analyze" }).click();
-    await expect.poll(() => requests.some((request) => request.repoUrl.includes("huanglizhuo/OctoCounts") && request.refName === "release")).toBe(true);
+    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "release")).toBe(true);
 
     await repo.fill("https://github.com/example/plain-repo");
     await expect(ref).toHaveValue("release");
@@ -124,11 +126,20 @@ test.describe("analysis behavior regressions", () => {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new Error("denied")) } });
       document.execCommand = () => false;
     });
+    await page.route("**/api/analyze", (route) => {
+      const request = route.request().postDataJSON() as { repoUrl: string };
+      route.fulfill({ json: { kind: "cached", reportId: "manual", report: reportFor(request.repoUrl, 321) } });
+    });
     await page.goto(BASE_URL);
+    // The share actions live in the full runner now — the homepage opens on
+    // the read-only example report — so finish a (mocked) run first.
+    await page.locator("#repo-url").fill("https://github.com/example/manual");
+    await page.getByRole("button", { name: "Analyze" }).click();
+    await expect(page.locator(".runner-repo")).toHaveText("example/manual");
     await page.locator("button").filter({ hasText: "report URL" }).click();
     const manual = page.locator(".manual-copy");
     await expect(manual).toBeVisible();
-    await expect(manual).toHaveValue(/\/github\/huanglizhuo\/OctoCounts\/commit\//);
+    await expect(manual).toHaveValue(/\/github\/example\/manual\/commit\//);
   });
 
   test("a timed-out POST releases the UI and ignores its late response", async ({ page }) => {
@@ -193,10 +204,12 @@ test.describe("analysis behavior regressions", () => {
     await expect(install).toHaveAttribute("href", /chromewebstore\.google\.com/);
   });
 
-  test("the compact extension guide immediately follows Runner without deferred blank space", async ({ page }) => {
+  test("the compact extension guide immediately follows the example report without deferred blank space", async ({ page }) => {
     await page.goto(BASE_URL);
     const extension = page.locator("#extension");
-    const runner = page.getByRole("heading", { name: "Runner" }).locator("..").locator("..");
+    // First load shows the demo seed, so the runner section's heading is
+    // "Example report" (it reads "Runner" again once a real run starts).
+    const runner = page.getByRole("heading", { name: "Example report" }).locator("..").locator("..");
     await expect(extension).toBeVisible();
     expect(await runner.evaluate((node) => node.nextElementSibling?.id)).toBe("extension");
     const intrinsicSize = await page.locator(".deferred-slot").first().evaluate((node) => getComputedStyle(node).containIntrinsicBlockSize);
@@ -207,7 +220,17 @@ test.describe("analysis behavior regressions", () => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: {
       provider: "github", owner: "huanglizhuo", repo: "OctoCounts", currentStars: 0, starPoints: [], slocPoints: [{ date: "2026-01-01", totalLines: 100 }, { date: "2026-09-08", totalLines: 200 }], slocBackfillInProgress: false, starBackfillAvailable: false, starBackfillInProgress: false,
     } }));
+    await page.route("**/api/analyze", (route) => {
+      const request = route.request().postDataJSON() as { repoUrl: string };
+      route.fulfill({ json: { kind: "cached", reportId: "hist", report: reportFor(request.repoUrl, 200) } });
+    });
     await page.goto(BASE_URL);
+    // The history chart is part of the full runner; the homepage's example
+    // report does not include it, so run a (mocked) analysis first. The
+    // mocked report counts 200 code lines on 2026-09-08, which merges as the
+    // series' last point — the value "End" must land on.
+    await page.locator("#repo-url").fill("https://github.com/huanglizhuo/OctoCounts");
+    await page.getByRole("button", { name: "Analyze" }).click();
     await expect(page.locator(".repo-history")).toBeVisible();
     await page.locator(".repo-history-chart svg").focus();
     await page.keyboard.press("End");
@@ -344,5 +367,173 @@ test.describe("language share donut", () => {
     });
     expect(inside).not.toBeNull();
     expect(inside!.number).toBeLessThanOrEqual(inside!.ring * 0.58 + 0.5);
+  });
+});
+
+// Report-route structure and the report-aware history chart (T23). Deterministic:
+// both the analyze and the repo-history endpoints are route-mocked, and the
+// auxiliary report-page endpoints (live stars, similar repos) fail closed.
+test.describe("report page structure and history chart (T23)", () => {
+  const SAMPLES = [
+    { date: "2026-01-01", totalLines: 1000 },
+    { date: "2026-04-01", totalLines: 300 }, // suspect dip: under half of both neighbours
+    { date: "2026-07-01", totalLines: 1200 },
+    { date: "2026-09-07", totalLines: 1400 },
+  ];
+
+  function historyFixture(points: Array<{ date: string; totalLines: number }>) {
+    return {
+      provider: "github", owner: "example", repo: "widgets", currentStars: 0, starPoints: [],
+      slocPoints: points, slocBackfillInProgress: false, starBackfillAvailable: false, starBackfillInProgress: false,
+    };
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/repo-info*", (route) => route.fulfill({ json: { stars: null } }));
+    await page.route("**/api/seo/related*", (route) => route.fulfill({ json: { reports: [] } }));
+  });
+
+  test("the report route renders exactly one h1 naming owner/repo", async ({ page }) => {
+    await page.goto(`${BASE_URL}/github/example/widgets`);
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator("h1")).toHaveText("example/widgets");
+    // The TopActions status pill is gone; the hero subtitle is the report line.
+    await expect(page.locator(".report-route-sub")).toContainText(/SLOC report/);
+  });
+
+  test("the history chart draws Y-axis gridlines and ticks, dots every point, and flags suspect samples", async ({ page }) => {
+    await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
+    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "axis", report: reportFor("https://github.com/example/widgets", 1500) } }));
+    await page.goto(`${BASE_URL}/github/example/widgets`);
+    await expect(page.locator(".repo-history")).toBeVisible();
+
+    // Y axis: [0, max/2, max] gridlines with compact tick labels.
+    await expect(page.locator(".repo-history-gridline")).toHaveCount(3);
+    await expect(page.locator(".repo-history-axis-tick")).toHaveCount(3);
+    // A dot on every point: 4 samples plus the merged report point (below).
+    await expect(page.locator(".repo-history-point")).toHaveCount(5);
+    // The partial-backfill dip renders hollow and dashes the segments hugging it.
+    await expect(page.locator(".repo-history-point-suspect")).toHaveCount(1);
+    const dashedSegments = await page.locator(".repo-history-sloc-line").evaluateAll(
+      (nodes) => nodes.filter((node) => node.getAttribute("stroke-dasharray")).length,
+    );
+    expect(dashedSegments).toBeGreaterThanOrEqual(2);
+  });
+
+  test("a pinned-ref report shows the this-report marker instead of merging", async ({ page }) => {
+    await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
+    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "pinned", report: { ...reportFor("https://github.com/example/widgets", 2500), refName: "v1.0.0" } } }));
+    await page.goto(`${BASE_URL}/github/example/widgets/tree/v1.0.0`);
+    await expect(page.locator(".report-route-sub")).toContainText("SLOC report · v1.0.0");
+    await expect(page.locator(".repo-history")).toBeVisible();
+
+    // Dashed vertical + labelled dot at the report's commit date…
+    await expect(page.locator(".repo-history-report-line")).toHaveCount(1);
+    await expect(page.locator(".repo-history-report-label")).toHaveText("this report · v1.0.0");
+    await expect(page.locator(".repo-history-report-count")).toContainText("2,500");
+    // …and nothing merged: the series stays the endpoint's four samples.
+    await expect(page.locator(".repo-history-point")).toHaveCount(4);
+  });
+
+  test("a default-branch report merges its code count as the chart's last point", async ({ page }) => {
+    await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
+    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "merged", report: reportFor("https://github.com/example/widgets", 2500) } }));
+    await page.goto(`${BASE_URL}/github/example/widgets`);
+    await expect(page.locator(".repo-history")).toBeVisible();
+
+    // No marker for an unpinned report…
+    await expect(page.locator(".repo-history-report-line")).toHaveCount(0);
+    // …its count becomes the series' final point, so the chart header number
+    // equals the mocked report's code lines (after the 1.4s count-up).
+    await expect(page.locator(".repo-history-count")).toContainText("2,500", { timeout: 6000 });
+    await expect(page.locator(".summary .cell.accent .val")).toContainText("2,500");
+    await expect(page.locator(".repo-history-point")).toHaveCount(5);
+    await page.locator(".repo-history-data summary").click();
+    await expect(page.locator(".repo-history-data tbody tr").last()).toContainText("2,500");
+  });
+});
+
+// Touch/mobile floors (T23): coarse-pointer phones hide the install CTAs and
+// every interactive element stays >=44px tall, every text >=12px.
+test.describe("responsive tap and type floors (T23)", () => {
+  test("mobile 390x844 swaps install CTAs for the desktop-only note and keeps tap/type floors", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await context.newPage();
+    await page.goto(BASE_URL);
+    await page.waitForSelector("#repo-url", { timeout: 10000 });
+
+    // First screen: no Chrome install primary button; the coarse-pointer note replaces the CTAs.
+    await expect(page.locator(".mobile-install-note").first()).toBeVisible();
+    const renderedInstalls = await page.locator("a.install-btn").evaluateAll(
+      (nodes) => nodes.filter((node) => node.getClientRects().length > 0).length,
+    );
+    expect(renderedInstalls).toBe(0);
+
+    // Materialize the deferred below-fold sections, then audit the whole page.
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" as ScrollBehavior }));
+    await page.waitForSelector(".tools-grid .developer-tool", { timeout: 10000 });
+    await page.waitForTimeout(400);
+
+    const audit = await page.evaluate(() => {
+      const issues: Array<{ kind: string; selector: string; detail: string }> = [];
+      const describe = (element: Element) => {
+        const tag = element.tagName.toLowerCase();
+        const cls = typeof element.className === "string" && element.className ? `.${element.className.trim().split(/\s+/).join(".")}` : "";
+        const text = element.textContent?.trim().replace(/\s+/g, " ").slice(0, 30);
+        return `${tag}${cls}${text ? ` "${text}"` : ""}`;
+      };
+      const rendered = (element: Element) => {
+        if (element.closest(".visually-hidden, .skip-link")) return false;
+        if (element.closest("[aria-hidden='true']")) return false;
+        // Collapsed disclosures only expose their summary; the hidden panel
+        // content still lays out in Chromium, so skip it explicitly.
+        const collapsed = element.closest("details:not([open])");
+        if (collapsed && !(element.tagName === "SUMMARY" && element.closest("details") === collapsed)) return false;
+        const style = getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden") return false;
+        return element.getClientRects().length > 0;
+      };
+      for (const element of document.querySelectorAll("a, button, summary, select, input")) {
+        if (!rendered(element)) continue;
+        const height = element.getBoundingClientRect().height;
+        if (height < 44 - 0.5) issues.push({ kind: "tap", selector: describe(element), detail: `height ${height.toFixed(1)}px` });
+      }
+      const seen = new Set<Element>();
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const element = node.parentElement;
+        if (!element || seen.has(element)) continue;
+        seen.add(element);
+        if (!rendered(element)) continue;
+        if (element.closest("svg")) continue; // decorative SVG text (chart ticks)
+        const fontSize = parseFloat(getComputedStyle(element).fontSize);
+        if (fontSize < 12 - 0.25) {
+          issues.push({ kind: "type", selector: describe(element), detail: `font-size ${fontSize.toFixed(1)}px: ${element.textContent?.trim().slice(0, 40)}` });
+        }
+      }
+      return issues;
+    });
+    expect(audit, JSON.stringify(audit, null, 2)).toEqual([]);
+    await context.close();
+  });
+
+  test("desktop 1440 keeps exactly one primary button in the first viewport of the homepage", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(BASE_URL);
+    await page.waitForSelector("#repo-url", { timeout: 10000 });
+    const primaries = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".btn"))
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          if (style.display === "none" || style.visibility === "hidden") return false;
+          const rect = element.getBoundingClientRect();
+          return rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
+        })
+        .map((element) => element.textContent?.trim()),
+    );
+    expect(primaries).toEqual(["Analyze"]);
+    await context.close();
   });
 });
