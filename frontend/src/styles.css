@@ -3754,9 +3754,15 @@ td.lang .row-share {
 .deferred-slot {
   min-height: 0;
   content-visibility: auto;
-  /* Reserve only a line until IntersectionObserver mounts the real content.
-     A 640px fallback made every untouched lower section look like blank UI. */
-  contain-intrinsic-size: auto 1px;
+  /* Each call site sizes --deferred-estimate to its section (see
+     DeferredContent). The estimate stands in for the section's height until
+     the IntersectionObserver mounts it, so the scrollbar approximates the
+     final layout instead of lurching when real content replaces the old 1px
+     shim; `auto` hands over to the browser's remembered size once the
+     section has actually rendered. No single global value: a 640px fallback
+     made every untouched section look like blank UI, 1px made the page grow
+     under the visitor's thumb while scrolling. */
+  contain-intrinsic-size: auto var(--deferred-estimate, 240px);
 }
 
 /* Table scroll affordance: right-edge shadow that fades out at scroll end */

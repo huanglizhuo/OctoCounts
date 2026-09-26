@@ -216,6 +216,12 @@ test.describe("analysis behavior regressions", () => {
     await expect(extension).toBeVisible();
     expect(await runner.evaluate((node) => node.nextElementSibling?.id)).toBe("extension");
     const intrinsicSize = await page.locator(".deferred-slot").first().evaluate((node) => getComputedStyle(node).containIntrinsicBlockSize);
+    // The slot reserves a real per-section estimate (not the old 1px shim
+    // that made the page lurch as deferred content mounted)…
+    const estimatePx = Number(intrinsicSize.match(/(\d+(?:\.\d+)?)px/)?.[1]);
+    expect(estimatePx).toBeGreaterThan(1);
+    // …but it is sized per section, never the blanket 640px reservation
+    // that made untouched sections look like blank space.
     expect(intrinsicSize).not.toContain("640px");
   });
 
@@ -475,7 +481,19 @@ test.describe("responsive tap and type floors (T23)", () => {
     expect(renderedInstalls).toBe(0);
 
     // Materialize the deferred below-fold sections, then audit the whole page.
-    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" as ScrollBehavior }));
+    // Deferred slots now reserve realistic heights, so a single instant jump
+    // to the bottom skips the mid-page observers — step through the page like
+    // a real scroll so every section materializes.
+    for (let step = 0; ; step += 1) {
+      const settled = await page.evaluate(async () => {
+        const before = window.scrollY;
+        window.scrollBy({ top: Math.round(window.innerHeight * 0.75), behavior: "instant" as ScrollBehavior });
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        return window.scrollY <= before;
+      });
+      await page.waitForTimeout(120);
+      if (settled) break;
+    }
     await page.waitForSelector(".tools-grid .developer-tool", { timeout: 10000 });
     await page.waitForTimeout(400);
 

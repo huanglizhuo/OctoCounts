@@ -13,17 +13,42 @@ import { downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalized
 import { isHostDegraded, useGithubStatus } from "../githubStatus";
 import type { AppStatus, Report } from "../types";
 import { Charts } from "./Charts";
-import { Insights } from "./Insights";
 import { ReportActions } from "./ReportActions";
-import { ShareSection, ShareTickerCard } from "./Share";
-import { SimilarRepos } from "./SimilarRepos";
 import { StarBadge, buildSnapshotReportUrl } from "./shared";
 import { Summary } from "./Summary";
-import { TrustDetails } from "./TrustDetails";
 
 // The history chart only renders after a report completes, and it drags its
 // own export helpers; keep it out of the critical bundle.
 const RepoHistoryChart = React.lazy(() => import("../RepoHistoryChart").then((m) => ({ default: m.RepoHistoryChart })));
+
+// Full-report-only extras, all below the fold of a finished report: the
+// share showcase (with the offscreen PNG capture card), similar
+// repositories, and the insights/trust readouts inside Technical details.
+// None of them render in the demo variant, so loading them as chunks keeps
+// the share/export code out of the homepage entry entirely. Both Share
+// exports come from the same module, so the preview section and the capture
+// card share one chunk; the export flow waits for that chunk below.
+const ShareSection = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareSection })));
+const ShareTickerCard = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareTickerCard })));
+const SimilarRepos = React.lazy(() => import("./SimilarRepos").then((m) => ({ default: m.SimilarRepos })));
+const Insights = React.lazy(() => import("./Insights").then((m) => ({ default: m.Insights })));
+const TrustDetails = React.lazy(() => import("./TrustDetails").then((m) => ({ default: m.TrustDetails })));
+
+// The share-card chunk is lazy, so "mounted" is no longer two frames after
+// setState — the chunk may still be downloading when the export click lands.
+// Poll animation frames until the offscreen card commits (or the budget
+// expires and the caller surfaces the retryable export error).
+function waitForMountedCard(ref: React.RefObject<HTMLDivElement | null>, budgetMs: number): Promise<HTMLDivElement | null> {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const tick = () => {
+      if (ref.current) resolve(ref.current);
+      else if (Date.now() - startedAt > budgetMs) resolve(null);
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
 
 // A commit sha is by definition a pinned observation even when the host did
 // not say so (e.g. a sha typed into the homepage ref box); anything else
@@ -65,7 +90,11 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
   const [liveStars, setLiveStars] = useState<number | null>(null);
   useEffect(() => {
     setLiveStars(null);
-    if (!report) return;
+    // Demo variant never refreshes stars: the only consumers (sticky bar,
+    // share card, trust grid) are full-report UI, so the homepage example
+    // must not pay the /api/repo-info round trip. A real run flips isDemo,
+    // the effect re-runs, and the finished report refreshes as before.
+    if (!report || isDemo) return;
     const controller = new AbortController();
     // 800ms was too tight from a cold browser: DNS + TLS + the Cloudflare
     // edge/tunnel path plus a cold GitHub fetch measured 0.8-1.4s end to end,
@@ -78,7 +107,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
       .then((payload) => { if (typeof payload.stars === "number") setLiveStars(payload.stars); })
       .catch(() => {});
     return () => { window.clearTimeout(timeout); controller.abort(); };
-  }, [report]);
+  }, [report, isDemo]);
   const [elapsedSec, setElapsedSec] = useState(0);
   useEffect(() => {
     if (!isWorking) {
@@ -114,11 +143,12 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
     setExportError(null);
     setExportMount(true);
     try {
-      // Two animation frames: the first lets React commit the offscreen card,
-      // the second guarantees a layout pass before anything reads geometry.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      const node = exportCardRef.current;
+      // The offscreen card lives in the lazy Share chunk; wait for it to
+      // actually commit, then one more frame guarantees a layout pass
+      // before anything reads geometry.
+      const node = await waitForMountedCard(exportCardRef, 5000);
       if (!node) throw new Error("share card not mounted");
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       // Fonts must be resolved before capture or the PNG rasterizes fallback
       // glyphs. (The card embeds no raster images — its star mark is inline
       // SVG — so there is nothing further to decode.)
@@ -251,14 +281,23 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
                 isPinnedRef={isPinnedRef || isCommitRef(report.refName)}
               />
             </Suspense>
-            <ShareSection
-              report={report}
-              stars={stars}
-              isExporting={isExporting}
-              exportError={exportError}
-              onExportPng={() => void exportPng()}
-            />
-            <SimilarRepos report={report} />
+            {/* Summary, Charts and the action bar stay eager: they are the
+                content the visitor is waiting for. Everything below is a
+                below-fold extra in its own Suspense boundary (null fallback —
+                a shared boundary would flash siblings back to the fallback
+                whenever a later chunk resolved). */}
+            <Suspense fallback={null}>
+              <ShareSection
+                report={report}
+                stars={stars}
+                isExporting={isExporting}
+                exportError={exportError}
+                onExportPng={() => void exportPng()}
+              />
+            </Suspense>
+            <Suspense fallback={null}>
+              <SimilarRepos report={report} />
+            </Suspense>
             <TechnicalDetails
               report={report}
               stars={stars}
@@ -271,7 +310,11 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
       ) : null}
       {exportMount && report ? (
         <div className="share-export-target" aria-hidden="true">
-          <ShareTickerCard ref={exportCardRef} report={report} stars={stars} />
+          {/* The capture card comes from the same lazy chunk as the share
+              section; exportPng polls the ref until it commits. */}
+          <Suspense fallback={null}>
+            <ShareTickerCard ref={exportCardRef} report={report} stars={stars} />
+          </Suspense>
         </div>
       ) : null}
     </div>
@@ -300,14 +343,18 @@ function TechnicalDetails({
   return (
     <details className="report-details technical-details">
       <summary>{t("runner.technicalDetails")}</summary>
-      <Insights report={report} />
+      <Suspense fallback={null}>
+        <Insights report={report} />
+      </Suspense>
       <div className="run-facts">
         <span>{t("runner.generated", { date: fullTimestamp, duration: report.durationMs, version: report.tokeiVersion })}</span>
         <span className={report.cached ? "ok" : ""}>{report.cached ? t("runner.cacheHit") : t("runner.freshRun")} · {report.durationMs}ms</span>
         <code>$ {command}</code>
       </div>
       {runLog}
-      <TrustDetails report={report} stars={stars} />
+      <Suspense fallback={null}>
+        <TrustDetails report={report} stars={stars} />
+      </Suspense>
       <p className="methodology-note">
         {t("runner.methodology")} <a href="/docs/methodology">{t("runner.methodologyLink")}</a>
       </p>

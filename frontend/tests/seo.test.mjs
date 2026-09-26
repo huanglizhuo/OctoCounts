@@ -177,7 +177,15 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const topbar = await readFile(new URL("src/Topbar.tsx", ROOT), "utf8");
 
   assert.match(html, /preconnect" href="https:\/\/api\.octocounts\.com"/);
-  assert.match(html, /preload" as="font" href="\/fonts\/jetbrains-mono-800-latin\.woff2"/);
+  // Font preloads must match what the first screen actually renders in
+  // JetBrains Mono: exactly the 700 weight (the topbar brand wordmark). No
+  // CSS rule renders mono at 800 — the hero h1's font-weight:800 sits on the
+  // system sans stack — so an 800 preload was ~20.7 KiB of unused critical
+  // weight. Pin the preload set to the one critical face so a future
+  // dead preload fails here instead of shipping.
+  const fontPreloads = html.match(/<link rel="preload" as="font"[^>]*>/g) ?? [];
+  assert.equal(fontPreloads.length, 1, `expected exactly the 700 font preload, got: ${fontPreloads.join(" ")}`);
+  assert.match(fontPreloads[0] ?? "", /\/fonts\/jetbrains-mono-700-latin\.woff2/);
   assert.match(html, /<script>\{let t=null;try\{t=localStorage\.getItem\("octocounts\.theme"\)\}catch\{\}document\.documentElement\.dataset\.scheme=/);
   assert.doesNotMatch(html, /\/boot\.js/);
   assert.doesNotMatch(html, /octocounts-(?:light|dark)-card\.webp" as="image"/);

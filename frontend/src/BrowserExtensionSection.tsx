@@ -11,11 +11,33 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
   return (
     <div className={`extension-panel ${compact ? "extension-panel-compact" : ""}`}>
       <div className="extension-preview">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card-768.webp 768w, /octocounts-dark-card.webp 1280w" sizes="(max-width: 900px) 100vw, 50vw" />
-          <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card-768.webp 768w, /octocounts-light-card.webp 1280w" sizes="(max-width: 900px) 100vw, 50vw" />
-          <img src="/octocounts-light-card-768.webp" alt={t("extensionSection.previewAlt")} loading="lazy" width="1280" height="800" />
-        </picture>
+        {compact ? (
+          /* Compact promo (homepage). sizes derivation from styles.css:
+             below 980px `.extension-panel-compact .extension-preview` is
+             display:none, so the lazy image never loads there; above 980px
+             the preview column box is ~318–409px wide, but the bitmap is
+             capped by `max-height: 154px` + aspect-ratio 16/10 +
+             object-fit: contain, so at most 154 × 1.6 ≈ 246px of it is ever
+             painted. Declaring the painted slot (240px, rounded down so the
+             480w file is the exact 2x pick) selects: 320w at 1x, 480w at 2x
+             (≈1.95x real density — no upscaling), 768w at 3x. No 1280w
+             candidate: 3x of 240 is 720, under 768. */
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card-320.webp 320w, /octocounts-dark-card-480.webp 480w, /octocounts-dark-card-768.webp 768w" sizes="(max-width: 980px) 100vw, 240px" />
+            <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card-320.webp 320w, /octocounts-light-card-480.webp 480w, /octocounts-light-card-768.webp 768w" sizes="(max-width: 980px) 100vw, 240px" />
+            <img src="/octocounts-light-card-480.webp" alt={t("extensionSection.previewAlt")} loading="lazy" width="480" height="300" />
+          </picture>
+        ) : (
+          /* Full promo (/extension-style hero). The panel drops to one column
+             at the 980px CSS breakpoint (not 900) and the preview column takes
+             the 1.35fr share ≈ 62% of the panel above it, so sizes tracks
+             that; the 1280w file stays available for high-DPR. */
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcSet="/octocounts-dark-card-768.webp 768w, /octocounts-dark-card.webp 1280w" sizes="(max-width: 980px) 100vw, 62vw" />
+            <source media="(prefers-color-scheme: light)" srcSet="/octocounts-light-card-768.webp 768w, /octocounts-light-card.webp 1280w" sizes="(max-width: 980px) 100vw, 62vw" />
+            <img src="/octocounts-light-card-768.webp" alt={t("extensionSection.previewAlt")} loading="lazy" width="1280" height="800" />
+          </picture>
+        )}
       </div>
       <div className="extension-copy">
         <div className="terminal-label">{t("extensionSection.terminalLabel")}</div>

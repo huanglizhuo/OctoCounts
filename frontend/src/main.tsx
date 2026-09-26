@@ -116,9 +116,18 @@ function useNearViewport<T extends HTMLElement>(rootMargin = "600px") {
   return { ref, isNear };
 }
 
-function DeferredContent({ children, rootMargin = "300px" }: { children: ReactNode; rootMargin?: string }) {
+// Wraps below-fold sections for IntersectionObserver-deferred mounting.
+// `estimatePx` feeds the slot's content-visibility intrinsic size so the
+// scrollbar approximates each section's real height before it mounts —
+// sized per call site because the sections differ a lot (a one-line link
+// grid vs. a multi-row tools grid), so no single value fits all.
+function DeferredContent({ children, rootMargin = "300px", estimatePx = 240 }: { children: ReactNode; rootMargin?: string; estimatePx?: number }) {
   const { ref, isNear } = useNearViewport<HTMLDivElement>(rootMargin);
-  return <div className="deferred-slot" ref={ref}>{isNear ? children : null}</div>;
+  return (
+    <div className="deferred-slot" ref={ref} style={{ "--deferred-estimate": `${estimatePx}px` } as React.CSSProperties}>
+      {isNear ? children : null}
+    </div>
+  );
 }
 
 const defaultAnalysisOptions: AnalysisOptions = {
@@ -566,7 +575,11 @@ function App() {
         </section> : null}
 
         {!isReportRoute && <>
-        <DeferredContent><PublicReportIndex /></DeferredContent>
+        {/* Section height estimates (desktop layout; the browser swaps in the
+            remembered real size after first render): one row of index cards,
+            a 3-row tools grid, a one-row use-case strip, and the pipeline +
+            two rows of steps. */}
+        <DeferredContent estimatePx={160}><PublicReportIndex /></DeferredContent>
 
         {/* One Tools grid replaces the four full forms that used to be embedded
             here (badge builder + wall, developer tools, compare, ref diff).
@@ -576,7 +589,7 @@ function App() {
             <h2>{t("tools.title")}</h2>
             <span className="sub">{t("tools.subtitle")}</span>
           </div>
-          <DeferredContent><ToolsGrid /></DeferredContent>
+          <DeferredContent estimatePx={480}><ToolsGrid /></DeferredContent>
         </section>
 
         <section className="section-compact">
@@ -584,7 +597,7 @@ function App() {
             <h2>{t("useCases.title")}</h2>
             <span className="sub">{t("useCases.subtitle")}</span>
           </div>
-          <DeferredContent>
+          <DeferredContent estimatePx={220}>
             <div className="how">
               {(t("useCases.cases", { returnObjects: true }) as Array<{ title: string; text: string }>).map((item, idx) => (
                 <div className="step" key={idx}>
@@ -601,7 +614,7 @@ function App() {
             <h2>{t("howItWorks.title")}</h2>
             <span className="sub">{t("howItWorks.subtitle")}</span>
           </div>
-          <DeferredContent>
+          <DeferredContent estimatePx={520}>
             <Pipeline />
             <div className="how">
               {(t("howItWorks.steps", { returnObjects: true }) as Array<{ num: string; title: string; text: string; code: string }>).map((step) => (

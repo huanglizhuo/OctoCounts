@@ -19,7 +19,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://api.octocounts.com" crossorigin />
-    <link rel="preload" as="font" href="/fonts/jetbrains-mono-800-latin.woff2" type="font/woff2" crossorigin />
+    <!-- Only the mono 700 is preloaded: the topbar brand wordmark renders it
+         on the first screen. No CSS rule renders JetBrains Mono at 800 (the
+         hero h1's font-weight:800 sits on the system sans stack), so its
+         ~20.7 KiB preload was pure dead critical-path weight; the face itself
+         stays declared in styles.css for any future 800 mono text. -->
     <link rel="preload" as="font" href="/fonts/jetbrains-mono-700-latin.woff2" type="font/woff2" crossorigin />
     <script>{let t=null;try{t=localStorage.getItem("octocounts.theme")}catch{}document.documentElement.dataset.scheme="matrix"===t||"paper"===t?t:matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper"}try{const p=new URLSearchParams(location.search),l=p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l&&l!=="en")document.documentElement.lang=l}catch{}</script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4f3a87a4-fd4c-4dc5-8959-8fcf93e858c7"></script>
