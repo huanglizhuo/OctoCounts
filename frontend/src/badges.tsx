@@ -145,12 +145,20 @@ export function parsePublicRepo(value: string) {
   }
 }
 
-export function buildPublicReportUrl(owner: string, repo: string, ref: string) {
+// Path form first: rendered <a href>s use it directly so the build-time
+// prerender (which has no real origin) and the client hydration render
+// produce identical hrefs on every host. Absolute URLs (share text, badges,
+// embeds) wrap the path with the current origin.
+export function buildPublicReportPath(owner: string, repo: string, ref: string) {
   const ownerPath = encodeURIComponent(owner);
-  const base = `${window.location.origin}/github/${ownerPath}/${encodeURIComponent(repo)}`;
+  const base = `/github/${ownerPath}/${encodeURIComponent(repo)}`;
   if (!ref.trim()) return base;
   const marker = looksLikeCommit(ref) ? "commit" : "tree";
   return `${base}/${marker}/${encodeRefPath(ref)}`;
+}
+
+export function buildPublicReportUrl(owner: string, repo: string, ref: string) {
+  return `${window.location.origin}${buildPublicReportPath(owner, repo, ref)}`;
 }
 
 function encodeRefPath(ref: string) {

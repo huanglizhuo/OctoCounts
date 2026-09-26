@@ -307,6 +307,10 @@
       "report": "缓存报告"
     }
   },
+  "homeFaq": {
+    "title": "常见问题",
+    "subtitle": "关于 SLOC、OctoCounts 与导出"
+  },
   "footer": {
     "tagline": "OctoCounts // 公开 GitHub 仓库的实际 SLOC",
     "navAria": "页脚",

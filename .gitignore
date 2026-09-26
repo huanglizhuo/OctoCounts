@@ -14,6 +14,7 @@
 # Node/Vite
 /frontend/node_modules/
 /frontend/dist/
+/frontend/.wrangler/
 /extension/node_modules/
 /extension/dist/
 /extension/packages/

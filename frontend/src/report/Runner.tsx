@@ -11,11 +11,25 @@ import { fetchJson } from "../api";
 import { AnalyticsEvents, trackEvent } from "../analytics";
 import { downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalizedProvider, progressValue } from "../reportUtils";
 import { isHostDegraded, useGithubStatus } from "../githubStatus";
+import { usePrerenderedHome } from "../prerenderContext";
 import type { AppStatus, Report } from "../types";
 import { Charts } from "./Charts";
 import { ReportActions } from "./ReportActions";
-import { StarBadge, buildSnapshotReportUrl } from "./shared";
+import { StarBadge, buildSnapshotReportPath } from "./shared";
 import { Summary } from "./Summary";
+
+// Deterministic replacement for the runner head's timestamp while the
+// prerendered home has not hydrated yet: an explicit-UTC Intl format renders
+// identically in the build-time prerender (Node) and in the browser's first
+// hydration render, where the visitor's timezone and Date.now()-relative
+// phrasing would otherwise mismatch the served markup.
+function stableTimestamp(iso: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
 
 // The history chart only renders after a report completes, and it drags its
 // own export helpers; keep it out of the critical bundle.
@@ -172,7 +186,19 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
   };
 
   const stars = liveStars ?? report?.repository.stars ?? null;
-  const fullTimestamp = report ? new Date(report.generatedAt).toLocaleString(i18n.language) : "";
+  // On the prerendered home, the head's meta line renders the deterministic
+  // UTC form until mount, then switches to the live locale time + relative
+  // phrasing — a controlled post-hydration update, never a mismatch.
+  const prerenderedHome = usePrerenderedHome();
+  const [liveMeta, setLiveMeta] = useState(!prerenderedHome);
+  useEffect(() => {
+    if (!liveMeta) setLiveMeta(true);
+  }, [liveMeta]);
+  const fullTimestamp = report
+    ? liveMeta
+      ? new Date(report.generatedAt).toLocaleString(i18n.language)
+      : stableTimestamp(report.generatedAt, i18n.language)
+    : "";
 
   return (
     <div className="runner">
@@ -232,7 +258,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
             <span className="runner-meta">
               {report.refName} · {report.commitSha.slice(0, 7)} ·{" "}
               {/* 7-char sha for display only — URLs and exports keep the 12-char form. */}
-              <time dateTime={report.generatedAt} title={fullTimestamp}>{formatRelativeTime(report.generatedAt, i18n.language)}</time>
+              <time dateTime={report.generatedAt} title={liveMeta ? fullTimestamp : undefined}>{liveMeta ? formatRelativeTime(report.generatedAt, i18n.language) : fullTimestamp}</time>
             </span>
           ) : (
             <span>
@@ -252,7 +278,9 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
             <Summary stats={report.total} />
             <Charts report={report} variant="demo" />
             <div className="demo-report-more">
-              <a className="copybtn" href={buildSnapshotReportUrl(report)}>
+              {/* Relative href: identical in the build-time prerender and the
+                  hydration render on any host (see buildSnapshotReportPath). */}
+              <a className="copybtn" href={buildSnapshotReportPath(report)}>
                 {t("runner.seeFullReport")} <span aria-hidden="true">→</span>
               </a>
             </div>

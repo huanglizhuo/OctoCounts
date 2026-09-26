@@ -1,7 +1,7 @@
 // Helpers shared between the report-page components extracted from main.tsx.
 // Pure move from main.tsx — behavior unchanged.
 import { useEffect, useRef, useState } from "react";
-import { buildPublicReportUrl } from "../badges";
+import { buildPublicReportPath, buildPublicReportUrl } from "../badges";
 import { formatCompactNumber } from "../reportUtils";
 import type { Report } from "../types";
 
@@ -31,6 +31,19 @@ export function useCopied(timeoutMs = 1800) {
 // resolved commit and include the user-visible counting options, so reopening
 // one can reproduce this report instead of silently recounting a branch with
 // default options.
+//
+// The path form (no window.location.origin) is what rendered <a href>s use:
+// the prerendered homepage renders this link at build time where no real
+// origin exists, and a relative href is identical in the served HTML and the
+// hydration render on every host. Copied/shared text keeps the absolute URL.
+export function buildSnapshotReportPath(report: Report) {
+  const ref = report.commitSha || report.refName;
+  const base = buildPublicReportPath(report.repository.owner, report.repository.name, ref);
+  const params = new URLSearchParams();
+  params.set("analysis", JSON.stringify(report.analysisOptions));
+  return `${base}?${params.toString()}`;
+}
+
 export function buildSnapshotReportUrl(report: Report) {
   const ref = report.commitSha || report.refName;
   const base = buildPublicReportUrl(report.repository.owner, report.repository.name, ref);

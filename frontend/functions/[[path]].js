@@ -16,7 +16,7 @@ const BOOT_SCRIPT_HASH = "'sha256-gJFnkD2yqbv265Nlf3VSDL44MNt3DDcIc1ENS7V0cRY='"
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/", lastmod: "2026-09-27" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-09-05" },
@@ -46,7 +46,6 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const HOME_CONTENT_LASTMOD = "2026-09-17";
 const COMPARE_CONTENT_LASTMOD = "2026-09-17";
 
 export async function onRequest(context) {
@@ -99,11 +98,18 @@ export async function onRequest(context) {
   // class as the trailing-slash rule above: a 200 at /about.html leaves a
   // duplicate crawlable URL behind only a soft rel=canonical. 308 every
   // .html path to its extensionless form. 404.html is excluded: it is the
-  // platform error document, not a canonical page.
+  // platform error document, not a canonical page. The prerendered home
+  // assets are internal deployment files: /home and /home-zh have no
+  // extensionless page of their own, so they redirect to the real canonical
+  // URLs (the zh variant via its explicit ?lng=zh selector).
   if (url.pathname.endsWith(".html") && url.pathname !== "/404.html") {
     const target = new URL(url);
     const stripped = url.pathname.slice(0, -5);
-    target.pathname = stripped === "/index" ? "/" : stripped;
+    if (stripped === "/home") target.pathname = "/";
+    else if (stripped === "/home-zh") {
+      target.pathname = "/";
+      target.searchParams.set("lng", "zh");
+    } else target.pathname = stripped === "/index" ? "/" : stripped;
     return Response.redirect(target, 308);
   }
 
@@ -1080,88 +1086,32 @@ Extension source code: [${content.sourceUrl}](${content.sourceUrl}).
 `;
 }
 
-/// Homepage SSR. Unlike the other routes this does not go through
-/// injectHeadAndNoscript: the index.html head already carries the canonical
-/// homepage title, description, canonical link, and the full JSON-LD set
-/// (WebApplication, FAQPage, WebSite, Organization, SoftwareApplication,
-/// Person), none of which should be stripped. Only #root needs
-/// crawler-visible content; React discards it on hydration as everywhere else.
+/// Homepage: served from the build-time prerender (dist/home.html and
+/// dist/home-zh.html, emitted by scripts/prerender-home.mjs from the same
+/// React tree the client hydrates). No request-time HTML surgery: the
+/// prerendered body IS the app's first paint (hero, form, example report,
+/// how-it-works, FAQ — user-visible content and crawler content are one and
+/// the same), and the marker #root[data-oc-prerender="home"] tells
+/// src/main.tsx to hydrate instead of re-mounting.
+///
+/// `?lng=zh` is the one explicit, URL-visible language signal — the same
+/// param the boot script and i18next's querystring detector already honor —
+/// so the variant choice is a pure function of the URL and the edge cache
+/// (keyed by URL) can never mix variants.
 async function homePageResponse(context) {
-  const index = await indexHtml(context);
-  return htmlResponse(injectHome(index), "public, s-maxage=300, stale-while-revalidate=600");
-}
-
-function injectHome(index) {
-  const faq = homeFaq(index);
-  const faqHtml = faq.length
-    ? `<h2>Frequently Asked Questions</h2>${faq
-        .map((item) => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`)
-        .join("")}`
-    : "";
-  const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
-    <li><a href="/extension">OctoCounts browser extension for GitHub SLOC</a></li>
-    <li><a href="/badges">GitHub SLOC badges for your README</a></li>
-    <li><a href="/compare">Compare two repositories</a></li>
-    <li><a href="/diff">Diff two refs of one repository</a></li>
-    <li><a href="/research">Original research: how filtering changes SLOC counts</a></li>
-    <li><a href="/trending">Trending GitHub repositories</a></li>
-    <li><a href="/stats">OctoCounts public growth stats</a></li>
-    <li><a href="/recent">Recently analyzed repositories</a></li>
-    <li><a href="/popular">Popular SLOC reports</a></li>
-    <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by SLOC</a></li>
-    <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
-    <li><a href="/docs/methodology">Counting methodology</a></li>
-    <li><a href="/docs/api">OctoCounts API docs</a></li>
-    <li><a href="/docs/faq">Frequently asked questions about SLOC</a></li>
-    <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
-    <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
-    <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
-    <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared</a></li>
-    <li><a href="/about">About OctoCounts</a></li>
-  </ul></nav>`;
-  const bodyContent = `<section><h1>OctoCounts – GitHub SLOC Counter</h1>
-    <p>OctoCounts is a free SLOC counter for public GitHub repositories. It counts files, code lines, comments, blanks, and per-language totals without cloning: the backend downloads the repository source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA. Neither the web app nor the Chrome, Edge, and Firefox browser extensions require an account.</p>
-    <img src="/og-image.jpg" width="1200" height="630" alt="OctoCounts mascot next to a terminal card reading Total LOC 5,505 with Code, Comments, and Blanks counts, and the tagline: Making your code count (literally)." />
-    <p><small>Last updated: ${HOME_CONTENT_LASTMOD} &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></small></p>
-    <h2>How it works</h2>
-    <ol>
-      <li>OctoCounts resolves the requested branch, tag, or commit and pins the analysis to an exact commit SHA.</li>
-      <li>It downloads the repository's source archive tarball — never a full git clone with history.</li>
-      <li>tokei, the open-source line counter written in Rust, counts every source file into files, total lines, code, comments, and blanks per language.</li>
-      <li>The report is cached by commit SHA, tokei version, and analysis options, so counting the same revision again is instant and reproduces exactly the same numbers.</li>
-    </ol>
-    ${faqHtml}
-    <h2>Explore OctoCounts</h2>
-    ${internalLinks}
-    <p>Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>, <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
-  </section>`;
-  // The SSR body inside #root is visible without JavaScript, so the noscript
-  // block would only duplicate the same content (and a second h1) for
-  // crawlers. Strip it like the other SSR routes do; the head stays intact.
-  return index
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>\s*/gi, "")
-    .replace('<div id="root"></div>', `<div id="root">${bodyContent}</div>`);
-}
-
-/// The crawler-visible FAQ is rendered from the homepage's own FAQPage
-/// JSON-LD block, so the visible answers and the structured data share one
-/// source and cannot drift. If the block is missing or unparseable the
-/// section is simply omitted — the rest of the SSR body still stands.
-function homeFaq(index) {
-  const blocks = index.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi) ?? [];
-  for (const block of blocks) {
-    try {
-      const json = JSON.parse(block.replace(/<\/?script\b[^>]*>/gi, ""));
-      if (json["@type"] === "FAQPage" && Array.isArray(json.mainEntity)) {
-        return json.mainEntity
-          .map((item) => ({ question: String(item?.name ?? ""), answer: String(item?.acceptedAnswer?.text ?? "") }))
-          .filter((item) => item.question && item.answer);
-      }
-    } catch {
-      // Not the FAQ block, or not JSON at all; try the next script.
-    }
+  const url = new URL(context.request.url);
+  const assetPath = url.searchParams.get("lng") === "zh" ? "/home-zh.html" : "/home.html";
+  const assetUrl = new URL(url);
+  assetUrl.pathname = assetPath;
+  assetUrl.search = "";
+  const asset = await context.env.ASSETS.fetch(new Request(assetUrl.toString(), { method: "GET" }));
+  if (asset.ok) {
+    return htmlResponse(await asset.text(), "public, s-maxage=300, stale-while-revalidate=600");
   }
-  return [];
+  // Degraded path (a deploy somehow missing its prerendered assets): the
+  // plain SPA shell still works once JS runs, but it is NOT the good page —
+  // serve it uncached so no shared cache pins the shell over the real home.
+  return htmlResponse(await indexHtml(context), "no-store");
 }
 
 /// Per-URL 503 for curated compare pages: backend down or an integrity-guard

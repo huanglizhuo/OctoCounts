@@ -320,6 +320,10 @@
       }
     ]
   },
+  "homeFaq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "about SLOC, OctoCounts, and exports"
+  },
   "footer": {
     "tagline": "OctoCounts // actual SLOC for public GitHub repos",
     "navAria": "Footer",

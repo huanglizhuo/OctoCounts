@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { usePrerenderedHome } from "./prerenderContext";
 import type { Scheme } from "./types";
 
 // Theme persistence. The inline <script> in index.html sets
@@ -43,11 +44,31 @@ const SchemeContext = createContext<{ scheme: Scheme; setScheme: (scheme: Scheme
 // side effects. Mount ONCE at the root: the previous per-component useScheme()
 // hung a MutationObserver on <html> from every table row (260+ observers on a
 // large report).
+//
+// On the prerendered homepage the scheme starts at the "matrix" default —
+// the value the server rendered (theme-dependent renders: ThemeSwitch's icon,
+// chart colors) must match between the served HTML and the first client
+// render, or hydration diverges. The boot script has already set the correct
+// html[data-scheme] before first paint, so there is no wrong-theme flash; on
+// mount React adopts the visitor's real preference and only then starts
+// writing dataset/persistence itself.
 export function SchemeProvider({ children }: { children: React.ReactNode }) {
   const { i18n } = useTranslation();
-  const [scheme, setScheme] = useState<Scheme>(() => preferredScheme());
+  const prerenderedHome = usePrerenderedHome();
+  const [scheme, setScheme] = useState<Scheme>(() => (prerenderedHome ? "matrix" : preferredScheme()));
+  const pendingAdoption = useRef(prerenderedHome);
 
   useEffect(() => {
+    if (pendingAdoption.current) {
+      // First run on a hydrated home: adopt the boot script's choice instead
+      // of overwriting html[data-scheme] with the server default.
+      pendingAdoption.current = false;
+      const preferred = preferredScheme();
+      if (preferred !== scheme) {
+        setScheme(preferred);
+        return;
+      }
+    }
     document.documentElement.dataset.scheme = scheme;
     persistScheme(scheme);
   }, [scheme]);

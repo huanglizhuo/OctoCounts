@@ -44,6 +44,31 @@ async function renderedContext(pathname, snapshot = null) {
   };
 }
 
+// Serves the real build outputs the home route depends on: dist/home.html and
+// dist/home-zh.html for the prerendered variants, dist/index.html for the SPA
+// shell fallback. `missingHome` simulates a deploy that lost its prerendered
+// assets.
+async function homeAssetContext(pathname, { missingHome = false } = {}) {
+  const index = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  const files = missingHome ? {} : {
+    "/home.html": await readFile(new URL("dist/home.html", ROOT), "utf8"),
+    "/home-zh.html": await readFile(new URL("dist/home-zh.html", ROOT), "utf8"),
+  };
+  return {
+    request: new Request(`https://octocounts.com${pathname}`),
+    env: {
+      ASSETS: {
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          if (files[path] !== undefined) return new Response(files[path], { status: 200, headers: { "content-type": "text/html" } });
+          if (path === "/") return new Response(index, { status: 200, headers: { "content-type": "text/html" } });
+          return new Response("not found", { status: 404 });
+        },
+      },
+    },
+  };
+}
+
 test("legacy documentation .html URLs permanently redirect to extensionless canonicals", async () => {
   for (const [slug, canonical] of docs) {
     const response = await onRequest(requestContext(`/docs/${slug}.html`));
@@ -172,7 +197,9 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const html = await readFile(new URL("index.html", ROOT), "utf8");
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
   const extensionSection = await readFile(new URL("src/BrowserExtensionSection.tsx", ROOT), "utf8");
-  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  // App tree lives in src/App.tsx since the S1 prerender split (main.tsx is
+  // the client entry: createRoot/hydrateRoot only).
+  const main = await readFile(new URL("src/App.tsx", ROOT), "utf8");
   const badges = await readFile(new URL("src/badges.tsx", ROOT), "utf8");
   const topbar = await readFile(new URL("src/Topbar.tsx", ROOT), "utf8");
 
@@ -234,7 +261,7 @@ test("paper panels stay flat and advanced option checkboxes use the theme UI", a
 
 test("responsive navigation and the two-mode theme control avoid orphaned UI", async () => {
   const styles = await readFile(new URL("src/styles.css", ROOT), "utf8");
-  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const main = await readFile(new URL("src/App.tsx", ROOT), "utf8");
   const scheme = await readFile(new URL("src/scheme.tsx", ROOT), "utf8");
   const types = await readFile(new URL("src/types.ts", ROOT), "utf8");
 
@@ -715,7 +742,7 @@ function stubReportFetch(available) {
 }
 
 test("report page hydration never adopts an SSR summary for a different repository", async () => {
-  const main = await readFile(new URL("src/main.tsx", ROOT), "utf8");
+  const main = await readFile(new URL("src/App.tsx", ROOT), "utf8");
   // The URL is the only authority for which report a page is: the SSR summary
   // is dropped unless its owner/repo matches the /github/:owner/:repo path,
   // so contaminated edge-cached HTML can never render another repo's meta
@@ -724,11 +751,14 @@ test("report page hydration never adopts an SSR summary for a different reposito
   assert.match(main, /if \(summaryOwner !== parsedRoute\.owner\.toLowerCase\(\) \|\| summaryRepo !== parsedRoute\.repo\.toLowerCase\(\)\) return null;/);
   // A report route without a matching seed must not fall back to the bundled
   // demo repository either: that would put one repo's numbers under every
-  // unseeded report URL until the auto-run completes.
+  // unseeded report URL until the auto-run completes. (The prerender-safe
+  // typeof-window guard keeps Node — which has no route — on the demo seed,
+  // which is the homepage case the prerender itself renders.)
   assert.match(
     main,
-    /: window\.location\.pathname\.startsWith\("\/github\/"\)\s*\n\s*\? null\s*\n\s*: normalizeReport\(initialReportData/
+    /typeof window === "undefined" \|\| !window\.location\.pathname\.startsWith\("\/github\/"\)\s*\n\s*\? normalizeReport\(initialReportData/
   );
+  assert.match(main, /\n\s*: null;/);
 });
 
 test("curated comparison SSR renders balanced citable content", async () => {
@@ -1365,46 +1395,116 @@ test("non-embed pages keep the locked-down frame headers", async () => {
   assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
 });
 
-test("homepage SSR injects crawler-visible body content and keeps the head schema", async () => {
-  const source = await readFile(new URL("index.html", ROOT), "utf8");
-  const blocks = source.match(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g) ?? [];
-  const faq = blocks
-    .map((block) => {
-      try {
-        return JSON.parse(block.replace(/<\/?script\b[^>]*>/gi, ""));
-      } catch {
-        return null;
-      }
-    })
-    .find((json) => json?.["@type"] === "FAQPage");
-  assert.ok(faq, "homepage FAQPage JSON-LD exists");
-  assert.equal(faq.mainEntity.length, 7);
+test("the prerendered homepage is the app's real first paint with real FAQ content", async () => {
+  // Compile the shared FAQ module so the visible section, the FAQPage JSON-LD,
+  // and this assertion share one source (the old test parsed the static
+  // index.html block, which the FAQ's move into the React tree retired).
+  const faqSource = await readFile(new URL("src/homeFaq.ts", ROOT), "utf8");
+  const faqCompiled = await transform(faqSource, { loader: "ts", format: "esm", target: "es2020" });
+  const { HOME_FAQ } = await import(`data:text/javascript;base64,${Buffer.from(faqCompiled.code).toString("base64")}`);
+  assert.equal(HOME_FAQ.en.length, 7);
+  assert.equal(HOME_FAQ.zh.length, 7);
 
-  const response = await onRequest(await renderedContext("/"));
-  assert.equal(response.status, 200);
-  const html = await response.text();
-
-  assert.match(html, /<div id="root"><section>/);
+  const html = await readFile(new URL("dist/home.html", ROOT), "utf8");
+  // Marker contract: the Pages Function serves this asset for /, and
+  // src/main.tsx hydrates (hydrateRoot, forced locale) off these stamped
+  // attributes instead of re-mounting over the served markup.
+  assert.match(html, /<div id="root" data-oc-prerender="home" data-oc-locale="en">/);
+  // The served body IS the final UI, not crawler-only markup: hero title,
+  // the form, the example report's numbers and language table, how-it-works
+  // steps, and the FAQ all render before any JavaScript runs.
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
-  assert.match(html, /<h1>OctoCounts – GitHub SLOC Counter<\/h1>/);
-  assert.match(html, /free SLOC counter for public GitHub repositories/);
-  assert.match(html, /<h2>How it works<\/h2>/);
-  // The freshness line is only meaningful to crawlers if it's in the SSR
-  // body, not just the client-rendered React component — a prior fix added
-  // it to main.tsx alone and non-JS-executing bots never saw it.
-  assert.match(html, /Last updated: \d{4}-\d{2}-\d{2} &middot; Maintained by <a href="https:\/\/github\.com\/huanglizhuo">huanglizhuo<\/a>/);
-  // Visible FAQ answers come from the same FAQPage JSON-LD the head serves.
-  for (const item of faq.mainEntity) {
-    assert.ok(html.includes(`<h3>${item.name}</h3>`), item.name);
+  assert.match(html, /<h1 id="hero-title"/);
+  assert.match(html, /<input id="repo-url"/);
+  assert.match(html, /<input id="repo-ref"/);
+  assert.match(html, /537,565/); // demo seed's exact JavaScript code-line count
+  assert.ok((html.match(/class="step"/g) ?? []).length >= 4, "how-it-works / use-case steps render");
+  for (const item of HOME_FAQ.en) {
+    assert.ok(html.includes(`<h3>${item.question}</h3>`), item.question);
+    assert.ok(html.includes(item.answer.slice(0, 60)), `${item.question} answer body`);
   }
-  for (const href of ["/badges", "/compare", "/trending", "/stats", "/docs/methodology", "/docs/api"]) {
-    assert.ok(html.includes(`href="${href}"`), href);
+  // og:image stays head metadata only: the temporary visible OG image that
+  // the old request-time injection inserted (and React discarded) is gone.
+  assert.match(html, /<meta property="og:image" content="https:\/\/octocounts\.com\/og-image\.jpg" \/>/);
+  assert.doesNotMatch(html, /<img[^>]+og-image\.jpg/);
+  // One FAQPage JSON-LD, rendered inside the tree from the same module; the
+  // rest of the homepage schema set (Organization et al.) stays in the head.
+  const ldBlocks = html.match(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g) ?? [];
+  const faqBlocks = ldBlocks.filter((block) => block.includes('"@type":"FAQPage"'));
+  assert.equal(faqBlocks.length, 1);
+  const faqLd = JSON.parse(faqBlocks[0].replace(/<\/?script\b[^>]*>/gi, ""));
+  assert.equal(faqLd["@id"], "https://octocounts.com/#faq");
+  assert.deepEqual(faqLd.mainEntity.map((item) => item.name), HOME_FAQ.en.map((item) => item.question));
+  // (The static head blocks keep their hand-formatted spacing; the React
+  // rendered FAQPage above is JSON.stringify output.)
+  assert.ok(html.includes('"@type": "Organization"'));
+  // The prerendered page needs no noscript fallback: it already works
+  // without JavaScript, and a second h1 would duplicate the real one.
+  assert.equal((html.match(/<noscript>/g) ?? []).length, 0);
+  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts\.com\/" \/>/);
+  // The SPA shell the other routes serve keeps its plain empty root.
+  const shell = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  assert.match(shell, /<div id="root"><\/div>/);
+  assert.doesNotMatch(shell, /data-oc-prerender/);
+});
+
+test("the Chinese prerendered homepage variant carries the zh tree and zh head", async () => {
+  const html = await readFile(new URL("dist/home-zh.html", ROOT), "utf8");
+  const zh = JSON.parse(await readFile(new URL("src/locales/zh.json", ROOT), "utf8"));
+  const faqSource = await readFile(new URL("src/homeFaq.ts", ROOT), "utf8");
+  const faqCompiled = await transform(faqSource, { loader: "ts", format: "esm", target: "es2020" });
+  const { HOME_FAQ } = await import(`data:text/javascript;base64,${Buffer.from(faqCompiled.code).toString("base64")}`);
+
+  assert.match(html, /<html lang="zh">/);
+  assert.match(html, /<div id="root" data-oc-prerender="home" data-oc-locale="zh">/);
+  assert.ok(html.includes(`<title>${zh.app.title}</title>`));
+  assert.match(html, /<meta property="og:locale" content="zh_CN" \/>/);
+  assert.ok(html.includes(`<h1 id="hero-title" class="title">${zh.hero.title}</h1>`));
+  for (const item of HOME_FAQ.zh.slice(0, 3)) {
+    assert.ok(html.includes(`<h3>${item.question}</h3>`), item.question);
   }
-  // The head is untouched: the full homepage JSON-LD set stays in place.
-  const sourceLdCount = (source.match(/type="application\/ld\+json"/g) ?? []).length;
-  assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, sourceLdCount);
-  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts.com\/" \/>/);
+  // The canonical URL is shared: the zh view is a ?lng=zh variant of the one
+  // homepage, not a separate page.
+  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts\.com\/" \/>/);
+});
+
+test("the home route serves the prerendered asset with the edge cache policy", async () => {
+  const response = await onRequest(await homeAssetContext("/"));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
+  const html = await response.text();
+  assert.match(html, /data-oc-prerender="home" data-oc-locale="en"/);
+  assert.match(html, /<h1 id="hero-title"/);
+  // Unrelated query strings must not flip the variant: only an explicit
+  // lng=zh selects the Chinese asset (URL-keyed caches stay consistent).
+  const plain = await onRequest(await homeAssetContext("/?utm_source=x"));
+  assert.ok((await plain.text()).includes('data-oc-locale="en"'));
+  const zh = await onRequest(await homeAssetContext("/?lng=zh"));
+  const zhHtml = await zh.text();
+  assert.ok(zhHtml.includes('data-oc-locale="zh"'), "?lng=zh serves the zh prerender");
+  assert.ok(zhHtml.includes("<html lang=\"zh\">"));
+  assert.equal(zh.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
+});
+
+test("a deploy missing its prerendered home degrades to the uncached SPA shell", async () => {
+  const response = await onRequest(await homeAssetContext("/", { missingHome: true }));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const html = await response.text();
+  assert.match(html, /<div id="root"><\/div>/);
+  assert.doesNotMatch(html, /data-oc-prerender/);
+});
+
+test("prerendered home assets are not crawlable at their .html paths", async () => {
+  for (const [pathname, expected] of [
+    ["/home.html", "https://octocounts.com/"],
+    ["/home-zh.html", "https://octocounts.com/?lng=zh"],
+  ]) {
+    const response = await onRequest(requestContext(pathname));
+    assert.equal(response.status, 308, pathname);
+    assert.equal(response.headers.get("location"), expected, pathname);
+  }
 });
 
 test("stats SSR renders the full citable aggregates and Dataset datePublished", async () => {

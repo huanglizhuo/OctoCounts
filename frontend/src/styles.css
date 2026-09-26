@@ -4610,6 +4610,27 @@ section.section-compact .section-h {
   margin-bottom: var(--space-2);
 }
 
+/* ---- Homepage FAQ (real page content, shared with the FAQPage JSON-LD) ---- */
+.home-faq .faq-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.home-faq .faq-item h3 {
+  font-size: 1rem;
+  margin: 0 0 var(--space-1);
+}
+
+.home-faq .faq-item p {
+  color: var(--fg-dim);
+  margin: 0 0 var(--space-1);
+  max-width: 72ch;
+}
+
+.home-faq .faq-item p:last-child {
+  margin-bottom: 0;
+}
+
 /* ---- Tap/font floors on the elements the review measured (T17) ---- */
 @media (max-width: 720px) {
   :root,
