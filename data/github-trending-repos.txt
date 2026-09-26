@@ -1,15 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-09-25T07:44:50.101Z
-rohitg00/ai-engineering-from-scratch
+# GitHub Trending daily snapshot generated 2026-09-26T07:38:04.795Z
+paperclipai/paperclip
+anthropics/claude-plugins-official
 vectorize-io/hindsight
+obra/superpowers
+mattpocock/skills
 dream-num/univer
+anthropics/skills
+androoAGI/starnet
+derv82/wifit3
+kelseyhightower/kubernetes-the-hard-way
+rohitg00/ai-engineering-from-scratch
+shy3130/tick-stock-panel
 google/ax
 NVIDIA/Model-Optimizer
-FxEmbed/FxEmbed
-anthropics/financial-services
-HKUDS/CLI-Anything
-mvt-project/mvt
-obra/superpowers
-strands-agents/harness-sdk
-julyx10/lap
-superdesigndev/treg
-leejet/stable-diffusion.cpp
+pbakaus/impeccable
+openbao/openbao
