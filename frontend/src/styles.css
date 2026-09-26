@@ -1714,6 +1714,25 @@ body.embed-mode::before {
   font-weight: 700;
 }
 
+/* Head scale tag: "Large codebase" — the one-word verdict from the old
+   insights card, demoted to a tag now that the head carries it. */
+.scale-tag {
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  white-space: nowrap;
+}
+
+.runner-meta time {
+  border-bottom: 1px dashed var(--rule-2);
+  cursor: help;
+}
+
 .progress {
   height: 4px;
   background: var(--rule-2);
@@ -1772,30 +1791,6 @@ body.embed-mode::before {
   color: var(--accent);
 }
 
-.run-details {
-  border-top: 1px solid var(--rule);
-}
-
-.run-details summary {
-  cursor: pointer;
-  color: var(--fg-dim);
-  font-size: var(--text-xs);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  padding: 10px 14px;
-  user-select: none;
-}
-
-.run-details summary:hover {
-  color: var(--accent);
-}
-
-.run-details .log {
-  border-top: 1px solid var(--rule);
-  border-bottom: 0;
-  max-height: 150px;
-}
-
 .error-state {
   border: 1px solid color-mix(in srgb, var(--err) 50%, var(--rule));
   padding: var(--space-4) var(--space-5);
@@ -1829,23 +1824,10 @@ body.embed-mode::before {
     color-mix(in srgb, var(--bg-2) 88%, var(--bg));
 }
 
-.insights-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.insights-head h3 {
-  margin: 0;
-  color: var(--fg);
-  font-size: var(--text-base);
-  font-weight: 700;
-}
-
 .insight-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Two readouts now (speed, result); scale moved to the runner head tag. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   background: var(--rule);
   border: 1px solid var(--rule);
@@ -2056,7 +2038,10 @@ body.embed-mode::before {
 .legend {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Single column with the code-line value next to each share: keeps the
+     donut panel's height in the same league as the table panel beside it,
+     and matches what mobile already rendered. */
+  grid-template-columns: 1fr;
   gap: 4px 14px;
   font-size: var(--text-sm);
 }
@@ -2093,6 +2078,11 @@ body.embed-mode::before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.legend-row .lval {
+  color: var(--fg-mute);
+  font-variant-numeric: tabular-nums;
 }
 
 .key-sw,
@@ -2333,7 +2323,10 @@ table.report tr.totals td.lang {
   background: var(--bg);
   box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
 }
-.share-preview { flex: 1 1 280px; min-width: 0; }
+.share-preview-col { flex: 1 1 280px; min-width: 0; }
+/* T19: the exported PNG keeps the dark terminal palette in both themes. */
+.share-theme-note { margin: 0 0 var(--space-2); color: var(--fg-mute); font-size: var(--text-xs); }
+.share-preview { min-width: 0; }
 .share-preview summary { display: none; }
 
 .share-showcase-card .share-card {
@@ -2367,6 +2360,101 @@ table.report tr.totals td.lang {
 .report-details { margin-top: var(--space-4); }
 .report-details summary { color: var(--fg-mute); cursor: pointer; }
 .report-details[open] summary { margin-bottom: var(--space-2); }
+
+/* Shared ▸/▾ disclosure marker for the report page's details disclosures
+   (Technical details, card preview). Mono triangles, no native marker. */
+.report-details summary,
+.share-preview summary {
+  list-style: none;
+}
+
+.report-details summary::-webkit-details-marker,
+.share-preview summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-details summary::before,
+.share-preview summary::before {
+  content: "▸";
+  margin-right: 8px;
+  color: var(--accent);
+}
+
+.report-details[open] > summary::before,
+.share-preview[open] > summary::before {
+  content: "▾";
+}
+
+/* Technical details: the collapsed-by-default pile of verification facts at
+   the end of the report. The insights readout and trust grid were built as
+   full-width sections; inside the disclosure they drop their chrome. */
+.technical-details summary {
+  display: flex;
+  align-items: center;
+  font-size: var(--text-xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.technical-details .insights {
+  padding: 0 0 var(--space-4);
+  border-bottom: 0;
+  background: none;
+}
+
+.technical-details .trust-details {
+  margin: 0 0 var(--space-3);
+  border: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
+}
+
+.run-facts {
+  display: grid;
+  gap: 6px;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.run-facts code {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.technical-details .log {
+  border-top: 1px solid var(--rule);
+  border-bottom: 0;
+  max-height: 150px;
+}
+
+.run-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+/* Demo variant (homepage): "Example report" head + the trimmed read-only
+   view that ends in a link to the real report page. */
+.demo-report-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.demo-report-head strong {
+  color: var(--fg);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.demo-report-more {
+  display: flex;
+  padding: 0 var(--space-4) var(--space-4);
+}
 
 .trust-details div {
   min-width: 0;
@@ -3475,6 +3563,12 @@ a.proof-badge:hover {
   text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+/* Anchored sections (share jump, in-page links) must clear the sticky bar. */
+section[id],
+[id^="share"] {
+  scroll-margin-top: calc(var(--sticky-h, 44px) + 12px);
+}
+
 /* Sticky report summary bar */
 .sticky-bar {
   position: fixed;
@@ -3555,33 +3649,22 @@ table.report tr.hl-row td.lang {
   background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
-/* Per-row code/comments/blanks ratio bar */
+/* Per-row language share bar: width = row code / total code, in the
+   language's own color, as a 2px underline on the language cell. The old
+   code/comments/blanks split bar read as a random underline; this one says
+   "how much of this codebase is X". The split proportions live on the row's
+   title tooltip instead. */
 table.report td.lang {
   position: sticky;
 }
 
-.row-ratio {
+td.lang .row-share {
   position: absolute;
   left: 38px;
-  right: 14px;
   bottom: 3px;
   height: 2px;
-  display: flex;
-  opacity: .55;
-}
-
-.row-ratio i {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-.row-ratio i.cm {
-  background: var(--accent-2);
-}
-
-.row-ratio i.bl {
-  background: var(--fg-mute);
+  max-width: calc(100% - 52px);
+  pointer-events: none;
 }
 
 /* How-it-works pipeline */
@@ -3843,6 +3926,17 @@ table.report td.lang {
   color: var(--fg);
   font-size: var(--text-lg);
   line-height: 1.25;
+}
+
+/* Similar-repo cards under a report: one name + one meta line, so drop the
+   min-height and padding the marketing grid relies on for taller cards. */
+.growth-repo-card--similar {
+  min-height: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.growth-repo-card--similar strong {
+  font-size: var(--text-base);
 }
 
 .growth-state {
@@ -4193,7 +4287,7 @@ table.report td.lang {
 @media (max-width: 720px) {
   .topbar { grid-template-columns: minmax(0, 1fr) auto; }
   .tool-workspace { grid-template-columns: 1fr; }
-  .share-preview summary { display: block; color: var(--fg-dim); cursor: pointer; margin-bottom: var(--space-2); }
+  .share-preview summary { display: flex; align-items: center; min-height: 44px; color: var(--fg-dim); cursor: pointer; }
   .share-preview:not([open]) { min-height: 0; }
   /* Keep the export source laid out while the mobile preview is visually
      collapsed; html-to-image captures the card itself, not this clipped shell. */
@@ -4254,23 +4348,12 @@ table.report td.lang {
   font-size: 0.85em;
 }
 .manual-copy { display: block; width: 100%; min-height: 56px; margin-top: var(--space-2); color: var(--fg); background: var(--panel); border: 1px solid var(--rule); padding: 6px; }
-
-
-
-.runner-command { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg-mute); }
-.runner-command summary, .utility-more > summary { cursor: pointer; color: var(--fg-dim); }
-.runner-command code { display: block; margin-top: var(--space-2); max-width: min(46rem, 78vw); overflow-wrap: anywhere; }
-.utility-more { position: relative; }
-.utility-more > summary { list-style: none; border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; font-size: var(--text-sm); }
-.utility-more > summary::-webkit-details-marker { display: none; }
-.utility-more[open] > div { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 6px); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); width: min(25rem, 80vw); padding: var(--space-2); background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; box-shadow: var(--terminal-shadow); }
 .report-context-tools { margin-block: var(--space-5); }
 .report-tool-links { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 @media (max-width: 720px) {
   .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summary .cell.accent { min-width: 0; grid-column: 1 / -1; }
   .summary .cell.accent .val { overflow: visible; font-size: clamp(32px, 10vw, 40px); }
-  .utility-more[open] > div { position: static; width: 100%; margin-top: var(--space-2); }
 }
 .repo-history-data { margin-top: var(--space-2); }
 .repo-history-data summary { cursor: pointer; color: var(--fg-dim); font-size: var(--text-sm); }

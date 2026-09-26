@@ -1,45 +1,41 @@
-// Pure move from main.tsx — behavior unchanged.
+// Pure move from main.tsx, then folded into the Technical details disclosure.
 import { useTranslation } from "react-i18next";
 import { formatNumber } from "../reportUtils";
 import type { Report } from "../types";
 
+// Scale thresholds shared by the runner head tag, so the tag and the old
+// readout card can never disagree about where the boundaries are.
+export function projectScale(codeLines: number) {
+  if (codeLines < 1_000) return "tiny";
+  if (codeLines < 10_000) return "small";
+  if (codeLines < 100_000) return "medium";
+  if (codeLines < 500_000) return "large";
+  return "huge";
+}
+
+// Speed/result readouts for the Technical details disclosure. Scale used to
+// be the third card here but moved up to the runner head tag, and the
+// section head went away with the merge — what remains are the two facts
+// that only exist here: how fast it counted, and whether it came from cache.
 export function Insights({ report }: { report: Report }) {
   const { t } = useTranslation();
-  const totalLines = report.total.lines;
-  const totalCode = report.total.code;
-  const scale = projectScale(totalCode);
-  const cacheState = report.cached ? t("runner.cacheHit") : t("runner.freshRun");
-  const commitLabel = `${report.refName} / ${report.commitSha.slice(0, 12)}`;
-  // Primary language / code share / language mix used to live here too, but
-  // the donut + table right above already show all three at a glance —
-  // keeping them here just repeated the chart in prose.
   const insightItems = [
-    {
-      label: t("insights.scale"),
-      value: t(`insights.scaleValues.${scale}`),
-      detail: t(`insights.scaleDetails.${scale}`),
-      tone: "accent",
-    },
     {
       label: t("insights.speed"),
       value: `${report.durationMs}ms`,
-      detail: t("insights.speedDetail", { lines: formatNumber(totalLines), version: report.tokeiVersion }),
+      detail: t("insights.speedDetail", { lines: formatNumber(report.total.lines), version: report.tokeiVersion }),
       tone: "warn",
     },
     {
       label: t("insights.cacheState"),
-      value: cacheState,
-      detail: commitLabel,
+      value: report.cached ? t("runner.cacheHit") : t("runner.freshRun"),
+      detail: `${report.refName} / ${report.commitSha.slice(0, 12)}`,
       tone: "muted",
     },
   ];
 
   return (
     <div className="insights" role="group" aria-label={t("insights.title")}>
-      <div className="insights-head">
-        <span className="chart-tag">{t("insights.kicker")}</span>
-        <h3>{t("insights.title")}</h3>
-      </div>
       <div className="insight-grid">
         {insightItems.map((item) => (
           <div className={`insight-card ${item.tone}`} key={item.label}>
@@ -51,12 +47,4 @@ export function Insights({ report }: { report: Report }) {
       </div>
     </div>
   );
-}
-
-function projectScale(codeLines: number) {
-  if (codeLines < 1_000) return "tiny";
-  if (codeLines < 10_000) return "small";
-  if (codeLines < 100_000) return "medium";
-  if (codeLines < 500_000) return "large";
-  return "huge";
 }

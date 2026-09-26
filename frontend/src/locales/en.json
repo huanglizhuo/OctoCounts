@@ -54,7 +54,7 @@
   },
   "stickyBar": {
     "ariaLabel": "Report summary",
-    "lines": "{{lines}} lines",
+    "code": "{{code}} code",
     "top": "top",
     "share": "share"
   },
@@ -103,10 +103,11 @@
     "exportGitHub": "github",
     "reRun": "re-run",
     "clear": "clear",
-    "runDetails": "Run details",
-    "commandLabel": "Command",
-    "moreActions": "More actions",
-    "exportPngFailed": "PNG export failed. Retry the export."
+    "exportPngFailed": "PNG export failed. Retry the export.",
+    "exampleReport": "Example report",
+    "technicalDetails": "Technical details",
+    "seeFullReport": "See full report",
+    "scaleTag": "{{scale}} codebase"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -121,14 +122,16 @@
   "reportCta": {
     "ariaLabel": "Share report actions",
     "kicker": "next",
-    "title": "Make this report travel",
+    "title": "Share & embed",
     "subtitle": "Drop the badge into a README, share the report URL, or export a card.",
     "copyBadge": "README badge",
     "copyUrl": "report URL",
     "copyEmbed": "embed iframe",
     "exportPng": "PNG card",
     "copied": "copied",
-    "preview": "Preview",
+    "showPreview": "Show card preview",
+    "hidePreview": "Hide card preview",
+    "darkThemeNote": "Exported card uses the dark theme",
     "copyFailed": "Copy failed. Select the link and copy it manually.",
     "copyFailedShort": "Copy failed",
     "manualCopyAria": "Report URL for manual copy",
@@ -198,8 +201,8 @@
     }
   },
   "charts": {
-    "languageShare": "Language share",
-    "report": "Report",
+    "languageShare": "Languages",
+    "report": "Breakdown by language",
     "lines": "lines",
     "other": "Other",
     "noData": "No data",

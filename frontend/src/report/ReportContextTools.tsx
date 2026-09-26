@@ -27,6 +27,23 @@ function reportCitation(report: Report) {
 
 export function ReportContextTools({ report, repoUrl, refName }: { report: Report | null; repoUrl: string; refName: string }) {
   const { t } = useTranslation();
+  return (
+    <section className="report-context-tools" aria-label={t("reportTools.ariaLabel")}>
+      <div className="section-h">
+        <h2>{t("reportTools.title")}</h2>
+        <span className="sub">{t("reportTools.subtitle")}</span>
+      </div>
+      <ReportToolLinks report={report} repoUrl={repoUrl} refName={refName} />
+    </section>
+  );
+}
+
+// The action row itself: citation copy plus the compare/diff/badges deep
+// links with this repository and ref preselected. Extracted so the report
+// page's "Share & embed" section and the standalone section render the exact
+// same actions (and fire the exact same analytics events) from one place.
+export function ReportToolLinks({ report, repoUrl, refName }: { report: Report | null; repoUrl: string; refName: string }) {
+  const { t } = useTranslation();
   const copied = useCopied();
   const targetRepo = report?.repository.htmlUrl || repoUrl;
   const targetRef = report?.commitSha || report?.refName || refName;
@@ -36,32 +53,26 @@ export function ReportContextTools({ report, repoUrl, refName }: { report: Repor
   if (targetRef) { compare.set("leftRef", targetRef); compare.set("rightRef", targetRef); }
   const diff = new URLSearchParams({ repo: targetRepo, base: targetRef, head: targetRef });
   return (
-    <section className="report-context-tools" aria-label={t("reportTools.ariaLabel")}>
-      <div className="section-h">
-        <h2>{t("reportTools.title")}</h2>
-        <span className="sub">{t("reportTools.subtitle")}</span>
-      </div>
-      <div className="report-tool-links">
-        <button
-          type="button"
-          className="copybtn"
-          disabled={!report}
-          onClick={() => {
-            if (!report) return;
-            void copyText(reportCitation(report)).then((ok) => {
-              copied.showCopied("citation");
-              trackEvent("report_citation_copied", { provider: "github" });
-              if (!ok) window.prompt(t("reportCta.copyFailed"), reportCitation(report));
-            });
-          }}
-        >
-          <Clipboard size={14} />
-          {copied.copiedKey === "citation" ? t("reportCta.copied") : t("reportTools.copyCitation")}
-        </button>
-        <a className="copybtn" href={`/compare?${compare.toString()}`}>{t("reportTools.compare")}</a>
-        <a className="copybtn" href={`/diff?${diff.toString()}`}>{t("reportTools.diff")}</a>
-        <a className="copybtn" href={`/badges?${query.toString()}`}>{t("reportTools.badges")}</a>
-      </div>
-    </section>
+    <div className="report-tool-links">
+      <button
+        type="button"
+        className="copybtn"
+        disabled={!report}
+        onClick={() => {
+          if (!report) return;
+          void copyText(reportCitation(report)).then((ok) => {
+            copied.showCopied("citation");
+            trackEvent("report_citation_copied", { provider: "github" });
+            if (!ok) window.prompt(t("reportCta.copyFailed"), reportCitation(report));
+          });
+        }}
+      >
+        <Clipboard size={14} />
+        {copied.copiedKey === "citation" ? t("reportCta.copied") : t("reportTools.copyCitation")}
+      </button>
+      <a className="copybtn" href={`/compare?${compare.toString()}`}>{t("reportTools.compare")}</a>
+      <a className="copybtn" href={`/diff?${diff.toString()}`}>{t("reportTools.diff")}</a>
+      <a className="copybtn" href={`/badges?${query.toString()}`}>{t("reportTools.badges")}</a>
+    </div>
   );
 }

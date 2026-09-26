@@ -87,6 +87,7 @@ export function Donut({ items, total, hovered, onHover }: { items: PieItem[]; to
           >
             <span className="key-sw" style={{ background: item.color }} />
             <span className="lname">{item.label}</span>
+            <span className="lval">{formatCompactNumber(item.value)}</span>
             <span>{formatPercent(item.value, total)}</span>
           </span>
         ))}
@@ -209,23 +210,28 @@ export const LanguageRow = React.memo(function LanguageRow({ row, totalCode, exp
   const hasChildren = row.children.length > 0;
   const expandable = hasChildren && !child;
   const ratioTotal = row.stats.code + row.stats.comments + row.stats.blanks;
+  // The code/comments/blanks proportions moved out of the visual bar into
+  // this tooltip; the bar itself now shows the language's share of the
+  // codebase (see below).
   const ratioTitle = `${formatPercent(row.stats.code, ratioTotal)} ${t("table.code")} · ${formatPercent(row.stats.comments, ratioTotal)} ${t("table.comments")} · ${formatPercent(row.stats.blanks, ratioTotal)} ${t("table.blanks")}`;
+  const languageColorStyle = visibleLanguageColor(languageColor(row.name), scheme);
   return (
     <tr
       className={`${child ? "file-row" : "lang-row"} ${expandable ? "expandable" : ""} ${expanded ? "expanded" : ""} ${highlighted ? "hl-row" : ""}`}
+      title={!child && ratioTotal > 0 ? ratioTitle : undefined}
       onMouseEnter={child ? undefined : () => onHover?.(row.name)}
       onClick={expandable ? () => onToggle?.(row.name) : undefined}
     >
       <td className="lang">
         {hasChildren ? <button className="expand" type="button" aria-label={t(expanded ? "table.collapseLanguage" : "table.expandLanguage", { language: row.name })} aria-expanded={Boolean(expanded)} onClick={(e) => { e.stopPropagation(); onToggle?.(row.name); }}>{expanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button> : <span className="expand-spacer" />}
-        <span className="swatch" style={{ color: visibleLanguageColor(languageColor(row.name), scheme) }} />
+        <span className="swatch" style={{ color: languageColorStyle }} />
         {row.name}
-        {!child && ratioTotal > 0 ? (
-          <span className="row-ratio" title={ratioTitle} aria-hidden="true">
-            <i style={{ width: `${(row.stats.code / ratioTotal) * 100}%` }} />
-            <i className="cm" style={{ width: `${(row.stats.comments / ratioTotal) * 100}%` }} />
-            <i className="bl" style={{ width: `${(row.stats.blanks / ratioTotal) * 100}%` }} />
-          </span>
+        {!child && totalCode > 0 ? (
+          <i
+            className="row-share"
+            style={{ width: `${(row.stats.code / totalCode) * 100}%`, background: languageColorStyle }}
+            aria-hidden="true"
+          />
         ) : null}
       </td>
       <NumberCell value={row.stats.files} />

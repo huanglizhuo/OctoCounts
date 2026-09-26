@@ -203,6 +203,35 @@ export function formatNumber(value: number) {
   return new Intl.NumberFormat(i18n.language).format(value);
 }
 
+// Relative timestamps for the runner head ("3 days ago" / 「3 天前」).
+// Intl.RelativeTimeFormat handles the phrasing; the ladder picks the largest
+// unit that fits, anything under a minute collapses to "now", and future or
+// very old dates simply resolve to their natural unit instead of breaking.
+export function formatRelativeTime(date: string | Date, locale: string): string {
+  const time = typeof date === "string" ? new Date(date) : date;
+  const timeMs = time.getTime();
+  if (Number.isNaN(timeMs)) return "";
+  const diffMs = timeMs - Date.now();
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 31_536_000_000],
+    ["month", 2_592_000_000],
+    ["week", 604_800_000],
+    ["day", 86_400_000],
+    ["hour", 3_600_000],
+    ["minute", 60_000],
+  ];
+  try {
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    for (const [unit, unitMs] of units) {
+      if (Math.abs(diffMs) >= unitMs) return formatter.format(Math.round(diffMs / unitMs), unit);
+    }
+    return formatter.format(0, "minute");
+  } catch {
+    // Environments without RelativeTimeFormat still get a readable date.
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(time);
+  }
+}
+
 export function formatCompactNumber(value: number) {
   if (value <= 99_999) return formatNumber(value);
   return new Intl.NumberFormat(i18n.language, {

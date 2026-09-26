@@ -91,10 +91,11 @@
     "exportGitHub": "GitHub",
     "reRun": "重新运行",
     "clear": "清除",
-    "runDetails": "运行详情",
-    "commandLabel": "命令",
-    "moreActions": "更多操作",
-    "exportPngFailed": "PNG 导出失败，请重试。"
+    "exportPngFailed": "PNG 导出失败，请重试。",
+    "exampleReport": "示例报告",
+    "technicalDetails": "技术细节",
+    "seeFullReport": "查看完整报告",
+    "scaleTag": "{{scale}}代码库"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -109,14 +110,16 @@
   "reportCta": {
     "ariaLabel": "分享报告操作",
     "kicker": "下一步",
-    "title": "让这份报告继续传播",
+    "title": "分享与嵌入",
     "subtitle": "把徽章放进 README，复制报告链接，或导出分享卡。",
     "copyBadge": "README 徽章",
     "copyUrl": "报告链接",
     "copyEmbed": "嵌入 iframe",
     "exportPng": "PNG 卡片",
     "copied": "已复制",
-    "preview": "预览",
+    "showPreview": "显示卡片预览",
+    "hidePreview": "隐藏卡片预览",
+    "darkThemeNote": "导出卡片使用深色主题",
     "copyFailed": "复制失败。请选中链接后手动复制。",
     "copyFailedShort": "复制失败",
     "manualCopyAria": "用于手动复制的报告链接",
@@ -186,8 +189,8 @@
     }
   },
   "charts": {
-    "languageShare": "语言占比",
-    "report": "报告",
+    "languageShare": "语言构成",
+    "report": "按语言拆分",
     "lines": "行数",
     "other": "其他",
     "noData": "无数据",
@@ -626,7 +629,7 @@
   },
   "stickyBar": {
     "ariaLabel": "报告摘要",
-    "lines": "{{lines}} 行",
+    "code": "{{code}} 行代码",
     "top": "顶部",
     "share": "分享"
   },
