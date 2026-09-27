@@ -1,17 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-09-26T07:38:04.795Z
+# GitHub Trending daily snapshot generated 2026-09-27T08:06:13.646Z
 paperclipai/paperclip
-anthropics/claude-plugins-official
 vectorize-io/hindsight
-obra/superpowers
-mattpocock/skills
-dream-num/univer
-anthropics/skills
-androoAGI/starnet
-derv82/wifit3
-kelseyhightower/kubernetes-the-hard-way
-rohitg00/ai-engineering-from-scratch
-shy3130/tick-stock-panel
-google/ax
 NVIDIA/Model-Optimizer
-pbakaus/impeccable
+dream-num/univer
+tensorflow/tensorflow
+rohitg00/ai-engineering-from-scratch
 openbao/openbao
+block/buzz
+microsoft/vscode
+zhaoxuya520/reverse-skill
+llvm/llvm-project
+anthropics/claude-code-action
+actions/runner-images
+mobile-next/mobile-mcp
+vercel/next.js
