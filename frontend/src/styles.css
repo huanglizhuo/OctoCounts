@@ -1837,9 +1837,9 @@ body.embed-mode {
   line-height: 1;
 }
 
-/* Charts area: the sortable table is the default view inside the runner's
-   single container; the toolbar carries the table/chart segmented control,
-   the demo scope note, and the mobile full-columns toggle. */
+/* Charts area: the donut chart sits left of the sortable table inside the
+   runner's single container (the two stack on narrow screens); the toolbar
+   carries the demo scope note and the mobile full-columns toggle. */
 .charts-section {
   padding: var(--space-3) 0 0;
 }
@@ -1852,48 +1852,39 @@ body.embed-mode {
   padding: 0 var(--space-4) var(--space-3);
 }
 
-.chart-view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.chart-view-toggle button {
-  border: 0;
-  background: transparent;
-  color: var(--fg-dim);
-  font: inherit;
-  font-size: var(--text-xs);
-  letter-spacing: .5px;
-  padding: 6px 12px;
-  min-height: var(--tap-min);
-  cursor: pointer;
-}
-
-.chart-view-toggle button + button {
-  border-left: 1px solid var(--rule);
-}
-
-.chart-view-toggle button.active {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
-}
-
 .demo-scope-note {
   color: var(--fg-mute);
   font-size: var(--text-xs);
 }
 
-/* Opt-in donut view: laid out above the table, ring at its fixed 230px
-   container-query size (tests key the center number off that size). */
+/* Charts body: donut column left of the table (stacked above it on narrow
+   screens). */
+.charts-body {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+@media (max-width: 900px) {
+  .charts-body {
+    grid-template-columns: 1fr;
+  }
+
+  .donut-panel {
+    border-bottom: 1px solid var(--rule-2);
+  }
+}
+
+/* Donut column: ring at its fixed 230px container-query size (tests key the
+   center number off that size). */
 .donut-panel {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--rule-2);
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
 }
 
 .donut-panel .legend {
@@ -2067,7 +2058,12 @@ table.report th {
   user-select: none;
   background: var(--panel);
   position: sticky;
-  top: 0;
+  /* The StartupBar widget injects an inline top: 36px into every sticky
+     element so viewport-stuck pieces clear its 36px top banner. This header
+     sticks inside .table-wrap (its own horizontal scrollport) and never
+     reaches the viewport, so the lift would shove it 36px onto the first
+     data row — pin it back to the scrollport edge. */
+  top: 0 !important;
   z-index: 2;
   padding: 0;
 }
@@ -4616,19 +4612,48 @@ section.section-compact .section-h {
   gap: var(--space-3);
 }
 
-.home-faq .faq-item h3 {
+.home-faq .faq-item {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.home-faq .faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.home-faq .faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.home-faq .faq-item summary h3 {
   font-size: 1rem;
-  margin: 0 0 var(--space-1);
+  margin: 0;
+}
+
+.home-faq .faq-marker {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--fg-mute);
+  border-bottom: 2px solid var(--fg-mute);
+  transform: rotate(45deg);
+  transition: transform .15s ease;
+}
+
+.home-faq .faq-item[open] .faq-marker {
+  transform: rotate(-135deg);
 }
 
 .home-faq .faq-item p {
   color: var(--fg-dim);
-  margin: 0 0 var(--space-1);
+  margin: var(--space-2) 0 0;
   max-width: 72ch;
-}
-
-.home-faq .faq-item p:last-child {
-  margin-bottom: 0;
 }
 
 /* ---- Tap/font floors on the elements the review measured (T17) ---- */

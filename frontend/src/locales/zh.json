@@ -203,9 +203,6 @@
     "fullStats": "完整统计",
     "compactStats": "精简统计",
     "totalCodeTooltip": "共 {{count}} 行代码",
-    "viewLabel": "语言视图",
-    "viewTable": "表格",
-    "viewChart": "图表",
     "topOf": "前 {{shown}} / 共 {{total}} 种语言",
     "otherRow": "其他（另 {{count}} 种）"
   },

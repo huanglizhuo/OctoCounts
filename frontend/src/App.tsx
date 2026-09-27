@@ -749,10 +749,11 @@ export function App() {
   );
 }
 
-// The homepage FAQ. Renders the shared FAQ module (src/homeFaq.ts) as visible
-// question/answer content plus the matching FAQPage JSON-LD; both switch with
-// the active language. Deterministic: no date, storage, or viewport reads, so
-// it prerenders and hydrates byte-identically.
+// The homepage FAQ. Renders the shared FAQ module (src/homeFaq.ts) as
+// collapsible question/answer rows (closed by default; click a question to
+// expand its answer) plus the matching FAQPage JSON-LD; both switch with the
+// active language. Deterministic: no date, storage, or viewport reads, so it
+// prerenders and hydrates byte-identically.
 function HomeFaqSection() {
   const { t, i18n } = useTranslation();
   const faq = faqForLanguage(i18n.language);
@@ -765,12 +766,15 @@ function HomeFaqSection() {
       </div>
       <div className="faq-list">
         {faq.map((item) => (
-          <div className="faq-item" key={item.question}>
-            <h3>{item.question}</h3>
+          <details className="faq-item" key={item.question}>
+            <summary>
+              <h3>{item.question}</h3>
+              <span className="faq-marker" aria-hidden="true" />
+            </summary>
             {item.answer.split(/\n\n+/).map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
-          </div>
+          </details>
         ))}
       </div>
     </section>

@@ -216,9 +216,6 @@
     "fullStats": "Full statistics",
     "compactStats": "Compact statistics",
     "totalCodeTooltip": "{{count}} total code lines",
-    "viewLabel": "Language view",
-    "viewTable": "Table",
-    "viewChart": "Chart",
     "topOf": "top {{shown}} of {{total}} languages",
     "otherRow": "Other ({{count}} more)"
   },

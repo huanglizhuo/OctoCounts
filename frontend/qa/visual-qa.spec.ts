@@ -46,13 +46,11 @@ function cachedReportFixture(repoUrl: string, code: number, lines: number) {
 }
 
 test.describe('OctoCounts visual QA', () => {
-  test('1. desktop: demo report loads with the table as the default language view', async ({ page }) => {
+  test('1. desktop: demo report loads with the table and donut visible together', async ({ page }) => {
     await waitForReport(page);
     await expect(page.locator('table.report tbody tr').first()).toBeVisible();
-    // The donut is opt-in: absent until the chart view is toggled on, then the
-    // ring renders at its fixed container-query size.
-    await expect(page.locator('.donut-wrap svg')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Chart', exact: true }).click();
+    // Chart and table render side by side with no toggle; the ring renders at
+    // its fixed container-query size.
     await expect(page.locator('.donut-wrap svg')).toBeVisible();
   });
 

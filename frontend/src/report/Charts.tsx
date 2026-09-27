@@ -1,10 +1,9 @@
-// Language visualization: the sortable per-language table with thin
-// proportional code-share bars is the primary (default) view; the donut is an
-// opt-in secondary view toggled from a small segmented control. The demo
-// (homepage) variant additionally truncates the display to the top languages
-// by code with the tail merged into a clearly labeled Other row — display
-// only: exports, technical details and the full report always see the
-// untruncated report.
+// Language visualization: the donut chart and the sortable per-language table
+// render side by side (chart on the left, table on the right; stacked on
+// narrow screens). The demo (homepage) variant additionally truncates the
+// display to the top languages by code with the tail merged into a clearly
+// labeled Other row — display only: exports, technical details and the full
+// report always see the untruncated report.
 import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +18,6 @@ export function Charts({ report, variant = "full" }: { report: Report; variant?:
   const { t, i18n } = useTranslation();
   const scheme = useScheme();
   const isDemo = variant === "demo";
-  const [view, setView] = useState<"table" | "chart">("table");
   const [showFullStats, setShowFullStats] = useState(false);
 
   // Demo top-N truncation. Totals stay the full report's totals (not the
@@ -74,19 +72,15 @@ export function Charts({ report, variant = "full" }: { report: Report; variant?:
     <div className="charts-section">
       {leading ? <div className="mobile-code-summary"><span>{leading.name}</span><strong>{formatNumber(leading.stats.code)} {t("table.code")}</strong><em>{formatPercent(leading.stats.code, report.total.code)}</em></div> : null}
       <div className="charts-toolbar">
-        <div className="chart-view-toggle" role="group" aria-label={t("charts.viewLabel")}>
-          <button type="button" className={view === "table" ? "active" : ""} aria-pressed={view === "table"} onClick={() => setView("table")}>{t("charts.viewTable")}</button>
-          <button type="button" className={view === "chart" ? "active" : ""} aria-pressed={view === "chart"} onClick={() => setView("chart")}>{t("charts.viewChart")}</button>
-        </div>
         {demoTruncated ? <span className="demo-scope-note">{t("charts.topOf", { shown: DEMO_LANGUAGE_LIMIT, total: report.languages.length })}</span> : null}
         <button type="button" className="full-stats-toggle copybtn" onClick={() => setShowFullStats((value) => !value)} aria-expanded={showFullStats}>{showFullStats ? t("charts.compactStats") : t("charts.fullStats")}</button>
       </div>
-      {view === "chart" ? (
+      <div className="charts-body">
         <div className="donut-panel">
           <Donut items={visibleItems} total={totalCode} hovered={hoveredSlice} onHover={setHoveredSlice} />
         </div>
-      ) : null}
-      <ReportTable report={displayReport} compact={!showFullStats} fullStats={showFullStats} hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={onHoverLanguage} />
+        <ReportTable report={displayReport} compact={!showFullStats} fullStats={showFullStats} hoveredSlice={hoveredSlice} sliceForLanguage={sliceForLanguage} onHoverLanguage={onHoverLanguage} />
+      </div>
     </div>
   );
 }

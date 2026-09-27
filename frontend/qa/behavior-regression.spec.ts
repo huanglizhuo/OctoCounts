@@ -365,8 +365,7 @@ test.describe("language share donut", () => {
     await page.goto(BASE_URL);
     await page.locator("#repo-url").fill("https://github.com/example/wide-count");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
-    // The donut is opt-in now: open the chart view before asserting ring math.
-    await page.getByRole("button", { name: "Chart", exact: true }).click();
+    // The donut renders next to the table by default.
     const donut = page.locator(".donut-wrap");
     await expect(donut).toBeVisible();
     await expect(page.locator(".donut-center strong")).toHaveText("99,999");
