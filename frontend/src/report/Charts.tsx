@@ -85,7 +85,7 @@ export function Charts({ report, variant = "full" }: { report: Report; variant?:
   );
 }
 
-export function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: number; hovered: string | null; onHover: (label: string | null) => void }) {
+function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: number; hovered: string | null; onHover: (label: string | null) => void }) {
   const { t } = useTranslation();
   const exactTotal = formatNumber(total);
   const slices = useMemo(() => pieSlices(items), [items]);
@@ -157,7 +157,7 @@ function persistSortInLocation(key: SortKey, dir: "asc" | "desc") {
   window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""));
 }
 
-export function ReportTable({ report, compact, fullStats, hoveredSlice, sliceForLanguage, onHoverLanguage }: { report: Report; compact?: boolean; fullStats?: boolean; hoveredSlice?: string | null; sliceForLanguage?: (name: string) => string | null; onHoverLanguage?: (name: string | null) => void }) {
+function ReportTable({ report, compact, fullStats, hoveredSlice, sliceForLanguage, onHoverLanguage }: { report: Report; compact?: boolean; fullStats?: boolean; hoveredSlice?: string | null; sliceForLanguage?: (name: string) => string | null; onHoverLanguage?: (name: string | null) => void }) {
   const { t } = useTranslation();
   const initialSort = useMemo(() => initialSortFromLocation(), []);
   const [sortKey, setSortKey] = useState<SortKey>(initialSort.key);
@@ -240,7 +240,7 @@ function SortHead({ label, active, dir, onClick, className, scope }: { label: st
   );
 }
 
-export const LanguageRow = React.memo(function LanguageRow({ row, totalCode, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; totalCode: number; expanded?: boolean; child?: boolean; onToggle?: (name: string) => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
+const LanguageRow = React.memo(function LanguageRow({ row, totalCode, expanded, child, onToggle, highlighted, onHover }: { row: LanguageReport; totalCode: number; expanded?: boolean; child?: boolean; onToggle?: (name: string) => void; highlighted?: boolean; onHover?: (name: string | null) => void }) {
   const { t } = useTranslation();
   const scheme = useScheme();
   const hasChildren = row.children.length > 0;

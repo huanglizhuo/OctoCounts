@@ -653,7 +653,6 @@ impl GitHubClient {
             }
         }
         let rest = self.resolve_commits_before_rest(owner, repo, untils).await;
-        eprintln!("DBG rest={:?}", rest);
         rest
     }
 

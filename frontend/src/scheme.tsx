@@ -10,7 +10,7 @@ import type { Scheme } from "./types";
 
 const THEME_KEY = "octocounts.theme";
 
-export function systemScheme(): Scheme {
+function systemScheme(): Scheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "matrix" : "paper";
 }
 
@@ -80,7 +80,7 @@ export function SchemeProvider({ children }: { children: React.ReactNode }) {
   return <SchemeContext.Provider value={{ scheme, setScheme }}>{children}</SchemeContext.Provider>;
 }
 
-export function useSchemeToggle() {
+function useSchemeToggle() {
   return useContext(SchemeContext);
 }
 

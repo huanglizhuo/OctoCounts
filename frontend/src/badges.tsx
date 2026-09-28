@@ -9,7 +9,7 @@ import type { Report } from "./types";
 // markdown copy row) and the live badge wall. Extracted from main.tsx so the
 // home page section and the standalone /badges page render the same thing.
 
-export const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
+const badgeTypes = ["summary", "code", "lines", "files", "comments", "languages", "top-language", "ratio", "language"] as const;
 
 const BADGE_API_BASE = (import.meta.env.VITE_BADGE_API_BASE ?? "https://api.octocounts.com") as string;
 

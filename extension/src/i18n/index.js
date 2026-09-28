@@ -33,10 +33,3 @@ export function t(key, vars = {}) {
     return vars[name] !== undefined ? String(vars[name]) : `{{${name}}}`;
   });
 }
-
-export function plural(keySingular, keyPlural, n, vars = {}) {
-  const k = n === 1 ? keySingular : keyPlural;
-  return t(k, { ...vars, count: n });
-}
-
-export { currentLocale };

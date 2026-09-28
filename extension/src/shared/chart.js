@@ -50,47 +50,7 @@ export function languageColor(name, theme = 'dark') {
   return palette[hash % palette.length];
 }
 
-function polarPoint(fraction) {
-  const angle = fraction * Math.PI * 2 - Math.PI / 2;
-  return { x: Math.cos(angle), y: Math.sin(angle) };
-}
-
-function donutSlicePath(start, end) {
-  if (end - start >= 0.9999) {
-    return 'M 1 0 A 1 1 0 1 1 -1 0 A 1 1 0 1 1 1 0';
-  }
-  const s = polarPoint(start);
-  const e = polarPoint(end);
-  const largeArc = end - start > 0.5 ? 1 : 0;
-  return `M 0 0 L ${s.x} ${s.y} A 1 1 0 ${largeArc} 1 ${e.x} ${e.y} Z`;
-}
-
-export function pieSlices(items) {
-  const total = items.reduce((s, i) => s + i.value, 0);
-  let start = 0;
-  return items.map(item => {
-    const fraction = total > 0 ? item.value / total : 0;
-    const end = start + fraction;
-    const path = donutSlicePath(start, end);
-    start = end;
-    return { ...item, path };
-  });
-}
-
-export function buildPieItems(report, theme, n = 5) {
-  const sorted = [...report.languages].sort((a, b) => b.stats.lines - a.stats.lines);
-  const top = sorted.slice(0, n);
-  const otherLines = sorted.slice(n).reduce((s, l) => s + l.stats.lines, 0);
-  const items = top.map(l => ({
-    label: l.name,
-    value: l.stats.lines,
-    color: languageColor(l.name, theme),
-  }));
-  if (otherLines > 0) items.push({ label: 'Other', value: otherLines, color: '#8b949e' });
-  return pieSlices(items);
-}
-
-// Like buildPieItems but sorts/values by code lines (no comments/blanks), used by card bar/donut
+// Sorts/values by code lines (no comments/blanks), used by card bar/donut
 export function buildBarItems(report, theme, n = 5) {
   const sorted = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
   const top = sorted.slice(0, n);

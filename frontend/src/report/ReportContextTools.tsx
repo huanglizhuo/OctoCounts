@@ -8,7 +8,7 @@ import { buildSnapshotReportUrl } from "./shared";
 // date, commit, a one-line configuration summary, and the snapshot URL that
 // reproduces exactly this configuration. Text-only by design so it survives
 // clipboard, issues, and plain-text contexts.
-export function reportCitation(report: Report) {
+function reportCitation(report: Report) {
   const options = report.analysisOptions;
   const ignores = [...options.ignoredDirs, ...options.ignoredLanguages];
   const toggles: string[] = [];

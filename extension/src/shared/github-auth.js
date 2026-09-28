@@ -14,7 +14,7 @@ const STORAGE_KEYS = { login: 'githubLogin', token: 'githubToken' };
 // guaranteed stable across installs). And on Edge, chrome.identity exists
 // but the Edge store item has a different extension ID, whose
 // `.chromiumapp.org` redirect cannot match the OAuth App's single callback
-// URL (see how-to-run-and-deploy.md). Login is therefore Chrome-store-only,
+// URL (see docs/how-to-run-and-deploy.md). Login is therefore Chrome-store-only,
 // gated at build time so non-chrome bundles never show the entry point
 // instead of letting launchWebAuthFlow fail at click time.
 const LOGIN_BUILD_TARGET = __OCTO_BUILD_TARGET__ === 'chrome';

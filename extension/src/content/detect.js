@@ -27,10 +27,6 @@ export function isRepoPage(root = document) {
   return hasRepoPageSignal(root);
 }
 
-export function isPublicRepoPage(root = document) {
-  return isRepoPage(root) && getRepoVisibility(root) === 'public';
-}
-
 /**
  * Single private/internal check for the whole extension.
  *
