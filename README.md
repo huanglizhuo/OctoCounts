@@ -111,7 +111,7 @@ All badge routes accept an optional `?lang=<language>` query parameter that swit
 
 ## Running it
 
-See **[how-to-run-and-deploy.md](how-to-run-and-deploy.md)** for local development setup, host-native instructions, GitHub token configuration, and production deployment.
+See **[how-to-run-and-deploy.md](docs/how-to-run-and-deploy.md)** for local development setup, host-native instructions, GitHub token configuration, and production deployment.
 
 ## Growth report inventory
 

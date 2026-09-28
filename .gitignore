@@ -36,9 +36,11 @@ yarn-error.log*
 # Local product planning/progress notes
 .octocounts-roadmap-progress.json
 
-# Local agent/tooling directories
+# Local agent/tooling directories and files
 /.claude/
 /.impeccable/
+/.impeccable.md
+.zcodeignore
 
 # Local Playwright overlay (system Chrome; machine-specific)
 /frontend/playwright.local.config.ts

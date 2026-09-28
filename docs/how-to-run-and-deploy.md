@@ -280,15 +280,9 @@ backend submits. `INDEXNOW_HOST` / `INDEXNOW_ENDPOINT` override the defaults
 (`octocounts.com` / `https://api.indexnow.org/indexnow`); `DRY_RUN=1` prints
 batches without sending.
 
-Two extra modes (see `docs/seo-index-runbook.md`):
-
-```bash
-# Verify the key file the Pages function serves matches the key (SG-08 check)
-INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --verify-key
-
-# Push the core pages (static + compare sitemap children) after a deploy
-INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
-```
+The script also has `--verify-key` and `--core` modes (key-file verification
+and pushing the core pages after a deploy) — commands and caveats live in
+[seo-index-runbook.md](seo-index-runbook.md) §2.
 
 ### Cloudflare edge cache and Web Analytics
 
