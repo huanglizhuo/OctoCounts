@@ -40,6 +40,41 @@ macro_rules! card_projection {
     };
 }
 
+/// Whether a `reports` row may stand as its repository's *latest* report.
+///
+/// SLOC-history sampling (`AnalysisSource::SlocBackfill`) writes one report
+/// per sampled commit into the same table, and `created_at` records when a
+/// row was written, not how recent its commit is: a suspect-point resample
+/// re-analyzes a years-old commit today, and a first-view backfill can end on
+/// a cache hit for HEAD so its newest *row* is a historical sample. Picking
+/// the newest row per repository would then publish history as the current
+/// report. A sampler row is only eligible when its commit is the repo's
+/// newest live SLOC snapshot -- i.e. it is the forward sampler's (or
+/// backfill's final) analysis of HEAD. Every other source is always eligible.
+///
+/// The argument is the `reports` table alias (or name) in the host query.
+macro_rules! latest_eligible {
+    ($t:literal) => {
+        concat!(
+            "(",
+            $t,
+            ".source <> 'sloc_backfill' OR ",
+            $t,
+            ".commit_sha = (",
+            "SELECT s.commit_sha FROM sloc_snapshots s ",
+            "WHERE s.provider = ",
+            $t,
+            ".provider AND s.owner = ",
+            $t,
+            ".owner ",
+            "AND s.repo = ",
+            $t,
+            ".repo AND s.superseded_at IS NULL ",
+            "ORDER BY s.snapshot_date DESC LIMIT 1))"
+        )
+    };
+}
+
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
@@ -1423,15 +1458,18 @@ impl Store {
         owner: &str,
         repo: &str,
     ) -> anyhow::Result<Option<Report>> {
-        let row = sqlx::query(
+        let row = sqlx::query(concat!(
             r#"
             SELECT body::text AS body
             FROM reports
             WHERE provider = $1 AND owner = $2 AND repo = $3
+              AND "#,
+            latest_eligible!("reports"),
+            r#"
             ORDER BY created_at DESC
             LIMIT 1
-            "#,
-        )
+            "#
+        ))
         .bind(provider_to_str(&provider))
         .bind(owner)
         .bind(repo)
@@ -1466,6 +1504,9 @@ impl Store {
             r#"
             FROM reports r
             WHERE r.provider = $1 AND r.owner = $2 AND r.repo = $4
+              AND "#,
+            latest_eligible!("r"),
+            r#"
             ORDER BY r.created_at DESC
             LIMIT 1
             "#
@@ -1533,7 +1574,7 @@ impl Store {
         total_lines: i64,
         limit: i64,
     ) -> anyhow::Result<Vec<RelatedReportRow>> {
-        let rows = sqlx::query(
+        let rows = sqlx::query(concat!(
             r#"
             SELECT
                 deduped.provider AS provider,
@@ -1556,6 +1597,9 @@ impl Store {
                         provider, owner, repo, top_language, total_code, total_lines, created_at
                     FROM reports
                     WHERE provider = $1
+                      AND "#,
+            latest_eligible!("reports"),
+            r#"
                     ORDER BY provider, owner, repo, created_at DESC
                 ) filtered
                 WHERE NOT (lower(filtered.owner) = lower($2) AND lower(filtered.repo) = lower($3))
@@ -1582,8 +1626,8 @@ impl Store {
                 deduped.owner ASC,
                 deduped.repo ASC
             LIMIT $7
-            "#,
-        )
+            "#
+        ))
         .bind(provider_to_str(&provider))
         .bind(owner)
         .bind(repo)
@@ -1683,7 +1727,7 @@ impl Store {
     /// field the old code read costs one detoast for at most 500 rows and removes
     /// the question entirely.
     pub async fn sitemap_entries(&self, limit: i64) -> anyhow::Result<Vec<SitemapRow>> {
-        let rows = sqlx::query(
+        let rows = sqlx::query(concat!(
             r#"
             SELECT
                 r.provider AS provider,
@@ -1695,6 +1739,9 @@ impl Store {
                 FROM (
                     SELECT DISTINCT ON (provider, owner, repo) id, created_at
                     FROM reports
+                    WHERE "#,
+            latest_eligible!("reports"),
+            r#"
                     ORDER BY provider, owner, repo, created_at DESC
                 ) latest
                 ORDER BY created_at DESC
@@ -1702,8 +1749,8 @@ impl Store {
             ) page
             JOIN reports r ON r.id = page.id
             ORDER BY page.created_at DESC
-            "#,
-        )
+            "#
+        ))
         // The sitemap honours the limit its handler actually asks for. It used to
         // go through `distinct_reports`, whose `clamp(0, 500)` meant a handler
         // requesting 45,000 entries emitted 500 -- an SEO endpoint whose whole job
@@ -2609,6 +2656,9 @@ impl ReportOrder {
                         FROM (
                             SELECT DISTINCT ON (provider, owner, repo) id, created_at
                             FROM reports
+                            WHERE "#,
+                    latest_eligible!("reports"),
+                    r#"
                             ORDER BY provider, owner, repo, created_at DESC
                         ) latest
                         ORDER BY created_at DESC
@@ -2629,6 +2679,9 @@ impl ReportOrder {
                             SELECT DISTINCT ON (provider, owner, repo)
                                 id, access_count, last_accessed_at, created_at
                             FROM reports
+                            WHERE "#,
+                    latest_eligible!("reports"),
+                    r#"
                             ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
                         ) popular
                         ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
@@ -2648,6 +2701,9 @@ impl ReportOrder {
                         FROM (
                             SELECT DISTINCT ON (provider, owner, repo) id, total_lines, created_at
                             FROM reports
+                            WHERE "#,
+                    latest_eligible!("reports"),
+                    r#"
                             ORDER BY provider, owner, repo, created_at DESC
                         ) monoliths
                         ORDER BY total_lines DESC, created_at DESC
@@ -5045,6 +5101,132 @@ mod tests {
             vec!["big/repo".to_string(), "tiny/repo".to_string()],
             "ln-based distance ranks the 5x repo ahead of the 10x repo"
         );
+        store.drop_schema().await;
+    }
+
+    fn history_report(
+        id: &str,
+        commit_sha: &str,
+        code: usize,
+        generated_at: chrono::DateTime<Utc>,
+    ) -> Report {
+        let mut report = test_report(id, "octo", code);
+        report.commit_sha = commit_sha.to_string();
+        report.ref_name = commit_sha.to_string();
+        report.generated_at = generated_at;
+        report
+    }
+
+    #[tokio::test]
+    async fn latest_report_ignores_a_historical_sample_written_after_head() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+        let now = Utc::now();
+
+        // The user's HEAD report, then a suspect-point resample that re-analyzes
+        // a years-old commit and is therefore the newest row for the repo.
+        store
+            .save_report(
+                &history_report("head", "sha-head", 365_009, now - Duration::hours(2)),
+                AnalysisSource::Web,
+            )
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(
+                RepositoryProvider::GitHub,
+                "octo",
+                "count",
+                today,
+                365_009,
+                "sha-head",
+                "forward",
+            )
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(
+                RepositoryProvider::GitHub,
+                "octo",
+                "count",
+                today - Duration::days(1000),
+                17_952,
+                "sha-old",
+                "resample",
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &history_report("old", "sha-old", 17_952, now),
+                AnalysisSource::SlocBackfill,
+            )
+            .await
+            .unwrap();
+
+        let latest = store
+            .latest_report(RepositoryProvider::GitHub, "octo", "count")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.commit_sha, "sha-head");
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, "octo", "count")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.commit_sha, "sha-head");
+        let recent = store.recent_reports(10, 0).await.unwrap();
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].commit_sha, "sha-head");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn latest_report_accepts_the_forward_samplers_head_analysis() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+        let now = Utc::now();
+
+        // A stale user report, then the forward sampler analyzing a newer HEAD:
+        // its report is the current state and must win.
+        store
+            .save_report(
+                &history_report("stale", "sha-stale", 1_000, now - Duration::days(30)),
+                AnalysisSource::Web,
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &history_report("fresh", "sha-fresh", 1_200, now),
+                AnalysisSource::SlocBackfill,
+            )
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(
+                RepositoryProvider::GitHub,
+                "octo",
+                "count",
+                today,
+                1_200,
+                "sha-fresh",
+                "forward",
+            )
+            .await
+            .unwrap();
+
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, "octo", "count")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.commit_sha, "sha-fresh");
         store.drop_schema().await;
     }
 
