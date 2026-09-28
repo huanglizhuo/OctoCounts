@@ -1,16 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-09-27T08:06:13.646Z
+# GitHub Trending daily snapshot generated 2026-09-28T08:39:46.024Z
 paperclipai/paperclip
 vectorize-io/hindsight
-NVIDIA/Model-Optimizer
-dream-num/univer
-tensorflow/tensorflow
+debpalash/VoiceStudio
 rohitg00/ai-engineering-from-scratch
-openbao/openbao
-block/buzz
-microsoft/vscode
-zhaoxuya520/reverse-skill
-llvm/llvm-project
-anthropics/claude-code-action
-actions/runner-images
-mobile-next/mobile-mcp
-vercel/next.js
+InfinityLoop1308/PipePipe
+vercel-labs/scriptc
+mvschwarz/openrig
+dream-num/univer
+willfaust/Madeira
