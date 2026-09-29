@@ -1,10 +1,9 @@
-# GitHub Trending daily snapshot generated 2026-09-28T08:39:46.024Z
+# GitHub Trending daily snapshot generated 2026-09-29T08:26:16.540Z
+debpalash/VoiceStudio
 paperclipai/paperclip
 vectorize-io/hindsight
-debpalash/VoiceStudio
-rohitg00/ai-engineering-from-scratch
-InfinityLoop1308/PipePipe
-vercel-labs/scriptc
+NawfalMotii79/PLFM_RADAR
+cs341-illinois/coursebook
+byoungd/up
 mvschwarz/openrig
 dream-num/univer
-willfaust/Madeira
