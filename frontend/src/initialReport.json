@@ -1,56 +1,45 @@
 {
-  "id": "772c12fca7ce5b40f0b3e969647eb8c09e2534fa18aa49a352e3ac6a4e877e6b",
+  "id": "23b0d2ccc055bd06104232b10c7ed916dbceb66cc8cddeb989262d66434e08bd",
   "repository": {
-    "owner": "facebook",
+    "owner": "react",
     "name": "react",
     "htmlUrl": "https://github.com/react/react"
   },
   "refName": "v19.3.0",
   "commitSha": "1d34f91dfde6bba84d08b683aaba164c7194dacb",
-  "generatedAt": "2026-09-26T13:39:30.937581553Z",
-  "durationMs": 2319,
+  "generatedAt": "2026-10-01T08:33:09.575650816Z",
+  "durationMs": 1361,
   "cached": true,
-  "tokeiVersion": "tokei-12.1",
+  "tokeiVersion": "tokei-14.0.0",
   "languages": [
     {
       "name": "JavaScript",
       "stats": {
-        "files": 3889,
-        "lines": 660593,
-        "code": 537565,
-        "comments": 60909,
-        "blanks": 62119
-      },
-      "children": []
-    },
-    {
-      "name": "TypeScript",
-      "stats": {
-        "files": 421,
-        "lines": 81531,
-        "code": 65449,
-        "comments": 11102,
-        "blanks": 4980
+        "files": 1477,
+        "lines": 293727,
+        "code": 231461,
+        "comments": 38456,
+        "blanks": 23810
       },
       "children": []
     },
     {
       "name": "Rust",
       "stats": {
-        "files": 121,
-        "lines": 73987,
-        "code": 65175,
-        "comments": 3790,
-        "blanks": 5022
+        "files": 117,
+        "lines": 72601,
+        "code": 63896,
+        "comments": 3775,
+        "blanks": 4930
       },
       "children": [
         {
           "name": "Markdown",
           "stats": {
-            "files": 108,
-            "lines": 2842,
+            "files": 104,
+            "lines": 2830,
             "code": 0,
-            "comments": 2562,
+            "comments": 2550,
             "blanks": 280
           },
           "children": []
@@ -58,82 +47,82 @@
       ]
     },
     {
+      "name": "TypeScript",
+      "stats": {
+        "files": 219,
+        "lines": 74391,
+        "code": 59896,
+        "comments": 10169,
+        "blanks": 4326
+      },
+      "children": []
+    },
+    {
       "name": "JSON",
       "stats": {
-        "files": 145,
-        "lines": 17480,
-        "code": 17471,
+        "files": 86,
+        "lines": 3535,
+        "code": 3527,
         "comments": 0,
-        "blanks": 9
+        "blanks": 8
       },
       "children": []
     },
     {
       "name": "CSS",
       "stats": {
-        "files": 108,
-        "lines": 5280,
-        "code": 4519,
-        "comments": 77,
-        "blanks": 684
+        "files": 88,
+        "lines": 3828,
+        "code": 3283,
+        "comments": 61,
+        "blanks": 484
       },
       "children": []
     },
     {
       "name": "TSX",
       "stats": {
-        "files": 122,
-        "lines": 4484,
-        "code": 3420,
-        "comments": 638,
-        "blanks": 426
+        "files": 15,
+        "lines": 1591,
+        "code": 1333,
+        "comments": 153,
+        "blanks": 105
       },
       "children": []
     },
     {
       "name": "HTML",
       "stats": {
-        "files": 79,
-        "lines": 2414,
-        "code": 2048,
-        "comments": 220,
-        "blanks": 146
+        "files": 23,
+        "lines": 438,
+        "code": 416,
+        "comments": 9,
+        "blanks": 13
       },
       "children": [
         {
-          "name": "JavaScript",
+          "name": "CSS",
           "stats": {
-            "files": 39,
-            "lines": 774,
-            "code": 646,
-            "comments": 64,
-            "blanks": 64
+            "files": 15,
+            "lines": 400,
+            "code": 368,
+            "comments": 0,
+            "blanks": 32
           },
           "children": []
         },
         {
-          "name": "CSS",
+          "name": "JavaScript",
           "stats": {
-            "files": 21,
-            "lines": 543,
-            "code": 499,
-            "comments": 0,
-            "blanks": 44
+            "files": 6,
+            "lines": 232,
+            "code": 192,
+            "comments": 14,
+            "blanks": 26
           },
           "children": []
         }
       ]
-    },
-    {
-      "name": "CoffeeScript",
-      "stats": {
-        "files": 1,
-        "lines": 574,
-        "code": 476,
-        "comments": 7,
-        "blanks": 91
-      },
-      "children": []
     },
     {
       "name": "Shell",
@@ -158,22 +147,11 @@
       "children": []
     },
     {
-      "name": "JSX",
-      "stats": {
-        "files": 9,
-        "lines": 145,
-        "code": 94,
-        "comments": 37,
-        "blanks": 14
-      },
-      "children": []
-    },
-    {
       "name": "SVG",
       "stats": {
-        "files": 9,
-        "lines": 12,
-        "code": 12,
+        "files": 7,
+        "lines": 10,
+        "code": 10,
         "comments": 0,
         "blanks": 0
       },
@@ -182,76 +160,43 @@
     {
       "name": "Markdown",
       "stats": {
-        "files": 1975,
-        "lines": 66229,
+        "files": 68,
+        "lines": 8910,
         "code": 0,
-        "comments": 48782,
-        "blanks": 17447
+        "comments": 6360,
+        "blanks": 2550
       },
       "children": [
         {
-          "name": "JavaScript",
-          "stats": {
-            "files": 1868,
-            "lines": 83796,
-            "code": 72314,
-            "comments": 5149,
-            "blanks": 6333
-          },
-          "children": []
-        },
-        {
           "name": "TypeScript",
           "stats": {
-            "files": 45,
-            "lines": 1932,
-            "code": 1593,
-            "comments": 229,
-            "blanks": 110
-          },
-          "children": []
-        },
-        {
-          "name": "Rust",
-          "stats": {
-            "files": 10,
-            "lines": 1051,
-            "code": 903,
-            "comments": 65,
-            "blanks": 83
-          },
-          "children": []
-        },
-        {
-          "name": "BASH",
-          "stats": {
-            "files": 7,
-            "lines": 153,
-            "code": 61,
-            "comments": 60,
-            "blanks": 32
+            "files": 1,
+            "lines": 39,
+            "code": 36,
+            "comments": 2,
+            "blanks": 1
           },
           "children": []
         },
         {
           "name": "JSON",
           "stats": {
-            "files": 4,
-            "lines": 54,
-            "code": 54,
+            "files": 3,
+            "lines": 32,
+            "code": 32,
             "comments": 0,
             "blanks": 0
           },
           "children": []
         },
         {
-          "name": "TOML",
+          "name": "BASH",
           "stats": {
             "files": 3,
-            "lines": 29,
-            "code": 26,
-            "comments": 1,
-            "blanks": 2
+            "lines": 71,
+            "code": 29,
+            "comments": 27,
+            "blanks": 15
           },
           "children": []
         },
@@ -267,17 +212,6 @@
           "children": []
         },
         {
-          "name": "Shell",
-          "stats": {
-            "files": 1,
-            "lines": 14,
-            "code": 7,
-            "comments": 4,
-            "blanks": 3
-          },
-          "children": []
-        },
-        {
           "name": "HTML",
           "stats": {
             "files": 1,
@@ -287,26 +221,26 @@
             "blanks": 0
           },
           "children": []
+        },
+        {
+          "name": "JavaScript",
+          "stats": {
+            "files": 1,
+            "lines": 3,
+            "code": 1,
+            "comments": 1,
+            "blanks": 1
+          },
+          "children": []
         }
       ]
-    },
-    {
-      "name": "Plain Text",
-      "stats": {
-        "files": 15,
-        "lines": 188,
-        "code": 0,
-        "comments": 173,
-        "blanks": 15
-      },
-      "children": []
     }
   ],
   "total": {
-    "files": 6927,
-    "lines": 913695,
-    "code": 696768,
-    "comments": 125857,
-    "blanks": 91070
+    "files": 2133,
+    "lines": 459809,
+    "code": 364361,
+    "comments": 59105,
+    "blanks": 36343
   }
 }
