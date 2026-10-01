@@ -1,15 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-09-30T08:30:29.899Z
-debpalash/VoiceStudio
+# GitHub Trending daily snapshot generated 2026-10-01T08:52:52.552Z
 NVIDIA/OpenShell
-vectorize-io/hindsight
-paperclipai/paperclip
-t8y2/dbx
+debpalash/VoiceStudio
 mvschwarz/openrig
-oblien/openship
-averygan/reclip
-cs341-illinois/coursebook
-rohitg00/ai-engineering-from-scratch
+mksglu/context-mode
+DietrichGebert/ponytail
+harry0703/MoneyPrinterTurbo
+openclaw/openclaw
+ComposioHQ/awesome-claude-skills
+mattpocock/skills
+heygen-com/hyperframes
+firebase/firebase-ios-sdk
+modelcontextprotocol/servers
+byoungd/up
+colbymchenry/codegraph
+t8y2/dbx
+NawfalMotii79/PLFM_RADAR
 VectifyAI/PageIndex
-willfaust/Madeira
-dream-num/univer
-rakyll/hey
