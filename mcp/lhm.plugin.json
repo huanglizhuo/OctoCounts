@@ -1,0 +1,7 @@
+{
+  "identifier": "octocounts-mcp",
+  "name": "OctoCounts MCP",
+  "description": "SLOC counts for any public GitHub repository from any MCP client: files, code, comment and blank lines per language via tokei, cached by commit, with side-by-side repo comparisons.",
+  "version": "0.1.2",
+  "homepage": "https://octocounts.com"
+}
