@@ -1,41 +1,32 @@
 #!/usr/bin/env node
 
 const apiBase = trimTrailingSlash(process.env.OCTOCOUNTS_API_BASE || "https://api.octocounts.com");
-let inputBuffer = Buffer.alloc(0);
+let lineBuffer = "";
 let isDraining = false;
 
+process.stdin.setEncoding("utf8");
+
 process.stdin.on("data", (chunk) => {
-  inputBuffer = Buffer.concat([inputBuffer, chunk]);
+  lineBuffer += chunk;
   void drainMessages();
 });
 process.stdin.on("end", () => process.exit(0));
-
-process.stdin.resume();
 
 async function drainMessages() {
   if (isDraining) return;
   isDraining = true;
   try {
     while (true) {
-      const headerEnd = inputBuffer.indexOf("\r\n\r\n");
-      if (headerEnd === -1) return;
-      const header = inputBuffer.slice(0, headerEnd).toString("utf8");
-      const match = header.match(/Content-Length:\s*(\d+)/i);
-      if (!match) {
-        inputBuffer = Buffer.alloc(0);
-        return;
-      }
-      const length = Number(match[1]);
-      const bodyStart = headerEnd + 4;
-      const bodyEnd = bodyStart + length;
-      if (inputBuffer.length < bodyEnd) return;
-      const body = inputBuffer.slice(bodyStart, bodyEnd).toString("utf8");
-      inputBuffer = inputBuffer.slice(bodyEnd);
-      await handleMessage(JSON.parse(body));
+      const newlineIndex = lineBuffer.indexOf("\n");
+      if (newlineIndex === -1) return;
+      const line = lineBuffer.slice(0, newlineIndex).trim();
+      lineBuffer = lineBuffer.slice(newlineIndex + 1);
+      if (!line) continue;
+      await handleMessage(JSON.parse(line));
     }
   } finally {
     isDraining = false;
-    if (inputBuffer.indexOf("\r\n\r\n") !== -1) {
+    if (lineBuffer.includes("\n")) {
       void drainMessages();
     }
   }
@@ -199,8 +190,7 @@ async function readJsonResponse(response) {
 }
 
 function writeMessage(message) {
-  const body = JSON.stringify(message);
-  process.stdout.write(`Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`);
+  process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
 function normalizeRepoInput(input) {
