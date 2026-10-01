@@ -3,7 +3,7 @@
   "name": "io.github.huanglizhuo/octocounts-mcp",
   "title": "OctoCounts MCP Server",
   "description": "Analyze and compare public GitHub repo line counts (SLOC) via OctoCounts, from any MCP client.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "websiteUrl": "https://octocounts.com",
   "repository": {
     "url": "https://github.com/huanglizhuo/OctoCounts",
@@ -14,7 +14,7 @@
     {
       "registryType": "npm",
       "identifier": "octocounts-mcp",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "transport": { "type": "stdio" }
     }
   ]

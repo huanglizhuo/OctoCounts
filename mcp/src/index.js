@@ -54,7 +54,7 @@ async function dispatch(message) {
     return {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "octocounts-mcp", version: "0.1.0" },
+      serverInfo: { name: "octocounts-mcp", version: "0.1.2" },
     };
   }
 
