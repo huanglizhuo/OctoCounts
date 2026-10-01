@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "octocounts": {
+      "command": "npx",
+      "args": ["-y", "octocounts-mcp@latest"],
+      "env": {}
+    }
+  }
+}
