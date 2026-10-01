@@ -371,15 +371,18 @@ function deriveFrame(scene: GrowthScene, t: number) {
 
   // -- timeline strip: playhead is dayOffset progress; ticks + dip carets --
   const tlFrac = clamp(dayNow / totalDays, 0, 1);
-  const ticks: Array<{ label: string; left: number; alpha: number; center: boolean }> = [];
-  for (let y = firstYear, k = 0; y <= lastYear; y += 1, k += 1) {
+  const ticks: Array<{ label: string; left: number; alpha: number }> = [];
+  for (let y = firstYear; y <= lastYear; y += 1) {
     const dayY = daysSinceEpoch(epoch, y);
+    // A year whose Jan 1 predates the first sample has no spot on the axis —
+    // pinning it to the left edge collides with the next year's centered
+    // label (e.g. an Aug-2014 start stacked "2014" onto "2015").
+    if (dayY < 0) continue;
     const x = (dayY / totalDays) * (STAGE_W - 2 * PAD);
     ticks.push({
       label: String(y),
-      left: dayY < 0 ? Math.max(5, x) : x,
-      center: dayY >= 0,
-      alpha: w01(t, dataStart + 0.1 + k * 0.015, dataStart + 0.25 + k * 0.015),
+      left: x,
+      alpha: w01(t, dataStart + 0.1 + ticks.length * 0.015, dataStart + 0.25 + ticks.length * 0.015),
     });
   }
   const tl = {
@@ -701,7 +704,7 @@ function DataAct({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
               className="growth-tl-tick"
               style={{
                 left: PAD + tick.left,
-                transform: tick.center ? "translateX(-50%)" : undefined,
+                transform: "translateX(-50%)",
                 ...autoAlpha(tick.alpha),
               }}
             >

@@ -19,20 +19,24 @@ const compiled = ts.transpileModule(source, {
 await mkdir(cacheDir, { recursive: true });
 const modulePath = new URL("growth-player.mjs", cacheDir);
 await writeFile(modulePath, compiled.outputText);
-const { createPlayerState, step, seekState, replayState, LOOP_HOLD_MS } = await import(modulePath.href);
+const { createPlayerState, step, seekState, replayState, LOOP_HOLD_MS, IDLE_POSTER_PROGRESS } = await import(modulePath.href);
 
-// A fresh playing clock over a convenient 1s timeline.
+// A fresh playing clock over a convenient 1s timeline. These tests exercise
+// step()'s gap mechanics from frame 0; createPlayerState itself now parks at
+// the idle poster frame, so the clocks pin progress back to 0 explicitly.
 const playing = (durationMs = 1000, extra = {}) => ({
   ...createPlayerState(durationMs),
+  progress: 0,
   playing: true,
   ...extra,
 });
 
-test("defaults: paused at frame 0; reduced-motion starts on the static finale frame", () => {
+test("defaults: paused on the data-act poster frame; reduced-motion starts on the static finale frame", () => {
   assert.equal(LOOP_HOLD_MS, 600);
+  assert.equal(IDLE_POSTER_PROGRESS, 0.85);
   assert.deepEqual(createPlayerState(10000), {
     durationMs: 10000,
-    progress: 0,
+    progress: 0.85,
     playing: false,
     holdMs: 0,
   });

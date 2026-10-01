@@ -14,6 +14,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // restarting from the hook frame.
 export const LOOP_HOLD_MS = 600;
 
+// Idle frame for viewers who have not started playback: the data act's
+// final-lock beat — buildScene's fixed template parks the counter/race/timeline
+// at their final values at 8.5s of the pinned 10s template. It is the one
+// growth-only content (the time dimension) the report page does not already
+// show in static form, and its numbers equal the finale's, so the idle frame
+// never contradicts the report. The finale stats card stays reserved for the
+// played animation (and for reduced-motion viewers, who park on progress 1).
+export const IDLE_POSTER_PROGRESS = 0.85;
+
 // The four-act template length (types.ts pins scene.durationMs to 10000). A
 // malformed duration (0/NaN/negative) would divide into NaN progress on the
 // very first frame, so it falls back to the only length v1 ever wires up.
@@ -58,12 +67,17 @@ export type UseGrowthPlayerOptions = { loop?: boolean };
  * matchMedia("(prefers-reduced-motion: reduce)"): those viewers start on the
  * static finale frame, paused — the animation never starts on its own for
  * them, but every control still works (plan §0 accessibility row: explicit
- * user intent overrides the preference).
+ * user intent overrides the preference). Everyone else starts paused on the
+ * data act's final-lock poster frame (IDLE_POSTER_PROGRESS): growth-only
+ * content that does not duplicate the report's own charts.
  */
 export function createPlayerState(durationMs: number, reducedMotion = false): GrowthPlayerState {
   return {
     durationMs: Number.isFinite(durationMs) && durationMs > 0 ? durationMs : TEMPLATE_DURATION_MS,
-    progress: reducedMotion ? 1 : 0,
+    // Reduced-motion viewers park on the static finale frame (the most
+    // informative single frame, since they may never press play); everyone
+    // else parks on the data-act poster frame.
+    progress: reducedMotion ? 1 : IDLE_POSTER_PROGRESS,
     playing: false,
     holdMs: 0,
   };
@@ -144,10 +158,17 @@ export function replayState(state: GrowthPlayerState): GrowthPlayerState {
  * progress/playing trigger re-renders.
  *
  * Semantics worth knowing when wiring buttons:
+ * - The first play() from the parked poster frame (IDLE_POSTER_PROGRESS, the
+ *   mount default) restarts from frame 0: the press means "tell me the
+ *   story", not "resume from the poster" (the reduced-motion finale-frame
+ *   precedent below).
  * - play() from a finished end frame restarts from the beginning (the
  *   HTMLMediaElement play()-on-ended precedent) — notably the reduced-motion
  *   viewer who presses play gets the story, not another look at the finale
  *   they are already staring at.
+ * - A pause()/play() round-trip mid-animation resumes where it stopped;
+ *   an explicit seek() counts as engagement, so play() after a scrub resumes
+ *   from the scrubbed position.
  * - pause() keeps progress and the elapsed hold exactly where they are.
  * - The tab being hidden pauses playback; it does NOT auto-resume on return.
  */
@@ -173,6 +194,12 @@ export function useGrowthPlayer(durationMs: number, options?: UseGrowthPlayerOpt
   // Guards the unmount path (rule: no state updates after unmount); re-armed
   // on mount so React StrictMode's double mount in dev cannot wedge it off.
   const mountedRef = useRef(false);
+  // Distinguishes "parked, never started" from "paused mid-animation": the
+  // first play press means "tell me the story" and restarts from frame 0
+  // (the finale-frame precedent), while a later pause/play round-trip resumes
+  // where it stopped. An explicit seek counts as engagement — play resumes
+  // from the scrubbed position.
+  const startedRef = useRef(false);
 
   const syncView = useCallback(() => {
     if (!mountedRef.current) return;
@@ -215,8 +242,11 @@ export function useGrowthPlayer(durationMs: number, options?: UseGrowthPlayerOpt
   const play = useCallback(() => {
     const current = stateRef.current;
     if (current.playing) return;
+    // From the parked poster (or the finale frame) play means "from the
+    // top"; a pause/play round-trip mid-animation resumes instead.
     stateRef.current =
-      current.progress >= 1 ? replayState(current) : { ...current, playing: true };
+      !startedRef.current || current.progress >= 1 ? replayState(current) : { ...current, playing: true };
+    startedRef.current = true;
     syncView();
     startFrame();
   }, [startFrame, syncView]);
@@ -228,6 +258,7 @@ export function useGrowthPlayer(durationMs: number, options?: UseGrowthPlayerOpt
 
   const seek = useCallback(
     (progress: number) => {
+      startedRef.current = true;
       stateRef.current = seekState(stateRef.current, progress);
       // While playing the next tick re-renders anyway, but the playhead must
       // move the instant it is dropped, not one frame later. The rAF loop
@@ -239,6 +270,7 @@ export function useGrowthPlayer(durationMs: number, options?: UseGrowthPlayerOpt
   );
 
   const replay = useCallback(() => {
+    startedRef.current = true;
     stateRef.current = replayState(stateRef.current);
     syncView();
     startFrame();
