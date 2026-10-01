@@ -1,5 +1,5 @@
 import i18n from "./i18n";
-import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats, RepoHistory } from "./types";
+import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats, RepoHistory, Report } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
 
@@ -45,6 +45,55 @@ export function fetchRepoHistory(provider: string, owner: string, repo: string) 
   const params = new URLSearchParams({ provider, owner, repo });
   return fetchJson<RepoHistory>(`/api/seo/repo-history?${params.toString()}`);
 }
+
+// The canonical (default-analysis-profile) report the indexed report page
+// serves. The growth animation's history series is sampled under this same
+// profile, so building its finale from the interactive report would show one
+// profile's numbers under another's counter whenever a visitor re-analyzed
+// with custom options — this fetch keeps the finale and the count-up on the
+// same footing. The SEO projection differs from Report only in flattening
+// repository identity to top-level owner/repo fields; the adapter below is
+// the whole mapping.
+export async function fetchCanonicalReport(provider: string, owner: string, repo: string): Promise<Report> {
+  const params = new URLSearchParams({ provider, owner, repo });
+  const seo = await fetchJson<SeoReportSnapshot>(`/api/seo/report?${params.toString()}`);
+  return {
+    id: seo.publicPath,
+    repository: { owner: seo.owner, name: seo.repo, htmlUrl: seo.htmlUrl, provider: "github" },
+    refName: seo.refName,
+    commitSha: seo.commitSha,
+    generatedAt: seo.generatedAt,
+    durationMs: seo.durationMs,
+    cached: true,
+    tokeiVersion: seo.tokeiVersion,
+    analysisKey: seo.analysisKey,
+    analysisOptions: seo.analysisOptions,
+    snapshotUrl: seo.snapshotUrl,
+    languages: seo.languages,
+    total: seo.total,
+  };
+}
+
+// Raw shape of GET /api/seo/report (see backend/src/seo.rs SeoReport).
+type SeoReportSnapshot = {
+  provider: string;
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  htmlUrl: string;
+  publicPath: string;
+  canonicalUrl: string;
+  generatedAt: string;
+  refName: string;
+  commitSha: string;
+  tokeiVersion: string;
+  analysisKey: string;
+  analysisOptions: Report["analysisOptions"];
+  snapshotUrl?: string;
+  durationMs: number;
+  total: Report["total"];
+  languages: Report["languages"];
+};
 
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, init);

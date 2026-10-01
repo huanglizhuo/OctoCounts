@@ -1,7 +1,7 @@
 // Report-page runner, restructured from the flat sibling stack in main.tsx.
 // Section order: runner head (repo + GitHub link + ref/sha/relative time),
 // the action bar (copy link / export / re-analyze / more), Summary, Charts,
-// code-lines history, Share & embed, Similar repositories, and a collapsed
+// growth animation, Share & embed, Similar repositories, and a collapsed
 // Technical details disclosure (verification facts only — actions moved up).
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { ArrowUp, ExternalLink, Share2 } from "lucide-react";
@@ -15,7 +15,7 @@ import { usePrerenderedHome } from "../prerenderContext";
 import type { AppStatus, Report } from "../types";
 import { Charts } from "./Charts";
 import { ReportActions } from "./ReportActions";
-import { StarBadge, buildSnapshotReportPath } from "./shared";
+import { StarBadge } from "./shared";
 import { Summary } from "./Summary";
 
 // Deterministic replacement for the runner head's timestamp while the
@@ -31,9 +31,11 @@ function stableTimestamp(iso: string, locale: string): string {
   }
 }
 
-// The history chart only renders after a report completes, and it drags its
-// own export helpers; keep it out of the critical bundle.
-const RepoHistoryChart = React.lazy(() => import("../RepoHistoryChart").then((m) => ({ default: m.RepoHistoryChart })));
+// The growth-animation section is its own lazy unit: GrowthSection pulls in
+// buildScene + GrowthAnimation + the player + the GIF exporter, none of which
+// the homepage entry needs (html-to-image/gifenc stay dynamically imported
+// inside the exporter until an export actually runs).
+const GrowthSection = React.lazy(() => import("./GrowthSection").then((m) => ({ default: m.GrowthSection })));
 
 // Full-report-only extras, all below the fold of a finished report: the
 // share showcase (with the offscreen PNG capture card), similar
@@ -64,14 +66,7 @@ function waitForMountedCard(ref: React.RefObject<HTMLDivElement | null>, budgetM
   });
 }
 
-// A commit sha is by definition a pinned observation even when the host did
-// not say so (e.g. a sha typed into the homepage ref box); anything else
-// (branch/tag) merges into the history series unless the URL pinned it.
-function isCommitRef(refName: string) {
-  return /^[0-9a-f]{7,40}$/i.test(refName);
-}
-
-export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full", isPinnedRef = false }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full"; isPinnedRef?: boolean }) {
+export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full" }) {
   const { t, i18n } = useTranslation();
   // Offscreen-but-laid-out mount of the share card, created only while a PNG
   // export is in flight. html-to-image needs a real layout; the visible
@@ -277,13 +272,6 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
           <>
             <Summary stats={report.total} />
             <Charts report={report} variant="demo" />
-            <div className="demo-report-more">
-              {/* Relative href: identical in the build-time prerender and the
-                  hydration render on any host (see buildSnapshotReportPath). */}
-              <a className="copybtn" href={buildSnapshotReportPath(report)}>
-                {t("runner.seeFullReport")} <span aria-hidden="true">→</span>
-              </a>
-            </div>
           </>
         ) : (
           <>
@@ -298,16 +286,12 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
             />
             <Summary stats={report.total} />
             <Charts report={report} variant="full" />
+            {/* Growth animation right under the charts: lazy so the growth
+                chunk (renderer + player + GIF exporter) splits out of the
+                entry bundle; null fallback — a shared boundary would flash
+                siblings back to a fallback when this chunk resolves. */}
             <Suspense fallback={null}>
-              <RepoHistoryChart
-                provider={normalizedProvider(report)}
-                owner={report.repository.owner}
-                repo={report.repository.name}
-                reportDate={report.generatedAt.slice(0, 10)}
-                reportCode={report.total.code}
-                reportRef={report.refName}
-                isPinnedRef={isPinnedRef || isCommitRef(report.refName)}
-              />
+              <GrowthSection report={report} stars={stars} />
             </Suspense>
             {/* Summary, Charts and the action bar stay eager: they are the
                 content the visitor is waiting for. Everything below is a

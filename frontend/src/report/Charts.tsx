@@ -12,7 +12,7 @@ import { formatCompactNumber, formatNumber, formatPercent, languageColor, sortRo
 import { useScheme } from "../scheme";
 import type { LanguageReport, PieItem, Report, SortKey, Stats } from "../types";
 
-const DEMO_LANGUAGE_LIMIT = 5;
+const DEMO_LANGUAGE_LIMIT = 10;
 
 export function Charts({ report, variant = "full" }: { report: Report; variant?: "demo" | "full" }) {
   const { t, i18n } = useTranslation();
@@ -114,20 +114,6 @@ function Donut({ items, total, hovered, onHover }: { items: PieItem[]; total: nu
           <li key={item.label}>{item.label}: {formatPercent(item.value, total)}</li>
         ))}
       </ul>
-      <div className="legend" onMouseLeave={() => onHover(null)}>
-        {items.map((item) => (
-          <span
-            className={`legend-row ${hovered === item.label ? "hl" : ""}`}
-            key={item.label}
-            onMouseEnter={() => onHover(item.label)}
-          >
-            <span className="key-sw" style={{ background: item.color }} />
-            <span className="lname">{item.label}</span>
-            <span className="lval">{formatCompactNumber(item.value)}</span>
-            <span>{formatPercent(item.value, total)}</span>
-          </span>
-        ))}
-      </div>
     </>
   );
 }

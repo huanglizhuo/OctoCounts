@@ -1887,12 +1887,6 @@ body.embed-mode {
   padding: var(--space-2) 0;
 }
 
-.donut-panel .legend {
-  flex: 1;
-  min-width: 220px;
-  margin-top: 0;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-}
 
 .chart-tag {
   color: var(--accent);
@@ -1951,55 +1945,11 @@ body.embed-mode {
   white-space: nowrap;
 }
 
-.legend {
-  margin-top: 14px;
-  display: grid;
-  /* Single column with the code-line value next to each share: keeps the
-     donut panel's height in the same league as the table panel beside it,
-     and matches what mobile already rendered. */
-  grid-template-columns: 1fr;
-  gap: 4px 14px;
-  font-size: var(--text-sm);
-}
 
-.legend-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 0;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
 
-@media (hover: hover) {
-  .legend-row:hover {
-    background: color-mix(in srgb, var(--accent) 6%, transparent);
-  }
-}
 
-.legend-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
 
-.legend-row .lname {
-  flex: 1;
-  color: var(--fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.legend-row .lval {
-  color: var(--fg-mute);
-  font-variant-numeric: tabular-nums;
-}
 
 .key-sw,
 .swatch {
@@ -2058,12 +2008,7 @@ table.report th {
   user-select: none;
   background: var(--panel);
   position: sticky;
-  /* The StartupBar widget injects an inline top: 36px into every sticky
-     element so viewport-stuck pieces clear its 36px top banner. This header
-     sticks inside .table-wrap (its own horizontal scrollport) and never
-     reaches the viewport, so the lift would shove it 36px onto the first
-     data row — pin it back to the scrollport edge. */
-  top: 0 !important;
+  top: 0;
   z-index: 2;
   padding: 0;
 }
@@ -3415,10 +3360,6 @@ footer a:focus-visible {
     height: min(300px, 82vw);
   }
 
-  .legend {
-    grid-template-columns: 1fr;
-  }
-
 }
 
 /* Touch: enlarge interactive targets to meet 44×44px minimum */
@@ -3670,9 +3611,6 @@ section[id],
   opacity: .3;
 }
 
-.legend-row.hl {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
 
 table.report tr.hl-row td {
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-2));
@@ -4107,161 +4045,6 @@ td.lang .row-share {
   text-align: left;
 }
 
-.repo-history {
-  margin: var(--space-4) 0;
-  padding: var(--space-3);
-  border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
-  border-radius: 8px;
-}
-
-.repo-history-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-  color: var(--fg-mute);
-}
-
-.repo-history-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.repo-history-head h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.repo-history-count {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.repo-history-approx {
-  font-size: 0.75em;
-  font-weight: 400;
-  color: var(--fg-mute);
-}
-
-.repo-history-chart {
-  position: relative;
-}
-
-/* The interactive chart renders 1:1 at its measured container width (React
-   sets width/height attributes from a ResizeObserver), so axis text stays at
-   its authored pixel size on every screen. max-width only guards the first
-   paint before the observer reports, when the 640px fallback is still wide. */
-.repo-history-chart svg {
-  display: block;
-  max-width: 100%;
-  cursor: crosshair;
-}
-
-.repo-history-sloc-area {
-  fill: var(--accent);
-  fill-opacity: 0.15;
-  stroke: none;
-}
-
-.repo-history-sloc-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.repo-history-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-size: 0.8rem;
-  color: var(--fg-mute);
-}
-
-.repo-history-hover-line {
-  stroke: var(--fg-mute);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-}
-
-.repo-history-hover-dot {
-  fill: var(--accent);
-  stroke: var(--bg, #fff);
-  stroke-width: 2;
-}
-
-.repo-history-axis-label {
-  fill: var(--fg-mute);
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.repo-history-axis-tick {
-  fill: var(--fg-mute);
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.repo-history-gridline {
-  stroke: var(--fg-mute);
-  stroke-width: 1;
-  opacity: 0.25;
-}
-
-.repo-history-point {
-  fill: var(--accent);
-}
-
-/* Suspect samples (under half of both neighbours) stay on the chart but read
-   as untrusted: hollow marker, dashed flanking segments. */
-.repo-history-point-suspect {
-  fill: var(--bg, #fff);
-  stroke: var(--accent);
-  stroke-width: 1.5;
-}
-
-.repo-history-report-line {
-  stroke: var(--fg-dim, var(--fg-mute));
-  stroke-width: 1;
-  stroke-dasharray: 5 4;
-}
-
-.repo-history-report-dot {
-  fill: var(--bg, #fff);
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-
-.repo-history-report-label {
-  fill: var(--fg-dim, var(--fg-mute));
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.repo-history-head-values {
-  display: grid;
-  justify-items: end;
-  gap: 2px;
-}
-
-.repo-history-report-count {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--fg-mute);
-  text-align: right;
-}
-
-.repo-history-suspect-note {
-  color: var(--fg-mute);
-  font-size: 0.85em;
-}
-
 /* Header and tool-page navigation: compact native menus, no horizontal rail. */
 .topbar-nav,
 .topbar-controls,
@@ -4366,44 +4149,12 @@ td.lang .row-share {
   .hero-paths > .secondary-install { display: none; }
 }
 
-.repo-history-tooltip {
-  position: absolute;
-  top: 4px;
-  transform: translateX(-50%);
-  background: var(--bg-2, rgba(0, 0, 0, 0.85));
-  color: var(--fg);
-  border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
-  border-radius: 6px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.repo-history-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.repo-history-error {
-  color: var(--sev-critical, #b8452f);
-  font-size: 0.85em;
-}
 .manual-copy { display: block; width: 100%; min-height: 56px; margin-top: var(--space-2); color: var(--fg); background: var(--panel); border: 1px solid var(--rule); padding: 6px; }
 @media (max-width: 720px) {
   .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summary .cell.accent { min-width: 0; grid-column: 1 / -1; }
   .summary .cell.accent .val { overflow: visible; font-size: clamp(32px, 10vw, 40px); }
 }
-.repo-history-data { margin-top: var(--space-2); }
-.repo-history-data summary { cursor: pointer; color: var(--fg-dim); font-size: var(--text-sm); }
-.repo-history-data-wrap { overflow-x: auto; margin-top: var(--space-2); }
-.repo-history-data table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
-.repo-history-data th, .repo-history-data td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: right; }
-.repo-history-data th:first-child, .repo-history-data td:first-child { text-align: left; }
-.repo-history-export { position: fixed; left: -10000px; top: 0; width: 640px; height: 220px; overflow: hidden; pointer-events: none; }
 .badge-builder-layout { display: grid; grid-template-columns: minmax(12rem, .8fr) minmax(16rem, 1.2fr); gap: var(--space-3); align-items: stretch; }
 .badge-builder-settings { display: grid; align-content: start; padding: var(--space-3); background: color-mix(in srgb, var(--panel) 92%, var(--bg)); border: 1px solid var(--rule); }
 .badge-builder-result { display: grid; gap: var(--space-2); min-width: 0; }
@@ -4867,4 +4618,734 @@ button.expand::before {
   .panel {
     box-shadow: none !important;
   }
+}
+
+/* ===== growth animation ===== */
+/* Styles for src/growth/GrowthAnimation.tsx — the four-act repo-growth
+   animation. The stage is a FIXED 1280x720 design canvas (the approved
+   demo's 1920x1080 at exactly 2/3) scaled into its wrapper by a
+   --growth-scale CSS var, so every size below is fixed design px on
+   purpose: fluid clamp() sizes would break the canvas contract the GIF
+   exporter (640x360 clone, scale 0.5) depends on. Colors ride the theme
+   vars so matrix/paper both work; language colors come from the scene. */
+
+.growth-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.growth-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 720px;
+  transform: scale(var(--growth-scale, 1));
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.growth-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.growth-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- act 1: terminal hook --- */
+
+.growth-hook {
+  position: absolute;
+  inset: 0;
+  padding: 307px 64px 0;
+}
+
+.growth-term {
+  width: 733px;
+  padding: 4px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg-2);
+}
+
+.growth-term-line {
+  display: flex;
+  align-items: center;
+  height: 21px;
+  font-size: 16px;
+  line-height: 21px;
+  white-space: nowrap;
+}
+
+.growth-term-line + .growth-term-line {
+  margin-top: 3px;
+}
+
+.growth-term-prompt {
+  margin-right: 8px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.growth-term-caret {
+  display: inline-block;
+  width: 7px;
+  height: 16px;
+  margin-left: 2px;
+  background: var(--accent);
+}
+
+.growth-term-caret-gate {
+  display: inline-flex;
+  align-items: center;
+}
+
+.growth-repo-name {
+  margin-top: 13px;
+  font-size: 59px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.growth-repo-name span {
+  display: inline-block;
+}
+
+.growth-title-kicker {
+  margin-top: 21px;
+  font-size: 19px;
+  color: var(--fg-mute);
+  letter-spacing: 0.06em;
+}
+
+/* --- act 2: hero counter, race, timeline, stars --- */
+
+.growth-hero-zone {
+  position: absolute;
+  inset: 0;
+}
+
+.growth-kicker {
+  position: absolute;
+  left: 64px;
+  top: 100px;
+  font-size: 16px;
+  color: var(--fg-mute);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.growth-hero-num {
+  position: absolute;
+  left: 64px;
+  top: 159px;
+  font-size: 117px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transform-origin: 0% 78%;
+  will-change: transform;
+}
+
+.growth-dip-row {
+  position: absolute;
+  left: 64px;
+  top: 308px;
+  height: 23px;
+}
+
+.growth-dip-note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 16px;
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+.growth-race-title {
+  position: absolute;
+  left: 687px;
+  top: 173px;
+  font-size: 13px;
+  color: var(--fg-mute);
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+
+.growth-race-plot {
+  position: absolute;
+  left: 687px;
+  top: 200px;
+  width: 466px;
+  height: 336px;
+}
+
+.growth-race-row {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.growth-race-name {
+  flex: 0 0 113px;
+  width: 113px;
+  font-size: 15px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.growth-race-track {
+  position: relative;
+  flex: 0 0 353px;
+  width: 353px;
+  height: 29px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--rule) 45%, transparent);
+}
+
+.growth-race-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 2px;
+  transform-origin: left center;
+  will-change: width;
+}
+
+.growth-race-val {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  font-size: 13px;
+  color: var(--fg);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.growth-compact-bar {
+  position: absolute;
+  left: 64px;
+  top: 430px;
+  width: 1152px;
+  height: 29px;
+  border-radius: 2px;
+}
+
+/* timeline strip */
+
+.growth-tl-track,
+.growth-tl-fill {
+  position: absolute;
+  left: 64px;
+  top: 633px;
+  width: 1152px;
+  height: 5px;
+  transform-origin: left center;
+}
+
+.growth-tl-track {
+  background: var(--rule);
+}
+
+.growth-tl-fill {
+  background: var(--accent);
+  will-change: width;
+}
+
+.growth-tl-playhead {
+  position: absolute;
+  top: 625px;
+  width: 2px;
+  height: 23px;
+  background: var(--accent);
+  will-change: transform;
+}
+
+.growth-tl-chip {
+  position: absolute;
+  left: 14px;
+  top: 595px;
+  width: 100px;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--fg);
+  will-change: transform;
+}
+
+.growth-tl-tick {
+  position: absolute;
+  top: 645px;
+  font-size: 12px;
+  color: var(--fg-mute);
+  white-space: nowrap;
+}
+
+.growth-tl-caret {
+  position: absolute;
+  top: 616px;
+  width: 0;
+  height: 0;
+  margin-left: -4px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--warn);
+}
+
+/* stars HUD */
+
+.growth-stars {
+  position: absolute;
+  right: 64px;
+  top: 64px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.growth-star-bracket {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  overflow: visible;
+}
+
+.growth-star-bracket path {
+  fill: none;
+  stroke: var(--fg-mute);
+  stroke-width: 3;
+  stroke-linecap: butt;
+}
+
+.growth-sb-tl {
+  left: -5px;
+  top: -5px;
+}
+
+.growth-sb-br {
+  right: -5px;
+  bottom: -5px;
+}
+
+.growth-star-glyph {
+  color: var(--warn);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.growth-star-label {
+  color: var(--fg-mute);
+  letter-spacing: 0.14em;
+}
+
+.growth-star-value {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* --- act 3: morph --- */
+
+.growth-stack-seg {
+  position: absolute;
+  height: 29px;
+  border-radius: 2px;
+  will-change: left, top, width;
+}
+
+/* --- the ring (morph target + finale donut; never moves) --- */
+
+.growth-ring {
+  position: absolute;
+  display: block;
+}
+
+.growth-ring-center {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.growth-ring-center .lbl {
+  display: block;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--fg-mute);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.growth-ring-center strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 35px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg);
+}
+
+/* --- act 4: report-stats finale --- */
+/* The column stack is exact arithmetic the TS geometry mirrors: 64 pad +
+   40 head + 13+2 rule + 23+54 summary + 29 gap = body top 225; body height
+   431 centers the 347px ring box at (275.8, 440.5). */
+
+.growth-fin-card {
+  position: absolute;
+  inset: 0;
+  padding: 64px;
+  display: flex;
+  flex-direction: column;
+}
+
+.growth-fin-head {
+  height: 40px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.growth-fin-repo {
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.growth-fin-meta {
+  font-size: 16px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.growth-fin-rule {
+  margin-top: 13px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.growth-fin-summary {
+  margin-top: 23px;
+  height: 54px;
+  display: flex;
+  gap: 59px;
+}
+
+.growth-fin-metric .lbl {
+  display: block;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--fg-mute);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.growth-fin-metric .val {
+  display: block;
+  margin-top: 5px;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.growth-fin-metric.accent .val {
+  color: var(--accent);
+  font-size: 37px;
+}
+
+.growth-fin-body {
+  margin-top: 29px;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 37px;
+}
+
+.growth-fin-donut-col {
+  position: relative;
+}
+
+.growth-fin-table-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.growth-fin-caption {
+  font-size: 13px;
+  color: var(--fg-mute);
+  letter-spacing: 0.04em;
+}
+
+.growth-fin-tr {
+  display: grid;
+  grid-template-columns: 176px 75px 112px 112px 104px 1fr;
+  column-gap: 8px;
+  align-items: center;
+  height: 29px;
+  border-bottom: 1px solid var(--rule-2);
+}
+
+.growth-fin-tr.growth-fin-thead {
+  height: 23px;
+  margin-top: 4px;
+}
+
+.growth-fin-th {
+  font-size: 11px;
+  color: var(--fg-mute);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.growth-fin-th.lang {
+  text-align: left;
+}
+
+.growth-fin-td {
+  font-size: 15px;
+  color: var(--fg);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.growth-fin-td.code {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.growth-fin-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.growth-fin-swatch {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 2px;
+}
+
+.growth-fin-tr.other .growth-fin-lang {
+  color: var(--fg-mute);
+}
+
+.growth-fin-tr.total {
+  border-bottom: none;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.growth-fin-tr.total .growth-fin-td,
+.growth-fin-tr.total .growth-fin-lang {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* paused affordance — shown only when a player passes playing={false} */
+
+.growth-paused {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  color: var(--accent);
+  font-size: 20px;
+  pointer-events: none;
+}
+
+/* ===== growth section chrome (src/report/GrowthSection.tsx) ===== */
+/* Section-level wrapper around the animation stage: the bordered, padded
+   panel idiom the report's sections share, so the growth section reads as
+   one of them in both themes. The stage itself (.growth-wrap inside
+   GrowthAnimation) is a fixed aspect-ratio box; the skeleton below reserves
+   the identical geometry so the lazy chunk's swap-in causes zero CLS. */
+
+.growth-section {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
+  border-radius: 8px;
+}
+
+.growth-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.growth-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.growth-head span {
+  color: var(--fg-mute);
+  font-size: 0.85rem;
+}
+
+.growth-skeleton {
+  width: 100%;
+  /* Same geometry the stage occupies once the scene is ready (16:9 of the
+     container width), with a floor for very narrow viewports. */
+  aspect-ratio: 16 / 9;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-mute);
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+}
+
+.growth-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.growth-controls,
+.growth-export {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.growth-loop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-mute);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.growth-seek {
+  flex: 1;
+  min-width: 140px;
+  accent-color: var(--accent);
+}
+
+.growth-variant {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.growth-variant button {
+  border: none;
+  background: transparent;
+  color: var(--fg-mute);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.growth-variant button.is-active {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+.growth-variant button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.growth-export-error {
+  color: var(--warn, #d29922);
+  font-size: 0.85rem;
+}
+
+.growth-note {
+  margin: var(--space-2) 0 0;
+  color: var(--fg-mute);
+  font-size: 0.8rem;
+}
+
+.growth-gathering {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* "this report" divergence note appended to the subtitle line. */
+.growth-this-report {
+  color: var(--fg-mute);
+}
+
+/* History-data disclosure under the animation: the scene's own samples in
+   table form — compact bordered-bottom rows, tabular numerals, first column
+   left-aligned, per the section's mute idiom. */
+.growth-history-data {
+  margin-top: var(--space-2);
+}
+
+.growth-history-data summary {
+  cursor: pointer;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.growth-history-data table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.growth-history-data th,
+.growth-history-data td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+}
+
+.growth-history-data th:first-child,
+.growth-history-data td:first-child {
+  text-align: left;
 }

@@ -297,14 +297,6 @@ export function App() {
   if (routePath.startsWith("/embed/")) return <RoutedPage><EmbedPage /></RoutedPage>;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
-  // The entry URL is the authority on pinning: a report route that names a ref
-  // (/github/o/r/tree/v1.0.0, /github/o/r/commit/<sha>) is one observation of
-  // one frozen commit and must be MARKED on the history chart, never merged
-  // into the default-branch series as fake end-of-curve data. Captured once at
-  // mount — after a report lands the canonicalization below replaceState's the
-  // ref into the URL, and that rewrite must not retroactively flip a
-  // default-branch report into a pinned one.
-  const entryUrlPinnedRef = useMemo(() => Boolean(parsePublicReportPath(window.location.pathname)?.refName), []);
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);
   const [refName, setRefName] = useState(() => initialRequest.refName);
   const [ambiguousRef, setAmbiguousRef] = useState(() => hasAmbiguousRefPath(initialRequest.repoUrl));
@@ -624,7 +616,6 @@ export function App() {
             onReset={reset}
             onRerun={() => void runAnalysis(true)}
             variant={isReportRoute ? "full" : "demo"}
-            isPinnedRef={entryUrlPinnedRef}
           />
         </section>
 
@@ -730,6 +721,7 @@ export function App() {
                 <li><a href="/docs/api">{t("footer.apiDocs")}</a></li>
                 <li><a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a></li>
                 <li><a href="/docs/faq">{t("footer.faq")}</a></li>
+                <li><a href="/docs/github-language-bar-alternative">{t("footer.languageBar")}</a></li>
                 <li><a href="/docs/methodology">{t("footer.methodology")}</a></li>
               </ul>
             </div>
