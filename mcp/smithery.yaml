@@ -1,0 +1,12 @@
+# Smithery configuration for octocounts-mcp (stdio transport).
+# Smithery builds and hosts the container, then connects to the started server.
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    (config) => ({ "command": "npx", "args": ["-y", "octocounts-mcp@0.2.0"] })
+
+exampleConfig: {}

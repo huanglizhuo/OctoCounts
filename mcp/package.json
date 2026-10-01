@@ -1,14 +1,16 @@
 {
   "name": "octocounts-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "MCP server that gives AI coding assistants access to OctoCounts SLOC reports — analyze and compare public GitHub repositories without cloning.",
   "mcpName": "io.github.huanglizhuo/octocounts-mcp",
   "type": "module",
   "bin": {
-    "octocounts-mcp": "src/index.js"
+    "octocounts-mcp": "src/index.js",
+    "octocounts-mcp-http": "src/http.js"
   },
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "serve": "node src/http.js"
   },
   "keywords": [
     "mcp",
