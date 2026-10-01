@@ -23,7 +23,18 @@ use crate::models::{
     AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, RepoRef, Report, Repository,
 };
 
-const TOKEI_VERSION: &str = "tokei-12.1";
+/// The counting engine this binary actually links, as reported to clients and
+/// embedded in `analysis_key`.
+///
+/// Keep in lockstep with the `tokei` entry in `Cargo.lock` — the crate exposes
+/// no version constant in its library API (checked against 14.x), so this
+/// literal is the only source. A stale value is not cosmetic: `analysis_key`
+/// hashes it, and the report's `tokeiVersion` field is what the methodology
+/// page promises, so an engine upgrade that forgets this line makes every
+/// cached report claim the wrong engine *and* keeps serving cache entries that
+/// were keyed under the old engine's name. Changing it (correctly) invalidates
+/// the analysis cache once — every report is re-analyzed on its next request.
+const TOKEI_VERSION: &str = "tokei-14.0.0";
 const MAX_ARCHIVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const MAX_EXTRACTED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_FILES: usize = 240_000;

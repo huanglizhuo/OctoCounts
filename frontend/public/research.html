@@ -1,22 +1,21 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script async src="https://startupbar.co/widget/loader.js" data-startup-id="66549da1-5972-4e99-893f-2894bf371096"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>How Filtering Changes SLOC Counts: OctoCounts Pilot Study | OctoCounts Research</title>
-    <meta name="description" content="OctoCounts original research: counting the same two GitHub repositories at the same commit with four analysis configurations (default, excluding tests, excluding docs, excluding generated files) shows that test filtering alone removes 26–48% of code lines." />
+    <title>SLOC Filtering Pilot Study | OctoCounts Research</title>
+    <meta name="description" content="OctoCounts pilot study: recounting facebook/react and vitejs/vite at pinned commits under four filters shows test exclusion alone removes 26–48% of code lines." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/research" />
     <link rel="alternate" type="text/markdown" href="https://octocounts.com/research.md" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="OctoCounts" />
-    <meta property="og:title" content="How Filtering Changes SLOC Counts: OctoCounts Pilot Study" />
+    <meta property="og:title" content="SLOC Filtering Pilot Study | OctoCounts Research" />
     <meta property="og:description" content="An OctoCounts pilot study counts facebook/react and vitejs/vite at identical commits under four analysis configurations. Excluding tests removes 47.7% of react's code lines and 26.6% of Vite's." />
     <meta property="og:url" content="https://octocounts.com/research" />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="How Filtering Changes SLOC Counts: OctoCounts Pilot Study" />
+    <meta name="twitter:title" content="SLOC Filtering Pilot Study | OctoCounts Research" />
     <meta name="twitter:description" content="Same commit, four counting configurations: test filtering removes 26–48% of code lines in this two-repository OctoCounts pilot." />
     <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <style>
@@ -53,18 +52,32 @@
       "headline": "How Filtering Changes SLOC Counts: OctoCounts Pilot Study",
       "description": "OctoCounts counts facebook/react and vitejs/vite at identical commits under four analysis configurations. Test filtering removes 47.7% of react's code lines and 26.6% of Vite's; docs and generated-file filters barely move.",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-09-16",
+      "dateModified": "2026-09-30",
       "author": {
         "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
         "name": "huanglizhuo",
-        "url": "https://github.com/huanglizhuo"
+        "url": "https://github.com/huanglizhuo",
+        "sameAs": [
+          "https://github.com/huanglizhuo",
+          "https://github.com/huanglizhuo/OctoCounts",
+          "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+          "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
+          "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
+          "https://www.npmjs.com/package/octocounts"
+        ]
       },
       "publisher": {
         "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
-      "mainEntityOfPage": "https://octocounts.com/research"
+      "mainEntityOfPage": "https://octocounts.com/research",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "p.note", ".note"]
+      }
     }
     </script>
     <script type="application/ld+json">
@@ -74,14 +87,16 @@
       "name": "Pilot dataset: how analysis-configuration filtering changes SLOC counts (facebook/react, vitejs/vite)",
       "description": "Eight recorded counting runs: facebook/react and vitejs/vite at pinned commits (9b7a0d4029ee, e6f6b3e31192), each counted under four OctoCounts analysis configurations (default, exclude-tests, exclude-docs, exclude-generated). Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version, and full totals (files, lines, code, comments, blanks).",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-09-16",
+      "dateModified": "2026-09-30",
       "creator": {
         "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
         "name": "huanglizhuo",
         "url": "https://github.com/huanglizhuo"
       },
       "publisher": {
         "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
@@ -109,13 +124,6 @@
       "measurementTechnique": "Source lines counted with tokei 12.1 over the GitHub source archive at a pinned commit, once per analysis configuration (test, docs, and generated-file exclusion toggles).",
       "isPartOf": { "@id": "https://octocounts.com/research" },
       "mainEntityOfPage": "https://octocounts.com/research"
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SpeakableSpecification",
-      "cssSelector": ["h1", "p.note", ".note"]
     }
     </script>
     <script type="application/ld+json">

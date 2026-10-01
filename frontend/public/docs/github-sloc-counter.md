@@ -16,6 +16,8 @@ Canonical page: https://octocounts.com/docs/github-sloc-counter
 - Export language counts as text, JSON, or a social share image.
 - Use an API for public repository size checks in internal tools or CI dashboards.
 
+OctoCounts is one option among several. For head-to-head trade-offs see [OctoCounts vs cloc, scc, and tokei](https://octocounts.com/docs/octocounts-vs-cloc); for a wider field including sloccount and GitHub's language bar, see the [best SLOC counter tools](https://octocounts.com/docs/best-sloc-counter-tools) comparison.
+
 ## Supported Repository Hosts
 
 | Host | Support | Entry point |
@@ -31,7 +33,7 @@ Canonical page: https://octocounts.com/docs/github-sloc-counter
 4. Generated and heavy dependency folders such as `.git`, `node_modules`, `target`, `dist`, and `vendor` are ignored by default.
 5. The report is cached by repository, commit SHA, tokei version, and analysis options.
 
-For the full counting policy, cache key, exclusions, limitations, and citation format, see the [OctoCounts methodology](https://octocounts.com/docs/methodology). Agent-readable context is also available in [/llms.txt](https://octocounts.com/llms.txt) and [/llms-full.txt](https://octocounts.com/llms-full.txt).
+For the full counting policy, cache key, exclusions, limitations, and citation format, see the [OctoCounts methodology](https://octocounts.com/docs/methodology). For measured examples of how the exclusion options change the reported numbers, see the [pilot study on SLOC filtering effects](https://octocounts.com/research). Agent-readable context is also available in [/llms.txt](https://octocounts.com/llms.txt) and [/llms-full.txt](https://octocounts.com/llms-full.txt).
 
 ## Metrics Explained
 
@@ -43,6 +45,8 @@ For the full counting policy, cache key, exclusions, limitations, and citation f
 | Comments | Line and block comments recognized by the language parser. |
 | Blanks | Whitespace-only lines. |
 | Languages | Detected programming languages and file types, sorted by code lines. |
+
+Each metric is defined precisely in the [SLOC glossary](https://octocounts.com/docs/glossary).
 
 ## Examples
 
@@ -63,6 +67,8 @@ Use live badges to show repository size in a README:
 [![Code lines](https://api.octocounts.com/badge/huanglizhuo/OctoCounts?type=code)](https://octocounts.com/github/huanglizhuo/OctoCounts)
 [![Rust lines](https://api.octocounts.com/badge/huanglizhuo/OctoCounts?lang=Rust)](https://octocounts.com/github/huanglizhuo/OctoCounts)
 ```
+
+The [badges page](https://octocounts.com/badges) documents every badge type and query parameter.
 
 ## API
 
@@ -85,3 +91,5 @@ No. OctoCounts downloads the source archive for a branch, tag, or commit SHA, ru
 ### Does OctoCounts support private repositories?
 
 No. OctoCounts analyzes public repositories only and does not accept source-code uploads or request account access.
+
+More questions about counting, extensions, badges, and the API are answered in the [OctoCounts FAQ](https://octocounts.com/docs/faq).

@@ -92,6 +92,21 @@ pub struct SeoList {
 pub struct SitemapEntry {
     loc: String,
     lastmod: String,
+    /// The report's measured totals, so the edge sitemap filter can drop
+    /// zero-value entries (repositories whose analysis found nothing worth
+    /// indexing) without another round trip per URL. The consumer reads either
+    /// this nested `total` shape — the one the report payloads themselves use —
+    /// or the flat `totalFiles`/`totalLines`/`totalCode` spelling.
+    total: SitemapTotals,
+}
+
+/// The subset of [`LanguageStats`] the sitemap consumer filters on.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SitemapTotals {
+    pub files: i64,
+    pub lines: i64,
+    pub code: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -343,6 +358,11 @@ pub async fn sitemap(
                 repository_public_path(row.provider, &row.owner, &row.repo)
             ),
             lastmod: row.lastmod.to_string(),
+            total: SitemapTotals {
+                files: row.total_files,
+                lines: row.total_lines,
+                code: row.total_code,
+            },
         })
         .collect();
     state
@@ -487,6 +507,29 @@ pub(crate) fn cache_headers(cache_control: &'static str) -> HeaderMap {
     headers
 }
 
+/// The repository's home URL, rebuilt from the same identity that builds
+/// [`repository_public_path`].
+///
+/// The stored body also carries an `htmlUrl`, but its provenance is the GitHub
+/// API object the analysis happened to hit: for a repository analyzed under a
+/// pre-rename name (the live `facebook/react` pages, whose repository GitHub
+/// now answers as `react/react`) it disagrees with the owner/repo the row —
+/// and therefore the page, its canonical URL and its JSON-LD — is filed under.
+/// Deriving from the row's own identity at render time makes every existing
+/// row self-consistent without a migration, and can never disagree with
+/// `publicPath`.
+pub(crate) fn repository_html_url(
+    provider: RepositoryProvider,
+    owner: &str,
+    repo: &str,
+) -> String {
+    match provider {
+        RepositoryProvider::GitHub => format!("https://github.com/{owner}/{repo}"),
+        // GitLab owners are nested group paths, so the separators survive as-is.
+        RepositoryProvider::GitLab => format!("https://gitlab.com/{owner}/{repo}"),
+    }
+}
+
 fn seo_report(card: &ReportCard) -> SeoReport {
     let public_path = repository_public_path(card.provider, &card.owner, &card.repo);
     let canonical_url = format!("https://octocounts.com{public_path}");
@@ -538,7 +581,7 @@ fn seo_report(card: &ReportCard) -> SeoReport {
         owner: card.owner.clone(),
         repo: card.repo.clone(),
         repo_full_name,
-        html_url: card.html_url.clone(),
+        html_url: repository_html_url(card.provider, &card.owner, &card.repo),
         public_path,
         canonical_url,
         title,
@@ -669,7 +712,7 @@ fn format_number(value: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        configuration_summary, seo_report, snapshot_url, ReportCard,
+        configuration_summary, repository_html_url, seo_report, snapshot_url, ReportCard,
     };
     use crate::models::{AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats};
     use chrono::{TimeZone, Utc};
@@ -696,7 +739,6 @@ mod tests {
             provider: crate::models::RepositoryProvider::GitHub,
             owner: "rust-lang".to_string(),
             repo: "rust".to_string(),
-            html_url: "https://github.com/rust-lang/rust".to_string(),
             ref_name: "main".to_string(),
             commit_sha: "9f8e7d6c5b4a39281706".to_string(),
             generated_at: Utc.with_ymd_and_hms(2024, 3, 14, 9, 30, 15).unwrap(),
@@ -809,6 +851,51 @@ mod tests {
         .unwrap();
         assert!(url.starts_with("https://octocounts.com/github/o/r/commit/abc123?analysis="));
         assert!(url.contains("%22ignoredDirs%22%3A%5B%22examples%22%5D"));
+    }
+
+    /// The live-site regression this module exists to prevent: `facebook/react`
+    /// rows analyzed back when GitHub still answered that slug directly carry a
+    /// stored `htmlUrl` of `https://github.com/react/react` (the repository's
+    /// post-rename spelling) while the row — and therefore the page, its
+    /// canonical URL and its JSON-LD `codeRepository`/`isBasedOn` — is filed
+    /// under `facebook/react`. `htmlUrl` must render from the row's own
+    /// identity, so the page's outbound links can never name a different
+    /// repository than the page itself.
+    #[test]
+    fn html_url_is_derived_from_the_identity_the_page_is_filed_under() {
+        let mut poisoned = card(Some(default_options()));
+        poisoned.owner = "facebook".to_string();
+        poisoned.repo = "react".to_string();
+
+        let report = seo_report(&poisoned);
+        let json = serde_json::to_value(&report).unwrap();
+
+        assert_eq!(json["htmlUrl"], "https://github.com/facebook/react");
+        assert_eq!(json["repoFullName"], "facebook/react");
+        assert_eq!(json["publicPath"], "/github/facebook/react");
+    }
+
+    /// Same rule for the legacy GitLab rows: the URL is rebuilt from the nested
+    /// group path the row is filed under, matching what the old `web_url`
+    /// carried for every row that was ever stored.
+    #[test]
+    fn gitlab_html_url_is_rebuilt_from_the_nested_group_path() {
+        assert_eq!(
+            repository_html_url(
+                crate::models::RepositoryProvider::GitLab,
+                "gitlab-org/ci-cd",
+                "gitlab-runner"
+            ),
+            "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner"
+        );
+        assert_eq!(
+            repository_html_url(
+                crate::models::RepositoryProvider::GitHub,
+                "huanglizhuo",
+                "OctoCounts"
+            ),
+            "https://github.com/huanglizhuo/OctoCounts"
+        );
     }
 }
 

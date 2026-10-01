@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script async src="https://startupbar.co/widget/loader.js" data-startup-id="66549da1-5972-4e99-893f-2894bf371096"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OctoCounts vs cloc, scc, and tokei | SLOC Counter Comparison</title>
@@ -53,14 +52,16 @@
       "headline": "OctoCounts vs cloc, scc, and tokei",
       "description": "Compare OctoCounts with cloc, scc, and tokei for counting source lines of code in public GitHub repositories, local workflows, CI, and sharing.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-09-17",
+      "dateModified": "2026-09-30",
       "author": {
         "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
         "name": "huanglizhuo",
         "url": "https://github.com/huanglizhuo"
       },
       "publisher": {
         "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
@@ -129,7 +130,14 @@
       "@id": "https://github.com/huanglizhuo",
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
-      "sameAs": ["https://github.com/huanglizhuo"],
+      "sameAs": [
+        "https://github.com/huanglizhuo",
+        "https://github.com/huanglizhuo/OctoCounts",
+        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
+        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
+        "https://www.npmjs.com/package/octocounts"
+      ],
       "knowsAbout": ["source lines of code", "code metrics", "tokei", "cloc", "scc", "developer tools"]
     }
     </script>
@@ -208,6 +216,20 @@
       </table>
 
       <p class="note"><strong>Bottom line:</strong> OctoCounts is the right choice when you want a fast, shareable, no-install SLOC report for a public GitHub repository. For private code, offline environments, or highly customized analysis, run tokei, cloc, or scc locally.</p>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <h3>What is the difference between OctoCounts and cloc?</h3>
+      <p>cloc is a local command-line tool written in Perl. OctoCounts is a web service that runs tokei on GitHub archives and adds caching, badges, shareable URLs, an API, a CLI, and browser extensions.</p>
+
+      <h3>What is the difference between OctoCounts and tokei?</h3>
+      <p>tokei is the fast Rust-based line counter that OctoCounts uses under the hood. OctoCounts wraps tokei with a web app, archive downloads, commit pinning, caching, and integrations.</p>
+
+      <h3>What is the difference between OctoCounts and scc?</h3>
+      <p>scc is a Go-based command-line tool that adds complexity estimates and license detection. OctoCounts focuses on fast, shareable, no-install SLOC reports for public GitHub repositories.</p>
+
+      <h3>When should I use OctoCounts instead of a local tool?</h3>
+      <p>Use OctoCounts when you want a quick, shareable report without installing anything, when you need a README badge, or when you want to compare repositories in a browser. Use cloc, tokei, or scc locally for private repositories or custom analysis.</p>
 
       <h2>Related reading</h2>
       <ul>

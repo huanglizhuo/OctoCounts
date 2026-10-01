@@ -21,7 +21,6 @@ macro_rules! card_projection {
             r.owner AS owner,
             r.repo AS repo,
             r.language_count AS language_count,
-            r.body->'repository'->>'htmlUrl' AS html_url,
             r.body->>'refName' AS ref_name,
             r.body->>'commitSha' AS commit_sha,
             r.body->>'generatedAt' AS generated_at,
@@ -1709,13 +1708,15 @@ impl Store {
             .collect()
     }
 
-    /// Repository identity plus last-modified date for every distinct repository,
-    /// newest first.
+    /// Repository identity, last-modified date and measured totals for every
+    /// distinct repository, newest first.
     ///
-    /// The sitemap only ever needed four scalars per row, but it used to go
-    /// through `distinct_reports`, which pulls up to 45k complete report bodies
+    /// The sitemap only ever needed a handful of scalars per row, but it used to
+    /// go through `distinct_reports`, which pulls up to 45k complete report bodies
     /// out of Postgres and runs every one of them through `serde_json`. This
-    /// touches neither `body` nor the TOAST table.
+    /// touches neither `body` (beyond the one `generatedAt` detoast below) nor
+    /// the TOAST table for the totals: they come from the narrow materialized
+    /// columns the `reports_materialize_stats` trigger maintains.
     ///
     /// Deduplication, sorting and the row cap all run over narrow scalar columns;
     /// only the surviving page is joined back for its `generatedAt`.
@@ -1733,7 +1734,13 @@ impl Store {
                 r.provider AS provider,
                 r.owner AS owner,
                 r.repo AS repo,
-                r.body->>'generatedAt' AS generated_at
+                r.body->>'generatedAt' AS generated_at,
+                -- A row that escaped both the trigger and the stats backfill has
+                -- NULL totals; the sitemap would rather publish a zero than lie
+                -- about a repository it could not read.
+                COALESCE(r.total_files, 0) AS total_files,
+                COALESCE(r.total_lines, 0) AS total_lines,
+                COALESCE(r.total_code, 0) AS total_code
             FROM (
                 SELECT id, created_at
                 FROM (
@@ -1774,6 +1781,9 @@ impl Store {
                     lastmod: DateTime::parse_from_rfc3339(&generated_at)?
                         .with_timezone(&Utc)
                         .date_naive(),
+                    total_files: row.try_get("total_files")?,
+                    total_lines: row.try_get("total_lines")?,
+                    total_code: row.try_get("total_code")?,
                 })
             })
             .collect()
@@ -2588,7 +2598,6 @@ pub struct ReportCard {
     pub provider: RepositoryProvider,
     pub owner: String,
     pub repo: String,
-    pub html_url: String,
     pub ref_name: String,
     pub commit_sha: String,
     pub generated_at: DateTime<Utc>,
@@ -2614,7 +2623,6 @@ impl From<&Report> for ReportCard {
             provider: report.repository.provider,
             owner: report.repository.owner.clone(),
             repo: report.repository.name.clone(),
-            html_url: report.repository.html_url.clone(),
             ref_name: report.ref_name.clone(),
             commit_sha: report.commit_sha.clone(),
             generated_at: report.generated_at,
@@ -2812,7 +2820,6 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
             .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
         owner: row.try_get("owner")?,
         repo: row.try_get("repo")?,
-        html_url: row.try_get("html_url")?,
         ref_name: row.try_get("ref_name")?,
         commit_sha: row.try_get("commit_sha")?,
         generated_at: DateTime::parse_from_rfc3339(&generated_at)?.with_timezone(&Utc),
@@ -2843,6 +2850,11 @@ pub struct SitemapRow {
     pub owner: String,
     pub repo: String,
     pub lastmod: NaiveDate,
+    /// The report's measured totals, from the trigger-maintained stat columns.
+    /// The edge sitemap filter drops zero-value entries using these.
+    pub total_files: i64,
+    pub total_lines: i64,
+    pub total_code: i64,
 }
 
 /// One "similar repositories" row: repository identity plus the materialized
@@ -3005,7 +3017,10 @@ fn growth_repository_stat(card: &ReportCard) -> GrowthRepositoryStat {
         owner: card.owner.clone(),
         repo: card.repo.clone(),
         public_path: crate::seo::repository_public_path(card.provider, &card.owner, &card.repo),
-        html_url: card.html_url.clone(),
+        // Derived from the row's identity, not the stored body: the body's
+        // `htmlUrl` can carry a pre-/post-rename spelling that disagrees with
+        // the owner/repo this row (and its page) is filed under.
+        html_url: crate::seo::repository_html_url(card.provider, &card.owner, &card.repo),
         ref_name: card.ref_name.clone(),
         generated_at: card.generated_at,
         total: card.total.clone(),
@@ -3456,7 +3471,6 @@ mod tests {
         assert_eq!(actual.provider, expected.provider);
         assert_eq!(actual.owner, expected.owner);
         assert_eq!(actual.repo, expected.repo);
-        assert_eq!(actual.html_url, expected.html_url);
         assert_eq!(actual.ref_name, expected.ref_name);
         assert_eq!(actual.commit_sha, expected.commit_sha);
         assert_eq!(actual.generated_at, expected.generated_at);

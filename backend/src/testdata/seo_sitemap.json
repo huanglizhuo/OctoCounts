@@ -1,14 +1,29 @@
 [
   {
     "lastmod": "2024-06-01",
-    "loc": "https://octocounts.com/github/octocounts/empty"
+    "loc": "https://octocounts.com/github/octocounts/empty",
+    "total": {
+      "code": 0,
+      "files": 0,
+      "lines": 0
+    }
   },
   {
     "lastmod": "2024-03-14",
-    "loc": "https://octocounts.com/github/rust-lang/rust"
+    "loc": "https://octocounts.com/github/rust-lang/rust",
+    "total": {
+      "code": 2306821,
+      "files": 16346,
+      "lines": 2846077
+    }
   },
   {
     "lastmod": "2024-02-29",
-    "loc": "https://octocounts.com/github/octocounts/legacy"
+    "loc": "https://octocounts.com/github/octocounts/legacy",
+    "total": {
+      "code": 700,
+      "files": 9,
+      "lines": 900
+    }
   }
 ]

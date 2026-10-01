@@ -31,8 +31,10 @@ const REF_CACHE_CAPACITY: u64 = 10_000;
 
 const GRAPHQL_ENDPOINT: &str = "https://api.github.com/graphql";
 
-/// One request for everything REST needs two for: visibility, canonical URL, the
-/// default branch, and the commit the requested ref points at.
+/// One request for everything REST needs two for: visibility, the default
+/// branch, and the commit the requested ref points at. The `url` field rides
+/// along as the API's canonical spelling of the repository, which
+/// [`resolve_github_ref`] uses to adopt canonical owner/repo casing.
 ///
 /// `object(expression:)` resolves the same grammar as
 /// `GET /repos/{o}/{r}/commits/{ref}` — branch, tag or raw sha — and GitHub
@@ -132,7 +134,12 @@ struct StarredEntry {
 #[derive(Debug, Deserialize)]
 struct RepoResponse {
     default_branch: String,
-    html_url: String,
+    /// `"{owner}/{repo}"` in the casing GitHub considers canonical. After a
+    /// redirect (wrong-cased request, renamed or transferred repository) this is
+    /// the *post-redirect* spelling, which is what lets [`resolve_github_ref`]
+    /// file the report under canonical casing without trusting the request URL.
+    #[serde(default)]
+    full_name: Option<String>,
     private: bool,
     #[serde(default)]
     stargazers_count: Option<u64>,
@@ -225,7 +232,12 @@ struct GraphQlError {
 #[derive(Debug, PartialEq, Eq)]
 enum GraphQlOutcome {
     Resolved {
-        html_url: String,
+        /// The repository URL exactly as GitHub's API reported it — the
+        /// canonical spelling of the same repository, used only to adopt
+        /// canonical *casing* for the requested owner/repo. Never persisted
+        /// verbatim: a renamed repo (queried under its old name) would drag the
+        /// new spelling into a report filed under the old one.
+        canonical_url: String,
         ref_name: String,
         stars: Option<u64>,
         commit_sha: String,
@@ -278,7 +290,7 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
                 return GraphQlOutcome::Unusable;
             }
             GraphQlOutcome::Resolved {
-                html_url: repository.url,
+                canonical_url: repository.url,
                 ref_name: ref_name.to_string(),
                 stars: repository.stargazer_count,
                 commit_sha: object.oid,
@@ -295,7 +307,7 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
                 return GraphQlOutcome::Failed(GraphQlFailure::RefNotFound);
             };
             GraphQlOutcome::Resolved {
-                html_url: repository.url.clone(),
+                canonical_url: repository.url.clone(),
                 ref_name: repository
                     .default_branch_ref
                     .as_ref()
@@ -356,6 +368,50 @@ struct RepoTarget {
     owner: String,
     repo: String,
     path: String,
+}
+
+/// Adopts the API's casing for the requested owner/repo when the API object is
+/// the same repository the user asked for — a case-insensitive match on both
+/// parts (`huanglizhuo/octocounts` → the API reports `huanglizhuo/OctoCounts`;
+/// GitHub answers a wrong-cased slug directly, with canonical spelling in
+/// `full_name`).
+///
+/// Anything else — a rename or transfer, where the canonical spelling differs
+/// by more than case (`huanglizhuo/OctoCount`, renamed to `OctoCounts`;
+/// `facebook/react`, whose repository now answers as `react/react`) — keeps
+/// the requested identity. Re-filing a repository under its new name would
+/// silently split its stored history and orphan the page its audience already
+/// links to, so the page keeps the identity it was requested under;
+/// [`github_html_url`] then derives the persisted URL from that same identity
+/// so the two can never disagree.
+///
+/// `api_identity` is whatever spelling the API handed back: REST's `full_name`
+/// (`"facebook/react"`) or GraphQL's `url`
+/// (`"https://github.com/facebook/react"`). Unparseable input keeps the
+/// requested identity rather than guessing.
+fn canonical_casing(owner: &str, repo: &str, api_identity: &str) -> (String, String) {
+    let mut segments = api_identity.rsplit('/').filter(|s| !s.is_empty());
+    let (Some(api_repo), Some(api_owner)) = (segments.next(), segments.next()) else {
+        return (owner.to_string(), repo.to_string());
+    };
+    if api_owner.eq_ignore_ascii_case(owner) && api_repo.eq_ignore_ascii_case(repo) {
+        (api_owner.to_string(), api_repo.to_string())
+    } else {
+        (owner.to_string(), repo.to_string())
+    }
+}
+
+/// The repository URL as derived from the identity the report is filed under.
+///
+/// The API's own `html_url` is deliberately not used: for a repository queried
+/// under a pre-rename name it carries the *new* spelling while the report's
+/// owner/repo (and therefore its page path) keep the requested one — the exact
+/// mismatch that once published `https://github.com/react/react` as the
+/// `codeRepository` of the `/github/facebook/react` page. GitHub redirects the
+/// old spelling to the new repository, so a derived URL always lands the user
+/// on the right place while agreeing with the page's identity.
+fn github_html_url(owner: &str, repo: &str) -> String {
+    format!("https://github.com/{owner}/{repo}")
 }
 
 fn build_ref_cache(ttl: Duration) -> Cache<(String, Option<String>), RepoRef> {
@@ -1041,18 +1097,22 @@ impl GitHubClient {
                 .await
             {
                 GraphQlOutcome::Resolved {
-                    html_url,
+                    canonical_url,
                     ref_name,
                     stars,
                     commit_sha,
                 } => {
+                    // The GraphQL URL carries the API's canonical casing; adopt
+                    // it when it names the same repository, and derive the
+                    // persisted URL from the identity we file under.
+                    let (owner, repo) = canonical_casing(&owner, &repo, &canonical_url);
                     let repo_ref = RepoRef {
                         provider: RepositoryProvider::GitHub,
+                        html_url: github_html_url(&owner, &repo),
                         owner,
                         repo,
                         ref_name,
                         commit_sha,
-                        html_url,
                         stars,
                     };
                     self.ref_cache.insert(cache_key, repo_ref.clone()).await;
@@ -1083,17 +1143,25 @@ impl GitHubClient {
             return Err(GitHubError::PrivateRepo);
         }
 
+        // A wrong-cased or pre-rename request gets redirected (or re-spelled)
+        // to the canonical repository object; `full_name` is therefore the
+        // canonical identity, which only casing is adopted from.
+        let (owner, repo) = match repo_body.full_name.as_deref() {
+            Some(full_name) => canonical_casing(&owner, &repo, full_name),
+            None => (owner, repo),
+        };
+
         let ref_name = requested_ref.unwrap_or_else(|| repo_body.default_branch.clone());
 
         let commit_sha = self.resolve_commit(&owner, &repo, &ref_name).await?;
 
         let repo_ref = RepoRef {
             provider: RepositoryProvider::GitHub,
+            html_url: github_html_url(&owner, &repo),
             owner,
             repo,
             ref_name,
             commit_sha,
-            html_url: repo_body.html_url,
             stars: repo_body.stargazers_count,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
@@ -1329,8 +1397,8 @@ impl GitHubClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_ref_cache, interpret_graphql, GitHubClient, GraphQlFailure, GraphQlOutcome, RepoRef,
-        RepositoryProvider, REF_CACHE_TTL,
+        build_ref_cache, canonical_casing, github_html_url, interpret_graphql, GitHubClient,
+        GraphQlFailure, GraphQlOutcome, RepoRef, RepositoryProvider, REF_CACHE_TTL,
     };
 
     #[test]
@@ -1633,7 +1701,7 @@ mod tests {
         assert_eq!(
             outcome,
             GraphQlOutcome::Resolved {
-                html_url: "https://github.com/tokio-rs/axum".to_string(),
+                canonical_url: "https://github.com/tokio-rs/axum".to_string(),
                 ref_name: "main".to_string(),
                 stars: None,
                 commit_sha: "a5116d6b1bcabdfd7039279e4957b4a9c0b50587".to_string(),
@@ -1658,7 +1726,7 @@ mod tests {
         assert_eq!(
             outcome,
             GraphQlOutcome::Resolved {
-                html_url: "https://github.com/torvalds/linux".to_string(),
+                canonical_url: "https://github.com/torvalds/linux".to_string(),
                 ref_name: "v6.6".to_string(),
                 stars: None,
                 commit_sha: "ffc253263a1375a65fa6c9f62a893e9767fbebfa".to_string(),
@@ -1667,7 +1735,9 @@ mod tests {
     }
 
     /// A renamed repository resolves under its old name and reports the new
-    /// canonical URL, matching REST's redirect behaviour.
+    /// canonical URL. That URL is only ever used to adopt canonical *casing* —
+    /// see the `canonical_casing` tests below — never persisted as the report's
+    /// `html_url`, which is derived from the identity the report is filed under.
     #[test]
     fn graphql_reports_the_canonical_url_for_a_renamed_repository() {
         let outcome = interpret(
@@ -1678,10 +1748,77 @@ mod tests {
             }}}"#,
             None,
         );
-        let GraphQlOutcome::Resolved { html_url, .. } = outcome else {
+        let GraphQlOutcome::Resolved { canonical_url, .. } = outcome else {
             panic!("expected a resolution");
         };
-        assert_eq!(html_url, "https://github.com/vuejs/core");
+        assert_eq!(canonical_url, "https://github.com/vuejs/core");
+    }
+
+    /// The casing guard: a wrong-cased request adopts the API's canonical
+    /// casing, whether the API spelled the identity as a `full_name`
+    /// (`huanglizhuo/OctoCounts`) or a URL
+    /// (`https://github.com/huanglizhuo/OctoCounts`). GitHub answers a
+    /// wrong-cased slug with 200 and the canonical spelling in the body.
+    #[test]
+    fn canonical_casing_is_adopted_from_the_api_spelling() {
+        for api_identity in ["huanglizhuo/OctoCounts", "https://github.com/huanglizhuo/OctoCounts"] {
+            assert_eq!(
+                canonical_casing("HUANGLIZHUO", "octocounts", api_identity),
+                ("huanglizhuo".to_string(), "OctoCounts".to_string()),
+                "wrong-cased request must be re-filed under the API casing for {api_identity}"
+            );
+        }
+        // Already-canonical requests pass through unchanged.
+        assert_eq!(
+            canonical_casing("huanglizhuo", "OctoCounts", "huanglizhuo/OctoCounts"),
+            ("huanglizhuo".to_string(), "OctoCounts".to_string())
+        );
+    }
+
+    /// The rename guard. `facebook/react` is the spelling the site (and its
+    /// users' links) know, but GitHub's API now answers for that repository as
+    /// `react/react` — same repository id, different name. Adopting the new
+    /// spelling wholesale would re-file the report under `/github/react/react`,
+    /// splitting the repository's stored history and orphaning the page its
+    /// audience already links to. So a beyond-casing difference keeps the
+    /// requested identity, and `html_url` is derived from it. The same rule
+    /// covers `huanglizhuo/OctoCount`, whose repository was renamed to
+    /// `OctoCounts` — one character, but a rename, not a casing variant.
+    #[test]
+    fn a_renamed_repository_keeps_the_identity_it_was_requested_under() {
+        // (requested owner, requested repo, API spelling)
+        for (owner, repo, api_identity) in [
+            ("facebook", "react", "react/react"),
+            ("react", "react", "facebook/react"),
+            ("vuejs", "vue-next", "https://github.com/vuejs/core"),
+            ("huanglizhuo", "OctoCount", "huanglizhuo/OctoCounts"),
+        ] {
+            let (kept_owner, kept_repo) = canonical_casing(owner, repo, api_identity);
+            assert_eq!(
+                (kept_owner.as_str(), kept_repo.as_str()),
+                (owner, repo),
+                "a rename must not re-file {owner}/{repo} under {api_identity}"
+            );
+            assert_eq!(
+                github_html_url(&kept_owner, &kept_repo),
+                format!("https://github.com/{owner}/{repo}"),
+                "html_url must agree with the identity the report is filed under"
+            );
+        }
+    }
+
+    /// Unparseable or truncated API spellings keep the requested identity
+    /// rather than guessing.
+    #[test]
+    fn canonical_casing_tolerates_unparseable_api_input() {
+        assert_eq!(
+            canonical_casing("tokio-rs", "axum", "axum"),
+            ("tokio-rs".to_string(), "axum".to_string())
+        );
+        assert_eq!(
+            canonical_casing("tokio-rs", "axum", ""),
+            ("tokio-rs".to_string(), "axum".to_string())
+        );
     }
 
     #[test]

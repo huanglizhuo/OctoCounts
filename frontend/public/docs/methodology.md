@@ -61,6 +61,8 @@ vendor
 - Language classification follows tokei's rules and supported file types.
 - GitHub repositories that are empty, private, unavailable, or too large may fail analysis.
 
+For measured examples of how these analysis options change reported counts across real repositories, see the [pilot study on how test, docs, and generated-file filtering changes SLOC counts](https://octocounts.com/research).
+
 ## Recommended Citation
 
 ```
@@ -77,7 +79,7 @@ OctoCounts resolves a public GitHub ref to a commit SHA, downloads the source ar
 
 ### Why does OctoCounts use archive downloads instead of git clone?
 
-Archive downloads fetch the source tree for one ref without transferring full git history. This is faster for quick repository inspection and keeps reports pinned to a reproducible commit.
+Archive downloads fetch the source tree for one ref without transferring full git history, which keeps the transfer limited to the current source tree and keeps reports pinned to a reproducible commit.
 
 ### Are OctoCounts reports exact?
 

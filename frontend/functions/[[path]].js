@@ -16,28 +16,30 @@ const BOOT_SCRIPT_HASH = "'sha256-gJFnkD2yqbv265Nlf3VSDL44MNt3DDcIc1ENS7V0cRY='"
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-09-27" },
+  { loc: "https://octocounts.com/", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/trending", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/badges", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/extension", lastmod: "2026-09-08" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-19" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/research", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/about", lastmod: "2026-09-16" },
-  { loc: "https://octocounts.com/privacy", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/contact", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/about", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/privacy", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
 ];
 
 // llms.txt / llms-full.txt are intentionally absent from every XML sitemap:
@@ -231,7 +233,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -302,7 +304,11 @@ function parseGitHubRoute(parts) {
 
 async function reportResponse(context, route, options = {}) {
   // A 404 from the report API means the repository genuinely has no cached
-  // report: serve the noindex fallback. A 5xx, network error, or timeout is
+  // report: serve the noindex fallback WITH HTTP 404. It used to answer 200,
+  // which made every un-analyzed /github/* URL a soft 404 — crawlers saw a
+  // successful, crawlable page carrying only boilerplate. Browsers still
+  // render a 404 body, so the JS analysis flow on the fallback page keeps
+  // working; only the status line changed. A 5xx, network error, or timeout is
   // transient — answering 503 + no-store keeps crawlers retrying instead of
   // caching a noindex (or letting the CDN cache one) for an indexable page.
   // The related-repositories endpoint depends only on the route, so start it
@@ -313,8 +319,8 @@ async function reportResponse(context, route, options = {}) {
   const relatedPromise = fetchRelatedReports(context, route);
   const result = await fetchSeoReport(context, route);
   if (result.state === "missing") {
-    if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", options);
-    return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60");
+    if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
+    return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
   }
   if (result.state === "unavailable") {
     return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
@@ -586,6 +592,10 @@ async function trendingPageResponse(context, options = {}) {
         name: title,
         description,
         url: "https://octocounts.com/trending",
+        // Publisher is a bare @id reference to the Organization the homepage
+        // defines — attribution without re-inlining a second copy of the
+        // entity on every daily page (H4).
+        publisher: ORGANIZATION_ID,
         // The daily snapshot is both created and modified on its snapshot
         // date; there is no earlier publication moment to report.
         datePublished: snapshot.date,
@@ -844,7 +854,10 @@ async function embedPageResponse(context, parts) {
 async function badgesPageResponse(context) {
   const index = await indexHtml(context);
   const title = "GitHub SLOC badges for your README | OctoCounts";
-  const description = "Live README badges that show source lines of code, code lines, files, comments, language count, top language, code share, or a single language for any public GitHub repository, rendered by the OctoCounts badge API.";
+  // 159 chars (SEO audit H5): the old 214-char description enumerated every
+  // badge type; this keeps the primary README-badges keyword, the main badge
+  // types, and the badge API attribution inside the 70–160 band.
+  const description = "Live README badges showing lines of code, code lines, files, comments, top language, or code share for a public GitHub repository via the OctoCounts badge API.";
   const badgeBase = "https://api.octocounts.com/badge/:owner/:repo";
   const badgeTypeRows = [
     ["Summary: total lines and code lines", badgeBase],
@@ -929,11 +942,30 @@ const EXTENSION_STORES = [
   { store: "firefox", label: "Firefox Add-ons", url: "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/" },
 ];
 
+// Canonical entity identities from the homepage's JSON-LD (frontend/
+// index.html): the Organization is defined once as
+// "https://octocounts.com/#organization" and the author Person once as
+// "https://github.com/huanglizhuo". Pages that re-state those entities
+// (report and compare Dataset creator, extension SoftwareApplication author)
+// must carry the SAME @id and sameAs set so consumers merge each page's copy
+// with the homepage node instead of recording a duplicate Organization/Person
+// per URL (SEO audit H4). The Person's sameAs is the superset: homepage
+// profile, the OctoCounts repository, every extension store listing the
+// homepage WebApplication already lists, plus the npm package.
+const ORGANIZATION_ID = "https://octocounts.com/#organization";
+const PERSON_ID = "https://github.com/huanglizhuo";
+const ORGANIZATION_SAME_AS = ["https://github.com/huanglizhuo/OctoCounts", ...EXTENSION_STORES.map((store) => store.url)];
+const PERSON_SAME_AS = [PERSON_ID, "https://github.com/huanglizhuo/OctoCounts", ...EXTENSION_STORES.map((store) => store.url), "https://www.npmjs.com/package/octocounts"];
+
 const EXTENSION_CONTENT = {
-  title: "OctoCounts GitHub Line Counter Extension for Chrome, Edge & Firefox | OctoCounts",
+  // Title ≤60 chars including the "| OctoCounts" suffix, description in the
+  // 70–160 band (SEO audit H5): the old pair was an 80-char title (truncated
+  // mid-word in SERPs) and a 199-char description; both keep the primary
+  // "GitHub SLOC extension" / browser-extension keywords and the browser list.
+  title: "GitHub SLOC extension for Chrome, Edge, Firefox | OctoCounts",
   heading: "See GitHub code statistics in your browser",
   description:
-    "Install the OctoCounts browser extension for Chrome, Edge, or Firefox to see source lines of code — files, code, comments, blanks, and per-language totals — directly in the GitHub repository sidebar.",
+    "Install the OctoCounts extension for Chrome, Edge, or Firefox to see files, code, comments, and per-language line counts in the GitHub repository sidebar.",
   intro:
     "OctoCounts is a free browser extension that adds a SLOC (source lines of code) card to public GitHub repository pages. The card shows the repository's total line count at a glance; clicking it opens a full panel with files, code lines, comment lines, blank lines, and a per-language breakdown — the same counts the OctoCounts web app produces with tokei, pinned to an exact commit.",
   steps: [
@@ -1016,11 +1048,15 @@ async function extensionPageResponse(context, options = {}) {
             downloadUrl: EXTENSION_STORES[0].url,
             screenshot: "https://octocounts.com/og-image.jpg",
             description: content.description,
+            // The homepage Person (@id https://github.com/huanglizhuo) with
+            // the full sameAs set — profile, repository, store listings, npm —
+            // so this author merges with every other statement of it (H4).
             author: {
               "@type": "Person",
-              "@id": "https://github.com/huanglizhuo",
+              "@id": PERSON_ID,
               name: "huanglizhuo",
               url: "https://github.com/huanglizhuo",
+              sameAs: PERSON_SAME_AS,
             },
           },
           {
@@ -1140,8 +1176,11 @@ async function curatedCompareResponse(context, entry, options = {}) {
   }
 
   if (leftResult.state === "missing" || rightResult.state === "missing") {
-    if (options.markdown) return markdownResponse(compareMissingMarkdown(entry), "public, max-age=60", options);
-    return htmlResponse(injectCompareFallback(await indexHtml(context), entry), "public, max-age=60");
+    // Same 404 rationale as missing reports: the fallback body still renders
+    // (the JS app re-runs the analysis), but crawlers get the true status
+    // instead of counting another soft-200 against the site.
+    if (options.markdown) return markdownResponse(compareMissingMarkdown(entry), "public, max-age=60", { ...options, status: 404 });
+    return htmlResponse(injectCompareFallback(await indexHtml(context), entry), "public, max-age=60", { status: 404 });
   }
 
   const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
@@ -1200,7 +1239,11 @@ async function buildCompareViewModel(entry, left, right) {
     canonical,
     title: `${entry.name}: source lines of code compared | OctoCounts`,
     heading: `${entry.name}: source lines of code compared`,
-    description: `${left.repoFullName} has ${formatNumber(left.total.lines)} total lines (${formatNumber(left.total.code)} code) and ${right.repoFullName} has ${formatNumber(right.total.lines)} total lines (${formatNumber(right.total.code)} code), counted with tokei. Totals, language mix, and methodology compared.`,
+    // Meta description ~120-140 chars for typical registry names (SEO audit
+    // H5): the old template's closing clause ("Totals, language mix, and
+    // methodology compared.") pushed every /compare/* page to 174-178 chars.
+    // Both headline number pairs and the tokei attribution stay.
+    description: `${left.repoFullName} has ${formatNumber(left.total.lines)} total lines (${formatNumber(left.total.code)} code); ${right.repoFullName} has ${formatNumber(right.total.lines)} total lines (${formatNumber(right.total.code)} code), counted with tokei.`,
     interactiveHref,
     prefill,
     left: side(left, leftDate),
@@ -1635,10 +1678,14 @@ function compareJsonLd(model) {
         },
         measurementTechnique: "tokei via OctoCounts",
         variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
+        // Same merge rule as the report pages' Dataset: inline for standalone
+        // validity, keyed to the homepage Organization @id with its sameAs (H4).
         creator: {
           "@type": "Organization",
+          "@id": ORGANIZATION_ID,
           name: "OctoCounts",
           url: "https://octocounts.com/",
+          sameAs: ORGANIZATION_SAME_AS,
         },
         isBasedOn: [model.left.canonicalUrl, model.right.canonicalUrl],
       },
@@ -1700,7 +1747,66 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
 
 async function fetchReportSitemapEntries(context) {
   const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, { headers: { accept: "application/json" } });
-  return response.ok ? await response.json() : [];
+  // The quality gate runs here, ahead of both consumers (the sitemap index's
+  // page count and each /sitemap-reports-N.xml child), so pagination and
+  // content can never disagree about how many entries exist.
+  return response.ok ? filterReportSitemapEntries(await response.json()) : [];
+}
+
+/// Quality gate on the /api/seo/sitemap payload (SEO audit H2). Each entry
+/// carries exactly {loc, lastmod} today — no measured totals, no canonical
+/// owner/repo casing marker — so only what those two fields can prove is
+/// filtered here:
+/// - loc must be the canonical report shape this function itself serves,
+///   https://octocounts.com/github/:owner/:repo (percent-encoded segments
+///   allowed): anything else (another provider's path, a ref URL, a malformed
+///   string) is a URL the edge would redirect or 404, not a sitemap entry.
+/// - locs that duplicate another entry case-insensitively collapse to the
+///   first occurrence: the store keys owner/repo case-sensitively, so one
+///   repository analyzed under two casings ships two rows while at most one
+///   casing is canonical (the other 308s at report time).
+/// - entries that provably measured nothing ("0 code lines across 0 files")
+/// are dropped, but only when the payload actually carries totals: the check
+/// reads the total shapes the other SEO endpoints already use (nested
+/// total.{files,lines,code} like /api/seo/report, or flat camelCase
+/// totalFiles/totalLines/totalCode like /api/seo/related), so the moment the
+/// backend adds any of them to the sitemap rows, empty analyses stop being
+/// published without another edge change.
+/// What this gate CANNOT do, and the backend must: detect a renamed or
+/// re-cased repository whose stored owner/repo no longer matches GitHub's
+/// live canonical name (e.g. the OctoPoint -> OctoCounts rename entry that
+/// 308s). Nothing in {loc, lastmod} reveals that; it needs a store-side
+/// canonicalization or a live-name check before the rows are returned.
+const REPORT_SITEMAP_LOC_PATTERN = /^https:\/\/octocounts\.com\/github\/[A-Za-z0-9_.~-]+(?:%[0-9A-Fa-f]{2})*\/[A-Za-z0-9_.~-]+(?:%[0-9A-Fa-f]{2})*$/;
+
+function filterReportSitemapEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  const seenLocs = new Set();
+  const kept = [];
+  for (const entry of entries) {
+    if (typeof entry?.loc !== "string" || !REPORT_SITEMAP_LOC_PATTERN.test(entry.loc)) continue;
+    const dedupeKey = entry.loc.toLowerCase();
+    if (seenLocs.has(dedupeKey)) continue;
+    seenLocs.add(dedupeKey);
+    if (!sitemapEntryMeasuredAnything(entry)) continue;
+    kept.push(entry);
+  }
+  return kept;
+}
+
+/// True unless every total the entry carries is zero. An entry with no totals
+/// at all (today's {loc, lastmod} shape) stays: absence of data is not proof
+/// of an empty analysis.
+function sitemapEntryMeasuredAnything(entry) {
+  const totals = [
+    entry.total?.files,
+    entry.total?.lines,
+    entry.total?.code,
+    entry.totalFiles,
+    entry.totalLines,
+    entry.totalCode,
+  ].filter((value) => typeof value === "number");
+  return totals.length === 0 || totals.some((value) => value > 0);
 }
 
 async function sitemapIndexResponse(context) {
@@ -1787,7 +1893,11 @@ function listPageMeta(kind) {
   }
   if (kind === "monoliths") {
     return {
-      title: "Hall of Monoliths: largest GitHub repositories by lines of code | OctoCounts",
+      // Exactly 60 chars with the suffix (SEO audit H5): the old 76-char
+      // title spelled out "largest GitHub repositories by lines of code";
+      // "largest repositories by SLOC" keeps the ranking keyword and the
+      // site's core term without SERP truncation.
+      title: "Hall of Monoliths: largest repositories by SLOC | OctoCounts",
       description: "A live OctoCounts leaderboard of large public GitHub repositories ranked by total source lines of code.",
       canonical: "https://octocounts.com/hall-of-monoliths",
     };
@@ -1850,11 +1960,19 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
         .map((entry) => `<a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a>`)
         .join(" · ")}</li>`
     : "";
+  // Per-repo CTAs (SEO audit H8): a reader landing on a report already has
+  // the repo name in mind, so the badge builder and the diff tool are linked
+  // with that context — same li style as the rest of the nav, repo name
+  // escaped like every other payload-derived string on the page.
+  const repoBadgesCta = `<li><a href="https://octocounts.com/badges">Get README badges for ${escapeHtml(report.repoFullName)}</a></li>`;
+  const repoDiffCta = `<li><a href="https://octocounts.com/diff">Diff ${escapeHtml(report.repoFullName)} between refs</a></li>`;
   const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
     <li><a href="/trending">Trending GitHub repositories</a></li>
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>${relatedCompareHtml}
+    ${repoBadgesCta}
+    ${repoDiffCta}
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
@@ -1880,6 +1998,11 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
         .map((item) => `<li><a href="${escapeAttr(item.publicPath)}">${escapeHtml(item.repoFullName)}</a> — ${escapeHtml(item.topLanguage || "mixed")}, ${formatNumber(item.totalCode)} code lines</li>`)
         .join("")}</ul></section>`
     : "";
+  // Crawler-visible stand-in for the client-rendered growth-animation section
+  // (plan §7): the report payload this function sees carries no SLOC history
+  // samples, so the sentence sticks to what the report itself knows — the
+  // first/last sample numbers render client-side and are never invented here.
+  const growthSsrHtml = `<p class="growth-ssr">Play the growth animation for ${escapeHtml(report.repoFullName)} on this page — ${formatNumber(report.total.code)} code lines across ${formatNumber(report.languages.length)} languages, counted by tokei.</p>`;
   const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,
@@ -1891,7 +2014,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
     extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
   });
 }
 
@@ -2016,10 +2139,15 @@ function reportJsonLd(report) {
         },
         measurementTechnique: "tokei via OctoCounts",
         variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
+        // Creator stays inline (a standalone Dataset node needs name/url for
+        // validators that never see the homepage) but carries the homepage
+        // Organization's canonical @id and sameAs so the two merge (H4).
         creator: {
           "@type": "Organization",
+          "@id": ORGANIZATION_ID,
           name: "OctoCounts",
           url: "https://octocounts.com/",
+          sameAs: ORGANIZATION_SAME_AS,
         },
         isBasedOn: report.htmlUrl,
         distribution: {
@@ -2163,7 +2291,9 @@ function htmlResponse(html, cacheControl, options) {
     ...securityHeaders(options),
   };
   if (options?.lastModified) headers["last-modified"] = options.lastModified;
-  return new Response(html, { headers });
+  // status is set only by the missing-report fallback (404); every other
+  // caller leaves it undefined, which the Response constructor reads as 200.
+  return new Response(html, { status: options?.status, headers });
 }
 
 /// Markdown twins share the cache policy of their HTML page and the lockdown
@@ -2178,6 +2308,8 @@ function htmlResponse(html, cacheControl, options) {
 /// their distinct URL cannot pollute the HTML entry.
 function markdownResponse(markdown, cacheControl, options = {}) {
   return new Response(markdown, {
+    // status is set only by the missing-report markdown fallback (404).
+    status: options.status,
     headers: {
       "content-type": "text/markdown; charset=utf-8",
       "cache-control": options.uaOnly ? "private, no-store" : cacheControl,
@@ -2206,6 +2338,6 @@ function securityHeaders(options) {
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "cross-origin-opener-policy": "same-origin",
-    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com https://startupbar.co; frame-src https://startupbar.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://api.octocounts.com https://www.githubstatus.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://api.octocounts.com https://www.githubstatus.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
   };
 }

@@ -918,7 +918,9 @@ test("curated comparison serves a noindex fallback when a report is missing", as
     restore();
   }
 
-  assert.equal(response.status, 200);
+  // Missing reports now answer 404 (matching report pages) while still
+  // serving the noindex fallback body the client app hydrates.
+  assert.equal(response.status, 404);
   assert.match(html, /<meta name="robots" content="noindex,follow/);
   assert.match(html, /not available for both repositories yet/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
@@ -1750,10 +1752,20 @@ test("report markdown handles missing reports and transient failures like the HT
   globalThis.fetch = async () => new Response("report was not found", { status: 404 });
   try {
     const response = await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"));
-    assert.equal(response.status, 200);
+    // A genuinely missing report answers 404 in both formats — the fallback
+    // body still renders (browsers and the JS analysis flow keep working),
+    // but crawlers see the real status instead of a soft-404 200.
+    assert.equal(response.status, 404);
     assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
     assert.equal(response.headers.get("cache-control"), "public, max-age=60");
     assert.match(await response.text(), /No cached report exists yet for octo-org\/octo-repo/);
+
+    const htmlResponse = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    assert.equal(htmlResponse.status, 404);
+    assert.equal(htmlResponse.headers.get("cache-control"), "public, max-age=60");
+    const html = await htmlResponse.text();
+    assert.match(html, /<meta name="robots" content="noindex,follow/);
+    assert.match(html, /No cached report exists yet/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1841,7 +1853,9 @@ test("curated comparison markdown keeps the short-cache answer when a report is 
   const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
   try {
     const response = await onRequest(await renderedContext("/compare/react-vs-vue.md"));
-    assert.equal(response.status, 200);
+    // Missing reports now answer 404 (matching report pages) while still
+    // serving the explanatory markdown body.
+    assert.equal(response.status, 404);
     assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
     assert.equal(response.headers.get("cache-control"), "public, max-age=60");
     assert.match(await response.text(), /not available for both repositories yet/);
@@ -2111,7 +2125,8 @@ test("extension landing page serves complete SSR content with real store links",
   const response = await onRequest(await renderedContext("/extension"));
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.ok(html.includes("<title>OctoCounts GitHub Line Counter Extension for Chrome, Edge &amp; Firefox | OctoCounts</title>"));
+  // Title trimmed to 60 chars including the "| OctoCounts" suffix (H5).
+  assert.ok(html.includes("<title>GitHub SLOC extension for Chrome, Edge, Firefox | OctoCounts</title>"));
   assert.ok(html.includes('<link rel="canonical" href="https://octocounts.com/extension" />'));
   assert.ok(html.includes("<h1>See GitHub code statistics in your browser</h1>"));
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);

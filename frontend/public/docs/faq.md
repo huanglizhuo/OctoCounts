@@ -42,7 +42,7 @@ OctoCounts uses tokei for language detection, which supports over 200 programmin
 
 Language detection is extension-based, with fallback to shebang lines and content-based detection for ambiguous files. OctoCounts automatically skips heavy generated folders before passing the archive to tokei, so the SLOC count reflects actual human-written source code rather than auto-generated files that would inflate the numbers.
 
-### Can I export the results?
+### Can I export SLOC results?
 
 Yes. OctoCounts supports three export formats, available from the action buttons below the analysis results. Plain text copies a formatted table to your clipboard, showing language name, file count, total lines, code lines, comment lines, and blank lines in a column-aligned layout suitable for pasting into README files, GitHub issues, or documentation. JSON downloads the full structured report, including per-language stats and aggregate totals, formatted for scripts, CI pipelines, or other tools that consume JSON.
 

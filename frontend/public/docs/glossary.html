@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script async src="https://startupbar.co/widget/loader.js" data-startup-id="66549da1-5972-4e99-893f-2894bf371096"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SLOC Glossary | Code Line Counting Terms | OctoCounts</title>
@@ -50,14 +49,16 @@
       "headline": "SLOC Glossary",
       "description": "Precise definitions of source lines of code terms and how each one maps to OctoCounts reports.",
       "datePublished": "2026-08-28",
-      "dateModified": "2026-09-16",
+      "dateModified": "2026-09-30",
       "author": {
         "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
         "name": "huanglizhuo",
         "url": "https://github.com/huanglizhuo"
       },
       "publisher": {
         "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
         "name": "OctoCounts",
         "url": "https://octocounts.com/"
       },
@@ -201,7 +202,14 @@
       "@id": "https://github.com/huanglizhuo",
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
-      "sameAs": ["https://github.com/huanglizhuo"],
+      "sameAs": [
+        "https://github.com/huanglizhuo",
+        "https://github.com/huanglizhuo/OctoCounts",
+        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
+        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
+        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
+        "https://www.npmjs.com/package/octocounts"
+      ],
       "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
     }
     </script>
@@ -273,6 +281,17 @@
         <h2>SLOC delta</h2>
         <p>A SLOC delta is the change in line counts between two revisions of a codebase, such as the code, comment, and blank lines added or removed by a pull request. Deltas are more informative than absolute counts for review work, because they show whether a change grew the code, the comments, or only whitespace. Comparing deltas across revisions requires counting both sides with the same tool and rules. OctoCounts supports revision comparison through its <code>/diff</code> URLs, which count two refs of the same repository and show how the line counts moved.</p>
       </section>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <h3>What is SLOC?</h3>
+      <p>SLOC (Source Lines of Code) is a measure of software size obtained by counting the number of lines in a program's source files. A SLOC report normally separates code lines, comment lines, and blank lines, and is only comparable across projects when the counting rules are stated.</p>
+
+      <h3>What is the difference between physical and logical SLOC?</h3>
+      <p>Physical SLOC counts raw text lines in source files; logical SLOC counts executable statements, so one logical statement may span several physical lines. OctoCounts and tokei report physical line counts split into code, comments, and blanks.</p>
+
+      <h3>Which tool does OctoCounts use to count lines of code?</h3>
+      <p>OctoCounts counts public GitHub repositories with tokei, a fast code statistics tool written in Rust, run against the source archive of a pinned commit.</p>
     </main>
     <footer>
       <nav class="meta">Docs: <a href="/docs/github-sloc-counter">SLOC guide</a> &middot; <a href="/docs/methodology">Methodology</a> &middot; <a href="/docs/api">API docs</a> &middot; <a href="/">Home</a> &middot; <a href="/badges">Badges</a></nav>

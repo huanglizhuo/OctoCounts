@@ -69,6 +69,13 @@ mod tests {
     #[test]
     fn uptime_is_positive_once_started() {
         let metrics = Metrics::new();
+        // Both clock reads can land on the same tick when the test binary is
+        // warm, leaving a genuinely fresh Metrics with a zero elapsed time —
+        // a flake, not a bug. Wait for the clock to actually advance instead
+        // of racing its resolution; the loop is bounded by real time passing.
+        while metrics.uptime() == Duration::ZERO {
+            std::thread::sleep(Duration::from_micros(100));
+        }
         assert!(metrics.uptime() > Duration::ZERO);
     }
 }

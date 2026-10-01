@@ -74,6 +74,8 @@ GET /badge/:owner/:repo/commit/:sha
 - API docs: https://octocounts.com/docs/api
 - FAQ: https://octocounts.com/docs/faq
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
+- tokei online (run tokei on GitHub repos without installing): https://octocounts.com/docs/tokei-online
+- How to count lines of code in a GitHub repository: https://octocounts.com/docs/count-lines-of-code-github
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
 - Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research

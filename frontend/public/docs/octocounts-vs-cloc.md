@@ -65,6 +65,24 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 
 **Bottom line:** OctoCounts is the right choice when you want a fast, shareable, no-install SLOC report for a public GitHub repository. For private code, offline environments, or highly customized analysis, run tokei, cloc, or scc locally.
 
+## Frequently Asked Questions
+
+### What is the difference between OctoCounts and cloc?
+
+cloc is a local command-line tool written in Perl. OctoCounts is a web service that runs tokei on GitHub archives and adds caching, badges, shareable URLs, an API, a CLI, and browser extensions.
+
+### What is the difference between OctoCounts and tokei?
+
+tokei is the fast Rust-based line counter that OctoCounts uses under the hood. OctoCounts wraps tokei with a web app, archive downloads, commit pinning, caching, and integrations.
+
+### What is the difference between OctoCounts and scc?
+
+scc is a Go-based command-line tool that adds complexity estimates and license detection. OctoCounts focuses on fast, shareable, no-install SLOC reports for public GitHub repositories.
+
+### When should I use OctoCounts instead of a local tool?
+
+Use OctoCounts when you want a quick, shareable report without installing anything, when you need a README badge, or when you want to compare repositories in a browser. Use cloc, tokei, or scc locally for private repositories or custom analysis.
+
 ## Related reading
 
 - [Best SLOC counter tools compared (including sloccount and GitHub's language bar)](/docs/best-sloc-counter-tools)
