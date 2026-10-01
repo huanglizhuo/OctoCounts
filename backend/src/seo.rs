@@ -65,6 +65,16 @@ pub struct SeoReport {
     /// known, since without it the URL would not reproduce these numbers.
     #[serde(skip_serializing_if = "Option::is_none")]
     snapshot_url: Option<String>,
+    /// The slug (`"owner/repo"`) this repository's data is actually filed
+    /// under, present only when it differs from the requested one — by casing
+    /// (GitHub treats slug casing as the same repository, so a wrong-cased
+    /// request still resolves) or by rename (the requested slug is a recorded
+    /// predecessor of the current key, e.g. `facebook/react` for
+    /// `react/react`). The page's canonical URL, JSON-LD and links must all
+    /// follow this spelling; the edge function uses it to 308 the requested
+    /// URL so link equity consolidates on one page per repository.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    canonical_slug: Option<String>,
     duration_ms: u128,
     total: LanguageStats,
     top_language: Option<TopLanguage>,
@@ -145,10 +155,9 @@ pub async fn related(
     }
 
     let provider = parse_provider(&query.provider)?;
-    let Some(report) = state
-        .coordinator
-        .store()
-        .latest_report_card(provider, &query.owner, &query.repo)
+    // Same resolver as `report`: a pre-rename slug still gets its (re-keyed)
+    // repository's interlinks, filed under the current spelling.
+    let Some((card, _canonical_slug)) = resolve_latest_card(&state, provider, &query.owner, &query.repo)
         .await
         .map_err(ApiError::internal)?
     else {
@@ -157,8 +166,6 @@ pub async fn related(
             "report was not found",
         ));
     };
-
-    let card = report;
     let reports = state
         .coordinator
         .store()
@@ -211,10 +218,7 @@ pub async fn report(
     }
 
     let provider = parse_provider(&query.provider)?;
-    let Some(report) = state
-        .coordinator
-        .store()
-        .latest_report_card(provider, &query.owner, &query.repo)
+    let Some((card, canonical_slug)) = resolve_latest_card(&state, provider, &query.owner, &query.repo)
         .await
         .map_err(ApiError::internal)?
     else {
@@ -224,7 +228,7 @@ pub async fn report(
         ));
     };
 
-    let report = seo_report(&report);
+    let report = seo_report(&card, canonical_slug);
     state
         .caches
         .seo_report
@@ -232,6 +236,105 @@ pub async fn report(
         .await;
 
     Ok((seo_report_cache_headers(), Json(report)))
+}
+
+/// The report card a request for `owner/repo` should be answered from, and the
+/// canonical slug to advertise when it is not the one literally requested.
+///
+/// The lookup is already case-insensitive at the store level, so the first
+/// attempt answers casing variants. When nothing is filed under the requested
+/// spelling at all, the recorded redirect chain gets one chance to name the
+/// predecessor slug's current key — the pre-rename page must keep answering
+/// (with `canonicalSlug` on the payload) rather than 404, because that page is
+/// what the index and the audience's links still hold.
+async fn resolve_latest_card(
+    state: &AppState,
+    provider: RepositoryProvider,
+    owner: &str,
+    repo: &str,
+) -> anyhow::Result<Option<(ReportCard, Option<String>)>> {
+    let store = state.coordinator.store();
+    if let Some(card) = store.latest_report_card(provider, owner, repo).await? {
+        let slug = canonical_slug_if_differs(owner, repo, &card);
+        return Ok(Some((card, slug)));
+    }
+
+    let Some((new_owner, new_repo)) = store.redirect_target(provider, owner, repo).await? else {
+        return Ok(None);
+    };
+    let Some(card) = store
+        .latest_report_card(provider, &new_owner, &new_repo)
+        .await?
+    else {
+        return Ok(None);
+    };
+    let slug = canonical_slug_if_differs(owner, repo, &card);
+    Ok(Some((card, slug)))
+}
+
+/// `"owner/repo"` of the row's own key, when it is not byte-for-byte the
+/// requested spelling. Exact comparison, not case-insensitive: the whole point
+/// is to tell the caller a different spelling is canonical.
+fn canonical_slug_if_differs(owner: &str, repo: &str, card: &ReportCard) -> Option<String> {
+    (card.owner != owner || card.repo != repo).then(|| format!("{}/{}", card.owner, card.repo))
+}
+
+/// `GET /api/seo/redirect` — where a repository's page lives now.
+///
+/// Answers from the recorded redirect chain first (renames: `facebook/react`
+/// → `react/react`), then from the case-insensitive report lookup (casing
+/// variants: `huanglizhuo/octocounts` → `huanglizhuo/OctoCounts`), so the
+/// edge function can issue one 308 per unknown slug without shipping a
+/// hardcoded map. `404` when the slug is neither redirected nor stored — no
+/// report exists to redirect *to*.
+pub async fn redirect(
+    State(state): State<AppState>,
+    Query(query): Query<SeoReportQuery>,
+) -> Result<(HeaderMap, Json<SeoRedirect>), ApiError> {
+    // `ref_name` is accepted (shared query shape) and ignored: a redirect is a
+    // property of the repository, not of a ref.
+    let provider = parse_provider(&query.provider)?;
+    let store = state.coordinator.store();
+
+    let slug = if let Some((owner, repo)) = store
+        .redirect_target(provider, &query.owner, &query.repo)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        Some(format!("{owner}/{repo}"))
+    } else {
+        store
+            .latest_report_card(provider, &query.owner, &query.repo)
+            .await
+            .map_err(ApiError::internal)?
+            .and_then(|card| canonical_slug_if_differs(&query.owner, &query.repo, &card))
+    };
+
+    let Some(redirect_slug) = slug else {
+        return Err(ApiError::not_found(
+            "redirect_not_found",
+            "no redirect is recorded for this repository",
+        ));
+    };
+
+    Ok((
+        redirect_cache_headers(),
+        Json(SeoRedirect { redirect_slug }),
+    ))
+}
+
+/// The `GET /api/seo/redirect` payload: exactly one field, kept tiny because
+/// the edge function calls it per unknown slug.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeoRedirect {
+    redirect_slug: String,
+}
+
+fn redirect_cache_headers() -> HeaderMap {
+    // Redirects only ever grow (a fold never un-records), so a long shared
+    // cache lifetime is safe and keeps the edge's per-slug checks cheap.
+    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
 }
 
 pub async fn recent(
@@ -251,7 +354,7 @@ pub async fn recent(
         .await
         .map_err(ApiError::internal)?
         .iter()
-        .map(seo_report)
+        .map(|card| seo_report(card, None))
         .collect();
     let list = SeoList {
         page,
@@ -284,7 +387,7 @@ pub async fn popular(
         .await
         .map_err(ApiError::internal)?
         .iter()
-        .map(seo_report)
+        .map(|card| seo_report(card, None))
         .collect();
     let list = SeoList {
         page,
@@ -317,7 +420,7 @@ pub async fn monoliths(
         .await
         .map_err(ApiError::internal)?
         .iter()
-        .map(seo_report)
+        .map(|card| seo_report(card, None))
         .collect();
     let list = SeoList {
         page,
@@ -461,11 +564,15 @@ fn pagination(query: PageQuery) -> (i64, i64, i64) {
 }
 
 fn seo_report_cache_key(query: &SeoReportQuery) -> String {
+    // The owner/repo keep their requested spelling (only the provider is
+    // folded): `canonicalSlug` is a function of how the request was spelled,
+    // so `react/React` and `react/react` must not share a cache entry even
+    // though they resolve to the same row.
     format!(
         "{}:{}:{}:{}",
         query.provider.to_ascii_lowercase(),
-        query.owner.to_ascii_lowercase(),
-        query.repo.to_ascii_lowercase(),
+        query.owner,
+        query.repo,
         query.ref_name.as_deref().unwrap_or_default()
     )
 }
@@ -530,7 +637,10 @@ pub(crate) fn repository_html_url(
     }
 }
 
-fn seo_report(card: &ReportCard) -> SeoReport {
+/// Builds the public report payload. `canonical_slug` is `None` on the list
+/// endpoints (requested and stored slugs are the same row by construction) and
+/// set by `report` whenever the request's spelling differs from the row's.
+fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
     let public_path = repository_public_path(card.provider, &card.owner, &card.repo);
     let canonical_url = format!("https://octocounts.com{public_path}");
     let repo_full_name = format!("{}/{}", card.owner, card.repo);
@@ -594,6 +704,7 @@ fn seo_report(card: &ReportCard) -> SeoReport {
         analysis_key: card.analysis_key.clone(),
         analysis_options: card.analysis_options.clone(),
         snapshot_url,
+        canonical_slug,
         duration_ms: card.duration_ms,
         total: card.total.clone(),
         top_language,
@@ -772,7 +883,7 @@ mod tests {
 
     #[test]
     fn known_configuration_is_exposed_with_a_reproducible_snapshot_url() {
-        let report = seo_report(&card(Some(default_options())));
+        let report = seo_report(&card(Some(default_options())), None);
         let json = serde_json::to_value(&report).unwrap();
 
         assert_eq!(json["analysisKey"], "tokei-14.0.0:default");
@@ -804,7 +915,7 @@ mod tests {
     /// the configuration "default".
     #[test]
     fn unknown_configuration_omits_fields_and_marks_the_citation() {
-        let report = seo_report(&card(None));
+        let report = seo_report(&card(None), None);
         let json = serde_json::to_value(&report).unwrap();
 
         assert!(json.get("analysisKey").is_none());
@@ -867,7 +978,7 @@ mod tests {
         poisoned.owner = "facebook".to_string();
         poisoned.repo = "react".to_string();
 
-        let report = seo_report(&poisoned);
+        let report = seo_report(&poisoned, None);
         let json = serde_json::to_value(&report).unwrap();
 
         assert_eq!(json["htmlUrl"], "https://github.com/facebook/react");

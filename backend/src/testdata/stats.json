@@ -148,23 +148,6 @@
         "files": 16346,
         "lines": 2846077
       }
-    },
-    {
-      "generatedAt": "2024-02-29T11:30:15.123456789Z",
-      "htmlUrl": "https://github.com/octocounts/legacy",
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/legacy",
-      "refName": "master",
-      "repo": "legacy",
-      "topLanguage": "Perl",
-      "total": {
-        "blanks": 80,
-        "code": 700,
-        "comments": 120,
-        "files": 9,
-        "lines": 900
-      }
     }
   ],
   "sources": [
@@ -222,23 +205,6 @@
         "comments": 50000,
         "files": 2189,
         "lines": 431818
-      }
-    },
-    {
-      "generatedAt": "2024-02-29T11:30:15.123456789Z",
-      "htmlUrl": "https://github.com/octocounts/legacy",
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/legacy",
-      "refName": "master",
-      "repo": "legacy",
-      "topLanguage": "Perl",
-      "total": {
-        "blanks": 80,
-        "code": 700,
-        "comments": 120,
-        "files": 9,
-        "lines": 900
       }
     },
     {

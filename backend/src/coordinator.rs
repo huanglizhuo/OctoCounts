@@ -249,6 +249,48 @@ impl AnalysisCoordinator {
             .await
             .map_err(ApiError::from)?;
 
+        // Rename-follow. The resolution filed the repository under the API's
+        // current spelling; when that took a rename hop, everything still
+        // stored under the predecessor slug moves to the same key *before* the
+        // cache lookup, so the analysis reads and writes one identity and the
+        // old slug's history rides along instead of rotting behind a second,
+        // newer page. Every path funnels through here — web requests, the
+        // SLOC-history backfill, the forward sampler, the suspect-point
+        // re-sampler — so one hook covers "on any analysis/refresh".
+        //
+        // Best-effort by design: a fold failure degrades to the pre-fold world
+        // (two keys, latest row wins) rather than failing a user's analysis,
+        // and the next resolution of the old slug retries it — the fold is
+        // idempotent and the startup pass (`migrate_repo_renames`) heals the
+        // known pairs anyway.
+        if let Some((old_owner, old_repo)) = repo_ref.renamed_from.clone() {
+            match self
+                .store
+                .follow_repo_rename(
+                    repo_ref.provider,
+                    &old_owner,
+                    &old_repo,
+                    &repo_ref.owner,
+                    &repo_ref.repo,
+                )
+                .await
+            {
+                Ok(moved) if moved > 0 => tracing::info!(
+                    from = %format!("{old_owner}/{old_repo}"),
+                    to = %format!("{}/{}", repo_ref.owner, repo_ref.repo),
+                    moved,
+                    "followed repository rename"
+                ),
+                Ok(_) => {}
+                Err(error) => tracing::warn!(
+                    %error,
+                    from = %format!("{old_owner}/{old_repo}"),
+                    to = %format!("{}/{}", repo_ref.owner, repo_ref.repo),
+                    "failed to follow repository rename; analysis continues under the new slug"
+                ),
+            }
+        }
+
         if !request.force_refresh {
             if let Some(report) = self
                 .store

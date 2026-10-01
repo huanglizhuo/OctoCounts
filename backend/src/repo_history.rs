@@ -113,6 +113,21 @@ pub(crate) async fn ensure_repo_history(
 )> {
     let store = state.coordinator.store();
     let github = state.coordinator.github();
+
+    // Rename-follow on the history surface: a request for a predecessor slug
+    // must read (and, crucially, *watch* and backfill) the merged key, or the
+    // first old-slug view would plant a fresh watch row and a duplicate
+    // backfill right back under the slug the fold just emptied. Only recorded
+    // redirects are followed — resolution-level rename detection lives in the
+    // analyze path, which records them.
+    let (owner, repo) = match store.redirect_target(provider, owner, repo).await? {
+        Some((new_owner, new_repo)) => (new_owner, new_repo),
+        None => (owner.to_string(), repo.to_string()),
+    };
+    // Back to borrows so the rest of the body is unchanged whether or not a
+    // redirect hop happened.
+    let (owner, repo) = (owner.as_str(), repo.as_str());
+
     let current_stars = github.repo_stars(&provider, owner, repo).await;
 
     let just_started_watching = store.watch_repo_for_stars(provider, owner, repo).await?;
@@ -195,6 +210,21 @@ pub async fn repo_history(
         ));
     }
 
+    // The response echoes the slug the series actually lives under — the same
+    // redirect-follow `ensure_repo_history` applies to its reads and writes —
+    // so a pre-rename request renders the merged curve under the name the
+    // repository answers to today, not the dead slug that was asked for.
+    let (canonical_owner, canonical_repo) = match state
+        .coordinator
+        .store()
+        .redirect_target(provider, &query.owner, &query.repo)
+        .await
+        .map_err(ApiError::internal)?
+    {
+        Some((owner, repo)) => (owner, repo),
+        None => (query.owner.clone(), query.repo.clone()),
+    };
+
     let (
         star_history,
         current_stars,
@@ -218,8 +248,8 @@ pub async fn repo_history(
 
     let response = RepoHistoryResponse {
         provider: query.provider.clone(),
-        owner: query.owner.clone(),
-        repo: query.repo.clone(),
+        owner: canonical_owner,
+        repo: canonical_repo,
         current_stars,
         star_points: star_history
             .into_iter()
@@ -645,12 +675,20 @@ pub(crate) async fn run_sloc_forward_sample(
         .await
         .map_err(|error| anyhow::anyhow!("failed to resolve HEAD: {error}"))?;
 
+    // The watched key may be a predecessor slug (this pass races the fold, or
+    // predates it): sample under the *resolved* identity — the same key the
+    // analysis pipeline files under — so a rename never re-splits the series
+    // the fold just merged. `renamed_from` needs no handling of its own here;
+    // the `submit` below performs (or re-asserts) the fold.
+    let owner = repo_ref.owner.clone();
+    let repo = repo_ref.repo.clone();
+
     // No snapshot on record means the repo has never been successfully
     // sampled (e.g. a backfill whose every analysis failed) — that is a
     // reason to sample now, not to skip, so only a known-unchanged HEAD
     // short-circuits.
     let last_sha = store
-        .latest_sloc_snapshot(provider, owner, repo)
+        .latest_sloc_snapshot(provider, &owner, &repo)
         .await?
         .map(|(_, _, sha)| sha);
     if last_sha.as_deref() == Some(repo_ref.commit_sha.as_str()) {
@@ -696,8 +734,8 @@ pub(crate) async fn run_sloc_forward_sample(
     store
         .record_sloc_snapshot(
             provider,
-            owner,
-            repo,
+            &owner,
+            &repo,
             Utc::now().date_naive(),
             total_lines,
             &repo_ref.commit_sha,

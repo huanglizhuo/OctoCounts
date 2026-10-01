@@ -68,6 +68,19 @@ async fn main() -> anyhow::Result<()> {
 
     let store = Store::new(pool);
     store.migrate().await?;
+    // One idempotent pass folding the known renamed slugs (plus replaying any
+    // recorded redirects, which catches rows an old binary re-filed under a
+    // predecessor slug mid-deploy). Runs before serving so the first request
+    // after a deploy already sees one key per repository; a failure here is
+    // logged, not fatal — renames are still followed on the first resolution
+    // of the old slug.
+    match store.migrate_repo_renames().await {
+        Ok(moved) if moved > 0 => {
+            tracing::info!(moved, "startup rename pass folded stored rows")
+        }
+        Ok(_) => {}
+        Err(error) => tracing::warn!(%error, "startup rename pass failed"),
+    }
     spawn_cleanup_task(
         store.clone(),
         config.cleanup_interval_seconds,
@@ -144,6 +157,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/stats", get(api::stats))
         .route("/api/repo-info", get(api::repo_info))
         .route("/api/seo/report", get(seo::report))
+        .route("/api/seo/redirect", get(seo::redirect))
         .route("/api/seo/recent", get(seo::recent))
         .route("/api/seo/popular", get(seo::popular))
         .route("/api/seo/monoliths", get(seo::monoliths))

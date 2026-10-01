@@ -220,6 +220,8 @@ export async function onRequest(context) {
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
 }
 
+// Fallback for pre-migration databases only: the report API's canonicalSlug
+// (see reportResponse) is now the primary rename-redirect mechanism.
 const LEGACY_REPORT_REDIRECTS = {
   "github/huanglizhuo/octocount": "/github/huanglizhuo/OctoCounts",
 };
@@ -327,6 +329,31 @@ async function reportResponse(context, route, options = {}) {
   }
 
   const report = await result.response.json();
+  const requestUrl = new URL(context.request.url);
+  // A renamed repository still answers here: the API resolves the requested
+  // slug through its recorded redirect chain and returns the row's payload
+  // with `canonicalSlug` ("react/react" for a /github/facebook/react request)
+  // naming the key that row is actually filed under. 308 to that spelling so
+  // link equity consolidates on one page per repository. This runs BEFORE the
+  // integrity guard below — a renamed repo's payload legitimately carries a
+  // repoFullName the route does not spell — and before the casing-only check
+  // further down, with the same mechanics: the .md twin's suffix and the query
+  // string are preserved and the plain Response.redirect sets no cache
+  // headers. The slug must cohere with the payload it rode in on (the API
+  // derives both from one row), so a mangled or foreign body falls through to
+  // the guard instead of redirecting somewhere unverified.
+  const canonicalSlug = typeof report.canonicalSlug === "string" ? report.canonicalSlug : "";
+  const [canonicalOwner, canonicalRepo] = canonicalSlug.split("/");
+  if (
+    canonicalSlug &&
+    isGitHubPathPart(canonicalOwner) &&
+    isGitHubPathPart(canonicalRepo) &&
+    canonicalSlug.toLowerCase() === String(report.repoFullName ?? "").toLowerCase() &&
+    canonicalSlug.toLowerCase() !== `${route.owner}/${route.repo}`.toLowerCase()
+  ) {
+    const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
+    return Response.redirect(new URL(`/github/${canonicalOwner}/${canonicalRepo}${suffix}${requestUrl.search}`, requestUrl.origin), 308);
+  }
   // The report must belong to the URL that requested it. Any upstream mixup
   // (a mis-keyed cache tier serving one repo's payload for another) would
   // otherwise SSR one repository's numbers under a different repository's
@@ -345,7 +372,6 @@ async function reportResponse(context, route, options = {}) {
   // canonical casing only via the report itself. 308 it so link equity lands
   // on the URL the canonical tag and sitemap use. Markdown requests redirect
   // to the canonical casing with their .md suffix preserved.
-  const requestUrl = new URL(context.request.url);
   const comparePath = requestUrl.pathname.endsWith(".md") ? requestUrl.pathname.slice(0, -3) : requestUrl.pathname;
   if (report.publicPath && report.publicPath.toLowerCase() === comparePath.toLowerCase() && report.publicPath !== comparePath) {
     const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";

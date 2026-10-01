@@ -116,6 +116,44 @@ pub struct AnalysisOptions {
     pub include_generated: bool,
 }
 
+impl AnalysisOptions {
+    /// THE public-surface counting profile: the option set every SEO-latest
+    /// selection (`latest_eligible!`'s canonical guard in `store.rs`) requires
+    /// before a `reports` row may stand as its repository's canonical report.
+    ///
+    /// This is deliberately the derived `Default` (every include-* toggle
+    /// `false`, no ignores, the `default` profile), which is *not* the same as
+    /// what a client gets from deserializing `{}` — serde's field-level
+    /// `default_true` makes that flavour all-inclusive. The split is historic
+    /// and load-bearing:
+    ///
+    /// * the indexed corpus (the ~4,900-page sitemap, the seed script, the
+    ///   SLOC-history sampler and every SEO golden fixture) was produced with
+    ///   this all-false set, because `AnalyzeRequest::options`' `#[serde(default)]`
+    ///   resolves to `Default::default()` when a request omits `options` —
+    ///   exactly what `scripts/seed-popular-repos.mjs` sends;
+    /// * the web app (and the demo seed) submit the all-true set explicitly,
+    ///   so a visitor's custom-options analysis is *numerically a different
+    ///   measurement* of the same repository.
+    ///
+    /// Before the canonical guard existed, whichever row was written last won
+    /// the SEO surfaces, so a single include-all visit flipped the public
+    /// `facebook/react` report from the indexed ~365K-code row to a 698K one.
+    /// Named accessor instead of bare `Default::default()` at each call site so
+    /// the intent survives refactors, plus a test pinning it to the derived
+    /// default and to its serialized JSON.
+    pub fn canonical() -> Self {
+        Self {
+            ignored_dirs: Vec::new(),
+            ignored_languages: Vec::new(),
+            profile: AnalysisProfile::Default,
+            include_docs: false,
+            include_tests: false,
+            include_generated: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum AnalysisProfile {
@@ -232,6 +270,15 @@ pub struct RepoRef {
     pub commit_sha: String,
     pub html_url: String,
     pub stars: Option<u64>,
+    /// The slug the request used, when the API answered the repository under a
+    /// *different* slug — a rename or transfer (`facebook/react`, whose
+    /// repository now answers as `react/react`); `None` for an exact or
+    /// casing-only match. The filing identity above is already the API's
+    /// current spelling; this field exists so the caller can fold everything
+    /// still stored under the predecessor slug into it
+    /// (`Store::follow_repo_rename`) before the analysis reads or writes the
+    /// cache. Never persisted.
+    pub renamed_from: Option<(String, String)>,
 }
 
 fn default_true() -> bool {
@@ -305,5 +352,43 @@ mod tests {
             serde_json::from_str::<AnalysisSource>(r#""github_trending""#).unwrap(),
             AnalysisSource::GitHubTrending
         );
+    }
+
+    /// The canonical profile is the derived default: every include-* toggle
+    /// false, no ignores, the `default` profile. If someone "fixes" the derive
+    /// this is the test that fails, and it should — the SEO-latest guard, the
+    /// `options_canonical` trigger and the indexed corpus's numbers all assume
+    /// this exact set.
+    #[test]
+    fn canonical_options_are_the_derived_default() {
+        use super::AnalysisOptions;
+        assert_eq!(AnalysisOptions::canonical(), AnalysisOptions::default());
+        assert!(AnalysisOptions::default() == AnalysisOptions::canonical());
+    }
+
+    /// Pins the exact serialized shape the `options_canonical` trigger compares
+    /// `body->'analysisOptions'` against. jsonb equality is order-insensitive,
+    /// so only the *value set* is load-bearing, but keeping the bytes identical
+    /// makes trigger-side diffs against this test unambiguous.
+    #[test]
+    fn canonical_options_serialize_to_the_pinned_json() {
+        use super::AnalysisOptions;
+        assert_eq!(
+            serde_json::to_string(&AnalysisOptions::canonical()).unwrap(),
+            r#"{"ignoredDirs":[],"ignoredLanguages":[],"profile":"default","includeDocs":false,"includeTests":false,"includeGenerated":false}"#
+        );
+    }
+
+    /// The two flavours of "default" the incident turned on: omitting
+    /// `options` from a request gets the canonical all-false set (the derived
+    /// default via `#[serde(default)]`), while an explicitly empty `options`
+    /// object gets serde's field-level `default_true` toggles. Deserializing
+    /// `{}` must therefore NOT be canonical.
+    #[test]
+    fn an_explicitly_empty_options_object_is_not_canonical() {
+        use super::AnalysisOptions;
+        let empty: AnalysisOptions = serde_json::from_str("{}").unwrap();
+        assert!(empty != AnalysisOptions::canonical());
+        assert!(empty.include_docs && empty.include_tests && empty.include_generated);
     }
 }

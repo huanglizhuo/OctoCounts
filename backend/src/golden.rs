@@ -160,7 +160,9 @@ fn language(name: &str, files: usize, code: usize) -> LanguageReport {
 /// * a GitLab repository whose owner is a nested group path,
 /// * a repository with no languages at all (percent/top-language edge case),
 /// * a nested-`children` language, and
-/// * a legacy raw row missing the three `#[serde(default)]` fields.
+/// * a legacy raw row missing the three `#[serde(default)]` fields — which
+///   also makes it the canonical-guard's fixture: unknown options keep it out
+///   of every SEO-latest surface while `/api/reports/{id}` keeps serving it.
 async fn seed(store: &Store) {
     let mut big = report(
         MODERN_REPORT_ID,
@@ -394,14 +396,17 @@ async fn seo_monoliths_matches_golden() {
     harness.drop_schema().await;
 }
 
-/// Three URLs for four seeded repositories: the GitLab row is absent on
-/// purpose. `seo::sitemap` filters to `RepositoryProvider::GitHub` because the
-/// edge function only ever builds `/github/*` paths, so publishing a
-/// `/gitlab/*` URL would put a 404 in the sitemap. Do not restore that entry to
-/// make the counts look symmetrical — the seed keeps a GitLab report precisely
-/// so this fixture proves the filter fires, and its reappearance means either
-/// the filter was dropped or a GitLab route now exists and the comment in
-/// `seo.rs` needs retiring with it.
+/// Two URLs for the two canonical GitHub repositories seeded: the GitLab row
+/// is absent on purpose, and so is the legacy NULL-options row.
+/// `seo::sitemap` filters to `RepositoryProvider::GitHub` because the edge
+/// function only ever builds `/github/*` paths, so publishing a `/gitlab/*`
+/// URL would put a 404 in the sitemap; and the SEO-latest guard
+/// (`canonical_options_sql!`) excludes the legacy row because its counting
+/// configuration is unknown. Do not restore either entry to make the counts
+/// look symmetrical — the seed keeps a GitLab report and a legacy row
+/// precisely so this fixture proves both filters fire, and a reappearance
+/// means either a filter was dropped or the comment in `seo.rs` needs
+/// retiring with it.
 #[tokio::test]
 async fn seo_sitemap_matches_golden() {
     let Some(harness) = harness().await else {
@@ -423,6 +428,95 @@ async fn seo_report_matches_golden() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_golden("seo_report.json", &body);
+    harness.drop_schema().await;
+}
+
+/// A pre-rename slug keeps answering — with the re-keyed row's numbers and a
+/// `canonicalSlug` naming where the repository lives now — instead of 404ing
+/// out from under the indexed page. The exact-match request carries no
+/// `canonicalSlug` at all.
+#[tokio::test]
+async fn seo_report_answers_a_renamed_slug_with_the_canonical_slug() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    harness
+        .store
+        .save_report(
+            &report(
+                "report-react-react",
+                RepositoryProvider::GitHub,
+                "react",
+                "react",
+                "b5f8518379b77c3b62a7",
+                at(2024, 3, 14, 9),
+            ),
+            AnalysisSource::Seed,
+        )
+        .await
+        .unwrap();
+    // The fold is what records the redirect; calling it with nothing under the
+    // old slug exercises exactly the "rename already happened, only the
+    // redirect row is missing" state the startup pass leaves behind.
+    harness
+        .store
+        .follow_repo_rename(
+            RepositoryProvider::GitHub,
+            "facebook",
+            "react",
+            "react",
+            "react",
+        )
+        .await
+        .unwrap();
+
+    let (status, body) = harness
+        .get("/api/seo/report?provider=github&owner=facebook&repo=react")
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(value["canonicalSlug"], "react/react");
+    assert_eq!(value["owner"], "react");
+    assert_eq!(value["repoFullName"], "react/react");
+    assert_eq!(value["publicPath"], "/github/react/react");
+    // The canonical URL follows the row's key, so the page tells every client
+    // — and the index — that the old spelling is not canonical.
+    assert_eq!(value["canonicalUrl"], "https://octocounts.com/github/react/react");
+
+    // The current slug's own request has nothing to say about redirects.
+    let (status, body) = harness
+        .get("/api/seo/report?provider=github&owner=react&repo=react")
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(value.get("canonicalSlug").is_none());
+    harness.drop_schema().await;
+}
+
+/// `GET /api/seo/redirect` — the edge function's 308 oracle: recorded renames
+/// resolve (chains included), wrong-cased slugs resolve to the stored casing,
+/// and anything else 404s rather than redirecting a page that does not exist.
+#[tokio::test]
+async fn seo_redirect_endpoint_answers_renames_and_casing_variants() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+
+    let (status, body) = harness
+        .get("/api/seo/redirect?provider=github&owner=rust-lang&repo=rust")
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "an exact stored slug does not redirect: {body}");
+
+    let (status, body) = harness
+        .get("/api/seo/redirect?provider=github&owner=RUST-LANG&repo=Rust")
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, r#"{"redirectSlug":"rust-lang/rust"}"#);
+
+    let (status, body) = harness
+        .get("/api/seo/redirect?provider=github&owner=octocounts&repo=no-such-repo")
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
     harness.drop_schema().await;
 }
 

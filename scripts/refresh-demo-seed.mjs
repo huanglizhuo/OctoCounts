@@ -22,13 +22,16 @@ const SEED_URL = new URL("src/initialReport.json", FRONTEND);
 const FUNCTIONS_URL = new URL("functions/[[path]].js", FRONTEND);
 const DEFAULT_API = "https://api.octocounts.com";
 
+// The canonical indexed profile: docs/tests/generated excluded, so the demo
+// shows the same numbers as the repository's report page, history series and
+// growth animation (M3 fix — the indexed corpus is the canonical corpus).
 const DEFAULT_OPTIONS = {
   ignoredDirs: [],
   ignoredLanguages: [],
   profile: "default",
-  includeDocs: true,
-  includeTests: true,
-  includeGenerated: true,
+  includeDocs: false,
+  includeTests: false,
+  includeGenerated: false,
 };
 
 function parseArgs(argv) {

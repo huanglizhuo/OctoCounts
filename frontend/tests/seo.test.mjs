@@ -1123,6 +1123,53 @@ test("a differently-cased report URL still canonicalizes instead of tripping the
   assert.equal(response.headers.get("location"), "https://octocounts.com/github/facebook/react");
 });
 
+test("a renamed repository report 308s to the canonical slug the API returns", async () => {
+  // Rename shape: /github/facebook/react is a recorded predecessor of the
+  // react/react row, so the report API answers with that row's payload plus
+  // canonicalSlug. The edge must follow it with a 308 — ahead of the integrity
+  // guard, which would otherwise reject the foreign repoFullName — keeping the
+  // .md twin's suffix and the query string intact.
+  const canonical = {
+    ...CURATED_FIXTURES["facebook/react"],
+    owner: "react",
+    repo: "react",
+    repoFullName: "react/react",
+    publicPath: "/github/react/react",
+    canonicalUrl: "https://octocounts.com/github/react/react",
+    canonicalSlug: "react/react",
+  };
+  const restore = stubReportFetch({ "facebook/react": canonical });
+  let response;
+  let markdown;
+  try {
+    response = await onRequest(await renderedContext("/github/facebook/react"));
+    markdown = await onRequest(await renderedContext("/github/facebook/react.md?ref=main"));
+  } finally {
+    restore();
+  }
+
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://octocounts.com/github/react/react");
+  assert.equal(markdown.status, 308);
+  assert.equal(markdown.headers.get("location"), "https://octocounts.com/github/react/react.md?ref=main");
+});
+
+test("a report without canonicalSlug renders 200 in place (no redirect regression)", async () => {
+  const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/github/facebook/react"));
+    html = await response.text();
+  } finally {
+    restore();
+  }
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
+  assert.match(html, /<h1>facebook\/react<\/h1>/);
+});
+
 test("curated comparison answers 503 + no-store when a payload belongs to a different repository", async () => {
   const restore = stubReportFetch({
     "facebook/react": CURATED_FIXTURES["facebook/react"],

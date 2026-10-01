@@ -319,6 +319,7 @@ fn fixture_input(
             commit_sha: "0".repeat(40),
             html_url: "https://github.com/octocounts/fixture".to_string(),
             stars: None,
+            renamed_from: None,
         },
         archive,
         options,

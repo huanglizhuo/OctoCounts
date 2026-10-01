@@ -74,6 +74,43 @@ macro_rules! latest_eligible {
     };
 }
 
+/// Whether a `reports` row was counted under [`AnalysisOptions::canonical`] —
+/// the public-surface profile the indexed corpus was produced with.
+///
+/// The SEO surfaces (report card, related, sitemap, every list order) answer
+/// "how big is this repository", and the number they published for years is
+/// the canonical-options one. `analysisOptions` is a whole family of
+/// *different measurements* of the same repository: the web app's default
+/// toggles docs/tests/generated all in, so a single visitor analysis writes a
+/// numerically much larger row (live incident: `facebook/react` flipped from
+/// the indexed ~365K-code row to a 698K include-all one, and
+/// `save_report`'s upsert preserves `created_at`, so re-analyzing did not
+/// restore it). Rows counted under any other option set — including the
+/// legacy NULL shape, which predates option tracking and was produced by an
+/// analyzer with no doc/test/generated filtering at all — stay stored and
+/// stay served by the interactive paths (`latest_report`), but can no longer
+/// stand as the canonical public report.
+///
+/// Backed by the `options_canonical` column, maintained by the same
+/// `reports_materialize_stats` trigger that keeps the stat columns a pure
+/// function of `body`, so every writer (including an old binary mid-deploy)
+/// maintains it. The argument is the `reports` table alias in the host query.
+macro_rules! canonical_options_sql {
+    ($t:literal) => {
+        concat!($t, ".options_canonical")
+    };
+}
+
+/// The canonical options as serialized JSON, for SQL that must compare against
+/// `body->'analysisOptions'` (the `options_canonical` trigger and backfill).
+/// Serialized from the Rust type so it cannot drift from
+/// [`AnalysisOptions::canonical`].
+fn canonical_options_json() -> &'static str {
+    static JSON: OnceLock<String> = OnceLock::new();
+    JSON.get_or_init(|| serde_json::to_string(&AnalysisOptions::canonical()).expect("options serialize"))
+        .as_str()
+}
+
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
@@ -83,6 +120,7 @@ impl Store {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+
 
     pub async fn migrate(&self) -> anyhow::Result<()> {
         sqlx::query(
@@ -360,6 +398,7 @@ impl Store {
         self.migrate_report_languages().await?;
         self.migrate_star_history().await?;
         self.migrate_sloc_history().await?;
+        self.migrate_repo_redirects().await?;
 
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
@@ -452,6 +491,20 @@ impl Store {
     ///
     /// The trigger is `UPDATE OF body`, not plain `UPDATE`, so the hourly
     /// access-count touch on the hot read path does not detoast the body.
+    ///
+    /// `options_canonical` rides the same trigger for the same reasons (pure
+    /// function of `body` for every writer): it is the boolean behind
+    /// [`canonical_options_sql!`], computed as strict jsonb equality of
+    /// `body->'analysisOptions'` against the canonical options JSON. Strict
+    /// equality is the right comparison because a *partial* options object
+    /// deserializes with serde's field-level `default_true` toggles — anything
+    /// the writer omitted counts as included, which is a different measurement —
+    /// and the legacy NULL shape (rows predating option tracking, written by an
+    /// analyzer with no doc/test/generated filtering) is the all-inclusive set
+    /// in everything but spelling. Both therefore land on `false`, which is the
+    /// `COALESCE`'s doing: `NULL = jsonb` is SQL NULL, and a NULL guard would
+    /// behave identically in a `WHERE` clause, but an explicit `false` keeps the
+    /// column honest for ad-hoc inspection.
     async fn migrate_report_stat_columns(&self) -> anyhow::Result<()> {
         // Nullable, no default: a metadata-only change, no table rewrite.
         sqlx::query(
@@ -461,13 +514,20 @@ impl Store {
                 ADD COLUMN IF NOT EXISTS total_code BIGINT,
                 ADD COLUMN IF NOT EXISTS total_files BIGINT,
                 ADD COLUMN IF NOT EXISTS language_count INT,
-                ADD COLUMN IF NOT EXISTS top_language TEXT
+                ADD COLUMN IF NOT EXISTS top_language TEXT,
+                ADD COLUMN IF NOT EXISTS options_canonical BOOLEAN
             "#,
         )
         .execute(&self.pool)
         .await?;
 
-        sqlx::query(
+        // The `{}` placeholder splices in the canonical JSON serialized from
+        // the Rust type (see `canonical_options_json`) rather than a
+        // hand-written literal, so the trigger can never drift from
+        // `AnalysisOptions::canonical`. The rest of the body contains no
+        // braces of its own (plain plpgsql), so the placeholder is the only
+        // one format! sees.
+        let trigger_body = format!(
             r#"
             CREATE OR REPLACE FUNCTION reports_materialize_stats() RETURNS trigger AS $$
             BEGIN
@@ -476,13 +536,17 @@ impl Store {
                 NEW.total_files := COALESCE((NEW.body->'total'->>'files')::bigint, 0);
                 NEW.language_count := COALESCE(jsonb_array_length(NEW.body->'languages'), 0);
                 NEW.top_language := NEW.body->'languages'->0->>'name';
+                NEW.options_canonical := COALESCE(
+                    (NEW.body->'analysisOptions') = '{}'::jsonb,
+                    false
+                );
                 RETURN NEW;
             END;
             $$ LANGUAGE plpgsql
             "#,
-        )
-        .execute(&self.pool)
-        .await?;
+            canonical_options_json()
+        );
+        sqlx::query(&trigger_body).execute(&self.pool).await?;
 
         sqlx::query("DROP TRIGGER IF EXISTS reports_materialize_stats ON reports")
             .execute(&self.pool)
@@ -498,7 +562,64 @@ impl Store {
         .await?;
 
         self.backfill_report_stats().await?;
+        self.backfill_options_canonical().await?;
+
+        // The SEO-latest lookup matches the key case-insensitively (GitHub
+        // treats slug casing as the same repository) and only over canonical
+        // rows, so this partial expression index is exactly its access path:
+        // one candidate row per case-variant slug, no body detoast, no filter
+        // left to apply afterwards. Plain, not CONCURRENTLY, for the same
+        // reasons as `idx_reports_total_lines` above.
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_reports_canonical_ci_latest
+            ON reports (provider, lower(owner), lower(repo), created_at DESC)
+            WHERE options_canonical
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
+    }
+
+    /// Fills `options_canonical` for rows that predate the column, one bounded
+    /// batch per statement, same shape (and same locking rationale) as
+    /// [`Store::backfill_report_stats`].
+    async fn backfill_options_canonical(&self) -> anyhow::Result<u64> {
+        const BATCH: i64 = 1_000;
+        const MAX_BATCHES: usize = 10_000;
+
+        let mut total = 0_u64;
+        for _ in 0..MAX_BATCHES {
+            let affected = sqlx::query(
+                r#"
+                UPDATE reports
+                SET options_canonical = COALESCE(
+                    (body->'analysisOptions') = $1::jsonb,
+                    false
+                )
+                WHERE id IN (
+                    SELECT id FROM reports WHERE options_canonical IS NULL LIMIT $2
+                )
+                "#,
+            )
+            .bind(canonical_options_json())
+            .bind(BATCH)
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+
+            total += affected;
+            if affected == 0 {
+                return Ok(total);
+            }
+        }
+
+        tracing::warn!(
+            backfilled = total,
+            "options_canonical backfill hit its batch cap; the next migrate() will resume it"
+        );
+        Ok(total)
     }
 
     /// Fills the materialized columns for rows that predate them, one bounded
@@ -860,6 +981,463 @@ impl Store {
         .await?;
 
         Ok(())
+    }
+
+    /// The `repo_redirects` table: one row per known slug a repository has
+    /// answered under before its current one. Written by rename-follow
+    /// (`follow_repo_rename`) whenever a resolution proves the repository now
+    /// answers under a different slug, and read by the SEO report/redirect
+    /// endpoints so a pre-rename page request still finds its data.
+    async fn migrate_repo_redirects(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS repo_redirects (
+                provider TEXT NOT NULL,
+                old_owner TEXT NOT NULL,
+                old_repo TEXT NOT NULL,
+                new_owner TEXT NOT NULL,
+                new_repo TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT repo_redirects_provider_valid CHECK (provider IN ('github', 'gitlab'))
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // First-write-wins per old slug: a redirect, once recorded, is never
+        // rewritten by a later fold (a repo renamed *again* records its own
+        // row under the intermediate slug, and readers follow the chain).
+        // `ADD CONSTRAINT` has no `IF NOT EXISTS`, so idempotency goes through
+        // the same catalog check every constraint migration above uses.
+        sqlx::query(
+            r#"
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'repo_redirects_old_key_unique'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE repo_redirects
+                    ADD CONSTRAINT repo_redirects_old_key_unique UNIQUE (provider, old_owner, old_repo);
+                END IF;
+            END $$;
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        // Lookups are case-insensitive like every other slug path in the
+        // service (GitHub treats slug casing as the same repository), so the
+        // index has to be on the folded key or every lookup degrades to a
+        // scan of the table.
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_repo_redirects_lookup
+            ON repo_redirects (provider, lower(old_owner), lower(old_repo))
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Folds everything stored under `old` into `new` when a resolution proves
+    /// the repository now answers under a different slug (rename or transfer),
+    /// and records the redirect. One transaction, idempotent: after a
+    /// successful fold the old key holds nothing canonical, so a repeat call
+    /// only re-asserts the redirect row.
+    ///
+    /// **Merge semantics — nothing is dropped:**
+    ///
+    /// * `reports`: only canonical-options rows move (`options_canonical`),
+    ///   because they are the rows the public surfaces publish; custom-options
+    ///   analyses of the old slug stay where they were, still served by the
+    ///   interactive paths under that slug. A moving row whose
+    ///   (commit_sha, tokei_version) already exists under the new key is the
+    ///   same analysis of the same commit as the surviving row, so the
+    ///   duplicate is deleted rather than left publishing a second canonical
+    ///   report from the old slug; which row stands as latest is decided at
+    ///   read time by the usual eligibility rule (canonical options,
+    ///   `created_at DESC`), never here. A moved row's primary key `id` is
+    ///   deliberately kept: it is the handle every `/api/reports/{id}` link in
+    ///   the wild holds, and the next re-analysis of the repo upserts the
+    ///   natural id anyway.
+    /// * `sloc_snapshots` / `star_snapshots`: every point moves; a same-date
+    ///   collision keeps the later-written sample (two histories sampling the
+    ///   same repository on the same day agree to within a resample, and a
+    ///   later write is a later correction — the same rule
+    ///   `record_star_snapshot` applies to repeat snapshots).
+    /// * `star_watch`: the per-repo history state merges by keeping the
+    ///   earliest of each started/completed marker (`LEAST` skips NULLs), so a
+    ///   backfill already done under either slug stays done.
+    ///
+    /// The old key is matched case-insensitively — a request spelled
+    /// `Facebook/React` renames the same stored `facebook/react` rows — and
+    /// the redirect row is recorded under the stored casing when any exists,
+    /// so the table stays anchored to how the data was actually filed.
+    pub async fn follow_repo_rename(
+        &self,
+        provider: RepositoryProvider,
+        old_owner: &str,
+        old_repo: &str,
+        new_owner: &str,
+        new_repo: &str,
+    ) -> anyhow::Result<u64> {
+        // A casing-only difference is adoption, not a rename; the resolution
+        // path already folded it. Guarding here keeps a malformed pair from
+        // "moving" a key onto itself.
+        if old_owner.eq_ignore_ascii_case(new_owner) && old_repo.eq_ignore_ascii_case(new_repo) {
+            return Ok(0);
+        }
+
+        let mut tx = self.pool.begin().await?;
+
+        // The stored spelling of the old key, when anything is filed under it.
+        // Writers file under the API's canonical casing, so every table that
+        // holds the key agrees on it; were they ever to disagree, any choice
+        // converges on the next fold (the winner re-files the rest CI).
+        let stored_casing = sqlx::query(
+            r#"
+            SELECT owner AS owner, repo AS repo FROM reports
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            UNION
+            SELECT owner, repo FROM star_watch
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            UNION
+            SELECT owner, repo FROM sloc_snapshots
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            LIMIT 1
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(old_owner)
+        .bind(old_repo)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let (old_owner, old_repo) = match stored_casing {
+            Some(ref row) => (
+                row.try_get::<String, _>("owner")?,
+                row.try_get::<String, _>("repo")?,
+            ),
+            None => (old_owner.to_string(), old_repo.to_string()),
+        };
+
+        sqlx::query(
+            r#"
+            INSERT INTO repo_redirects (provider, old_owner, old_repo, new_owner, new_repo)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (provider, old_owner, old_repo) DO NOTHING
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?;
+
+        // 1. Canonical report rows move; their body's repository identity moves
+        // with them so `/api/reports/{id}` cannot keep naming a slug the row is
+        // no longer filed under. Identity strings only — every number and the
+        // citation prose stay exactly as the analyzer wrote them.
+        //
+        // A moving row whose (commit_sha, analysis key) already exists under
+        // the new key cannot move (the table's uniqueness says so, and the
+        // surviving row is the *same analysis of the same commit*), and it
+        // cannot stay either: a canonical row left under the old slug would
+        // keep publishing a second, identical report from the page that is
+        // supposed to be redirecting. So the duplicate is deleted — the one
+        // thing its deletion loses is the row's opaque `id`, and report ids
+        // are internal handles (the public URL is the repository page), while
+        // keeping it would lose the fold's entire point.
+        let moved_reports = sqlx::query(
+            r#"
+            UPDATE reports SET
+                owner = $4,
+                repo = $5,
+                body = jsonb_set(
+                    jsonb_set(
+                        jsonb_set(body, '{repository,owner}', to_jsonb($4::text)),
+                        '{repository,name}', to_jsonb($5::text)),
+                    '{repository,htmlUrl}', to_jsonb($6::text))
+            WHERE id IN (
+                SELECT move.id
+                FROM reports move
+                WHERE move.provider = $1
+                  AND lower(move.owner) = lower($2) AND lower(move.repo) = lower($3)
+                  AND move.options_canonical
+                  AND NOT EXISTS (
+                      SELECT 1 FROM reports kept
+                      WHERE kept.provider = $1
+                        AND lower(kept.owner) = lower($4) AND lower(kept.repo) = lower($5)
+                        AND kept.commit_sha = move.commit_sha
+                        AND kept.tokei_version = move.tokei_version
+                  )
+            )
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .bind(crate::seo::repository_html_url(provider, new_owner, new_repo))
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        let deduped_reports = sqlx::query(
+            r#"
+            DELETE FROM reports move
+            WHERE move.provider = $1
+              AND lower(move.owner) = lower($2) AND lower(move.repo) = lower($3)
+              AND move.options_canonical
+              AND EXISTS (
+                  SELECT 1 FROM reports kept
+                  WHERE kept.provider = $1
+                    AND lower(kept.owner) = lower($4) AND lower(kept.repo) = lower($5)
+                    AND kept.commit_sha = move.commit_sha
+                    AND kept.tokei_version = move.tokei_version
+                    AND kept.id <> move.id
+              )
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        // 2. SLOC history points fold under the new key, same-date collisions
+        // keeping the later-written sample.
+        let moved_sloc = sqlx::query(
+            r#"
+            INSERT INTO sloc_snapshots
+                (provider, owner, repo, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at)
+            SELECT provider, $4, $5, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at
+            FROM sloc_snapshots
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            ON CONFLICT (provider, owner, repo, snapshot_date) DO UPDATE SET
+                total_lines = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
+                    THEN EXCLUDED.total_lines ELSE sloc_snapshots.total_lines END,
+                commit_sha = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
+                    THEN EXCLUDED.commit_sha ELSE sloc_snapshots.commit_sha END,
+                source = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
+                    THEN EXCLUDED.source ELSE sloc_snapshots.source END,
+                superseded_at = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
+                    THEN EXCLUDED.superseded_at ELSE sloc_snapshots.superseded_at END,
+                created_at = GREATEST(sloc_snapshots.created_at, EXCLUDED.created_at)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        sqlx::query(
+            r#"
+            DELETE FROM sloc_snapshots
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .execute(&mut *tx)
+        .await?;
+
+        // 3. Star history points fold the same way.
+        let moved_stars = sqlx::query(
+            r#"
+            INSERT INTO star_snapshots (provider, owner, repo, snapshot_date, star_count, created_at)
+            SELECT provider, $4, $5, snapshot_date, star_count, created_at
+            FROM star_snapshots
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            ON CONFLICT (provider, owner, repo, snapshot_date) DO UPDATE SET
+                star_count = CASE WHEN EXCLUDED.created_at > star_snapshots.created_at
+                    THEN EXCLUDED.star_count ELSE star_snapshots.star_count END,
+                created_at = GREATEST(star_snapshots.created_at, EXCLUDED.created_at)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        sqlx::query(
+            r#"
+            DELETE FROM star_snapshots
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .execute(&mut *tx)
+        .await?;
+
+        // 4. Watch state: keep the new-key row, carrying over the earliest of
+        // each marker so a completed backfill under either slug stays
+        // completed, then drop the old-key row.
+        sqlx::query(
+            r#"
+            INSERT INTO star_watch
+                (provider, owner, repo, first_watched_at,
+                 sloc_backfill_started_at, sloc_backfill_completed_at,
+                 star_backfill_started_at, star_backfill_completed_at,
+                 sloc_resample_started_at)
+            SELECT provider, $4, $5, first_watched_at,
+                 sloc_backfill_started_at, sloc_backfill_completed_at,
+                 star_backfill_started_at, star_backfill_completed_at,
+                 sloc_resample_started_at
+            FROM star_watch
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            ON CONFLICT (provider, owner, repo) DO UPDATE SET
+                first_watched_at = LEAST(star_watch.first_watched_at, EXCLUDED.first_watched_at),
+                sloc_backfill_started_at = LEAST(star_watch.sloc_backfill_started_at, EXCLUDED.sloc_backfill_started_at),
+                sloc_backfill_completed_at = LEAST(star_watch.sloc_backfill_completed_at, EXCLUDED.sloc_backfill_completed_at),
+                star_backfill_started_at = LEAST(star_watch.star_backfill_started_at, EXCLUDED.star_backfill_started_at),
+                star_backfill_completed_at = LEAST(star_watch.star_backfill_completed_at, EXCLUDED.star_backfill_completed_at),
+                sloc_resample_started_at = LEAST(star_watch.sloc_resample_started_at, EXCLUDED.sloc_resample_started_at)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            r#"
+            DELETE FROM star_watch
+            WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
+            "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(moved_reports + deduped_reports + moved_sloc + moved_stars)
+    }
+
+    /// The slug a requested repository is filed under today, following the
+    /// recorded redirect chain. `None` when no redirect is recorded for the
+    /// requested slug; `Some(final slug)` after one or more hops. Hops are
+    /// capped so a redirect cycle (corrupt data, not anything GitHub can
+    /// produce) answers as the last slug reached instead of looping.
+    pub async fn redirect_target(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Option<(String, String)>> {
+        const MAX_HOPS: usize = 5;
+
+        let mut current = (owner.to_string(), repo.to_string());
+        let mut hopped = false;
+        for _ in 0..MAX_HOPS {
+            let Some(next) = sqlx::query(
+                r#"
+                SELECT new_owner AS new_owner, new_repo AS new_repo
+                FROM repo_redirects
+                WHERE provider = $1
+                  AND lower(old_owner) = lower($2) AND lower(old_repo) = lower($3)
+                LIMIT 1
+                "#,
+            )
+            .bind(provider_to_str(&provider))
+            .bind(&current.0)
+            .bind(&current.1)
+            .fetch_optional(&self.pool)
+            .await?
+            else {
+                break;
+            };
+            current = (
+                next.try_get::<String, _>("new_owner")?,
+                next.try_get::<String, _>("new_repo")?,
+            );
+            hopped = true;
+        }
+
+        Ok(hopped.then_some(current))
+    }
+
+    /// Slug pairs known to name the same repository, folded once at startup so
+    /// a deploy heals pre-existing split rows without waiting for someone to
+    /// re-request the old slug.
+    ///
+    /// Detection limits, stated plainly: the store keeps no GitHub repository
+    /// id, so split rows cannot be found by identity — only by this curated
+    /// list (plus replaying redirects already recorded, which covers anything
+    /// a live resolution has already proven). A rename absent from this list
+    /// is still followed the first time any analysis resolves the old slug;
+    /// this pass merely makes the known, already-split cases immediate.
+    ///
+    /// (`huanglizhuo/OctoPoint` used to live in the edge function's hardcoded
+    /// `LEGACY_REPORT_REDIRECTS`; the backend table now owns that knowledge.)
+    pub const SEED_REPO_RENAMES: &[(&str, &str, &str, &str)] = &[
+        // (old owner, old repo, new owner, new repo)
+        ("facebook", "react", "react", "react"),
+        ("huanglizhuo", "OctoPoint", "huanglizhuo", "OctoCounts"),
+    ];
+
+    /// The startup rename pass: folds every seed pair, then replays every
+    /// recorded redirect (rows may have re-appeared under an old slug — an old
+    /// binary or a stale replica writing mid-deploy). Idempotent by
+    /// construction: a fold with nothing under the old key is a no-op plus one
+    /// redirect upsert. Returns how many rows moved, for the startup log.
+    pub async fn migrate_repo_renames(&self) -> anyhow::Result<u64> {
+        let mut moved = 0_u64;
+        for (old_owner, old_repo, new_owner, new_repo) in Self::SEED_REPO_RENAMES {
+            moved += self
+                .follow_repo_rename(
+                    RepositoryProvider::GitHub,
+                    old_owner,
+                    old_repo,
+                    new_owner,
+                    new_repo,
+                )
+                .await?;
+        }
+
+        let recorded = sqlx::query(
+            "SELECT provider, old_owner, old_repo, new_owner, new_repo FROM repo_redirects",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        for row in recorded {
+            let provider: String = row.try_get("provider")?;
+            let Some(provider) = provider_from_str(&provider) else {
+                continue;
+            };
+            let old_owner: String = row.try_get("old_owner")?;
+            let old_repo: String = row.try_get("old_repo")?;
+            let new_owner: String = row.try_get("new_owner")?;
+            let new_repo: String = row.try_get("new_repo")?;
+            moved += self
+                .follow_repo_rename(provider, &old_owner, &old_repo, &new_owner, &new_repo)
+                .await?;
+        }
+        Ok(moved)
     }
 
     /// Atomically claims the real star-history backfill for a repo (Phase 2:
@@ -1481,7 +2059,8 @@ impl Store {
             .transpose()
     }
 
-    /// The newest report for one repository, projected as a [`ReportCard`].
+    /// The newest canonical report for one repository, projected as a
+    /// [`ReportCard`].
     ///
     /// The SEO report endpoint uses this instead of `latest_report` because it
     /// needs the analysis configuration for reproducibility (SG-04) and must
@@ -1490,6 +2069,19 @@ impl Store {
     /// missing `analysisKey`/`analysisOptions` on legacy rows, the SQL
     /// projection keeps them `NULL`, so an unknown configuration surfaces as
     /// unknown instead of looking like a verified default.
+    ///
+    /// Two rules `latest_report` deliberately does not share:
+    ///
+    /// * Only rows counted under the canonical options may stand as the public
+    ///   report (`canonical_options_sql!`) — a visitor's custom-options
+    ///   analysis is a different measurement, not a newer edition of the
+    ///   indexed one.
+    /// * The key match is case-insensitive. GitHub treats slug casing as the
+    ///   same repository, so a wrong-cased request resolves to the stored row,
+    ///   and the handler surfaces the row's own spelling as `canonicalSlug`
+    ///   for the page's 308. When two case-variants of one slug are stored
+    ///   (pre- and post-adoption rows) the newest canonical row wins, which is
+    ///   the same `created_at DESC` rule the exact match always used.
     pub async fn latest_report_card(
         &self,
         provider: RepositoryProvider,
@@ -1502,7 +2094,11 @@ impl Store {
             card_projection!(),
             r#"
             FROM reports r
-            WHERE r.provider = $1 AND r.owner = $2 AND r.repo = $4
+            WHERE r.provider = $1
+              AND lower(r.owner) = lower($2) AND lower(r.repo) = lower($4)
+              AND "#,
+            canonical_options_sql!("r"),
+            r#"
               AND "#,
             latest_eligible!("r"),
             r#"
@@ -1596,6 +2192,9 @@ impl Store {
                         provider, owner, repo, top_language, total_code, total_lines, created_at
                     FROM reports
                     WHERE provider = $1
+                      AND "#,
+            canonical_options_sql!("reports"),
+            r#"
                       AND "#,
             latest_eligible!("reports"),
             r#"
@@ -1747,6 +2346,9 @@ impl Store {
                     SELECT DISTINCT ON (provider, owner, repo) id, created_at
                     FROM reports
                     WHERE "#,
+            canonical_options_sql!("reports"),
+            r#"
+                      AND "#,
             latest_eligible!("reports"),
             r#"
                     ORDER BY provider, owner, repo, created_at DESC
@@ -2665,6 +3267,9 @@ impl ReportOrder {
                             SELECT DISTINCT ON (provider, owner, repo) id, created_at
                             FROM reports
                             WHERE "#,
+                    canonical_options_sql!("reports"),
+                    r#"
+                              AND "#,
                     latest_eligible!("reports"),
                     r#"
                             ORDER BY provider, owner, repo, created_at DESC
@@ -2688,6 +3293,9 @@ impl ReportOrder {
                                 id, access_count, last_accessed_at, created_at
                             FROM reports
                             WHERE "#,
+                    canonical_options_sql!("reports"),
+                    r#"
+                              AND "#,
                     latest_eligible!("reports"),
                     r#"
                             ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
@@ -2710,6 +3318,9 @@ impl ReportOrder {
                             SELECT DISTINCT ON (provider, owner, repo) id, total_lines, created_at
                             FROM reports
                             WHERE "#,
+                    canonical_options_sql!("reports"),
+                    r#"
+                              AND "#,
                     latest_eligible!("reports"),
                     r#"
                             ORDER BY provider, owner, repo, created_at DESC
@@ -3519,10 +4130,15 @@ mod tests {
         store.drop_schema().await;
     }
 
-    /// A row written before `analysisKey` / `analysisOptions` existed must
-    /// project both as `None`. Deserializing the same body into `Report`
-    /// would have serde defaults fill them in, which is exactly the
-    /// "unknown configuration pretending to be the default" SG-04 forbids.
+    /// A row written before `analysisKey` / `analysisOptions` existed used to
+    /// project both as `None` — the SQL projection refusing to let serde
+    /// defaults turn an unknown configuration into "the default one" (SG-04).
+    /// The canonical guard goes further: such a row can no longer be *selected*
+    /// as a card at all, because the pre-options analyzer counted docs, tests
+    /// and generated code, making its numbers the all-inclusive measurement no
+    /// matter what a deserialization default would claim. The unknown-stays-
+    /// unknown rule itself is still pinned where it remains reachable: the
+    /// `/api/reports/{id}` passthrough (`report_legacy.json`).
     #[tokio::test]
     async fn projected_card_marks_legacy_configuration_as_unknown() {
         let Some(store) = test_store().await else {
@@ -3554,17 +4170,23 @@ mod tests {
             .await
             .unwrap();
 
-        let card = store
-            .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
-            .await
-            .unwrap()
-            .expect("one card");
-        assert_eq!(card.analysis_key, None);
-        assert_eq!(card.analysis_options, None);
+        // Not selectable as the repository's public card, by report or list.
+        assert!(
+            store
+                .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(store.recent_reports(10, 0).await.unwrap().is_empty());
 
-        let cards = store.recent_reports(10, 0).await.unwrap();
-        assert_eq!(cards[0].analysis_key, None);
-        assert_eq!(cards[0].analysis_options, None);
+        // But the row itself is intact and still served by identity: the
+        // interactive path deserializes it with serde's defaults, exactly as
+        // it always has.
+        let report = store.report("report-card-legacy").await.unwrap().unwrap();
+        assert_eq!(report.repository.owner, "LEGACY");
+        assert_eq!(report.analysis_key, "");
+        assert_eq!(report.analysis_options, AnalysisOptions::default());
         store.drop_schema().await;
     }
 
@@ -5241,6 +5863,648 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(card.commit_sha, "sha-fresh");
+        store.drop_schema().await;
+    }
+
+    /// A report under a chosen option set, with the analysis key the analyzer
+    /// would have derived for it — so the row's `analysisOptions` body,
+    /// `analysisKey` and `tokei_version` column agree the way real rows do.
+    fn options_report(
+        id: &str,
+        owner: &str,
+        name: &str,
+        commit_sha: &str,
+        code: usize,
+        generated_at: chrono::DateTime<Utc>,
+        options: AnalysisOptions,
+    ) -> Report {
+        let mut report = test_report(id, owner, code);
+        report.repository.name = name.to_string();
+        report.repository.html_url = format!("https://github.com/{owner}/{name}");
+        report.commit_sha = commit_sha.to_string();
+        report.generated_at = generated_at;
+        report.analysis_options = options.clone();
+        report.analysis_key = crate::analyzer::analysis_key(&options);
+        report
+    }
+
+    /// The all-inclusive set the web app submits (`App.tsx`'s
+    /// `defaultAnalysisOptions`, mirrored by serde's field-level defaults).
+    fn include_all_options() -> AnalysisOptions {
+        AnalysisOptions {
+            ignored_dirs: Vec::new(),
+            ignored_languages: Vec::new(),
+            profile: crate::models::AnalysisProfile::Default,
+            include_docs: true,
+            include_tests: true,
+            include_generated: true,
+        }
+    }
+
+    /// The live incident this guard exists for. `facebook/react`'s indexed
+    /// report is the canonical-options ~365K-code row; a visitor's
+    /// include-everything analysis then wrote a 698K row that became the
+    /// newest, and — because `save_report`'s upsert keeps a row's
+    /// `created_at` and the custom row never conflicts with the canonical
+    /// one (different analysis key) — re-analyzing did not restore the
+    /// public number. The SEO surfaces must keep answering with the canonical
+    /// row no matter how much newer the custom one is.
+    #[tokio::test]
+    async fn seo_latest_ignores_a_custom_options_row_written_after_the_canonical_one() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("facebook");
+        let now = Utc::now();
+
+        let canonical = options_report(
+            "incident-canonical",
+            &owner,
+            "react",
+            "sha-indexed",
+            365_001,
+            now - Duration::days(90),
+            AnalysisOptions::canonical(),
+        );
+        store
+            .save_report(&canonical, AnalysisSource::Seed)
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &options_report(
+                    "incident-include-all",
+                    &owner,
+                    "react",
+                    "sha-indexed",
+                    698_204,
+                    now,
+                    include_all_options(),
+                ),
+                AnalysisSource::Web,
+            )
+            .await
+            .unwrap();
+
+        // The public surfaces keep the indexed number...
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, &owner, "react")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.commit_sha, "sha-indexed");
+        assert_eq!(card.total.code, 365_001);
+        assert_eq!(card.analysis_options.as_ref(), Some(&AnalysisOptions::canonical()));
+        let recent = store.recent_reports(10, 0).await.unwrap();
+        assert_eq!(recent.len(), 1, "one repository, one canonical row");
+        assert_eq!(recent[0].total.code, 365_001);
+        let sitemap = store.sitemap_entries(100).await.unwrap();
+        assert_eq!(sitemap.len(), 1);
+        assert_eq!(sitemap[0].total_code, 365_001);
+
+        // ...while the interactive path (OG share cards) still reports the
+        // newest row it has, custom options and all.
+        let latest = store
+            .latest_report(RepositoryProvider::GitHub, &owner, "react")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.total.code, 698_204);
+        store.drop_schema().await;
+    }
+
+    /// Rows whose counting configuration is unknown — written before
+    /// `analysisOptions` was persisted — cannot stand as the canonical public
+    /// report either: the pre-options analyzer had no doc/test/generated
+    /// filtering, so their numbers are the all-inclusive measurement in
+    /// everything but spelling, and SG-04 forbids presenting an unknown
+    /// configuration as the default one. The repository drops out of the SEO
+    /// surfaces until a canonical row exists for it.
+    #[tokio::test]
+    async fn seo_latest_excludes_rows_that_predate_option_tracking() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octocounts");
+
+        store
+            .insert_raw_report(
+                "legacy-only",
+                "github",
+                &owner,
+                "legacy",
+                "1111222233334444aaaa",
+                "tokei-test:default",
+                r#"{
+                    "id": "legacy-only",
+                    "repository": {"owner": "octocounts", "name": "legacy", "htmlUrl": "https://github.com/octocounts/legacy"},
+                    "refName": "main",
+                    "commitSha": "1111222233334444aaaa",
+                    "generatedAt": "2024-02-29T11:30:15Z",
+                    "durationMs": 1234,
+                    "cached": false,
+                    "tokeiVersion": "tokei-test",
+                    "languages": [],
+                    "total": {"files": 1, "lines": 10, "code": 9, "comments": 1, "blanks": 0}
+                }"#,
+                Utc::now(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            store
+                .latest_report_card(RepositoryProvider::GitHub, &owner, "legacy")
+                .await
+                .unwrap()
+                .is_none(),
+            "a legacy row must not be the canonical report"
+        );
+        assert!(
+            store.recent_reports(10, 0).await.unwrap().is_empty(),
+            "a legacy-only repository leaves the SEO lists"
+        );
+        assert!(
+            store.sitemap_entries(100).await.unwrap().is_empty(),
+            "a legacy-only repository leaves the sitemap"
+        );
+        // Still served verbatim by identity, as it always was.
+        assert!(
+            store
+                .latest_report(RepositoryProvider::GitHub, &owner, "legacy")
+                .await
+                .unwrap()
+                .is_some(),
+            "the interactive path keeps serving the legacy row"
+        );
+        store.drop_schema().await;
+    }
+
+    /// GitHub treats slug casing as the same repository; the SEO card lookup
+    /// agrees, so a wrong-cased request resolves to the stored row (and the
+    /// handler turns the row's own spelling into `canonicalSlug`).
+    #[tokio::test]
+    async fn latest_report_card_resolves_the_key_case_insensitively() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("rust-lang");
+
+        store
+            .save_report(
+                &options_report(
+                    "cased",
+                    &owner,
+                    "Rust",
+                    "sha-cased",
+                    2_306_821,
+                    Utc::now(),
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+
+        for (asked_owner, asked_repo) in [
+            (&owner, "rust"),
+            (&owner.to_uppercase(), "RUST"),
+            (&owner, "RuSt"),
+        ] {
+            let card = store
+                .latest_report_card(RepositoryProvider::GitHub, asked_owner, asked_repo)
+                .await
+                .unwrap()
+                .unwrap_or_else(|| panic!("case variant {asked_owner}/{asked_repo} must resolve"));
+            assert_eq!(card.repo, "Rust", "the row's own casing wins");
+        }
+        store.drop_schema().await;
+    }
+
+    /// Rename-follow, end to end at the store layer: canonical report rows,
+    /// both histories and the watch state all land under the new slug, the
+    /// old slug stops answering, a redirect row is written, and the custom-
+    /// options row that must not move does not move.
+    #[tokio::test]
+    async fn follow_repo_rename_rekeys_reports_history_and_watch_and_records_the_redirect() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let old_owner = unique_name("facebook");
+        let today = Utc::now().date_naive();
+        let now = Utc::now();
+
+        store
+            .save_report(
+                &options_report(
+                    "rename-canonical",
+                    &old_owner,
+                    "react",
+                    "sha-head",
+                    365_001,
+                    now - Duration::days(30),
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &options_report(
+                    "rename-custom",
+                    &old_owner,
+                    "react",
+                    "sha-head",
+                    698_204,
+                    now,
+                    include_all_options(),
+                ),
+                AnalysisSource::Web,
+            )
+            .await
+            .unwrap();
+        for (days_ago, lines, sha) in [
+            (400, 170_000, "sha-400"),
+            (200, 300_000, "sha-200"),
+            (0, 365_001, "sha-head"),
+        ] {
+            store
+                .record_sloc_snapshot(
+                    RepositoryProvider::GitHub,
+                    &old_owner,
+                    "react",
+                    today - Duration::days(days_ago),
+                    lines,
+                    sha,
+                    "backfill",
+                )
+                .await
+                .unwrap();
+        }
+        store
+            .watch_repo_for_stars(RepositoryProvider::GitHub, &old_owner, "react")
+            .await
+            .unwrap();
+        store
+            .record_star_snapshot(
+                RepositoryProvider::GitHub,
+                &old_owner,
+                "react",
+                today - Duration::days(1),
+                230_000,
+            )
+            .await
+            .unwrap();
+
+        let moved = store
+            .follow_repo_rename(
+                RepositoryProvider::GitHub,
+                &old_owner,
+                "react",
+                "react",
+                "react",
+            )
+            .await
+            .unwrap();
+        assert!(moved > 0, "reports and history rows must report as moved");
+
+        // The canonical row answers under the new slug, body identity and all.
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, "react", "react")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.total.code, 365_001);
+        let reloaded = store.report("rename-canonical").await.unwrap().unwrap();
+        assert_eq!(reloaded.repository.owner, "react");
+        assert_eq!(reloaded.repository.name, "react");
+        assert_eq!(
+            reloaded.repository.html_url,
+            "https://github.com/react/react",
+            "the body's identity must follow the row's new key"
+        );
+
+        // Histories and watch state moved with it.
+        let sloc = store
+            .sloc_history(RepositoryProvider::GitHub, "react", "react")
+            .await
+            .unwrap();
+        assert_eq!(sloc.len(), 3, "every history point survives the fold");
+        assert_eq!(sloc.first().map(|(_, lines, _)| *lines), Some(170_000));
+        let stars = store
+            .star_history(RepositoryProvider::GitHub, "react", "react")
+            .await
+            .unwrap();
+        assert_eq!(stars.len(), 1);
+        assert!(
+            !store
+                .watch_repo_for_stars(RepositoryProvider::GitHub, "react", "react")
+                .await
+                .unwrap(),
+            "the watch row must already exist under the new key, so this call starts nothing"
+        );
+        assert!(
+            store
+                .watched_star_repos()
+                .await
+                .unwrap()
+                .iter()
+                .any(|(provider, owner, repo)| *provider == RepositoryProvider::GitHub
+                    && owner == "react" && repo == "react"),
+            "the merged watch row is the only one for the repository"
+        );
+
+        // The custom-options row stays filed under the old slug...
+        assert_eq!(
+            store
+                .latest_report(RepositoryProvider::GitHub, &old_owner, "react")
+                .await
+                .unwrap()
+                .unwrap()
+                .total
+                .code,
+            698_204,
+            "a custom-options analysis is user data under the slug it was requested with"
+        );
+        // ...so the old slug no longer publishes a canonical report.
+        assert!(
+            store
+                .latest_report_card(RepositoryProvider::GitHub, &old_owner, "react")
+                .await
+                .unwrap()
+                .is_none()
+        );
+
+        // And the redirect is on record for the API surfaces.
+        assert_eq!(
+            store
+                .redirect_target(RepositoryProvider::GitHub, &old_owner, "react")
+                .await
+                .unwrap(),
+            Some(("react".to_string(), "react".to_string()))
+        );
+
+        // Idempotent: nothing is left to move, and the redirect stands.
+        assert_eq!(
+            store
+                .follow_repo_rename(
+                    RepositoryProvider::GitHub,
+                    &old_owner,
+                    "react",
+                    "react",
+                    "react"
+                )
+                .await
+                .unwrap(),
+            0
+        );
+        store.drop_schema().await;
+    }
+
+    /// The merge case the production data actually presents: `react/react`
+    /// already has rows and its own sampled history when `facebook/react`'s
+    /// rows fold across. Both histories survive under the new key, a same-date
+    /// collision keeps the later-written sample, and a report whose
+    /// (commit_sha, analysis key) already exists under the new key is left
+    /// behind rather than violating the table's uniqueness — the surviving row
+    /// is the same analysis of the same commit.
+    #[tokio::test]
+    async fn follow_repo_rename_merges_into_an_existing_key_without_dropping_history() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let old_owner = unique_name("facebook");
+        let today = Utc::now().date_naive();
+        let now = Utc::now();
+
+        // Old slug: a canonical report on sha-shared plus an older one, and
+        // snapshots written yesterday.
+        for (id, sha, code, at) in [
+            ("merge-shared", "sha-shared", 365_001, now - Duration::days(10)),
+            ("merge-old-only", "sha-old-only", 200_000, now - Duration::days(300)),
+        ] {
+            store
+                .save_report(
+                    &options_report(id, &old_owner, "react", sha, code, at, AnalysisOptions::canonical()),
+                    AnalysisSource::Seed,
+                )
+                .await
+                .unwrap();
+        }
+        for (days_ago, lines) in [(30, 310_000), (60, 290_000)] {
+            store
+                .record_sloc_snapshot(
+                    RepositoryProvider::GitHub,
+                    &old_owner,
+                    "react",
+                    today - Duration::days(days_ago),
+                    lines,
+                    &format!("sha-{days_ago}"),
+                    "backfill",
+                )
+                .await
+                .unwrap();
+        }
+
+        // New slug already holds the same commit under the same analysis key,
+        // a newer report of its own, and a snapshot on a shared date written
+        // *later* than the old slug's.
+        store
+            .save_report(
+                &options_report(
+                    "merge-kept",
+                    "react",
+                    "react",
+                    "sha-shared",
+                    365_001,
+                    now - Duration::days(5),
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &options_report(
+                    "merge-new",
+                    "react",
+                    "react",
+                    "sha-new-head",
+                    366_500,
+                    now,
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+        for (days_ago, lines, sha) in [(30, 312_000, "sha-new-side"), (0, 312_000, "sha-new-head")] {
+            store
+                .record_sloc_snapshot(
+                    RepositoryProvider::GitHub,
+                    "react",
+                    "react",
+                    today - Duration::days(days_ago),
+                    lines,
+                    sha,
+                    "forward",
+                )
+                .await
+                .unwrap();
+        }
+
+        store
+            .follow_repo_rename(
+                RepositoryProvider::GitHub,
+                &old_owner,
+                "react",
+                "react",
+                "react",
+            )
+            .await
+            .unwrap();
+
+        // Merged history: three distinct dates, the shared date carrying the
+        // later-written (new-slug) sample.
+        let sloc = store
+            .sloc_history(RepositoryProvider::GitHub, "react", "react")
+            .await
+            .unwrap();
+        assert_eq!(sloc.len(), 3, "both histories' points survive");
+        assert_eq!(sloc[0].1, 290_000, "old-slug-only date survives");
+        assert_eq!(sloc[1].1, 312_000, "shared date keeps the later-written sample");
+        assert_eq!(sloc[2].1, 312_000);
+
+        // Reports: the duplicate analysis is gone (the new-key row is the same
+        // analysis of the same commit), and the newest canonical row is the
+        // merged latest.
+        assert!(
+            store.report("merge-kept").await.unwrap().is_some(),
+            "the pre-existing new-key row survives"
+        );
+        assert!(
+            store.report("merge-shared").await.unwrap().is_none(),
+            "the colliding old-key row is deleted, not left publishing under the old slug"
+        );
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, "react", "react")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.commit_sha, "sha-new-head");
+        assert!(
+            store
+                .latest_report_card(RepositoryProvider::GitHub, &old_owner, "react")
+                .await
+                .unwrap()
+                .is_none(),
+            "the fold empties the old slug of canonical rows entirely"
+        );
+        store.drop_schema().await;
+    }
+
+    /// Redirect chains (a repository renamed twice) resolve to the final slug,
+    /// capped so a corrupt cycle cannot loop.
+    #[tokio::test]
+    async fn redirect_target_follows_a_chain_of_renames() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let first = unique_name("first");
+        let second = unique_name("second");
+
+        store
+            .save_report(
+                &options_report(
+                    "chain",
+                    &first,
+                    "repo",
+                    "sha-chain",
+                    1_000,
+                    Utc::now(),
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+        store
+            .follow_repo_rename(RepositoryProvider::GitHub, &first, "repo", &second, "repo")
+            .await
+            .unwrap();
+        store
+            .follow_repo_rename(RepositoryProvider::GitHub, &second, "repo", "third", "repo")
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store
+                .redirect_target(RepositoryProvider::GitHub, &first, "repo")
+                .await
+                .unwrap(),
+            Some(("third".to_string(), "repo".to_string())),
+            "a two-hop chain resolves to the final slug"
+        );
+        assert_eq!(
+            store
+                .redirect_target(RepositoryProvider::GitHub, "third", "repo")
+                .await
+                .unwrap(),
+            None,
+            "the final slug has no redirect of its own"
+        );
+        assert_eq!(
+            store
+                .redirect_target(RepositoryProvider::GitHub, "never", "existed")
+                .await
+                .unwrap(),
+            None
+        );
+        store.drop_schema().await;
+    }
+
+    /// The startup pass folds the curated seed pairs and is idempotent — the
+    /// second run is a no-op, which is what makes running it at every boot
+    /// safe.
+    #[tokio::test]
+    async fn migrate_repo_renames_folds_the_seed_pairs_and_is_idempotent() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+
+        store
+            .save_report(
+                &options_report(
+                    "seed-fold",
+                    "facebook",
+                    "react",
+                    "sha-seed",
+                    365_001,
+                    Utc::now(),
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+
+        let moved = store.migrate_repo_renames().await.unwrap();
+        assert!(moved > 0, "the facebook/react seed pair must fold");
+        assert!(
+            store
+                .latest_report_card(RepositoryProvider::GitHub, "react", "react")
+                .await
+                .unwrap()
+                .is_some(),
+            "the folded row answers under the current slug"
+        );
+        assert_eq!(
+            store.migrate_repo_renames().await.unwrap(),
+            0,
+            "a second pass has nothing left to move"
+        );
         store.drop_schema().await;
     }
 

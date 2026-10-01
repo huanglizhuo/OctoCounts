@@ -285,48 +285,6 @@
         "files": 16346,
         "lines": 2846077
       }
-    },
-    {
-      "canonicalUrl": "https://octocounts.com/github/octocounts/legacy",
-      "citation": "As of 2024-02-29 (commit 111122223333), octocounts/legacy contains 900 total lines: 700 code, 120 comments, 80 blank, across 9 files in 1 languages (top: Perl 100.0%). Configuration unknown; this report predates option tracking. Counted with tokei via OctoCounts.",
-      "commitSha": "1111222233334444aaaa",
-      "description": "octocounts/legacy contains 700 code lines across 9 files and 1 languages; top language: Perl 100.0%.",
-      "durationMs": 1234,
-      "generatedAt": "2024-02-29T11:30:15.123456789+00:00",
-      "htmlUrl": "https://github.com/octocounts/legacy",
-      "languages": [
-        {
-          "children": [],
-          "name": "Perl",
-          "stats": {
-            "blanks": 80,
-            "code": 700,
-            "comments": 120,
-            "files": 9,
-            "lines": 900
-          }
-        }
-      ],
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/legacy",
-      "refName": "master",
-      "repo": "legacy",
-      "repoFullName": "octocounts/legacy",
-      "title": "octocounts/legacy: 700 lines of code | OctoCounts",
-      "tokeiVersion": "tokei-14.0.0",
-      "topLanguage": {
-        "code": 700,
-        "name": "Perl",
-        "percent": 100.0
-      },
-      "total": {
-        "blanks": 80,
-        "code": 700,
-        "comments": 120,
-        "files": 9,
-        "lines": 900
-      }
     }
   ]
 }

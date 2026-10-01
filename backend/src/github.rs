@@ -370,34 +370,67 @@ struct RepoTarget {
     path: String,
 }
 
-/// Adopts the API's casing for the requested owner/repo when the API object is
-/// the same repository the user asked for — a case-insensitive match on both
-/// parts (`huanglizhuo/octocounts` → the API reports `huanglizhuo/OctoCounts`;
+/// Decides how a resolved repository is filed, from the API's own spelling of
+/// it.
+///
+/// When the API object is the same repository the user asked for — a
+/// case-insensitive match on both parts — the API's casing is adopted
+/// (`huanglizhuo/octocounts` → the API reports `huanglizhuo/OctoCounts`;
 /// GitHub answers a wrong-cased slug directly, with canonical spelling in
-/// `full_name`).
+/// `full_name`). Casing-only differences are adoption, not a rename.
 ///
 /// Anything else — a rename or transfer, where the canonical spelling differs
-/// by more than case (`huanglizhuo/OctoCount`, renamed to `OctoCounts`;
-/// `facebook/react`, whose repository now answers as `react/react`) — keeps
-/// the requested identity. Re-filing a repository under its new name would
-/// silently split its stored history and orphan the page its audience already
-/// links to, so the page keeps the identity it was requested under;
-/// [`github_html_url`] then derives the persisted URL from that same identity
-/// so the two can never disagree.
+/// by more than case (`huanglizhuo/OctoPoint`, renamed to `OctoCounts`;
+/// `facebook/react`, whose repository now answers as `react/react`) — files
+/// under the API's current spelling and reports the requested slug back as
+/// `renamed_from`, so the caller folds the old slug's stored rows into the new
+/// key (`Store::follow_repo_rename`) instead of accumulating a second,
+/// history-less page under the new name while the old one silently rots.
+/// Filing under the *requested* slug — the pre-rename-follow behavior — is
+/// exactly what split `facebook/react` from `react/react` in production.
 ///
 /// `api_identity` is whatever spelling the API handed back: REST's `full_name`
 /// (`"facebook/react"`) or GraphQL's `url`
 /// (`"https://github.com/facebook/react"`). Unparseable input keeps the
 /// requested identity rather than guessing.
-fn canonical_casing(owner: &str, repo: &str, api_identity: &str) -> (String, String) {
+fn canonical_filing(owner: &str, repo: &str, api_identity: &str) -> RepoFiling {
     let mut segments = api_identity.rsplit('/').filter(|s| !s.is_empty());
     let (Some(api_repo), Some(api_owner)) = (segments.next(), segments.next()) else {
-        return (owner.to_string(), repo.to_string());
+        return RepoFiling::requested(owner, repo);
     };
+    let api_owner = api_owner.to_string();
+    let api_repo = api_repo.to_string();
     if api_owner.eq_ignore_ascii_case(owner) && api_repo.eq_ignore_ascii_case(repo) {
-        (api_owner.to_string(), api_repo.to_string())
+        RepoFiling {
+            owner: api_owner,
+            repo: api_repo,
+            renamed_from: None,
+        }
     } else {
-        (owner.to_string(), repo.to_string())
+        RepoFiling {
+            owner: api_owner,
+            repo: api_repo,
+            renamed_from: Some((owner.to_string(), repo.to_string())),
+        }
+    }
+}
+
+/// The identity a resolved repository is filed under, plus the requested slug
+/// when that identity required a rename hop. See [`canonical_filing`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RepoFiling {
+    owner: String,
+    repo: String,
+    renamed_from: Option<(String, String)>,
+}
+
+impl RepoFiling {
+    fn requested(owner: &str, repo: &str) -> Self {
+        Self {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            renamed_from: None,
+        }
     }
 }
 
@@ -1102,18 +1135,22 @@ impl GitHubClient {
                     stars,
                     commit_sha,
                 } => {
-                    // The GraphQL URL carries the API's canonical casing; adopt
-                    // it when it names the same repository, and derive the
-                    // persisted URL from the identity we file under.
-                    let (owner, repo) = canonical_casing(&owner, &repo, &canonical_url);
+                    // The GraphQL URL carries the API's canonical spelling;
+                    // adopt it when it names the same repository (casing), and
+                    // follow it when the repository has been renamed (the
+                    // filing then carries `renamed_from` for the caller to
+                    // fold). Either way the persisted URL derives from the
+                    // identity we file under.
+                    let filing = canonical_filing(&owner, &repo, &canonical_url);
                     let repo_ref = RepoRef {
                         provider: RepositoryProvider::GitHub,
-                        html_url: github_html_url(&owner, &repo),
-                        owner,
-                        repo,
+                        html_url: github_html_url(&filing.owner, &filing.repo),
+                        owner: filing.owner,
+                        repo: filing.repo,
                         ref_name,
                         commit_sha,
                         stars,
+                        renamed_from: filing.renamed_from,
                     };
                     self.ref_cache.insert(cache_key, repo_ref.clone()).await;
                     return Ok(repo_ref);
@@ -1145,11 +1182,15 @@ impl GitHubClient {
 
         // A wrong-cased or pre-rename request gets redirected (or re-spelled)
         // to the canonical repository object; `full_name` is therefore the
-        // canonical identity, which only casing is adopted from.
-        let (owner, repo) = match repo_body.full_name.as_deref() {
-            Some(full_name) => canonical_casing(&owner, &repo, full_name),
-            None => (owner, repo),
+        // canonical identity, from which casing is adopted and renames are
+        // followed.
+        let filing = match repo_body.full_name.as_deref() {
+            Some(full_name) => canonical_filing(&owner, &repo, full_name),
+            None => RepoFiling::requested(&owner, &repo),
         };
+        let owner = filing.owner;
+        let repo = filing.repo;
+        let renamed_from = filing.renamed_from;
 
         let ref_name = requested_ref.unwrap_or_else(|| repo_body.default_branch.clone());
 
@@ -1163,6 +1204,7 @@ impl GitHubClient {
             ref_name,
             commit_sha,
             stars: repo_body.stargazers_count,
+            renamed_from,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
         Ok(repo_ref)
@@ -1261,6 +1303,9 @@ impl GitHubClient {
             commit_sha,
             html_url: project_body.web_url,
             stars: project_body.star_count,
+            // GitLab path resolution does no spelling adoption, so there is no
+            // rename signal to surface either.
+            renamed_from: None,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
         Ok(repo_ref)
@@ -1397,7 +1442,8 @@ impl GitHubClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_ref_cache, canonical_casing, github_html_url, interpret_graphql, GitHubClient,
+        build_ref_cache, canonical_filing, github_html_url, interpret_graphql, RepoFiling,
+        GitHubClient,
         GraphQlFailure, GraphQlOutcome, RepoRef, RepositoryProvider, REF_CACHE_TTL,
     };
 
@@ -1642,6 +1688,7 @@ mod tests {
             commit_sha: sha.to_string(),
             html_url: "https://github.com/tokio-rs/axum".to_string(),
             stars: None,
+            renamed_from: None,
         }
     }
 
@@ -1735,9 +1782,10 @@ mod tests {
     }
 
     /// A renamed repository resolves under its old name and reports the new
-    /// canonical URL. That URL is only ever used to adopt canonical *casing* —
-    /// see the `canonical_casing` tests below — never persisted as the report's
-    /// `html_url`, which is derived from the identity the report is filed under.
+    /// canonical URL. That URL only ever feeds [`canonical_filing`] — casing
+    /// adoption for the same slug, rename-follow otherwise — and is never
+    /// persisted as the report's `html_url`, which is derived from the identity
+    /// the report is filed under.
     #[test]
     fn graphql_reports_the_canonical_url_for_a_renamed_repository() {
         let outcome = interpret(
@@ -1758,66 +1806,80 @@ mod tests {
     /// casing, whether the API spelled the identity as a `full_name`
     /// (`huanglizhuo/OctoCounts`) or a URL
     /// (`https://github.com/huanglizhuo/OctoCounts`). GitHub answers a
-    /// wrong-cased slug with 200 and the canonical spelling in the body.
+    /// wrong-cased slug with 200 and the canonical spelling in the body, and a
+    /// casing-only difference must never be reported as a rename.
     #[test]
     fn canonical_casing_is_adopted_from_the_api_spelling() {
         for api_identity in ["huanglizhuo/OctoCounts", "https://github.com/huanglizhuo/OctoCounts"] {
             assert_eq!(
-                canonical_casing("HUANGLIZHUO", "octocounts", api_identity),
-                ("huanglizhuo".to_string(), "OctoCounts".to_string()),
+                canonical_filing("HUANGLIZHUO", "octocounts", api_identity),
+                RepoFiling {
+                    owner: "huanglizhuo".to_string(),
+                    repo: "OctoCounts".to_string(),
+                    renamed_from: None,
+                },
                 "wrong-cased request must be re-filed under the API casing for {api_identity}"
             );
         }
         // Already-canonical requests pass through unchanged.
         assert_eq!(
-            canonical_casing("huanglizhuo", "OctoCounts", "huanglizhuo/OctoCounts"),
-            ("huanglizhuo".to_string(), "OctoCounts".to_string())
+            canonical_filing("huanglizhuo", "OctoCounts", "huanglizhuo/OctoCounts"),
+            RepoFiling::requested("huanglizhuo", "OctoCounts"),
         );
     }
 
-    /// The rename guard. `facebook/react` is the spelling the site (and its
-    /// users' links) know, but GitHub's API now answers for that repository as
-    /// `react/react` — same repository id, different name. Adopting the new
-    /// spelling wholesale would re-file the report under `/github/react/react`,
-    /// splitting the repository's stored history and orphaning the page its
-    /// audience already links to. So a beyond-casing difference keeps the
-    /// requested identity, and `html_url` is derived from it. The same rule
-    /// covers `huanglizhuo/OctoCount`, whose repository was renamed to
-    /// `OctoCounts` — one character, but a rename, not a casing variant.
+    /// The rename-follow rule. `facebook/react` is the spelling the site (and
+    /// its users' links) know, but GitHub's API now answers for that repository
+    /// as `react/react` — same repository, different name. The resolution files
+    /// under the API's current spelling (so analysis, cache and history all
+    /// land on one key) and reports the requested slug back as `renamed_from`,
+    /// which is the caller's cue to fold the old slug's stored rows across.
+    /// The same rule covers `huanglizhuo/OctoPoint`, whose repository was
+    /// renamed to `OctoCounts` — one character, but a rename, not a casing
+    /// variant.
     #[test]
-    fn a_renamed_repository_keeps_the_identity_it_was_requested_under() {
-        // (requested owner, requested repo, API spelling)
-        for (owner, repo, api_identity) in [
-            ("facebook", "react", "react/react"),
-            ("react", "react", "facebook/react"),
-            ("vuejs", "vue-next", "https://github.com/vuejs/core"),
-            ("huanglizhuo", "OctoCount", "huanglizhuo/OctoCounts"),
+    fn a_renamed_repository_files_under_the_api_spelling_and_reports_the_old_slug() {
+        // (requested owner, requested repo, API spelling, expected filing)
+        for (owner, repo, api_identity, filed) in [
+            ("facebook", "react", "react/react", ("react", "react")),
+            ("vuejs", "vue-next", "https://github.com/vuejs/core", ("vuejs", "core")),
+            (
+                "huanglizhuo",
+                "OctoPoint",
+                "huanglizhuo/OctoCounts",
+                ("huanglizhuo", "OctoCounts"),
+            ),
         ] {
-            let (kept_owner, kept_repo) = canonical_casing(owner, repo, api_identity);
+            let filing = canonical_filing(owner, repo, api_identity);
             assert_eq!(
-                (kept_owner.as_str(), kept_repo.as_str()),
-                (owner, repo),
-                "a rename must not re-file {owner}/{repo} under {api_identity}"
+                (filing.owner.as_str(), filing.repo.as_str()),
+                filed,
+                "a rename must re-file {owner}/{repo} under the API's spelling for {api_identity}"
             );
             assert_eq!(
-                github_html_url(&kept_owner, &kept_repo),
-                format!("https://github.com/{owner}/{repo}"),
+                filing.renamed_from,
+                Some((owner.to_string(), repo.to_string())),
+                "the requested slug must be reported back for {owner}/{repo} -> {api_identity}"
+            );
+            assert_eq!(
+                github_html_url(&filing.owner, &filing.repo),
+                format!("https://github.com/{}/{}", filed.0, filed.1),
                 "html_url must agree with the identity the report is filed under"
             );
         }
     }
 
     /// Unparseable or truncated API spellings keep the requested identity
-    /// rather than guessing.
+    /// rather than guessing — and never report a rename.
     #[test]
-    fn canonical_casing_tolerates_unparseable_api_input() {
+    fn canonical_filing_tolerates_unparseable_api_input() {
         assert_eq!(
-            canonical_casing("tokio-rs", "axum", "axum"),
-            ("tokio-rs".to_string(), "axum".to_string())
+            canonical_filing("tokio-rs", "axum", "axum"),
+            RepoFiling::requested("tokio-rs", "axum")
         );
         assert_eq!(
-            canonical_casing("tokio-rs", "axum", ""),
-            ("tokio-rs".to_string(), "axum".to_string())
+            canonical_filing("tokio-rs", "axum", ""),
+            RepoFiling::requested("tokio-rs", "axum")
         );
     }
 
