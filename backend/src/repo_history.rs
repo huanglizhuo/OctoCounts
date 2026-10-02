@@ -13,7 +13,9 @@ use crate::{
     coordinator::job_is_finished,
     error::ApiError,
     github::GitHubClient,
-    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, RepositoryProvider},
+    models::{
+        AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider,
+    },
     seo::{cache_headers, parse_provider},
 };
 
@@ -42,11 +44,23 @@ pub struct StarHistoryPoint {
     stars: i64,
 }
 
+/// Per-language code-line counts recorded for one SLOC history sample — the
+/// persisted form of a sampled analysis's language breakdown.
+type SlocLanguages = std::collections::BTreeMap<String, i64>;
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SlocHistoryPoint {
     date: String,
     total_lines: i64,
+    /// The sampled analysis's per-language code-line counts, recorded by the
+    /// backfill and suspect-point re-sampler so a chart can replay the real
+    /// language mix of each point in time. Absent on rows written before the
+    /// column existed (or by writers that never saw a language breakdown), so
+    /// consumers of those rows keep falling back to the current report's
+    /// proportions, exactly as they did when the payload had no such key.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    languages: Option<SlocLanguages>,
     /// Present (and true) only on interior points that failed the suspect
     /// check — a value less than half of BOTH neighbours, which a normal git
     /// history cannot produce between adjacent samples but a partial backfill
@@ -56,6 +70,34 @@ pub struct SlocHistoryPoint {
     /// `spawn_sloc_resample`).
     #[serde(skip_serializing_if = "Option::is_none")]
     suspect: Option<bool>,
+}
+
+/// Stored-language cap per SLOC snapshot (see `sloc_sample_languages`).
+const SLOC_SAMPLE_LANGUAGE_CAP: usize = 40;
+
+/// Flattens a sampled analysis report into the per-language code-line counts
+/// persisted on its SLOC snapshot: only languages with code > 0, sorted by
+/// code descending, capped at [`SLOC_SAMPLE_LANGUAGE_CAP`] entries — the
+/// top-N is what a language-evolution chart needs, and the cap keeps a
+/// stored sample's row small. `None` when the analysis saw no code at all.
+fn sloc_sample_languages(report: &Report) -> Option<SlocLanguages> {
+    let mut languages: Vec<(&str, i64)> = report
+        .languages
+        .iter()
+        .filter(|language| language.stats.code > 0)
+        .map(|language| (language.name.as_str(), language.stats.code as i64))
+        .collect();
+    if languages.is_empty() {
+        return None;
+    }
+    languages.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    languages.truncate(SLOC_SAMPLE_LANGUAGE_CAP);
+    Some(
+        languages
+            .into_iter()
+            .map(|(name, code)| (name.to_string(), code))
+            .collect(),
+    )
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,7 +139,8 @@ pub struct RepoHistoryResponse {
 /// star_backfill_available, star_backfill_in_progress)`. The SLOC series
 /// carries each point's commit SHA alongside its date and line count, so the
 /// suspect-point re-sampler can re-analyze the exact commits behind
-/// implausible dips.
+/// implausible dips, plus the point's per-language code-line counts when the
+/// writer recorded them.
 pub(crate) async fn ensure_repo_history(
     state: &AppState,
     provider: RepositoryProvider,
@@ -106,7 +149,12 @@ pub(crate) async fn ensure_repo_history(
 ) -> anyhow::Result<(
     Vec<(NaiveDate, i64)>,
     Option<u64>,
-    Vec<(NaiveDate, i64, String)>,
+    Vec<(
+        NaiveDate,
+        i64,
+        String,
+        Option<SlocLanguages>,
+    )>,
     bool,
     bool,
     bool,
@@ -242,7 +290,7 @@ pub async fn repo_history(
     let suspect_indices = suspect_sloc_indices(
         &sloc_history
             .iter()
-            .map(|(_, total_lines, _)| *total_lines)
+            .map(|(_, total_lines, ..)| *total_lines)
             .collect::<Vec<_>>(),
     );
 
@@ -261,9 +309,10 @@ pub async fn repo_history(
         sloc_points: sloc_history
             .iter()
             .enumerate()
-            .map(|(index, (date, total_lines, _))| SlocHistoryPoint {
+            .map(|(index, (date, total_lines, _, languages))| SlocHistoryPoint {
                 date: date.to_string(),
                 total_lines: *total_lines,
+                languages: languages.clone(),
                 suspect: suspect_indices.contains(&index).then_some(true),
             })
             .collect(),
@@ -295,7 +344,7 @@ pub async fn repo_history(
             .filter_map(|&index| {
                 sloc_history
                     .get(index)
-                    .map(|(date, _, commit_sha)| (*date, commit_sha.clone()))
+                    .map(|(date, _, commit_sha, _)| (*date, commit_sha.clone()))
             })
             .take(SLOC_RESAMPLE_MAX_POINTS)
             .collect();
@@ -411,8 +460,8 @@ async fn resample_sloc_point(
         options: Default::default(),
         source: AnalysisSource::SlocBackfill,
     };
-    let total_lines = match state.coordinator.submit(request).await {
-        Ok(AnalyzeResponse::Cached { report, .. }) => report.total.code as i64,
+    let report = match state.coordinator.submit(request).await {
+        Ok(AnalyzeResponse::Cached { report, .. }) => report,
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
             let job = state
                 .coordinator
@@ -428,16 +477,17 @@ async fn resample_sloc_point(
             let Some(report_id) = job.report_id else {
                 anyhow::bail!("completed resample job has no report");
             };
-            let report = state
+            state
                 .coordinator
                 .store()
                 .report(&report_id)
                 .await?
-                .ok_or_else(|| anyhow::anyhow!("resample report vanished"))?;
-            report.total.code as i64
+                .ok_or_else(|| anyhow::anyhow!("resample report vanished"))?
         }
         Err(error) => anyhow::bail!("resample submit failed: {}", error.body().message),
     };
+    let total_lines = report.total.code as i64;
+    let languages = sloc_sample_languages(&report);
     state
         .coordinator
         .store()
@@ -449,6 +499,7 @@ async fn resample_sloc_point(
             total_lines,
             commit_sha,
             "resample",
+            languages,
         )
         .await?;
     Ok(())
@@ -527,10 +578,11 @@ async fn run_sloc_backfill(
     let resolvable = resolved.iter().filter(|sha| sha.is_some()).count();
 
     let started = std::time::Instant::now();
-    // The last analyzed commit and its line count: consecutive samples that
-    // resolve to the same commit share content, so only the boundary samples
-    // of a plateau need to touch the analysis pipeline at all.
-    let mut last: Option<(String, i64)> = None;
+    // The last analyzed commit, its line count, and its language breakdown:
+    // consecutive samples that resolve to the same commit share content, so
+    // only the boundary samples of a plateau need to touch the analysis
+    // pipeline at all.
+    let mut last: Option<(String, i64, Option<SlocLanguages>)> = None;
     let mut recorded = 0usize;
     let mut failed_samples = 0usize;
 
@@ -548,9 +600,9 @@ async fn run_sloc_backfill(
         // the last change happened.
         let is_final_sample = index == schedule.len() - 1;
 
-        if last.as_ref().is_some_and(|(sha, _)| *sha == commit_sha) {
+        if last.as_ref().is_some_and(|(sha, ..)| *sha == commit_sha) {
             if is_final_sample {
-                if let Some((_, total_lines)) = &last {
+                if let Some((_, total_lines, languages)) = &last {
                     store
                         .record_sloc_snapshot(
                             provider,
@@ -560,6 +612,7 @@ async fn run_sloc_backfill(
                             *total_lines,
                             &commit_sha,
                             "backfill",
+                            languages.clone(),
                         )
                         .await?;
                     recorded += 1;
@@ -620,6 +673,7 @@ async fn run_sloc_backfill(
         };
 
         let total_lines = report.total.code as i64;
+        let languages = sloc_sample_languages(&report);
         store
             .record_sloc_snapshot(
                 provider,
@@ -629,10 +683,11 @@ async fn run_sloc_backfill(
                 total_lines,
                 &commit_sha,
                 "backfill",
+                languages.clone(),
             )
             .await?;
         recorded += 1;
-        last = Some((commit_sha, total_lines));
+        last = Some((commit_sha, total_lines, languages));
     }
 
     tracing::info!(%owner, %repo, scheduled = schedule.len(), resolvable, recorded, failed_samples, "sloc backfill run finished");
@@ -740,6 +795,7 @@ pub(crate) async fn run_sloc_forward_sample(
             total_lines,
             &repo_ref.commit_sha,
             "forward",
+            None,
         )
         .await?;
     Ok(())
@@ -836,13 +892,13 @@ async fn compact_repo_sloc_history(
     let keep = compaction_keep_dates(
         &points
             .iter()
-            .map(|(date, total_lines, _)| (*date, *total_lines))
+            .map(|(date, total_lines, ..)| (*date, *total_lines))
             .collect::<Vec<_>>(),
         Utc::now().date_naive(),
     );
     let drop: Vec<chrono::NaiveDate> = points
         .iter()
-        .map(|(date, _, _)| *date)
+        .map(|(date, ..)| *date)
         .filter(|date| !keep.contains(date))
         .collect();
     store
@@ -938,9 +994,13 @@ pub(crate) fn compaction_keep_dates(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Datelike, Duration as ChronoDuration, NaiveDate};
+    use chrono::{Datelike, Duration as ChronoDuration, NaiveDate, Utc};
 
-    use super::{compaction_keep_dates, sloc_point_is_suspect, suspect_sloc_indices};
+    use super::{
+        compaction_keep_dates, sloc_point_is_suspect, sloc_sample_languages, suspect_sloc_indices,
+        SlocHistoryPoint,
+    };
+    use crate::models::{LanguageReport, LanguageStats, Report, Repository, RepositoryProvider};
 
     fn date(days_ago: i64) -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 9, 25).unwrap() - ChronoDuration::days(days_ago)
@@ -1102,5 +1162,101 @@ mod tests {
         let keep = compaction_keep_dates(&points, anchor);
         assert!(keep.contains(&(anchor - ChronoDuration::days(45))));
         assert!(keep.contains(&(anchor - ChronoDuration::days(400))));
+    }
+
+    fn report_with_languages(pairs: &[(&str, usize)]) -> Report {
+        Report {
+            id: "report".to_string(),
+            repository: Repository {
+                owner: "octo".to_string(),
+                name: "counts".to_string(),
+                html_url: "https://github.com/octo/counts".to_string(),
+                provider: RepositoryProvider::GitHub,
+                stars: None,
+            },
+            ref_name: "main".to_string(),
+            commit_sha: "sha".to_string(),
+            generated_at: Utc::now(),
+            duration_ms: 0,
+            cached: false,
+            tokei_version: "1.0".to_string(),
+            analysis_key: String::new(),
+            analysis_options: Default::default(),
+            languages: pairs
+                .iter()
+                .map(|(name, code)| LanguageReport {
+                    name: name.to_string(),
+                    stats: LanguageStats {
+                        code: *code,
+                        ..Default::default()
+                    },
+                    children: Vec::new(),
+                })
+                .collect(),
+            total: LanguageStats::default(),
+        }
+    }
+
+    #[test]
+    fn sloc_sample_languages_keeps_code_languages_sorted_by_code_descending_capped_at_40() {
+        // 50 languages, code ascending 0..=490: the cap keeps the 40
+        // highest-code ones and drops the ten smallest.
+        let pairs: Vec<(String, usize)> = (0..50)
+            .map(|index| (format!("Lang{index:02}"), index * 10))
+            .collect();
+        let report = report_with_languages(
+            &pairs.iter().map(|(name, code)| (name.as_str(), *code)).collect::<Vec<_>>(),
+        );
+
+        let languages = sloc_sample_languages(&report).unwrap();
+
+        assert_eq!(languages.len(), 40, "the cap keeps the top 40 by code");
+        assert_eq!(languages["Lang49"], 490, "the highest-code language survives");
+        assert!(!languages.contains_key("Lang00"), "the smallest language is dropped");
+        assert!(!languages.contains_key("Lang09"), "the 10th-smallest is dropped too");
+        assert!(languages.contains_key("Lang10"));
+    }
+
+    #[test]
+    fn sloc_sample_languages_skips_zero_code_and_reports_without_code() {
+        let report = report_with_languages(&[("Rust", 100), ("Markdown", 0)]);
+        let languages = sloc_sample_languages(&report).unwrap();
+        assert_eq!(languages.len(), 1);
+        assert_eq!(languages["Rust"], 100);
+
+        assert!(
+            sloc_sample_languages(&report_with_languages(&[])).is_none(),
+            "an analysis that saw no code stores NULL, not an empty object"
+        );
+    }
+
+    #[test]
+    fn sloc_point_serializes_languages_only_when_present() {
+        let with_languages = serde_json::to_value(SlocHistoryPoint {
+            date: "2024-01-01".to_string(),
+            total_lines: 1_234,
+            languages: Some(std::collections::BTreeMap::from([
+                ("Rust".to_string(), 1_000),
+                ("TypeScript".to_string(), 234),
+            ])),
+            suspect: None,
+        })
+        .unwrap();
+        assert_eq!(
+            with_languages["languages"],
+            serde_json::json!({ "Rust": 1_000, "TypeScript": 234 })
+        );
+
+        let without = serde_json::to_value(SlocHistoryPoint {
+            date: "2024-01-01".to_string(),
+            total_lines: 1_234,
+            languages: None,
+            suspect: None,
+        })
+        .unwrap();
+        assert!(
+            without.get("languages").is_none(),
+            "a row without a language breakdown produces the old payload shape"
+        );
     }
 }

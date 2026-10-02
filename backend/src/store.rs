@@ -927,6 +927,7 @@ impl Store {
                 snapshot_date DATE NOT NULL,
                 total_lines BIGINT NOT NULL,
                 commit_sha TEXT NOT NULL,
+                languages TEXT,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT sloc_snapshots_lines_nonnegative CHECK (total_lines >= 0),
                 UNIQUE(provider, owner, repo, snapshot_date)
@@ -949,6 +950,15 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
+
+        // `languages` is the sampled analysis's per-language code-line counts
+        // as a JSON object (see `repo_history::sloc_sample_languages`),
+        // nullable so rows written before this column and writers that never
+        // saw a language breakdown stay valid; readers treat NULL as "use the
+        // current breakdown" (see `repo_history::SlocHistoryPoint`).
+        sqlx::query("ALTER TABLE sloc_snapshots ADD COLUMN IF NOT EXISTS languages TEXT")
+            .execute(&self.pool)
+            .await?;
 
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_sloc_snapshots_lookup ON sloc_snapshots (provider, owner, repo, snapshot_date)",
@@ -1221,8 +1231,8 @@ impl Store {
         let moved_sloc = sqlx::query(
             r#"
             INSERT INTO sloc_snapshots
-                (provider, owner, repo, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at)
-            SELECT provider, $4, $5, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at
+                (provider, owner, repo, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at, languages)
+            SELECT provider, $4, $5, snapshot_date, total_lines, commit_sha, created_at, source, superseded_at, languages
             FROM sloc_snapshots
             WHERE provider = $1 AND lower(owner) = lower($2) AND lower(repo) = lower($3)
             ON CONFLICT (provider, owner, repo, snapshot_date) DO UPDATE SET
@@ -1234,6 +1244,8 @@ impl Store {
                     THEN EXCLUDED.source ELSE sloc_snapshots.source END,
                 superseded_at = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
                     THEN EXCLUDED.superseded_at ELSE sloc_snapshots.superseded_at END,
+                languages = CASE WHEN EXCLUDED.created_at > sloc_snapshots.created_at
+                    THEN EXCLUDED.languages ELSE sloc_snapshots.languages END,
                 created_at = GREATEST(sloc_snapshots.created_at, EXCLUDED.created_at)
             "#,
         )
@@ -1677,6 +1689,8 @@ impl Store {
 
     /// Inserts or replaces a sampled historical SLOC point. `source` records
     /// which pipeline produced it ("backfill" / "forward").
+    /// `languages` is the sample's per-language code-line counts (see
+    /// `repo_history::sloc_sample_languages`); `None` leaves the column NULL.
     /// `ON CONFLICT ... DO UPDATE` mirrors `record_star_snapshot`: a repeat
     /// sample landing on the same day corrects rather than duplicates, and
     /// also revives a row the compaction task had superseded — a fresh write
@@ -1690,16 +1704,21 @@ impl Store {
         total_lines: i64,
         commit_sha: &str,
         source: &str,
+        languages: Option<std::collections::BTreeMap<String, i64>>,
     ) -> anyhow::Result<()> {
+        let languages_json = languages
+            .map(|languages| serde_json::to_string(&languages))
+            .transpose()?;
         sqlx::query(
             r#"
-            INSERT INTO sloc_snapshots (provider, owner, repo, snapshot_date, total_lines, commit_sha, source)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO sloc_snapshots (provider, owner, repo, snapshot_date, total_lines, commit_sha, source, languages)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT (provider, owner, repo, snapshot_date)
             DO UPDATE SET
                 total_lines = EXCLUDED.total_lines,
                 commit_sha = EXCLUDED.commit_sha,
                 source = EXCLUDED.source,
+                languages = EXCLUDED.languages,
                 superseded_at = NULL
             "#,
         )
@@ -1710,6 +1729,7 @@ impl Store {
         .bind(total_lines)
         .bind(commit_sha)
         .bind(source)
+        .bind(languages_json)
         .execute(&self.pool)
         .await?;
 
@@ -1719,16 +1739,18 @@ impl Store {
     /// The full recorded SLOC history for a repo, oldest first, excluding
     /// points the compaction task has superseded. Each point carries the
     /// commit SHA it was sampled from, so consumers can re-analyze a specific
-    /// suspect point rather than the whole series.
+    /// suspect point rather than the whole series, and the sampled analysis's
+    /// per-language code-line counts when the writer recorded them (`None`
+    /// for rows that predate the column).
     pub async fn sloc_history(
         &self,
         provider: RepositoryProvider,
         owner: &str,
         repo: &str,
-    ) -> anyhow::Result<Vec<(NaiveDate, i64, String)>> {
+    ) -> anyhow::Result<Vec<(NaiveDate, i64, String, Option<std::collections::BTreeMap<String, i64>>)>> {
         let rows = sqlx::query(
             r#"
-            SELECT snapshot_date, total_lines, commit_sha
+            SELECT snapshot_date, total_lines, commit_sha, languages
             FROM sloc_snapshots
             WHERE provider = $1 AND owner = $2 AND repo = $3 AND superseded_at IS NULL
             ORDER BY snapshot_date ASC
@@ -1745,7 +1767,11 @@ impl Store {
                 let date: NaiveDate = row.try_get("snapshot_date")?;
                 let total_lines: i64 = row.try_get("total_lines")?;
                 let commit_sha: String = row.try_get("commit_sha")?;
-                Ok((date, total_lines, commit_sha))
+                let languages_json: Option<String> = row.try_get("languages")?;
+                let languages = languages_json
+                    .map(|json| serde_json::from_str(&json))
+                    .transpose()?;
+                Ok((date, total_lines, commit_sha, languages))
             })
             .collect()
     }
@@ -5301,6 +5327,7 @@ mod tests {
                 1_000,
                 "sha1",
                 "backfill",
+                None,
             )
             .await
             .unwrap();
@@ -5313,6 +5340,7 @@ mod tests {
                 1_200,
                 "sha2",
                 "forward",
+                None,
             )
             .await
             .unwrap();
@@ -5322,7 +5350,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(history, vec![(today, 1_200, "sha2".to_string())]);
+        assert_eq!(
+            history,
+            vec![(today, 1_200, "sha2".to_string(), None)]
+        );
         store.drop_schema().await;
     }
 
@@ -5344,6 +5375,7 @@ mod tests {
                 3_000,
                 "sha-today",
                 "forward",
+                None,
             )
             .await
             .unwrap();
@@ -5356,6 +5388,7 @@ mod tests {
                 1_000,
                 "sha-lw",
                 "backfill",
+                None,
             )
             .await
             .unwrap();
@@ -5368,6 +5401,7 @@ mod tests {
                 2_000,
                 "sha-y",
                 "backfill",
+                None,
             )
             .await
             .unwrap();
@@ -5380,10 +5414,71 @@ mod tests {
         assert_eq!(
             history,
             vec![
-                (last_week, 1_000, "sha-lw".to_string()),
-                (yesterday, 2_000, "sha-y".to_string()),
-                (today, 3_000, "sha-today".to_string())
+                (last_week, 1_000, "sha-lw".to_string(), None),
+                (yesterday, 2_000, "sha-y".to_string(), None),
+                (today, 3_000, "sha-today".to_string(), None)
             ]
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn sloc_history_roundtrips_per_language_code_lines() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let today = Utc::now().date_naive();
+        let yesterday = today - Duration::days(1);
+
+        // A sample recorded with a language breakdown comes back with it; a
+        // row recorded without one (pre-column writer) comes back as None.
+        store
+            .record_sloc_snapshot(
+                RepositoryProvider::GitHub,
+                "octo",
+                "counts",
+                yesterday,
+                1_000,
+                "sha-old",
+                "backfill",
+                Some(std::collections::BTreeMap::from([
+                    ("Rust".to_string(), 700),
+                    ("TypeScript".to_string(), 300),
+                ])),
+            )
+            .await
+            .unwrap();
+        store
+            .record_sloc_snapshot(
+                RepositoryProvider::GitHub,
+                "octo",
+                "counts",
+                today,
+                1_500,
+                "sha-new",
+                "forward",
+                None,
+            )
+            .await
+            .unwrap();
+
+        let history = store
+            .sloc_history(RepositoryProvider::GitHub, "octo", "counts")
+            .await
+            .unwrap();
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0].0, yesterday);
+        assert_eq!(history[0].1, 1_000);
+        assert_eq!(history[0].2, "sha-old");
+        let languages = history[0]
+            .3
+            .as_ref()
+            .expect("the backfill sample recorded its language breakdown");
+        assert_eq!(languages["Rust"], 700);
+        assert_eq!(languages["TypeScript"], 300);
+        assert!(
+            history[1].3.is_none(),
+            "a NULL languages column reads back as None"
         );
         store.drop_schema().await;
     }
@@ -5425,6 +5520,7 @@ mod tests {
                     lines,
                     sha,
                     "backfill",
+                    None,
                 )
                 .await
                 .unwrap();
@@ -5448,8 +5544,8 @@ mod tests {
         assert_eq!(
             history,
             vec![
-                (two_months_ago, 100, "sha-old".to_string()),
-                (today, 400, "sha-now".to_string())
+                (two_months_ago, 100, "sha-old".to_string(), None),
+                (today, 400, "sha-now".to_string(), None)
             ]
         );
 
@@ -5464,6 +5560,7 @@ mod tests {
                 210,
                 "sha-mid2",
                 "forward",
+                None,
             )
             .await
             .unwrap();
@@ -5474,9 +5571,9 @@ mod tests {
         assert_eq!(
             history,
             vec![
-                (two_months_ago, 100, "sha-old".to_string()),
-                (last_month, 210, "sha-mid2".to_string()),
-                (today, 400, "sha-now".to_string())
+                (two_months_ago, 100, "sha-old".to_string(), None),
+                (last_month, 210, "sha-mid2".to_string(), None),
+                (today, 400, "sha-now".to_string(), None)
             ]
         );
         store.drop_schema().await;
@@ -5779,6 +5876,7 @@ mod tests {
                 365_009,
                 "sha-head",
                 "forward",
+                None,
             )
             .await
             .unwrap();
@@ -5791,6 +5889,7 @@ mod tests {
                 17_952,
                 "sha-old",
                 "resample",
+                None,
             )
             .await
             .unwrap();
@@ -5853,6 +5952,7 @@ mod tests {
                 1_200,
                 "sha-fresh",
                 "forward",
+                None,
             )
             .await
             .unwrap();
@@ -6138,6 +6238,7 @@ mod tests {
                     lines,
                     sha,
                     "backfill",
+                    None,
                 )
                 .await
                 .unwrap();
@@ -6191,7 +6292,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(sloc.len(), 3, "every history point survives the fold");
-        assert_eq!(sloc.first().map(|(_, lines, _)| *lines), Some(170_000));
+        assert_eq!(sloc.first().map(|(_, lines, ..)| *lines), Some(170_000));
         let stars = store
             .star_history(RepositoryProvider::GitHub, "react", "react")
             .await
@@ -6302,6 +6403,7 @@ mod tests {
                     lines,
                     &format!("sha-{days_ago}"),
                     "backfill",
+                    None,
                 )
                 .await
                 .unwrap();
@@ -6350,6 +6452,7 @@ mod tests {
                     lines,
                     sha,
                     "forward",
+                    None,
                 )
                 .await
                 .unwrap();
@@ -6525,6 +6628,7 @@ mod tests {
                 1_000,
                 "sha-old",
                 "backfill",
+                None,
             )
             .await
             .unwrap();
@@ -6537,6 +6641,7 @@ mod tests {
                 1_500,
                 "sha-new",
                 "forward",
+                None,
             )
             .await
             .unwrap();
