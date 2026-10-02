@@ -2208,6 +2208,20 @@ test("sitemap includes the extension landing page", async () => {
   }
 });
 
+test("growth replay page serves the SPA shell canonicalized to the full report", async () => {
+  const response = await onRequest(await renderedContext("/growth/facebook/react"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control"), /^public, max-age=60/);
+  const html = await response.text();
+  assert.ok(html.includes("<title>facebook/react code growth replay | OctoCounts</title>"));
+  assert.ok(html.includes('<link rel="canonical" href="https://octocounts.com/github/facebook/react" />'));
+  assert.ok(html.includes('<meta name="robots" content="noindex,follow" />'));
+  assert.ok(html.includes("<h1>facebook/react — code growth</h1>"));
+  assert.ok(html.includes('href="https://octocounts.com/github/facebook/react"'));
+  // The client bundle mounts and renders the animation (root div present).
+  assert.ok(html.includes('<div id="root">'));
+});
+
 test("editorial compare pages carry scoped, sourced explanations in every format", async () => {
   const restore = stubReportFetch(CURATED_FIXTURES);
   try {

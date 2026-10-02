@@ -190,6 +190,14 @@ export async function onRequest(context) {
     return extensionPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
   }
 
+  // Standalone growth replay: /growth/:owner/:repo. The animation itself is
+  // client-rendered (same bundle as the report page's growth section); the
+  // indexable facts live on the full report, so this route canonicalizes
+  // there instead of competing in the SERP.
+  if (parts[0] === "growth" && parts.length === 3) {
+    return growthPageResponse(context, parts[1], parts[2]);
+  }
+
   // Embeddable iframe cards: served from the same SPA bundle but with
   // frame-ancestors relaxed (only for /embed/) and noindex — embeds are for
   // humans on third-party pages, not for crawlers.
@@ -2225,6 +2233,26 @@ function injectFallback(index, route) {
     jsonLd: null,
     bodyContent: `<section><h1>${escapeHtml(fullName)}</h1><p>No cached report exists yet. Open this page with JavaScript enabled to run an analysis.</p></section>`,
   });
+}
+
+/// /growth/:owner/:repo — the standalone growth-replay page. The animation is
+/// client-rendered from the same bundle as the report page's growth section;
+/// the indexable facts live on the full report, so this route is noindex and
+/// canonicalizes there, carrying only a minimal visible summary for no-JS
+/// fetchers (same discipline as the missing-report fallback).
+async function growthPageResponse(context, owner, repo) {
+  const fullName = `${owner}/${repo}`;
+  const canonical = `https://octocounts.com/github/${owner}/${repo}`;
+  const html = injectHeadAndNoscript(await indexHtml(context), {
+    title: `${fullName} code growth replay | OctoCounts`,
+    description: `Watch how ${fullName} grew over time — an animated replay of its code accumulation, language by language.`,
+    canonical,
+    robots: "noindex,follow",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: null,
+    bodyContent: `<section><h1>${escapeHtml(fullName)} — code growth</h1><p>Animated growth replay for the ${escapeHtml(fullName)} repository. Open this page with JavaScript enabled to watch the code city build, or see the <a href="${escapeAttr(canonical)}">full SLOC report</a>.</p></section>`,
+  });
+  return htmlResponse(html, "public, max-age=60", {});
 }
 
 function injectHeadAndNoscript(index, meta) {
