@@ -43,7 +43,7 @@ await writeFile(
 // current rasterization ordinal into the pixels (letting the tests tell
 // frames apart and pin the cached seed frame by object identity).
 // ---------------------------------------------------------------------------
-const domState = { rasterSeq: 0, canvasCalls: [] };
+const domState = { rasterSeq: 0, canvasCalls: [], toBlobCalls: [], captureStreamCalls: [], trackStops: 0 };
 
 class FakeStyle {
   constructor() {
@@ -106,6 +106,16 @@ class FakeCanvas extends FakeNode {
       },
     };
   }
+  toBlob(callback, type) {
+    domState.toBlobCalls.push({ type });
+    callback(new Blob([new Uint8Array([0x89, 0x50])], { type }));
+  }
+  captureStream(frameRate) {
+    domState.captureStreamCalls.push({ frameRate, width: this.width, height: this.height });
+    return {
+      getTracks: () => [{ stop: () => { domState.trackStops += 1; } }],
+    };
+  }
 }
 
 globalThis.document = {
@@ -113,7 +123,7 @@ globalThis.document = {
   createElement: (tag) => (tag === "canvas" ? new FakeCanvas() : new FakeNode(tag)),
 };
 
-const { exportGrowthGif } = await import(new URL("growth/exportGif.mjs", cacheDir).href);
+const { exportGrowthGif, exportGrowthPng, exportGrowthWebm } = await import(new URL("growth/exportGif.mjs", cacheDir).href);
 const { buildFixtureScene } = await import(new URL("growth/fixture.mjs", cacheDir).href);
 const { GrowthAnimation } = await import(new URL("growth/GrowthAnimation.mjs", cacheDir).href);
 const { createElement } = await import("react");
@@ -137,11 +147,14 @@ test("rooftop LOC follows growth from the start and date pages survive seeking",
   assert.ok(final.includes("translate(-238px,"));
   assert.ok(final.includes('class="growth-stars-summary growth-num"'));
   assert.ok(final.includes(`data-stars="${scene.starsNow}"`));
+  assert.ok(final.includes('class="growth-finale-id"'));
+  assert.ok(final.includes(`data-repo="${scene.repoFullName}"`));
   assert.ok(!final.includes("growth-playback-hit"));
   const interactive = renderToString(createElement(GrowthAnimation, {
-    scene, progress: 1, playing: false, playbackLabel: "Replay", onTogglePlayback: () => {},
+    scene, progress: 1, playing: false, interactive: true,
   }));
-  assert.ok(interactive.includes('class="growth-playback-hit"'));
+  assert.ok(!interactive.includes("growth-playback-hit"));
+  assert.ok(!interactive.includes("growth-detail"));
   assert.ok(!interactive.includes('class="growth-paused"'));
   const compact = { ...scene, variant: "compact", samples: scene.samples.slice(-1), dips: [] };
   assert.ok(frame(0.5, compact).includes(`dateTime="${compact.samples[0].date}"`));
@@ -150,12 +163,18 @@ test("rooftop LOC follows growth from the start and date pages survive seeking",
 // ---------------------------------------------------------------------------
 // Harness: fake deps whose loaders record every call. `failOnFrame` makes
 // toCanvas throw when the host holds that frame index (error-path test).
+// `supportedTypes` drives the WebM mime negotiation; the fake MediaRecorder
+// speaks the real ondataavailable/onstop protocol (stop() emits one data
+// chunk, then onstop) so exportGrowthWebm's promise wiring is exercised.
 // ---------------------------------------------------------------------------
-function makeHarness({ failOnFrame, fontsReady } = {}) {
+function makeHarness({ failOnFrame, fontsReady, supportedTypes } = {}) {
   domState.rasterSeq = 0;
   domState.canvasCalls = [];
+  domState.captureStreamCalls = [];
+  domState.trackStops = 0;
   document.body.children.length = 0;
   document.fonts = fontsReady === undefined ? undefined : { ready: fontsReady };
+  const supported = supportedTypes ?? ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
   const log = {
     rasterCalls: [], // { frame, progress, options, attached, style, htmlLength, htmlHasStage }
     canvasCalls: domState.canvasCalls,
@@ -164,7 +183,35 @@ function makeHarness({ failOnFrame, fontsReady } = {}) {
     frames: [], // writeFrame(indexed, width, height, options)
     encoderOptions: null,
     finished: false,
+    recorders: [], // fake MediaRecorder instances (WebM path)
   };
+  class HarnessMediaRecorder {
+    constructor(stream, options) {
+      this.stream = stream;
+      this.options = options;
+      this.state = "inactive";
+      this.ondataavailable = null;
+      this.onstop = null;
+      this.onerror = null;
+      this.startCalls = 0;
+      this.stopCalls = 0;
+      log.recorders.push(this);
+    }
+    static isTypeSupported(type) {
+      return supported.includes(type);
+    }
+    start() {
+      this.startCalls += 1;
+      this.state = "recording";
+    }
+    stop() {
+      this.stopCalls += 1;
+      if (this.state === "inactive") return;
+      this.state = "inactive";
+      this.ondataavailable?.({ data: new Blob([new Uint8Array([0x1a, 0x45])], { type: "video/webm" }) });
+      this.onstop?.();
+    }
+  }
   const palette = [
     [16, 23, 19],
     [85, 211, 122],
@@ -219,7 +266,12 @@ function makeHarness({ failOnFrame, fontsReady } = {}) {
       return canvas;
     },
   };
-  return { log, deps: { loadRasterizer: async () => rasterizer, loadEncoder: async () => encoder }, palette };
+  const webmDeps = {
+    loadRasterizer: async () => rasterizer,
+    MediaRecorder: HarnessMediaRecorder,
+    captureStream: (canvas, frameRate) => canvas.captureStream(frameRate),
+  };
+  return { log, deps: { loadRasterizer: async () => rasterizer, loadEncoder: async () => encoder }, webmDeps, palette };
 }
 
 const isAbortError = (error) => error instanceof DOMException && error.name === "AbortError";
@@ -297,6 +349,29 @@ test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 
   assert.deepEqual(seen[0], [1, 100]);
   assert.deepEqual(seen[seen.length - 1], [100, 100]);
   for (let i = 1; i < seen.length; i += 1) assert.ok(seen[i][0] > seen[i - 1][0]);
+
+  assert.equal(document.body.children.length, 0, "host removed after success");
+});
+
+test("png export: the finale frame rasterizes once at 2× into a PNG blob", async () => {
+  domState.toBlobCalls = [];
+  const { log, deps } = makeHarness();
+  const result = await exportGrowthPng(buildFixtureScene(), "facebook", "react", deps);
+
+  // One rasterization, of the finale frame only.
+  assert.equal(log.rasterCalls.length, 1);
+  assert.equal(log.rasterCalls[0].progress, 1);
+  assert.ok(log.rasterCalls[0].htmlHasStage);
+
+  // The hidden host renders at 2560px wide with scale 2 (1280×720 at 2×).
+  assert.equal(log.rasterCalls[0].style.width, "2560px");
+  assert.equal(log.rasterCalls[0].style.scaleVar, "2");
+
+  // PNG encode requested with the png mime type.
+  assert.deepEqual(domState.toBlobCalls, [{ type: "image/png" }]);
+  assert.ok(result.blob instanceof Blob);
+  assert.equal(result.blob.type, "image/png");
+  assert.equal(result.filename, "octocounts-facebook-react-growth.png");
 
   assert.equal(document.body.children.length, 0, "host removed after success");
 });
@@ -436,4 +511,101 @@ test("filename interpolates owner and repo", async () => {
   const { deps } = makeHarness();
   const result = await exportGrowthGif(buildFixtureScene(), "vercel", "next.js", {}, deps);
   assert.equal(result.filename, "octocounts-vercel-next.js-growth.gif");
+});
+
+test("webm export: 100 frames drawn into a 10fps captureStream, recorded start->stop, progress to (100,100)", async () => {
+  const { log, webmDeps } = makeHarness();
+  const seen = [];
+  const result = await exportGrowthWebm(
+    buildFixtureScene(),
+    "facebook",
+    "react",
+    { onProgress: (done, total) => seen.push([done, total]) },
+    webmDeps,
+  );
+
+  // Every frame rasterizes in timeline order (no palette-seed shortcut) and
+  // is drawn onto the 1280x720 canvas backing the stream.
+  assert.equal(log.rasterCalls.length, 100);
+  assert.equal(log.canvasCalls.length, 100);
+  for (let i = 0; i < 100; i += 1) {
+    assert.equal(log.rasterCalls[i].frame, i);
+    assert.ok(Math.abs(log.rasterCalls[i].progress - i / 99) < 1e-12, `frame ${i} skipped part of the timeline`);
+    assert.deepEqual(log.canvasCalls[i], {
+      width: 1280, height: 720,
+      sourceWidth: 1280, sourceHeight: 720,
+      x: 0, y: 0, drawWidth: 1280, drawHeight: 720,
+    });
+  }
+  // The hidden-host contract matches the GIF path.
+  assert.ok(log.rasterCalls.every((call) => call.attached && call.ariaHidden === "true"));
+
+  // One stream from the shared canvas at 10fps; one recorder started and
+  // stopped exactly once, preferring vp9.
+  assert.deepEqual(domState.captureStreamCalls, [{ frameRate: 10, width: 1280, height: 720 }]);
+  assert.equal(log.recorders.length, 1);
+  const recorder = log.recorders[0];
+  assert.equal(recorder.options.mimeType, "video/webm;codecs=vp9");
+  assert.equal(recorder.startCalls, 1);
+  assert.equal(recorder.stopCalls, 1);
+  assert.equal(recorder.state, "inactive");
+
+  // onProgress fires once per drawn frame, 1-based, ending at (total,total).
+  assert.equal(seen.length, 100);
+  assert.deepEqual(seen[0], [1, 100]);
+  assert.deepEqual(seen[seen.length - 1], [100, 100]);
+
+  assert.ok(result.blob instanceof Blob);
+  assert.equal(result.blob.type, "video/webm");
+  assert.equal(result.filename, "octocounts-facebook-react-growth.webm");
+  assert.equal(document.body.children.length, 0, "host removed after success");
+});
+
+test("webm export: falls back along the mime chain and rejects with a clear error when nothing is supported", async () => {
+  // vp9 unsupported -> vp8 is chosen.
+  const { log, webmDeps } = makeHarness({ supportedTypes: ["video/webm;codecs=vp8", "video/webm"] });
+  const result = await exportGrowthWebm(buildFixtureScene(), "facebook", "react", {}, webmDeps);
+  assert.equal(log.recorders.length, 1);
+  assert.equal(log.recorders[0].options.mimeType, "video/webm;codecs=vp8");
+  assert.equal(result.blob.type, "video/webm");
+  assert.equal(document.body.children.length, 0);
+
+  // Nothing supported -> explicit rejection before any recorder or raster.
+  const { log: logNone, webmDeps: webmDepsNone } = makeHarness({ supportedTypes: [] });
+  await assert.rejects(
+    exportGrowthWebm(buildFixtureScene(), "facebook", "react", {}, webmDepsNone),
+    /no supported video\/webm mime type/,
+  );
+  assert.equal(logNone.recorders.length, 0);
+  assert.equal(logNone.rasterCalls.length, 0);
+  assert.equal(document.body.children.length, 0, "host removed when no mime is supported");
+});
+
+test("webm export: aborting around frame 10 rejects with AbortError, stops the recorder and removes the host", async () => {
+  const controller = new AbortController();
+  const { log, webmDeps } = makeHarness();
+  const seen = [];
+  await assert.rejects(
+    exportGrowthWebm(
+      buildFixtureScene(),
+      "facebook",
+      "react",
+      {
+        signal: controller.signal,
+        onProgress: (done) => {
+          seen.push(done);
+          if (done === 10) controller.abort();
+        },
+      },
+      webmDeps,
+    ),
+    isAbortError,
+  );
+  assert.equal(seen.length, 10, "progress fired for exactly the first 10 frames");
+  const recorder = log.recorders[0];
+  assert.equal(recorder.startCalls, 1);
+  assert.equal(recorder.stopCalls, 1, "recorder is stopped exactly once on abort");
+  assert.equal(recorder.state, "inactive");
+  assert.ok(domState.trackStops >= 1, "stream tracks are stopped on abort");
+  assert.equal(document.body.children.length, 0, "host removed on abort");
 });

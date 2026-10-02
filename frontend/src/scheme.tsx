@@ -23,8 +23,20 @@ function readStoredScheme(): Scheme | null {
   }
 }
 
+// ?theme=matrix|paper shares a shareable config through the URL (same idea as
+// ?lng=): it wins over the stored preference, and the provider persists it on
+// the next scheme effect — the link IS the configuration.
+function readUrlScheme(): Scheme | null {
+  try {
+    const value = new URLSearchParams(window.location.search).get("theme");
+    return value === "matrix" || value === "paper" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function preferredScheme(): Scheme {
-  return readStoredScheme() ?? systemScheme();
+  return readUrlScheme() ?? readStoredScheme() ?? systemScheme();
 }
 
 function persistScheme(scheme: Scheme) {

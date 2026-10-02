@@ -5,18 +5,29 @@ import ts from "typescript";
 
 // Same transpile-to-node_modules-cache pattern as github-status.test.mjs: a
 // data: URL has no parent directory to resolve relative specifiers from, so
-// the compiled copy lands under node_modules/ where git already ignores it.
+// the compiled copies land under node_modules/ where git already ignores
+// them. fixture.ts joins the party for the share-series-over-time checks.
 const cacheDir = new URL("../node_modules/.cache/octocounts-tests/", import.meta.url);
 await mkdir(cacheDir, { recursive: true });
 const modulePath = new URL("growth-buildscene.mjs", cacheDir);
-for (const [name, target] of [["languageLogos", "languageLogos.mjs"], ["buildScene", "growth-buildscene.mjs"]]) {
+for (const [name, target] of [
+  ["languageLogos", "languageLogos.mjs"],
+  ["buildScene", "growth-buildscene.mjs"],
+  ["fixture", "growth-fixture.mjs"],
+]) {
   const source = await readFile(new URL(`../src/growth/${name}.ts`, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
   });
-  await writeFile(new URL(target, cacheDir), compiled.outputText.replace('"./languageLogos"', '"./languageLogos.mjs"'));
+  await writeFile(
+    new URL(target, cacheDir),
+    compiled.outputText
+      .replace('"./languageLogos"', '"./languageLogos.mjs"')
+      .replace('"./buildScene"', '"./growth-buildscene.mjs"'),
+  );
 }
 const { buildScene } = await import(modulePath.href);
+const { buildFixtureScene } = await import(new URL("growth-fixture.mjs", cacheDir).href);
 
 // ---------------------------------------------------------------------------
 // Fixtures: the verified facebook/react numbers (report totals, 11 languages,
@@ -444,4 +455,136 @@ test("stars map through the date window: null before the first star point", () =
       250841, // 2026-09-29 ← same day
     ],
   );
+});
+
+test("languages carry a per-sample share series matching the modeled split", () => {
+  const scene = reactScene();
+  const lastIndex = scene.samples.length - 1;
+  for (const language of scene.languages) {
+    assert.equal(language.shares.length, scene.samples.length, `${language.name} shares cover every sample`);
+    assert.ok(language.shares.every((share) => share >= 0 && share <= 100), `${language.name} shares stay in 0..100`);
+    // The last sample renormalizes onto the real current mix, so its share
+    // lands on currentShare (largest-remainder rounding wiggles < 3e-4).
+    assert.ok(
+      Math.abs(language.shares[lastIndex] - language.currentShare) < 1e-3,
+      `${language.name} last share ${language.shares[lastIndex]} ≈ currentShare ${language.currentShare}`,
+    );
+  }
+  // The modeled split renormalizes against each sample's real total, so the
+  // per-language shares of every sample sum to ~100.
+  for (let i = 0; i < scene.samples.length; i += 1) {
+    const sum = scene.languages.reduce((acc, language) => acc + language.shares[i], 0);
+    assert.ok(Math.abs(sum - 100) < 1e-3, `sample ${i} shares sum to ${sum}`);
+  }
+});
+
+test("shares move over time in the dev fixture's modeled history", () => {
+  // buildScene's v1 model scales one fixed share across every sample, so its
+  // series is flat by construction — the fixture carries the demo's real
+  // per-sample share tables, where JavaScript drifts from 78% down to ~63.5%
+  // and Rust only enters halfway through.
+  const scene = buildFixtureScene();
+  const js = scene.languages.find((language) => language.name === "JavaScript");
+  assert.equal(js.shares.length, scene.samples.length);
+  assert.ok(Math.max(...js.shares) - Math.min(...js.shares) > 1, "JavaScript share varies across samples");
+  const rust = scene.languages.find((language) => language.name === "Rust");
+  assert.equal(rust.shares[0], 0);
+  assert.ok(rust.shares.at(-1) > 0, "Rust enters the series later");
+  // Fixture shares cover the same verified tables: last sample = real mix.
+  assert.ok(Math.abs(js.shares.at(-1) - (231679 / 365001) * 100) < 1e-3);
+});
+
+test("languageDetails and track stats mirror the report's per-language stats", () => {
+  const scene = reactScene();
+  // The hover-popup fields come straight from the report rows.
+  assert.deepEqual(scene.languageDetails.JavaScript, {
+    files: 1477,
+    lines: 294019,
+    code: 231679,
+    comments: 38520,
+    blanks: 23820,
+  });
+  assert.deepEqual(scene.languageDetails.Rust, { files: 117, lines: 72880, code: 64164, comments: 3784, blanks: 4932 });
+  assert.deepEqual(scene.languages[0].stats, scene.languageDetails.JavaScript);
+  // Zero-code Markdown gets details (it is a report language) but no track.
+  assert.deepEqual(scene.languageDetails.Markdown, { files: 68, lines: 9099, code: 0, comments: 6533, blanks: 2566 });
+  assert.ok(scene.languages.every((language) => language.name !== "Markdown"));
+  // The merged Other tail is a display construct, not a language: no entry.
+  assert.equal(Object.keys(scene.languageDetails).length, reactLanguages.length);
+  assert.ok(!Object.keys(scene.languageDetails).some((name) => name.startsWith("Other")));
+  // The fixture's detail map agrees with its verified table rows.
+  const fixtureScene = buildFixtureScene();
+  assert.deepEqual(fixtureScene.languageDetails.TypeScript, {
+    files: 219,
+    lines: 74575,
+    code: 60048,
+    comments: 10201,
+    blanks: 4326,
+  });
+  assert.deepEqual(fixtureScene.languageDetails.Markdown, { files: 68, lines: 9099, code: 0, comments: 6533, blanks: 2566 });
+  assert.equal(Object.keys(fixtureScene.languageDetails).length, reactLanguages.length);
+});
+
+test("url overrides scale the beat sheet and the skyline cap", () => {
+  const scaled = buildScene({
+    report: makeReport(reactLanguages, reactTotal),
+    history: makeHistory(reactSloc),
+    languageColors: reactColors,
+    overrides: { durationMs: 15000 },
+  });
+  assert.equal(scaled.durationMs, 15000);
+  assert.deepEqual(scaled.acts.data, { startTime: 1.8, endTime: 12.75, finalLock: 12.75 });
+  assert.deepEqual(scaled.acts.finale, { startTime: 12.75, endTime: 15, staticFrom: 14.4 });
+  // Clamped to the 5s..30s window.
+  const clamped = buildScene({
+    report: makeReport(reactLanguages, reactTotal),
+    history: makeHistory(reactSloc),
+    languageColors: reactColors,
+    overrides: { durationMs: 1000 },
+  });
+  assert.equal(clamped.durationMs, 5000);
+  // A raised skyline cap stops merging the tail (react has 10 code languages).
+  const wide = buildScene({
+    report: makeReport(reactLanguages, reactTotal),
+    history: makeHistory(reactSloc),
+    languageColors: reactColors,
+    overrides: { cityLimit: 12 },
+  });
+  assert.ok(wide.samples.at(-1).city.every((block) => !block.merged));
+  assert.equal(reactScene().samples.at(-1).city.some((block) => block.merged), true);
+});
+
+test("per-language history payloads drive the real split when present", () => {
+  // Give every sample a real language mix: Rust dominates early (a rewrite
+  // story the modeled split could never tell), JS dominates late.
+  const slocPoints = reactSloc.map((point, i) => ({
+    ...point,
+    languages: i < 6
+      ? { Rust: Math.round(point.totalLines * 0.7), JavaScript: Math.round(point.totalLines * 0.3) }
+      : { JavaScript: Math.round(point.totalLines * 0.8), Rust: Math.round(point.totalLines * 0.2) },
+  }));
+  const scene = buildScene({
+    report: makeReport(reactLanguages, reactTotal),
+    history: makeHistory(slocPoints),
+    languageColors: reactColors,
+  });
+  assert.equal(scene.realLanguageSplit, true);
+  assert.equal(scene.samples[0].realSplit, true);
+  const earlyRust = scene.samples[0].languageCode.Rust;
+  const lateRust = scene.samples.at(-1).languageCode.Rust;
+  assert.ok(earlyRust > scene.samples[0].code * 0.65, `early Rust ${earlyRust} should dominate`);
+  assert.ok(lateRust < scene.samples.at(-1).code * 0.25, `late Rust ${lateRust} should shrink`);
+  for (const sample of scene.samples) {
+    const sum = Object.values(sample.languageCode).reduce((a, b) => a + b, 0);
+    assert.equal(sum, sample.code, "split must sum to the sample total");
+  }
+  // A partially-real series stays disclosed as modeled.
+  const mixed = buildScene({
+    report: makeReport(reactLanguages, reactTotal),
+    history: makeHistory([slocPoints[0], ...reactSloc.slice(1)]),
+    languageColors: reactColors,
+  });
+  assert.equal(mixed.realLanguageSplit, false);
+  assert.equal(mixed.samples[0].realSplit, true);
+  assert.equal(mixed.samples[1].realSplit, false);
 });

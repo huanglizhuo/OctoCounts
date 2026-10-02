@@ -13,6 +13,7 @@ import { downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalized
 import { isHostDegraded, useGithubStatus } from "../githubStatus";
 import { usePrerenderedHome } from "../prerenderContext";
 import type { AppStatus, Report } from "../types";
+import type { GrowthScene } from "../growth/types";
 import { Charts } from "./Charts";
 import { ReportActions } from "./ReportActions";
 import { StarBadge } from "./shared";
@@ -38,12 +39,12 @@ function stableTimestamp(iso: string, locale: string): string {
 const GrowthSection = React.lazy(() => import("./GrowthSection").then((m) => ({ default: m.GrowthSection })));
 
 // Full-report-only extras, all below the fold of a finished report: the
-// share showcase (with the offscreen PNG capture card), similar
-// repositories, and the insights/trust readouts inside Technical details.
-// None of them render in the demo variant, so loading them as chunks keeps
-// the share/export code out of the homepage entry entirely. Both Share
-// exports come from the same module, so the preview section and the capture
-// card share one chunk; the export flow waits for that chunk below.
+// share-actions section, the offscreen capture card behind the sticky-bar PNG
+// export, similar repositories, and the insights/trust readouts inside
+// Technical details. None of them render in the demo variant, so loading them
+// as chunks keeps the share/export code out of the homepage entry entirely.
+// Both Share exports come from the same module, so the section and the
+// capture card share one chunk; the export flow waits for that chunk below.
 const ShareSection = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareSection })));
 const ShareTickerCard = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareTickerCard })));
 const SimilarRepos = React.lazy(() => import("./SimilarRepos").then((m) => ({ default: m.SimilarRepos })));
@@ -146,32 +147,48 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
     };
   }, []);
 
+  // The growth section reports its scene up once built; while it exists the
+  // sticky-bar PNG export produces the growth finale card (same image as the
+  // growth section's Export PNG) instead of the legacy ticker card.
+  const growthSceneRef = useRef<GrowthScene | null>(null);
+
   const exportPng = async () => {
     if (!report || isExporting) return;
     setIsExporting(true);
     setExportError(null);
-    setExportMount(true);
+    const growthScene = growthSceneRef.current;
+    setExportMount(!growthScene);
     try {
-      // The offscreen card lives in the lazy Share chunk; wait for it to
-      // actually commit, then one more frame guarantees a layout pass
-      // before anything reads geometry.
-      const node = await waitForMountedCard(exportCardRef, 5000);
-      if (!node) throw new Error("share card not mounted");
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      // Fonts must be resolved before capture or the PNG rasterizes fallback
-      // glyphs. (The card embeds no raster images — its star mark is inline
-      // SVG — so there is nothing further to decode.)
-      await document.fonts.ready;
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: 2,
-        width: 1200,
-        height: 630,
-        backgroundColor: "#050a06",
-      });
-      downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
-      trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
+      if (growthScene) {
+        const { exportGrowthPng } = await import("../growth/exportGif");
+        const [owner = "repo", repo = owner] = growthScene.repoFullName.split("/");
+        const { blob, filename } = await exportGrowthPng(growthScene, owner, repo);
+        const url = URL.createObjectURL(blob);
+        downloadDataUrl(url, filename);
+        window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+        trackEvent(AnalyticsEvents.growthPngExported, { provider: normalizedProvider(report) });
+      } else {
+        // The offscreen card lives in the lazy Share chunk; wait for it to
+        // actually commit, then one more frame guarantees a layout pass
+        // before anything reads geometry.
+        const node = await waitForMountedCard(exportCardRef, 5000);
+        if (!node) throw new Error("share card not mounted");
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        // Fonts must be resolved before capture or the PNG rasterizes fallback
+        // glyphs. (The card embeds no raster images — its star mark is inline
+        // SVG — so there is nothing further to decode.)
+        await document.fonts.ready;
+        const { toPng } = await import("html-to-image");
+        const dataUrl = await toPng(node, {
+          cacheBust: true,
+          pixelRatio: 2,
+          width: 1200,
+          height: 630,
+          backgroundColor: "#050a06",
+        });
+        downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
+        trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
+      }
     } catch {
       setExportError(t("runner.exportPngFailed"));
     } finally {
@@ -291,7 +308,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
                 entry bundle; null fallback — a shared boundary would flash
                 siblings back to a fallback when this chunk resolves. */}
             <Suspense fallback={null}>
-              <GrowthSection report={report} stars={stars} />
+              <GrowthSection report={report} stars={stars} onScene={(scene) => { growthSceneRef.current = scene; }} />
             </Suspense>
             {/* Summary, Charts and the action bar stay eager: they are the
                 content the visitor is waiting for. Everything below is a
@@ -299,13 +316,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
                 a shared boundary would flash siblings back to the fallback
                 whenever a later chunk resolved). */}
             <Suspense fallback={null}>
-              <ShareSection
-                report={report}
-                stars={stars}
-                isExporting={isExporting}
-                exportError={exportError}
-                onExportPng={() => void exportPng()}
-              />
+              <ShareSection report={report} stars={stars} />
             </Suspense>
             <Suspense fallback={null}>
               <SimilarRepos report={report} />

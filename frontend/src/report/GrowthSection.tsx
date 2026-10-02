@@ -10,17 +10,17 @@
 // html-to-image/gifenc) stays out of the entry bundle. Crawlers get the SSR
 // paragraph the edge function injects instead (functions/[[path]].js
 // .growth-ssr); the reserved-height stage keeps the swap-in at zero CLS.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Download, Loader2, RotateCcw, X } from "lucide-react";
+import { Download, Loader2, Pause, Play, RotateCcw, X } from "lucide-react";
 import { fetchCanonicalReport, fetchRepoHistory } from "../api";
 import { AnalyticsEvents, trackEvent } from "../analytics";
 import { downloadDataUrl, formatNumber, languageColor, normalizedProvider, visibleLanguageColor } from "../reportUtils";
 import { useScheme } from "../scheme";
 import type { Report } from "../types";
 import { buildScene } from "../growth/buildScene";
-import { exportGrowthGif } from "../growth/exportGif";
+import { exportGrowthGif, exportGrowthPng, exportGrowthWebm } from "../growth/exportGif";
 import { GrowthAnimation } from "../growth/GrowthAnimation";
 import { useGrowthPlayer } from "../growth/useGrowthPlayer";
 import type { GrowthScene } from "../growth/types";
@@ -43,6 +43,13 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
   const [reducedMotion] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  // Autoplay the story once on mount (loop defaults off, so it parks on the
+  // finale frame). Reduced-motion viewers keep the paused finale poster —
+  // autoplaying motion would override their explicit preference.
+  useEffect(() => {
+    if (!reducedMotion) player.replay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, []);
   // growth.played fires once per mount, on the first user-initiated start.
   const playedOnce = useRef(false);
   const markPlayed = () => {
@@ -56,7 +63,33 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const cancelRef = useRef<AbortController | null>(null);
 
-  const runExport = async () => {
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    downloadDataUrl(url, filename);
+    window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+
+  // All three exporters render the deterministic scene offscreen — the PNG is
+  // the finale frame at 2× (the share card), the GIF quantizes the full 10s
+  // timeline, and the WebM records the same 100 frames off a live canvas.
+  const [owner = "repo", repo = owner] = scene.repoFullName.split("/");
+
+  const runPngExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const { blob, filename } = await exportGrowthPng(scene, owner, repo);
+      saveBlob(blob, filename);
+      trackEvent(AnalyticsEvents.growthPngExported, { provider: scene.provider, repo: scene.repoFullName });
+    } catch {
+      setExportError(t("growth.animation.exportFailed"));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const runGifExport = async () => {
     if (exporting) return;
     setExporting(true);
     setExportError(null);
@@ -66,18 +99,12 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
     player.pause();
     const controller = new AbortController();
     cancelRef.current = controller;
-    // exportGrowthGif names the file itself: octocounts-{owner}-{repo}-growth.gif
-    const [owner = "repo", repo = owner] = scene.repoFullName.split("/");
     try {
       const { blob, filename } = await exportGrowthGif(scene, owner, repo, {
         signal: controller.signal,
         onProgress: (done, total) => setExportProgress(total > 0 ? done / total : 0),
       });
-      // Download via a short-lived object URL, revoked once the save has had
-      // time to start.
-      const url = URL.createObjectURL(blob);
-      downloadDataUrl(url, filename);
-      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      saveBlob(blob, filename);
       trackEvent(AnalyticsEvents.growthGifExported, { variant: "full", provider: scene.provider, repo: scene.repoFullName });
     } catch (error) {
       // The exporter rejects a cancel with a DOMException AbortError between
@@ -94,23 +121,55 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
     }
   };
 
+  const runWebmExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportError(null);
+    setExportProgress(0);
+    // Same freeze-the-player contract as the GIF export: the recorder steps
+    // the frame grid itself, one 100ms tick per frame.
+    player.pause();
+    const controller = new AbortController();
+    cancelRef.current = controller;
+    try {
+      const { blob, filename } = await exportGrowthWebm(scene, owner, repo, {
+        signal: controller.signal,
+        onProgress: (done, total) => setExportProgress(total > 0 ? done / total : 0),
+      });
+      saveBlob(blob, filename);
+      trackEvent(AnalyticsEvents.growthWebmExported, { variant: "full", provider: scene.provider, repo: scene.repoFullName });
+    } catch (error) {
+      // Same as the GIF path: a cancel rejects with AbortError between frames
+      // while the exporter's own cleanup stops the recorder and its tracks.
+      if (error instanceof DOMException && error.name === "AbortError") {
+        trackEvent(AnalyticsEvents.growthExportCancelled, { variant: "full", provider: scene.provider, repo: scene.repoFullName });
+      } else {
+        setExportError(t("growth.animation.exportFailed"));
+      }
+    } finally {
+      cancelRef.current = null;
+      setExporting(false);
+      setExportProgress(0);
+    }
+  };
+
   const playLabel = t(player.playing ? "growth.animation.pauseAria" : "growth.animation.playAria");
-  // The stars column only exists when at least one sample carries a star
-  // count; rows without one render an em dash in its place.
-  const hasStars = scene.samples.some((sample) => typeof sample.stars === "number");
   return (
     <>
-      <GrowthAnimation
-        scene={scene}
-        progress={player.progress}
-        playing={player.playing}
-        playbackLabel={playLabel}
-        onTogglePlayback={exporting ? undefined : () => {
-          markPlayed();
-          player.toggle();
-        }}
-      />
+      <GrowthAnimation scene={scene} progress={player.progress} playing={player.playing} interactive />
       <div className="growth-controls">
+        <button
+          className="copybtn"
+          type="button"
+          aria-label={playLabel}
+          onClick={() => {
+            markPlayed();
+            player.toggle();
+          }}
+        >
+          {player.playing ? <Pause size={13} /> : <Play size={13} />}{" "}
+          {t(player.playing ? "growth.animation.pause" : "growth.animation.play")}
+        </button>
         <button
           className="copybtn"
           type="button"
@@ -146,9 +205,17 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
         />
       </div>
       <div className="growth-export">
-        <button className="copybtn" type="button" disabled={exporting} onClick={() => void runExport()}>
+        <button className="copybtn" type="button" disabled={exporting} onClick={() => void runPngExport()}>
+          {exporting && exportProgress === 0 ? <Loader2 className="spin" size={13} /> : <Download size={13} />}{" "}
+          {t("growth.animation.exportPng")}
+        </button>
+        <button className="copybtn" type="button" disabled={exporting} onClick={() => void runGifExport()}>
           {exporting ? <Loader2 className="spin" size={13} /> : <Download size={13} />}{" "}
           {exporting ? t("growth.animation.exporting", { percent: Math.round(exportProgress * 100) }) : t("growth.animation.exportGif")}
+        </button>
+        <button className="copybtn" type="button" disabled={exporting} onClick={() => void runWebmExport()}>
+          {exporting ? <Loader2 className="spin" size={13} /> : <Download size={13} />}{" "}
+          {exporting ? t("growth.animation.exporting", { percent: Math.round(exportProgress * 100) }) : t("growth.animation.exportWebm")}
         </button>
         <span className="growth-export-duration">{t("growth.animation.exportFull")}</span>
         {exporting ? (
@@ -158,41 +225,28 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
         ) : null}
         {exportError ? <span className="growth-export-error" role="alert">{exportError}</span> : null}
       </div>
-      {scene.modeledLanguageSplit ? (
+      {scene.realLanguageSplit ? (
+        <p className="growth-note">{t("growth.animation.realNote")}</p>
+      ) : scene.modeledLanguageSplit ? (
         <p className="growth-note">{t("growth.animation.modeledNote")}</p>
       ) : null}
       {scene.finaleDiverged ? (
         <p className="growth-note">{t("growth.animation.divergedNote")}</p>
       ) : null}
       {reducedMotion ? <p className="growth-note">{t("growth.animation.reducedMotionNote")}</p> : null}
-      {/* The scene's own samples, verbatim — the table and the animation
-          render from one object, so they can never disagree. */}
-      <details className="growth-history-data">
-        <summary>{t("growth.animation.historyData")}</summary>
-        <table>
-          <thead>
-            <tr>
-              <th>{t("growth.animation.historyDate")}</th>
-              <th>{t("growth.animation.historyCode")}</th>
-              {hasStars ? <th>{t("growth.animation.historyStars")}</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {scene.samples.map((sample) => (
-              <tr key={sample.date}>
-                <td>{sample.date}</td>
-                <td>{formatNumber(sample.code)}</td>
-                {hasStars ? <td>{sample.stars == null ? "—" : formatNumber(sample.stars)}</td> : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
     </>
   );
 }
 
-export function GrowthSection({ report }: { report: Report; stars?: number | null }) {
+export function GrowthSection({
+  report,
+  onScene,
+}: {
+  report: Report;
+  stars?: number | null;
+  /** Reports the built scene up (Runner's sticky-bar PNG export reuses it). */
+  onScene?: (scene: GrowthScene) => void;
+}) {
   const { t } = useTranslation();
   const scheme = useScheme();
   const provider = normalizedProvider(report);
@@ -230,11 +284,26 @@ export function GrowthSection({ report }: { report: Report; stars?: number | nul
     () => Object.fromEntries(sceneSource.languages.map((language) => [language.name, visibleLanguageColor(languageColor(language.name), scheme)])),
     [sceneSource.languages, scheme],
   );
+  // Shareable config via URL (?gdur=15 stretches the template to 15s, ?glang=12
+  // raises the skyline cap to 12 buildings; both clamped in buildScene).
+  // Read once per mount — the SPA does not re-route report pages in place.
+  const growthOverrides = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const overrides: { durationMs?: number; cityLimit?: number } = {};
+    const durationSec = Number(params.get("gdur"));
+    if (params.get("gdur") !== null && Number.isFinite(durationSec)) overrides.durationMs = durationSec * 1000;
+    const cityLimit = Number(params.get("glang"));
+    if (params.get("glang") !== null && Number.isFinite(cityLimit)) overrides.cityLimit = cityLimit;
+    return overrides;
+  }, []);
   const scene = useMemo(() => {
     // No samples yet -> no scene: the section renders its disabled state.
     if (!history || history.slocPoints.length === 0) return null;
-    return buildScene({ report: sceneSource, history, languageColors });
-  }, [history, sceneSource, languageColors]);
+    return buildScene({ report: sceneSource, history, languageColors, overrides: growthOverrides });
+  }, [history, sceneSource, languageColors, growthOverrides]);
+  useEffect(() => {
+    if (scene) onScene?.(scene);
+  }, [scene, onScene]);
 
   // Profile-divergence disclosure (the old history chart's "this report"
   // label): the scene is built from the canonical report while `report` here

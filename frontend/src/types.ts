@@ -109,6 +109,10 @@ export type SlocHistoryPoint = {
   date: string;
   // NOTE: stores tokei "code" lines (not total lines); display copy says code lines
   totalLines: number;
+  // Per-language code lines at this sample (only present for rows written
+  // after the per-language backfill shipped). Absent → the growth animation
+  // models the split from the current snapshot.
+  languages?: Record<string, number>;
 };
 
 export type RepoHistory = {

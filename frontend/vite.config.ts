@@ -50,6 +50,10 @@ export default defineConfig({
         // gifenc, zh locale) are already lazy-loaded and stay untouched.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
+          // react-dom/server is only reachable through dynamic imports (the
+          // growth GIF/PNG exporters). Keep it out of vendor-react — merged
+          // there, every visitor pays ~20 kB gzip for an exporter-only module.
+          if (/[\\/]node_modules[\\/]react-dom[\\/](server\.(browser|node)\.js|cjs[\\/]react-dom-server)/.test(id)) return "react-dom-server";
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "vendor-react";
           if (id.includes("i18next")) return "vendor-i18n";
           if (id.includes("@tanstack")) return "vendor-query";

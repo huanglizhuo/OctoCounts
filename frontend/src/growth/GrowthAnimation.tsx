@@ -25,9 +25,10 @@
 //                     annotation), live rooftop LOC, flipping date cards,
 //                     stars beacon on the tallest roof
 //   8.5-10   finale   metric bar slides in; date and city settle; static 9.6+
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatCompactNumber, formatNumber } from "../reportUtils";
+import { roofTextColors } from "./languageLogos";
 import type { GrowthCityBlock, GrowthScene } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,7 @@ const pt = (gx: number, gy: number, z = 0) => `${isoX(gx, gy).toFixed(2)},${isoY
 // Small roofs keep compact text; these thresholds reserve space for logos.
 const LABEL_MIN_EDGE = 13; // ground units
 const LABEL_MIN_AREA = 220; // ground units²
+const LABEL_OVERLAP_RADIUS = 34; // screen px between adjacent rooftop labels
 
 // demo constants that structure the choreography
 const DIP_DROP = 0.225; // dip segments hold, then drop over the last 0.225s
@@ -152,9 +154,11 @@ const RISE_STAGGER = 0.15; // entrance delay per rank (full variant)
 const RISE_DUR = 0.5;
 
 // ---------------------------------------------------------------------------
-// deriveFrame(scene, t) — every animated number at screen second t. Pure:
-// deterministic scene data + deterministic calendar math only.
-function deriveFrame(scene: GrowthScene, t: number) {
+// deriveFrame(scene, t, hovered) — every animated number at screen second t.
+// Pure: deterministic scene data + deterministic calendar math only. `hovered`
+// only reveals crowd-hidden small-roof labels; exports pass nothing, so GIF/
+// PNG frames stay a function of (scene, progress) alone.
+function deriveFrame(scene: GrowthScene, t: number, hovered: string | null = null) {
   const acts = scene.acts;
   const samples = scene.samples;
   const n = samples.length;
@@ -213,11 +217,13 @@ function deriveFrame(scene: GrowthScene, t: number) {
     const t0 = timeOf(d.sampleIndex);
     const kIn = w01(t, t0, t0 + 0.11);
     const kOut = w01(t, t0 + 0.25, t0 + 0.35);
+    const drop = d.fromValue > 0 ? (d.fromValue - d.toValue) / d.fromValue : 0;
     return {
       amber: t >= t0 && t < t0 + DIP_AMBER,
       alpha: kIn * (1 - kOut),
       y: 7 * (1 - quartOut(kIn)) - 4 * kOut,
-      label: `↘ repo restructure · ${monthYear(samples[d.sampleIndex].date)}`,
+      drop,
+      month: monthYear(samples[d.sampleIndex].date),
     };
   });
   const amber = dipBeats.some((d) => d.amber);
@@ -344,32 +350,88 @@ function deriveFrame(scene: GrowthScene, t: number) {
 
   const groundAlpha = quartOut(w01(t, dataStart, dataStart + 0.3));
 
+  const languageByName = new Map(scene.languages.map((language) => [language.name, language]));
   const labels = blocks.map((block) => {
     const fits =
       block.rect.w >= LABEL_MIN_EDGE &&
       block.rect.h >= LABEL_MIN_EDGE &&
       block.rect.w * block.rect.h >= LABEL_MIN_AREA;
     const edge = Math.min(block.rect.w, block.rect.h);
-    const size = Math.min(10, edge * 0.42);
+    // The logo is a 24×24 path whose projected bottom corner dips
+    // GROUND_SCALE×size px below its origin; keep it small enough that the
+    // label text (see textDy below) clears it on medium roofs like CSS/JS.
+    const size = Math.min(7, edge * 0.36);
     const offset = Math.min(4, edge * 0.15);
     const gx = block.rect.x + block.rect.w / 2 - offset - size / 2;
     const gy = block.rect.y + block.rect.h / 2 - offset - size / 2;
     const a = ISO_COS * GROUND_SCALE * size / 24;
     const b = 0.5 * GROUND_SCALE * size / 24;
+    const x = isoX(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2);
+    const y = isoY(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2, block.height);
+    const share = codeNow > 0 ? (block.value / codeNow) * 100 : 0;
+    const logo = fits && block.logo ? {
+      ...block.logo,
+      transform: `matrix(${a} ${b} ${-a} ${b} ${isoX(gx, gy)} ${isoY(gx, gy, block.height)})`,
+    } : undefined;
+    // Tiny roofs (<1.5% share) crowd each other at the skyline's foot; their
+    // labels only appear while that building is hovered (live view) and stay
+    // hidden in exports for a clean card.
+    const hoverOnly = !fits && share < 1.5;
     return {
       name: block.name,
       merged: block.merged,
       value: block.value,
-      x: isoX(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2),
-      y: isoY(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2, block.height),
-      alpha: block.enterK > 0 ? 1 : 0,
-      dy: 0,
+      share,
+      x,
+      y,
+      alpha: block.enterK > 0 ? (hoverOnly && hovered !== block.name ? 0 : 1) : 0,
+      hoverOnly,
+      softened: false,
       compact: !fits,
-      logo: fits && block.logo ? {
-        ...block.logo,
-        transform: `matrix(${a} ${b} ${-a} ${b} ${isoX(gx, gy)} ${isoY(gx, gy, block.height)})`,
-      } : undefined,
+      // Text sits below the logo's projected bottom corner (see size above):
+      // name baseline y+20, value baseline y+33 vs logo bottom ≈ y+19.
+      textDy: logo ? 22 : 0,
+      textColor: block.logo?.textColor ?? roofTextColors(block.colorTop).textColor,
+      valueColor: block.logo?.valueColor ?? roofTextColors(block.colorTop).valueColor,
+      logo,
     };
+  });
+  const overlapPairs: Array<[string, string]> = [];
+  for (let i = 0; i < labels.length; i += 1) {
+    for (let j = i + 1; j < labels.length; j += 1) {
+      const dx = labels[i].x - labels[j].x;
+      const dy = labels[i].y - labels[j].y;
+      if (Math.hypot(dx, dy) < LABEL_OVERLAP_RADIUS) overlapPairs.push([labels[i].name, labels[j].name]);
+    }
+  }
+  const overlapNames = new Set(overlapPairs.flat());
+  // Overlap softening dims always-visible crowded labels; hover-only labels
+  // are already hidden at rest, so dimming them too would be invisible work.
+  // `softened` rides the inline opacity (CSS class opacity would override the
+  // SVG presentation attribute, which is why this is a value, not a class).
+  for (const label of labels) {
+    label.softened = !label.hoverOnly && overlapNames.has(label.name);
+  }
+  const labelShareNotes = labels.flatMap((label, index) => {
+    const language = languageByName.get(label.name);
+    if (!language || label.merged || label.value <= 0) return [];
+    const left = Math.min(Math.floor(p), language.shares.length - 1);
+    const right = Math.min(left + 1, language.shares.length - 1);
+    const localT = language.shares.length > 1 ? clamp(p - left, 0, 1) : 0;
+    const previous = language.shares[left] ?? 0;
+    const next = language.shares[right] ?? previous;
+    const delta = next - previous;
+    const visibleDelta = Math.abs(delta) >= 1.5 && label.value > codeNow * 0.06;
+    if (!visibleDelta) return [];
+    return [{
+      name: label.name,
+      text: `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}%`,
+      positive: delta > 0,
+      x: label.x,
+      y: label.y - 28,
+      // Keep the note clear of simultaneous labels, including the one below it.
+      alpha: label.alpha * (index % 2 === 0 ? 1 : 0),
+    }];
   });
 
   // -- stars beacon: a glowing diamond hovering over the tallest roof, value
@@ -443,6 +505,8 @@ function deriveFrame(scene: GrowthScene, t: number) {
     blocks,
     amber,
     labels,
+    overlapNames,
+    labelShareNotes,
     beacon,
     metrics,
     // hero counter hands off to the finale at 8.5
@@ -461,38 +525,84 @@ export function GrowthAnimation({
   scene,
   progress,
   playing,
-  playbackLabel,
-  onTogglePlayback,
+  interactive,
 }: {
   scene: GrowthScene;
   progress: number;
   playing?: boolean;
-  playbackLabel?: string;
-  onTogglePlayback?: () => void;
+  /** Finale-only hover details; exports pass nothing so GIFs stay interactive-free. */
+  interactive?: boolean;
 }) {
   const wrapRef = useGrowthScale(STAGE_W);
   const seconds = clamp(progress, 0, 1) * (scene.durationMs / 1000);
-  const f = deriveFrame(scene, seconds);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const f = deriveFrame(scene, seconds, hovered);
+  useEffect(() => {
+    if (!interactive || progress < 1) setHovered(null);
+  }, [interactive, progress]);
+  const interactiveFinale = interactive === true && progress >= 1 && f.finaleK >= 1;
+  const detailBlock = interactiveFinale && hovered ? f.blocks.find((block) => block.name === hovered) ?? null : null;
+  const handleStageMouseMove = (event: React.MouseEvent<HTMLElement>) => {
+    if (!interactiveFinale) {
+      if (hovered) setHovered(null);
+      return;
+    }
+    const wrap = wrapRef.current;
+    if (!wrap) {
+      setHovered(null);
+      return;
+    }
+    const rect = wrap.getBoundingClientRect();
+    const scale = rect.width / STAGE_W || 1;
+    const point = {
+      x: (event.clientX - rect.left) / scale,
+      y: (event.clientY - rect.top) / scale,
+    };
+    // Blocks are sorted back-to-front for painting; hit-test in reverse so the
+    // visually front-most building wins where projected boxes overlap.
+    const hit = [...f.blocks].reverse().find((block) => {
+      if (block.enterK <= 0 || block.rect.w <= 0 || block.rect.h <= 0) return false;
+      const { x, y, w, h } = block.rect;
+      const corners = [
+        [x, y, block.height],
+        [x + w, y, block.height],
+        [x + w, y + h, block.height],
+        [x, y + h, block.height],
+        [x, y + h, 0],
+        [x + w, y + h, 0],
+        [x + w, y, 0],
+        [x, y, 0],
+      ].map(([gx, gy, z]) => [isoX(gx, gy) + f.cityOffset.x, isoY(gx, gy, z) + f.cityOffset.y] as const);
+      const xs = corners.map((corner) => corner[0]);
+      const ys = corners.map((corner) => corner[1]);
+      return point.x >= Math.min(...xs) && point.x <= Math.max(...xs) && point.y >= Math.min(...ys) && point.y <= Math.max(...ys);
+    });
+    setHovered(hit?.name ?? null);
+  };
   return (
     <div className="growth-wrap" ref={wrapRef}>
       <p className="visually-hidden">{f.summary}</p>
-      <div className="growth-stage" role={onTogglePlayback ? "group" : "img"} aria-label={f.ariaLabel}>
-        <CityLayer f={f} />
+      <div
+        className="growth-stage"
+        role="img"
+        aria-label={f.ariaLabel}
+        onMouseMove={handleStageMouseMove}
+        onMouseLeave={() => setHovered(null)}
+      >
+        <CityLayer
+          f={f}
+          scene={scene}
+          hovered={interactiveFinale ? hovered : null}
+          revealOnHover={interactiveFinale}
+        />
         <HudLayer scene={scene} f={f} />
         <MetricBar scene={scene} f={f} />
         <HookAct f={f} />
+        {interactiveFinale && detailBlock ? <LanguageDetail scene={scene} f={f} block={detailBlock} /> : null}
         {playing === false && progress < 1 ? (
           <div className="growth-paused" aria-hidden="true">
             <span>▶</span>
           </div>
-        ) : null}
-        {onTogglePlayback ? (
-          <button
-            className="growth-playback-hit"
-            type="button"
-            aria-label={playbackLabel}
-            onClick={onTogglePlayback}
-          />
         ) : null}
       </div>
     </div>
@@ -543,7 +653,18 @@ function HookAct({ f }: { f: GrowthFrame }) {
 // The city itself — one full-stage SVG. Ground plate + grid, then buildings
 // back-to-front (painter's algorithm over gx+gy depth), rooftop labels, and
 // the stars beacon. All geometry arrives pre-computed in the frame.
-function CityLayer({ f }: { f: GrowthFrame }) {
+function CityLayer({
+  f,
+  scene,
+  hovered,
+  revealOnHover,
+}: {
+  f: GrowthFrame;
+  scene: GrowthScene;
+  hovered: string | null;
+  /** Finale hover mode: keep hover-only labels mounted (opacity 0) so hover can reveal them. */
+  revealOnHover: boolean;
+}) {
   const { t } = useTranslation();
   const gridLines: string[] = [];
   for (let u = 20; u < GROUND; u += 20) {
@@ -573,7 +694,11 @@ function CityLayer({ f }: { f: GrowthFrame }) {
         if (block.enterK <= 0 || w <= 0 || h <= 0) return null;
         const stroke = f.amber ? "var(--warn)" : undefined;
         return (
-          <g key={block.name}>
+          <g
+            key={block.name}
+            className={hovered === block.name ? "growth-city-block is-hovered" : "growth-city-block"}
+            data-language={block.name}
+          >
             {z > 0.5 ? (
               <>
                 <polygon
@@ -600,10 +725,18 @@ function CityLayer({ f }: { f: GrowthFrame }) {
         );
       })}
 
-      {/* rooftop labels follow every building; logos appear where space allows */}
-      {f.labels.map((label) =>
-        label.alpha <= 0 ? null : (
-          <g key={label.name} opacity={label.alpha} transform={`translate(0 ${label.dy})`}>
+      {/* rooftop labels follow every building; logos appear where space allows. */}
+      {f.labels.map((label) => {
+        if (label.alpha <= 0 && !(revealOnHover && label.hoverOnly)) return null;
+        return (
+          <g
+            key={label.name}
+            className="growth-city-label-group"
+            opacity={label.alpha * (label.softened ? 0.74 : 1)}
+            data-language={label.name}
+            data-loc={Math.round(label.value)}
+            data-share={label.share.toFixed(1)}
+          >
             {label.logo ? (
               <path
                 className="growth-city-logo"
@@ -617,20 +750,35 @@ function CityLayer({ f }: { f: GrowthFrame }) {
               className={label.compact ? "growth-city-label growth-city-label-small" : "growth-city-label"}
               data-language={label.name}
               data-loc={Math.round(label.value)}
+              data-share={label.share.toFixed(1)}
+              style={{ fill: label.textColor }}
               x={label.x}
-              y={label.y + (label.logo ? 14 : 0)}
+              y={label.y + label.textDy}
               textAnchor="middle"
             >
               <tspan x={label.x} dy={-2} className="growth-city-label-name">
                 {label.merged ? t(label.compact ? "growth.animation.otherShort" : "growth.animation.otherBlock", { count: label.merged }) : label.name}
               </tspan>
-              <tspan x={label.x} dy={13} className="growth-city-label-value growth-num">
+              <tspan x={label.x} dy={13} className="growth-city-label-value growth-num" style={{ fill: label.valueColor }}>
                 {formatNumber(Math.round(label.value))}
               </tspan>
             </text>
           </g>
-        ),
-      )}
+        );
+      })}
+      {f.labelShareNotes.map((note) => (
+        <text
+          key={note.name}
+          className={`growth-share-note growth-num${note.positive ? " positive" : ""}`}
+          data-language={note.name}
+          x={note.x}
+          y={note.y}
+          textAnchor="middle"
+          opacity={note.alpha}
+        >
+          {note.text}
+        </text>
+      ))}
 
       {/* stars beacon over the tallest roof */}
       {f.beacon && f.beacon.alpha > 0 && f.finaleK < 1 ? (
@@ -687,6 +835,7 @@ function FlipDate({ f }: { f: GrowthFrame }) {
 }
 
 function HudLayer({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
+  const { t } = useTranslation();
   return (
     <div className="growth-layer">
       {/* hero zone */}
@@ -713,7 +862,7 @@ function HudLayer({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
               className="growth-dip-note"
               style={{ ...autoAlpha(d.alpha), transform: `translateY(${d.y}px)` }}
             >
-              {d.label}
+              {t("growth.animation.dipNote", { percent: Math.round(d.drop * 100), month: d.month })}
             </span>
           ))}
         </div>
@@ -730,7 +879,80 @@ function HudLayer({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
           <span className="growth-stars-caption">Stars</span>
         </div>
       ) : null}
+      {/* Finale identity: a PNG export of the final frame doubles as the share
+          card, so the repo name and brand ride on the frame itself. */}
+      <div className="growth-finale-id" data-repo={scene.repoFullName} style={autoAlpha(f.finaleK)} aria-hidden="true">
+        <span className="growth-finale-repo">{scene.repoFullName}</span>
+        <span className="growth-finale-brand">· octocounts</span>
+      </div>
       <FlipDate f={f} />
+    </div>
+  );
+}
+
+function LanguageDetail({
+  scene,
+  f,
+  block,
+}: {
+  scene: GrowthScene;
+  f: GrowthFrame;
+  block: GrowthFrame["blocks"][number];
+}) {
+  const { t } = useTranslation();
+  const language = scene.languages.find((entry) => entry.name === block.name) ?? null;
+  const stats = block.merged
+    ? scene.finale.tableRows.find((row) => row.merged) ?? null
+    : scene.languageDetails[block.name] ?? null;
+  const share = block.merged
+    ? Math.max(0, 100 - f.labels.filter((label) => !label.merged).reduce((sum, label) => sum + label.share, 0))
+    : language
+      ? language.currentShare
+      : (block.value / Math.max(f.hero.value, 1)) * 100;
+  const x = clamp(block.rect.x + block.rect.w / 2 + f.cityOffset.x, 180, STAGE_W - 180);
+  const top = isoY(block.rect.x, block.rect.y, block.height) + f.cityOffset.y;
+  const placeBelow = top < 330;
+  const y = placeBelow
+    ? clamp(top + 18, 120, STAGE_H - 180)
+    : clamp(top - 20, 180, STAGE_H - 120);
+  const rows: Array<[string, string]> = stats
+    ? [
+        [t("growth.animation.metricFiles"), formatNumber(stats.files)],
+        [t("growth.animation.metricCode"), formatNumber(stats.code)],
+        [t("growth.animation.metricComments"), formatNumber(stats.comments)],
+        [t("growth.animation.metricBlanks"), formatNumber(stats.blanks)],
+      ]
+    : [];
+  return (
+    <div
+      className="growth-detail growth-num"
+      data-language={block.name}
+      style={{
+        left: `${x}px`,
+        top: `${y}px`,
+        transform: placeBelow ? "translate(-50%, 0) scale(1)" : "translate(-50%, -100%) scale(1)",
+        opacity: 1,
+        visibility: "visible",
+      }}
+    >
+      <div className="growth-detail-head">
+        <span className="growth-detail-swatch" style={{ background: block.colorTop }} />
+        <strong>{block.merged ? t("growth.animation.otherBlock", { count: block.merged ?? 0 }) : block.name}</strong>
+        <span className="growth-detail-share">{share.toFixed(1)}%</span>
+      </div>
+      {language ? (
+        <div className="growth-detail-loc">{formatNumber(Math.round(block.value))} {t("growth.animation.codeLines")}</div>
+      ) : null}
+      {rows.length > 0 ? (
+        <dl className="growth-detail-grid">
+          {rows.map(([label, value]) => (
+            <div key={label} className="growth-detail-row">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
   );
 }

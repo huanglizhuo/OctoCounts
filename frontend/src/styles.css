@@ -2175,40 +2175,6 @@ table.report tr.totals td.lang {
   gap: var(--space-5);
 }
 
-/* The card itself always renders at its native 1200x630 export size; this
-   wrapper clips a scaled-down view of it. The scale comes from a
-   ResizeObserver (--card-scale, set in main.tsx) measuring the wrapper's
-   actual rendered width, not a guessed breakpoint — the wrapper's width
-   varies with page padding in ways fixed breakpoints kept getting wrong. */
-.share-showcase-card {
-  flex: 1 1 280px;
-  width: 100%;
-  max-width: 600px;
-  aspect-ratio: 1200 / 630;
-  overflow: hidden;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
-}
-.share-preview-col { flex: 1 1 280px; min-width: 0; }
-/* T19: the exported PNG keeps the dark terminal palette in both themes. */
-.share-theme-note { margin: 0 0 var(--space-2); color: var(--fg-mute); font-size: var(--text-xs); }
-.share-preview { min-width: 0; }
-/* The preview is collapsed by default on every viewport; the summary is the
-   always-visible toggle (PNG export does not depend on it being open). */
-.share-preview summary {
-  display: flex;
-  align-items: center;
-  min-height: var(--tap-min);
-  color: var(--fg-dim);
-  cursor: pointer;
-}
-
-.share-showcase-card .share-card {
-  transform: scale(var(--card-scale, .5));
-  transform-origin: top left;
-}
-
 .share-showcase-actions {
   flex: 1 1 260px;
   min-width: 0;
@@ -2236,27 +2202,23 @@ table.report tr.totals td.lang {
 .report-details summary { color: var(--fg-mute); cursor: pointer; }
 .report-details[open] summary { margin-bottom: var(--space-2); }
 
-/* Shared ▸/▾ disclosure marker for the report page's details disclosures
-   (Technical details, card preview). Mono triangles, no native marker. */
-.report-details summary,
-.share-preview summary {
+/* ▸/▾ disclosure marker for the report page's Technical details disclosure.
+   Mono triangles, no native marker. */
+.report-details summary {
   list-style: none;
 }
 
-.report-details summary::-webkit-details-marker,
-.share-preview summary::-webkit-details-marker {
+.report-details summary::-webkit-details-marker {
   display: none;
 }
 
-.report-details summary::before,
-.share-preview summary::before {
+.report-details summary::before {
   content: "▸";
   margin-right: 8px;
   color: var(--accent);
 }
 
-.report-details[open] > summary::before,
-.share-preview[open] > summary::before {
+.report-details[open] > summary::before {
   content: "▾";
 }
 
@@ -4417,7 +4379,7 @@ section.section-compact .section-h {
 }
 
 /* Summaries are disclosures first: full-row, centered, never below the tap
-   floor. More specific display rules (e.g. .share-preview summary) still win. */
+   floor. More specific display rules still win. */
 summary {
   min-height: var(--tap-min);
   display: flex;
@@ -4806,22 +4768,111 @@ button.expand::before {
   stroke: color-mix(in srgb, var(--bg) 55%, transparent);
 }
 
+.growth-city-block {
+  cursor: pointer;
+}
+
+.growth-city-block.is-hovered .growth-city-face {
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.growth-city-label-group {
+  transition: opacity 150ms ease-out;
+  pointer-events: none;
+}
+
+/* Label colors are baked per roof (black on light roofs, white on dark), so
+   no stroke halo — a halo quantizes to a fuzzy ring in the GIF. */
 .growth-city-label {
   fill: var(--fg);
   font-size: 13px;
   font-weight: 700;
   pointer-events: none;
-  paint-order: stroke;
-  /* halo keeps text readable over any roof color, both themes */
-  stroke: var(--bg);
-  stroke-width: 3;
-  stroke-linejoin: round;
 }
 
 .growth-city-label-value {
   font-size: 11px;
   font-weight: 400;
-  fill: var(--fg-mute);
+}
+
+.growth-share-note {
+  fill: var(--warn);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.growth-share-note.positive {
+  fill: var(--accent);
+}
+
+.growth-detail {
+  position: absolute;
+  z-index: 3;
+  min-width: 220px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-2) 94%, transparent);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--fg);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+}
+
+.growth-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.growth-detail-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.growth-detail-share {
+  margin-left: auto;
+  color: var(--fg-mute);
+  font-weight: 700;
+}
+
+.growth-detail-loc {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+
+.growth-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin: 10px 0 0;
+}
+
+.growth-detail-row dt {
+  margin: 0;
+  color: var(--fg-mute);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.growth-detail-row dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .growth-city-label-group,
+  .growth-detail {
+    transition: none;
+  }
 }
 
 /* stars beacon: glowing diamond over the tallest roof */
@@ -4839,10 +4890,6 @@ button.expand::before {
   fill: var(--fg);
   font-size: 13px;
   font-weight: 700;
-  paint-order: stroke;
-  stroke: var(--bg);
-  stroke-width: 3;
-  stroke-linejoin: round;
 }
 
 .growth-date {
@@ -4852,6 +4899,31 @@ button.expand::before {
   display: flex;
   gap: 8px;
   pointer-events: none;
+}
+
+/* Finale identity — the PNG export of the final frame is the share card, so
+   the repo name and brand must be on the frame itself. */
+.growth-finale-id {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.growth-finale-repo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.growth-finale-brand {
+  font-size: 12px;
+  color: var(--fg-mute);
 }
 
 .growth-date-cell {
@@ -4992,24 +5064,6 @@ button.expand::before {
   font-weight: 400;
 }
 
-.growth-playback-hit {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.growth-playback-hit:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: -5px;
-}
-
 /* paused affordance stays clear of the city */
 
 .growth-paused {
@@ -5130,36 +5184,4 @@ button.expand::before {
 /* "this report" divergence note appended to the subtitle line. */
 .growth-this-report {
   color: var(--fg-mute);
-}
-
-/* History-data disclosure under the animation: the scene's own samples in
-   table form — compact bordered-bottom rows, tabular numerals, first column
-   left-aligned, per the section's mute idiom. */
-.growth-history-data {
-  margin-top: var(--space-2);
-}
-
-.growth-history-data summary {
-  cursor: pointer;
-  color: var(--fg-dim);
-  font-size: var(--text-sm);
-}
-
-.growth-history-data table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
-}
-
-.growth-history-data th,
-.growth-history-data td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--rule);
-  text-align: right;
-}
-
-.growth-history-data th:first-child,
-.growth-history-data td:first-child {
-  text-align: left;
 }

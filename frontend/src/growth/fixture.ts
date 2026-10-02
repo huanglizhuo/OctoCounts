@@ -10,7 +10,7 @@
 // built through the same exported helpers buildScene uses, so the fixture
 // can never drift from the product geometry.
 import { deriveFaceColors, layoutCity, MAX_BUILDING_H } from "./buildScene";
-import type { GrowthSample, GrowthScene } from "./types";
+import type { GrowthLanguage, GrowthSample, GrowthScene } from "./types";
 
 const EPOCH = Date.UTC(2014, 7, 8); // first sample: 2014-08-08
 const DAY_MS = 86_400_000;
@@ -89,6 +89,10 @@ const LANG_COLORS: Record<string, string> = {
 
 const TOTAL_CODE = 365001;
 
+// Round to 6 decimals, same rule as buildScene, so the fixture's share
+// series stays frame-stable too.
+const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
+
 export function buildFixtureScene(): GrowthScene {
   const samples: GrowthSample[] = SERIES.map((row) => {
     const names = Object.keys(row.shares);
@@ -121,18 +125,59 @@ export function buildFixtureScene(): GrowthScene {
     sample.city = layoutCity(entriesPerSample[i], heightScale);
   });
 
+  const finale: GrowthScene["finale"] = {
+    refName: "main",
+    commitSha12: "7c6ac13e19fe",
+    generatedDate: "2026-09-29",
+    metrics: { files: 2133, lines: 460755, code: 365001, comments: 59383, blanks: 36371 },
+    tableCaption: "top 10 of 11 languages",
+    tableRows: [
+      { name: "JavaScript", color: "#3fb950", files: 1477, lines: 294019, code: 231679, comments: 38520, blanks: 23820 },
+      { name: "Rust", color: "#dea584", files: 117, lines: 72880, code: 64164, comments: 3784, blanks: 4932 },
+      { name: "TypeScript", color: "#3178c6", files: 219, lines: 74575, code: 60048, comments: 10201, blanks: 4326 },
+      { name: "JSON", color: "#79c0ff", files: 86, lines: 3537, code: 3529, comments: 0, blanks: 8 },
+      { name: "CSS", color: "#a371f7", files: 88, lines: 3828, code: 3283, comments: 61, blanks: 484 },
+      { name: "TSX", color: "#f778ba", files: 15, lines: 1591, code: 1333, comments: 153, blanks: 105 },
+      { name: "HTML", color: "#e34c26", files: 23, lines: 438, code: 416, comments: 9, blanks: 13 },
+      { name: "Shell", color: "#89e051", files: 19, lines: 531, code: 316, comments: 118, blanks: 97 },
+      { name: "TOML", color: "#bc7d4b", files: 14, lines: 247, code: 223, comments: 4, blanks: 20 },
+      { name: "SVG", color: "#f2cc60", files: 7, lines: 10, code: 10, comments: 0, blanks: 0 },
+      { name: "Other (1 more)", color: "#57606a", files: 68, lines: 9099, code: 0, comments: 6533, blanks: 2566, merged: true },
+    ],
+    totalRow: { files: 2133, lines: 460755, code: 365001, comments: 59383, blanks: 36371 },
+  };
+
+  // Per-language stats come from the same verified table rows the finale
+  // uses, so the track stats and the detail payload can never drift apart.
+  // Markdown has zero code so it rides in the merged Other row above, but
+  // its stats are real report data and belong in the details map — buildScene
+  // includes zero-code report languages the same way.
+  const statsByName = Object.fromEntries(
+    finale.tableRows
+      .filter((row) => !row.merged)
+      .map(({ name, files, lines, code, comments, blanks }) => [name, { files, lines, code, comments, blanks }]),
+  );
+  statsByName.Markdown = { files: 68, lines: 9099, code: 0, comments: 6533, blanks: 2566 };
+
+  const languages: GrowthLanguage[] = REAL_MIX.map(([name, code]) => ({
+    name,
+    color: LANG_COLORS[name],
+    ...deriveFaceColors(LANG_COLORS[name]),
+    currentCode: code,
+    currentShare: Math.round((code / TOTAL_CODE) * 1000) / 10,
+    stats: statsByName[name],
+    shares: samples.map((sample) =>
+      sample.code > 0 ? round6(((sample.languageCode[name] ?? 0) / sample.code) * 100) : 0,
+    ),
+  }));
+
   return {
     repoFullName: "facebook/react",
     provider: "github",
     durationMs: 10000,
     variant: "full",
-    languages: REAL_MIX.map(([name, code]) => ({
-      name,
-      color: LANG_COLORS[name],
-      ...deriveFaceColors(LANG_COLORS[name]),
-      currentCode: code,
-      currentShare: Math.round((code / TOTAL_CODE) * 1000) / 10,
-    })),
+    languages,
+    languageDetails: statsByName,
     samples,
     dips: [
       { sampleIndex: 4, fromValue: 50433, toValue: 19134 },
@@ -141,28 +186,9 @@ export function buildFixtureScene(): GrowthScene {
     starsNow: 250841,
     leadingLanguage: "JavaScript",
     modeledLanguageSplit: true,
+    realLanguageSplit: false,
     finaleDiverged: false,
-    finale: {
-      refName: "main",
-      commitSha12: "7c6ac13e19fe",
-      generatedDate: "2026-09-29",
-      metrics: { files: 2133, lines: 460755, code: 365001, comments: 59383, blanks: 36371 },
-      tableCaption: "top 10 of 11 languages",
-      tableRows: [
-        { name: "JavaScript", color: "#3fb950", files: 1477, lines: 294019, code: 231679, comments: 38520, blanks: 23820 },
-        { name: "Rust", color: "#dea584", files: 117, lines: 72880, code: 64164, comments: 3784, blanks: 4932 },
-        { name: "TypeScript", color: "#3178c6", files: 219, lines: 74575, code: 60048, comments: 10201, blanks: 4326 },
-        { name: "JSON", color: "#79c0ff", files: 86, lines: 3537, code: 3529, comments: 0, blanks: 8 },
-        { name: "CSS", color: "#a371f7", files: 88, lines: 3828, code: 3283, comments: 61, blanks: 484 },
-        { name: "TSX", color: "#f778ba", files: 15, lines: 1591, code: 1333, comments: 153, blanks: 105 },
-        { name: "HTML", color: "#e34c26", files: 23, lines: 438, code: 416, comments: 9, blanks: 13 },
-        { name: "Shell", color: "#89e051", files: 19, lines: 531, code: 316, comments: 118, blanks: 97 },
-        { name: "TOML", color: "#bc7d4b", files: 14, lines: 247, code: 223, comments: 4, blanks: 20 },
-        { name: "SVG", color: "#f2cc60", files: 7, lines: 10, code: 10, comments: 0, blanks: 0 },
-        { name: "Other (1 more)", color: "#57606a", files: 68, lines: 9099, code: 0, comments: 6533, blanks: 2566, merged: true },
-      ],
-      totalRow: { files: 2133, lines: 460755, code: 365001, comments: 59383, blanks: 36371 },
-    },
+    finale,
     acts: {
       hook: { prompt: "octocounts facebook/react" },
       data: { startTime: 1.2, endTime: 8.5, finalLock: 8.5 },

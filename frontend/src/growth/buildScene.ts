@@ -24,12 +24,18 @@ import type {
 import type { Stats } from "../types";
 import { languageLogo } from "./languageLogos";
 
-// Fixed template beat sheet (seconds within durationMs) — plan §4. v1.1: the
-// morph act is gone; the finale (rooftop labels + metric bar) starts right
-// where the data act locks, and staticFrom is unchanged.
-const DURATION_MS = 10000;
-const DATA_ACT = { startTime: 1.2, endTime: 8.5, finalLock: 8.5 };
-const FINALE_ACT = { startTime: 8.5, endTime: 10, staticFrom: 9.6 };
+// Fixed template beat sheet — plan §4. v1.1: the morph act is gone; the
+// finale (rooftop labels + metric bar) starts right where the data act locks.
+// The acts are fractions of the template length so a ?gdur= override stretches
+// the whole choreography instead of padding a frozen finale: with the default
+// 10s the boundaries are exactly the v1 values (1.2 / 8.5 / 9.6).
+const DEFAULT_DURATION_MS = 10000;
+const HOOK_END_FRAC = 0.12;
+const DATA_END_FRAC = 0.85;
+const STATIC_FRAC = 0.96;
+// Sane bounds for the ?gdur= URL override (seconds).
+const MIN_DURATION_MS = 5000;
+const MAX_DURATION_MS = 30000;
 
 // A drop between adjacent samples counts as a dip only above this ratio
 // (toValue < fromValue × 0.7 means more than 30% of the code vanished —
@@ -64,6 +70,28 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
   const repo = report.repository.name;
   const prompt = `octocounts ${owner}/${repo}`;
 
+  // URL-overridable template config (?gdur= seconds, ?glang= buildings): the
+  // defaults reproduce the shipped 10s / 8-building template exactly.
+  const clampInt = (value: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, value)));
+  const durationMs = input.overrides?.durationMs
+    ? clampInt(input.overrides.durationMs, MIN_DURATION_MS, MAX_DURATION_MS)
+    : DEFAULT_DURATION_MS;
+  const cityLimit = input.overrides?.cityLimit ? clampInt(input.overrides.cityLimit, 4, 16) : CITY_LIMIT;
+  const seconds = durationMs / 1000;
+  // Round the scaled boundaries: fractions like 0.12×15 leave float dust that
+  // would leak into every w01 division downstream.
+  const at = (frac: number) => Math.round(frac * seconds * 1e6) / 1e6;
+  const dataAct = {
+    startTime: at(HOOK_END_FRAC),
+    endTime: at(DATA_END_FRAC),
+    finalLock: at(DATA_END_FRAC),
+  };
+  const finaleAct = {
+    startTime: at(DATA_END_FRAC),
+    endTime: seconds,
+    staticFrom: at(STATIC_FRAC),
+  };
+
   // --- Languages -----------------------------------------------------------
   // Zero-current-code languages (e.g. a Markdown-only docs dir) never rise:
   // their lines surface only in the finale's merged Other row, so they are
@@ -82,6 +110,9 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
         // Real share of the latest commit's code; the model below
         // renormalizes against each sample so float drift never accumulates.
         currentShare: totalCode > 0 ? (language.stats.code / totalCode) * 100 : 0,
+        // The per-sample series is filled once `samples` exist below.
+        shares: [],
+        stats: { ...language.stats },
       };
     });
   const leadingLanguage = languages.length > 0 ? languages[0].name : "";
@@ -101,12 +132,18 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
       if (utcDay(star.date) <= utcDay(point.date)) stars = star.stars;
       else break;
     }
+    // Samples written after the per-language backfill carry the real split;
+    // older rows fall back to the modeled share. realLanguageCode returns
+    // null when the payload has nothing usable (e.g. every language in it
+    // vanished from the current report).
+    const real = point.languages ? realLanguageCode(languages, point.languages, point.totalLines) : null;
     return {
       date: point.date,
       dayOffset: utcDay(point.date) - firstDay,
       code: point.totalLines,
       stars,
-      languageCode: modelLanguageCode(languages, point.totalLines),
+      languageCode: real ?? modelLanguageCode(languages, point.totalLines),
+      realSplit: real !== null,
       city: [], // laid out below, once the global height scale is known
     };
   });
@@ -119,8 +156,18 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
   const peak = cityValues.reduce((max, entries) => Math.max(max, ...entries.map((entry) => entry.value), 0), 0);
   const heightScale = peak > 0 ? MAX_BUILDING_H / peak : 0;
   samples.forEach((sample, i) => {
-    sample.city = layoutCity(cityValues[i], heightScale);
+    sample.city = layoutCity(cityValues[i], heightScale, cityLimit);
   });
+
+  // --- Per-language share series ----------------------------------------------
+  // One share per sample (percent, 6dp so float drift never accumulates),
+  // derived from the modeled split already baked into each sample. A zero-
+  // total sample carries a 0 share.
+  for (const language of languages) {
+    language.shares = samples.map((sample) =>
+      sample.code > 0 ? round6(((sample.languageCode[language.name] ?? 0) / sample.code) * 100) : 0,
+    );
+  }
 
   // --- Dips ------------------------------------------------------------------
   const dips: GrowthDip[] = [];
@@ -152,16 +199,18 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
   return {
     repoFullName: `${owner}/${repo}`,
     provider: history.provider,
-    durationMs: DURATION_MS,
+    durationMs,
     // <3 samples cannot pace a growth act; the renderer rises straight to the
     // final skyline on the same beat sheet (plan §10).
     variant: samples.length < 3 ? "compact" : "full",
     languages,
+    languageDetails: Object.fromEntries(report.languages.map((language) => [language.name, { ...language.stats }])),
     samples,
     dips,
     starsNow: history.currentStars,
     leadingLanguage,
     modeledLanguageSplit: languages.length > 1,
+    realLanguageSplit: samples.length > 0 && samples.every((sample) => sample.realSplit === true),
     finaleDiverged:
       samples.length > 0 && samples[samples.length - 1].code > 0
         ? Math.abs(report.total.code - samples[samples.length - 1].code) / samples[samples.length - 1].code > 0.05
@@ -181,8 +230,8 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
     },
     acts: {
       hook: { prompt },
-      data: { ...DATA_ACT },
-      finale: { ...FINALE_ACT },
+      data: dataAct,
+      finale: finaleAct,
     },
   };
 }
@@ -209,13 +258,14 @@ export function deriveFaceColors(color: string): { colorTop: string; colorRight:
 export function layoutCity(
   entries: Array<{ name: string; value: number; color: string }>,
   heightScale: number,
+  limit: number = CITY_LIMIT,
 ): GrowthCityBlock[] {
   const positive = entries.filter((entry) => entry.value > 0);
-  const tail = positive.slice(CITY_LIMIT - 1);
+  const tail = positive.slice(limit - 1);
   const blocks = (
-    positive.length > CITY_LIMIT
+    positive.length > limit
       ? [
-          ...positive.slice(0, CITY_LIMIT - 1),
+          ...positive.slice(0, limit - 1),
           {
             name: `Other (${tail.length} more)`,
             value: tail.reduce((sum, entry) => sum + entry.value, 0),
@@ -331,6 +381,33 @@ function squarify(values: number[]): Array<{ x: number; y: number; w: number; h:
   });
 }
 
+// Real per-language code from a historical sample: keep only languages that
+// still exist in the current report (others are dropped), then renormalize to
+// the sample total via largest-remainder. Returns null when nothing survives
+// so the caller falls back to the modeled split.
+function realLanguageCode(
+  languages: GrowthLanguage[],
+  sampleLanguages: Record<string, number>,
+  sampleCode: number,
+): Record<string, number> | null {
+  const raw: number[] = [];
+  const names: string[] = [];
+  for (const language of languages) {
+    const value = sampleLanguages[language.name] ?? 0;
+    if (value > 0) {
+      raw.push(value);
+      names.push(language.name);
+    }
+  }
+  if (raw.length === 0) return null;
+  const rounded = largestRemainder(raw, sampleCode);
+  const out: Record<string, number> = {};
+  names.forEach((name, i) => {
+    out[name] = rounded[i];
+  });
+  return out;
+}
+
 // Modeled per-language code at one sample: current share × the sample's real
 // code total, then largest-remainder rounded so the tracks sum to the sample
 // exactly — the counter and the skyline can never disagree by a line.
@@ -385,6 +462,10 @@ function sumStats(rows: Stats[]): Stats {
 }
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
+
+// Round to 6 decimals: enough precision that re-derived shares stay stable
+// frame to frame, coarse enough that float dust never accumulates in sums.
+const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
 
 // UTC day number for a "YYYY-MM-DD" string: date-only strings parse the same
 // in every timezone, and day arithmetic (dayOffset, ordering) stays exact.

@@ -48,6 +48,7 @@ const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ def
 const BadgesPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.BadgesPage })));
 const ExtensionPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ExtensionPage })));
 const EmbedPage = React.lazy(() => import("./embed").then((m) => ({ default: m.EmbedPage })));
+const GrowthPage = React.lazy(() => import("./pages/GrowthPage").then((m) => ({ default: m.GrowthPage })));
 
 function PageFallback() {
   const { t } = useTranslation();
@@ -295,6 +296,9 @@ export function App() {
   if (routePath === "/badges") return <RoutedPage><BadgesPage /></RoutedPage>;
   if (routePath === "/extension") return <RoutedPage><ExtensionPage /></RoutedPage>;
   if (routePath.startsWith("/embed/")) return <RoutedPage><EmbedPage /></RoutedPage>;
+  // Standalone growth replay: /growth/:owner/:repo (client-routed; edge SSR
+  // injection for crawlers is a v2 item — plan §12).
+  if (routePath.startsWith("/growth/")) return <RoutedPage><GrowthPage path={routePath} /></RoutedPage>;
 
   const initialRequest = useMemo(() => initialRequestFromLocation(), []);
   const [repoUrl, setRepoUrl] = useState(() => initialRequest.repoUrl);

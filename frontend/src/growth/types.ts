@@ -16,7 +16,7 @@
 // sample carries its own squarified-treemap ground layout and baked building
 // heights; per-face colors are derived here so the renderer (and the GIF
 // palette) never computes a color.
-import type { Report, RepoHistory } from "../types";
+import type { Report, RepoHistory, Stats } from "../types";
 
 // A language track across the animation. `currentCode`/`currentShare` are
 // real (latest commit); historical values are modeled by scaling the share
@@ -32,6 +32,15 @@ export type GrowthLanguage = {
   colorRight: string;
   currentCode: number;
   currentShare: number; // 0..100 of total code, real
+  // This language's share of every sample (percent, 0..100, rounded to 6dp
+  // so float drift never accumulates), one entry per scene.samples in date
+  // order — the hover popup's per-language over-time series. The merged
+  // "Other (N more)" block is not a language (no GrowthLanguage entry), so
+  // it carries no share series.
+  shares: number[];
+  // Latest-commit per-language stats straight from the report — the hover
+  // popup's detail payload for this language.
+  stats: Stats;
 };
 
 // A detected drawdown between adjacent samples (threshold in buildScene).
@@ -55,7 +64,7 @@ export type GrowthCityBlock = {
   colorTop: string; // roof
   colorRight: string; // right face
   merged?: number; // set on the Other block: how many languages it folds in
-  logo?: { path: string; color: string };
+  logo?: { path: string; color: string; textColor: string; valueColor: string };
 };
 
 export type GrowthSample = {
@@ -63,9 +72,13 @@ export type GrowthSample = {
   dayOffset: number; // days since the first sample
   code: number; // real code lines at this sample
   stars: number | null; // real star count if sampled by this date
-  // Modeled per-language code lines at this sample (share × code,
-  // renormalized so the values sum to `code`).
+  // Per-language code lines at this sample (real when the history row carries
+  // per-language data — realSplit — otherwise modeled from the current share),
+  // renormalized so the values always sum to `code`.
   languageCode: Record<string, number>;
+  // True when `languageCode` came from the sample's real per-language payload
+  // instead of the current-share model.
+  realSplit?: boolean;
   // City layout at this sample: one block per language with code > 0 (tail
   // merged into Other past the limit), rects within the 100x100 ground and
   // non-overlapping. The renderer interpolates between adjacent samples'
@@ -107,11 +120,21 @@ export type GrowthScene = {
   // final skyline on the same beat sheet.
   variant: "full" | "compact";
   languages: GrowthLanguage[]; // sorted by currentCode desc; entrance stagger derives from this order
+  // Latest-commit per-language stats keyed by name, for the hover popup.
+  // Every language of the current report is present (zero-code ones too —
+  // their buildings never rise, but the page may still surface them); the
+  // merged "Other (N more)" tail is a display construct, not a language, so
+  // it has no entry here.
+  languageDetails: Record<string, Stats>;
   samples: GrowthSample[]; // ≥1, sorted by date asc; last = latest commit
   dips: GrowthDip[];
   starsNow: number | null;
   leadingLanguage: string;
   modeledLanguageSplit: boolean;
+  // True when EVERY sample's language split came from real per-language
+  // history (the per-language backfill) rather than the current-share model —
+  // the disclosure line switches from "modeled" to "real" on this.
+  realLanguageSplit: boolean;
   // True when the finale report's analysis options diverge from the profile
   // the history series was sampled under (>5% code-line gap vs the last
   // sample) — e.g. a visitor's include-all re-analysis became the canonical
@@ -135,4 +158,7 @@ export type GrowthSceneInput = {
   // Resolved per-language visible colors (scheme-aware), keyed by name —
   // injected rather than imported so tests can pin the palette.
   languageColors: Record<string, string>;
+  // Optional URL-driven config (?gdur= seconds, ?glang= buildings). Both are
+  // clamped inside buildScene; absent overrides reproduce the 10s/8 defaults.
+  overrides?: { durationMs?: number; cityLimit?: number };
 };
