@@ -1,18 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-10-01T08:52:52.552Z
-NVIDIA/OpenShell
-debpalash/VoiceStudio
-mvschwarz/openrig
-mksglu/context-mode
+# GitHub Trending daily snapshot generated 2026-10-02T08:28:48.860Z
 DietrichGebert/ponytail
-harry0703/MoneyPrinterTurbo
-openclaw/openclaw
-ComposioHQ/awesome-claude-skills
 mattpocock/skills
-heygen-com/hyperframes
+NVIDIA/OpenShell
 firebase/firebase-ios-sdk
-modelcontextprotocol/servers
-byoungd/up
-colbymchenry/codegraph
-t8y2/dbx
-NawfalMotii79/PLFM_RADAR
-VectifyAI/PageIndex
+mvschwarz/openrig
+cursor/plugins
+obra/superpowers
+mksglu/context-mode
+heygen-com/hyperframes
+earendil-works/pi
+tile-ai/tilelang
+pablostanley/yoinks
+HunxByts/GhostTrack
+pbakaus/impeccable
+Friedrich-M/UniMate
