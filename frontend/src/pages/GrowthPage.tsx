@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "lucide-react";
 import { fetchCanonicalReport } from "../api";
+import { GrowthSkeleton } from "../growth/GrowthSkeleton";
 import { GrowthSection } from "../report/GrowthSection";
 
 export function GrowthPage({ path }: { path: string }) {
@@ -41,7 +42,7 @@ export function GrowthPage({ path }: { path: string }) {
       {!valid ? (
         <p className="growth-empty" role="alert">{t("growth.animation.unavailable")}</p>
       ) : canonical.isLoading ? (
-        <div className="growth-skeleton" role="status" aria-label={t("growth.animation.loadingHistory")} />
+        <GrowthSkeleton label={t("growth.animation.loadingHistory")} />
       ) : canonical.data ? (
         <GrowthSection report={canonical.data} />
       ) : (

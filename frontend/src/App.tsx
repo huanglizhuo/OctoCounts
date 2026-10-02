@@ -21,6 +21,7 @@ import { trackEvent, providerFromRepoUrl } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
 import { buildPublicReportUrl, parsePublicRepo } from "./badges";
 import { Runner } from "./report/Runner";
+import { GrowthLoadingBars } from "./growth/GrowthSkeleton";
 import { usePrerenderedHome, useExtensionPromo } from "./prerenderContext";
 import { faqForLanguage, faqJsonLdScript } from "./homeFaq";
 import "./styles.css";
@@ -52,7 +53,12 @@ const GrowthPage = React.lazy(() => import("./pages/GrowthPage").then((m) => ({ 
 
 function PageFallback() {
   const { t } = useTranslation();
-  return <div className="growth-state" role="status">{t("growth.loading")}</div>;
+  return (
+    <div className="growth-state" role="status">
+      <GrowthLoadingBars />
+      {t("growth.loading")}
+    </div>
+  );
 }
 
 function RoutedPage({ children }: { children: React.ReactNode }) {

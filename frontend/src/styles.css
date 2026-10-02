@@ -5121,11 +5121,147 @@ button.expand::before {
   aspect-ratio: 16 / 9;
   min-height: 180px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-mute);
+  flex-direction: column;
+  padding: var(--space-2);
   border: 1px dashed var(--rule);
   border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Shaped like the four-act stage the wait stands in for: terminal line
+   top-left, counter center, donut right, bar skyline along the bottom. */
+.growth-skeleton-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.growth-skeleton-term {
+  position: absolute;
+  top: 6%;
+  left: 3%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 34%;
+  height: 9%;
+}
+
+.growth-skeleton-prompt {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.growth-skeleton-line {
+  height: 8px;
+  max-width: 120px;
+  flex: 1;
+  border-radius: 4px;
+}
+
+.growth-skeleton-counter {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 24%;
+  height: 13%;
+  border-radius: 6px;
+  transform: translate(-50%, -50%);
+}
+
+.growth-skeleton-donut {
+  position: absolute;
+  right: 5%;
+  top: 50%;
+  height: 40%;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+}
+
+.growth-skeleton-bars {
+  position: absolute;
+  right: 3%;
+  bottom: 6%;
+  left: 3%;
+  display: flex;
+  height: 24%;
+  align-items: flex-end;
+  gap: 2%;
+}
+
+.growth-skeleton-bars span {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+}
+
+.growth-skeleton-bars span,
+.growth-skeleton-line,
+.growth-skeleton-counter {
+  background: var(--fg-mute);
+}
+
+/* Growing-bars loader: act 2's bar race in miniature. Bars morph via scaleY
+   only so the loop stays on the compositor while the page is busy fetching. */
+.growth-loading-bars {
+  display: flex;
+  height: 14px;
+  flex: none;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.growth-loading-bars span {
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: bottom;
+}
+
+.growth-skeleton-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .growth-skeleton-term,
+  .growth-skeleton-counter,
+  .growth-skeleton-donut,
+  .growth-skeleton-bars {
+    animation: growth-skel-pulse 2.4s ease-in-out infinite;
+  }
+
+  .growth-skeleton-counter { animation-delay: .2s; }
+  .growth-skeleton-donut { animation-delay: .4s; }
+  .growth-skeleton-bars { animation-delay: .6s; }
+
+  .growth-loading-bars span {
+    animation: growth-bar 1s ease-in-out infinite;
+  }
+
+  .growth-loading-bars span:nth-child(2) { animation-delay: .1s; }
+  .growth-loading-bars span:nth-child(3) { animation-delay: .2s; }
+  .growth-loading-bars span:nth-child(4) { animation-delay: .3s; }
+  .growth-loading-bars span:nth-child(5) { animation-delay: .4s; }
+}
+
+@keyframes growth-skel-pulse {
+  0%, 100% { opacity: .22; }
+  50% { opacity: .45; }
+}
+
+@keyframes growth-bar {
+  0%, 100% { transform: scaleY(.3); }
+  50% { transform: scaleY(1); }
 }
 
 .growth-empty {

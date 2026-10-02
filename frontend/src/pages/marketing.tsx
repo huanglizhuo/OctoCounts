@@ -1,4 +1,3 @@
-import { Loader2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +5,7 @@ import { fetchGrowthStats, fetchJson } from "../api";
 import { initAnalytics } from "../analytics";
 import { CompareRepos, DiffRefs } from "../compare";
 import { BadgeBuilder, BadgeWall, EmbedBuilder } from "../badges";
+import { GrowthLoadingBars } from "../growth/GrowthSkeleton";
 import { Topbar } from "../Topbar";
 import { StoreLink } from "../StoreLink";
 import { formatCompactNumber, formatNumber } from "../reportUtils";
@@ -602,7 +602,12 @@ function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> })
 
 function GrowthLoading() {
   const { t } = useTranslation();
-  return <section className="growth-state"><Loader2 className="spin" size={18} /> {t("growth.loading")}</section>;
+  return (
+    <section className="growth-state">
+      <GrowthLoadingBars />
+      {t("growth.loading")}
+    </section>
+  );
 }
 
 function GrowthError({ onRetry }: { onRetry?: () => void }) {

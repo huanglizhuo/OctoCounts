@@ -22,6 +22,7 @@ import type { Report } from "../types";
 import { buildScene } from "../growth/buildScene";
 import { exportGrowthGif, exportGrowthPng, exportGrowthWebm } from "../growth/exportGif";
 import { GrowthAnimation } from "../growth/GrowthAnimation";
+import { GrowthSkeleton } from "../growth/GrowthSkeleton";
 import { useGrowthPlayer } from "../growth/useGrowthPlayer";
 import type { GrowthScene } from "../growth/types";
 
@@ -325,10 +326,7 @@ export function GrowthSection({
         </span>
       </div>
       {historyQuery.isLoading ? (
-        <div className="growth-skeleton" role="status">
-          <Loader2 className="spin" size={16} aria-hidden="true" />
-          <span className="visually-hidden">{t("growth.animation.loadingHistory")}</span>
-        </div>
+        <GrowthSkeleton label={t("growth.animation.loadingHistory")} />
       ) : historyQuery.isError ? (
         <div className="growth-empty">
           <p>{t("growth.animation.unavailable")}</p>
@@ -337,12 +335,19 @@ export function GrowthSection({
           </button>
         </div>
       ) : !scene || !history ? (
-        <div className="growth-empty">
-          <p>
-            <strong>{t("growth.animation.noHistory")}</strong>
-          </p>
-          <p className="growth-note">{t("growth.animation.noHistoryHint")}</p>
-        </div>
+        history?.slocBackfillInProgress ? (
+          // First-ever samples are still being gathered: stay in the loading
+          // state (the polls flip it to the animation on the first sample)
+          // instead of flashing "no history yet".
+          <GrowthSkeleton label={t("growth.animation.gatheringHistory")} />
+        ) : (
+          <div className="growth-empty">
+            <p>
+              <strong>{t("growth.animation.noHistory")}</strong>
+            </p>
+            <p className="growth-note">{t("growth.animation.noHistoryHint")}</p>
+          </div>
+        )
       ) : (
         <>
           {history.slocBackfillInProgress ? (
