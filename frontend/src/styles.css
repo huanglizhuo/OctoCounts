@@ -4621,13 +4621,13 @@ button.expand::before {
 }
 
 /* ===== growth animation ===== */
-/* Styles for src/growth/GrowthAnimation.tsx — the four-act repo-growth
-   animation. The stage is a FIXED 1280x720 design canvas (the approved
-   demo's 1920x1080 at exactly 2/3) scaled into its wrapper by a
-   --growth-scale CSS var, so every size below is fixed design px on
-   purpose: fluid clamp() sizes would break the canvas contract the GIF
-   exporter (640x360 clone, scale 0.5) depends on. Colors ride the theme
-   vars so matrix/paper both work; language colors come from the scene. */
+/* Styles for src/growth/GrowthAnimation.tsx — the isometric code-city
+   animation. The stage is a FIXED 1280x720 design canvas scaled into its
+   wrapper by a --growth-scale CSS var, so every size below is fixed design
+   px on purpose: fluid clamp() sizes would break the canvas contract the
+   GIF exporter (1280x720 clone, scale 1) depends on. Colors ride the theme
+   vars so matrix/paper both work; building face colors come pre-derived
+   from the scene (the renderer does no color math). */
 
 .growth-wrap {
   position: relative;
@@ -4730,7 +4730,7 @@ button.expand::before {
   letter-spacing: 0.06em;
 }
 
-/* --- act 2: hero counter, race, timeline, stars --- */
+/* --- act 2: hero counter, city, date, beacon --- */
 
 .growth-hero-zone {
   position: absolute;
@@ -4775,414 +4775,247 @@ button.expand::before {
   white-space: nowrap;
 }
 
-.growth-race-title {
-  position: absolute;
-  left: 687px;
-  top: 173px;
-  font-size: 13px;
-  color: var(--fg-mute);
-  letter-spacing: 0.18em;
-  white-space: nowrap;
-}
+/* the isometric city: one full-stage SVG; faces are colored inline from the
+   scene, edges get a hairline stroke so adjacent roofs read as separate
+   buildings in both themes */
 
-.growth-race-plot {
+.growth-city-svg {
   position: absolute;
-  left: 687px;
-  top: 200px;
-  width: 466px;
-  height: 336px;
-}
-
-.growth-race-row {
-  position: absolute;
-  left: 0;
+  inset: 0;
   width: 100%;
-  height: 56px;
-  display: flex;
-  align-items: center;
-}
-
-.growth-race-name {
-  flex: 0 0 113px;
-  width: 113px;
-  font-size: 15px;
-  color: var(--fg);
-  white-space: nowrap;
-}
-
-.growth-race-track {
-  position: relative;
-  flex: 0 0 353px;
-  width: 353px;
-  height: 29px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--rule) 45%, transparent);
-}
-
-.growth-race-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
   height: 100%;
-  border-radius: 2px;
-  transform-origin: left center;
-  will-change: width;
+  display: block;
 }
 
-.growth-race-val {
-  position: absolute;
-  left: 0;
-  top: 50%;
+.growth-city-plate {
+  fill: var(--bg-2);
+  stroke: var(--rule);
+  stroke-width: 1.5;
+}
+
+.growth-city-grid {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.growth-city-face {
+  stroke-width: 1;
+  /* Dip beats use the warning stroke; the default edge separates roofs. */
+  stroke: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.growth-city-label {
+  fill: var(--fg);
   font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  paint-order: stroke;
+  /* halo keeps text readable over any roof color, both themes */
+  stroke: var(--bg);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.growth-city-label-value {
+  font-size: 11px;
+  font-weight: 400;
+  fill: var(--fg-mute);
+}
+
+/* stars beacon: glowing diamond over the tallest roof */
+
+.growth-beacon-glow {
+  fill: var(--warn);
+  opacity: 0.28;
+}
+
+.growth-beacon-core {
+  fill: var(--warn);
+}
+
+.growth-beacon-value {
+  fill: var(--fg);
+  font-size: 13px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.growth-date {
+  position: absolute;
+  top: 48px;
+  right: 64px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.growth-date-cell {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 44px;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--bg-2);
   color: var(--fg);
-  white-space: nowrap;
-  will-change: transform;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 44px;
+  text-align: center;
+  overflow: hidden;
 }
 
-.growth-compact-bar {
+.growth-date-year {
+  width: 86px;
+}
+
+.growth-date-cell::after {
+  content: "";
   position: absolute;
-  left: 64px;
-  top: 430px;
-  width: 1152px;
-  height: 29px;
-  border-radius: 2px;
-}
-
-/* timeline strip */
-
-.growth-tl-track,
-.growth-tl-fill {
-  position: absolute;
-  left: 64px;
-  top: 633px;
-  width: 1152px;
-  height: 5px;
-  transform-origin: left center;
-}
-
-.growth-tl-track {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
   background: var(--rule);
 }
 
-.growth-tl-fill {
-  background: var(--accent);
-  will-change: width;
-}
-
-.growth-tl-playhead {
-  position: absolute;
-  top: 625px;
-  width: 2px;
-  height: 23px;
-  background: var(--accent);
-  will-change: transform;
-}
-
-.growth-tl-chip {
-  position: absolute;
-  left: 14px;
-  top: 595px;
-  width: 100px;
-  height: 23px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-2);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  font-size: 13px;
-  color: var(--fg);
-  will-change: transform;
-}
-
-.growth-tl-tick {
-  position: absolute;
-  top: 645px;
-  font-size: 12px;
-  color: var(--fg-mute);
-  white-space: nowrap;
-}
-
-.growth-tl-caret {
-  position: absolute;
-  top: 616px;
-  width: 0;
-  height: 0;
-  margin-left: -4px;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid var(--warn);
-}
-
-/* stars HUD */
-
-.growth-stars {
-  position: absolute;
-  right: 64px;
-  top: 64px;
-  height: 29px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-}
-
-.growth-star-bracket {
-  position: absolute;
-  width: 15px;
-  height: 15px;
-  overflow: visible;
-}
-
-.growth-star-bracket path {
-  fill: none;
-  stroke: var(--fg-mute);
-  stroke-width: 3;
-  stroke-linecap: butt;
-}
-
-.growth-sb-tl {
-  left: -5px;
-  top: -5px;
-}
-
-.growth-sb-br {
-  right: -5px;
-  bottom: -5px;
-}
-
-.growth-star-glyph {
-  color: var(--warn);
-  font-size: 15px;
-  line-height: 1;
-}
-
-.growth-star-label {
-  color: var(--fg-mute);
-  letter-spacing: 0.14em;
-}
-
-.growth-star-value {
-  color: var(--fg);
-  font-weight: 700;
-}
-
-/* --- act 3: morph --- */
-
-.growth-stack-seg {
-  position: absolute;
-  height: 29px;
-  border-radius: 2px;
-  will-change: left, top, width;
-}
-
-/* --- the ring (morph target + finale donut; never moves) --- */
-
-.growth-ring {
-  position: absolute;
-  display: block;
-}
-
-.growth-ring-center {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.growth-ring-center .lbl {
-  display: block;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--fg-mute);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.growth-ring-center strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 35px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--fg);
-}
-
-/* --- act 4: report-stats finale --- */
-/* The column stack is exact arithmetic the TS geometry mirrors: 64 pad +
-   40 head + 13+2 rule + 23+54 summary + 29 gap = body top 225; body height
-   431 centers the 347px ring box at (275.8, 440.5). */
-
-.growth-fin-card {
+.growth-date-static,
+.growth-date-old,
+.growth-date-leaf,
+.growth-date-reduced {
   position: absolute;
   inset: 0;
-  padding: 64px;
-  display: flex;
-  flex-direction: column;
+  background: var(--bg-2);
 }
 
-.growth-fin-head {
-  height: 40px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.growth-date-leaf {
+  transform-origin: center;
 }
 
-.growth-fin-repo {
-  margin: 0; /* UA default h2 margins would blow the 40px head budget */
-  line-height: 1.1;
-  font-size: 29px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--fg);
-  white-space: nowrap;
-}
-
-.growth-fin-meta {
-  line-height: 1;
-  font-size: 16px;
-  color: var(--fg-dim);
-  white-space: nowrap;
-}
-
-.growth-fin-rule {
-  margin-top: 13px;
-  height: 2px;
-  background: var(--accent);
-}
-
-.growth-fin-summary {
-  margin-top: 23px;
-  height: 54px;
-  display: flex;
-  gap: 59px;
-}
-
-.growth-fin-metric .lbl {
+.growth-date-leaf span {
   display: block;
-  font-size: 12px;
+}
+
+.growth-date-reduced {
+  display: none;
+}
+
+.growth-city-label-small {
+  font-size: 9px;
+}
+
+.growth-city-label-small .growth-city-label-value {
+  font-size: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .growth-date-static,
+  .growth-date-old,
+  .growth-date-leaf {
+    display: none;
+  }
+
+  .growth-date-reduced {
+    display: block;
+  }
+}
+
+/* --- finale: the metric bar under the settled skyline --- */
+
+.growth-city-metrics {
+  position: absolute;
+  left: 64px;
+  right: 64px;
+  top: 636px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 0 24px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-2) 88%, transparent);
+  overflow: hidden;
+}
+
+.growth-city-metric .lbl {
+  display: block;
+  font-size: 11px;
   line-height: 1;
   color: var(--fg-mute);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 
-.growth-fin-metric .val {
+.growth-city-metric .val {
   display: block;
   margin-top: 5px;
-  font-size: 27px;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   color: var(--fg);
   white-space: nowrap;
 }
 
-.growth-fin-metric.accent .val {
+.growth-city-metric.accent .val {
   color: var(--accent);
-  font-size: 37px;
 }
 
-.growth-fin-body {
-  margin-top: 29px;
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 38fr 62fr;
-  gap: 37px;
-}
-
-.growth-fin-donut-col {
-  position: relative;
-}
-
-.growth-fin-table-col {
-  min-width: 0;
+.growth-stars-summary {
+  position: absolute;
+  top: 48px;
+  left: 64px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  color: var(--fg);
+  font-size: 28px;
+  font-weight: 700;
+  pointer-events: none;
 }
 
-.growth-fin-caption {
+.growth-stars-summary .growth-stars-icon {
+  color: var(--warn);
+  font-size: 23px;
+}
+
+.growth-stars-summary .growth-stars-caption {
+  color: var(--fg-mute);
   font-size: 13px;
-  color: var(--fg-mute);
-  letter-spacing: 0.04em;
+  font-weight: 400;
 }
 
-.growth-fin-tr {
-  display: grid;
-  grid-template-columns: 176px 75px 112px 112px 104px 1fr;
-  column-gap: 8px;
-  align-items: center;
-  height: 29px;
-  border-bottom: 1px solid var(--rule-2);
+.growth-playback-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
-.growth-fin-tr.growth-fin-thead {
-  height: 23px;
-  margin-top: 4px;
+.growth-playback-hit:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -5px;
 }
 
-.growth-fin-th {
-  font-size: 11px;
-  color: var(--fg-mute);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.growth-fin-th.lang {
-  text-align: left;
-}
-
-.growth-fin-td {
-  font-size: 15px;
-  color: var(--fg);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.growth-fin-td.code {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.growth-fin-lang {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  color: var(--fg);
-  white-space: nowrap;
-}
-
-.growth-fin-swatch {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  border-radius: 2px;
-}
-
-.growth-fin-tr.other .growth-fin-lang {
-  color: var(--fg-mute);
-}
-
-.growth-fin-tr.total {
-  border-bottom: none;
-  border-top: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-.growth-fin-tr.total .growth-fin-td,
-.growth-fin-tr.total .growth-fin-lang {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-/* paused affordance — shown only when a player passes playing={false} */
+/* paused affordance stays clear of the city */
 
 .growth-paused {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  left: 64px;
+  bottom: 100px;
   width: 56px;
   height: 56px;
   display: flex;
@@ -5272,31 +5105,9 @@ button.expand::before {
   accent-color: var(--accent);
 }
 
-.growth-variant {
-  display: inline-flex;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.growth-variant button {
-  border: none;
-  background: transparent;
+.growth-export-duration {
   color: var(--fg-mute);
-  padding: 4px 10px;
   font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.growth-variant button.is-active {
-  background: var(--accent);
-  color: var(--bg);
-  font-weight: 700;
-}
-
-.growth-variant button:disabled {
-  opacity: 0.55;
-  cursor: default;
 }
 
 .growth-export-error {

@@ -6,10 +6,16 @@
 // renders identically in both.
 //
 // Data honesty (mirrors the shipped demo): the SLOC series, dips, and the
-// finale stats view are real API data; historical per-language split is
-// MODELED from the latest commit's language mix until the backend samples
+// finale metrics are real API data; historical per-language split is MODELED
+// from the latest commit's language mix until the backend samples
 // per-language history (v2). `modeledLanguageSplit` drives the UI disclosure
 // line so the animation never overstates its provenance.
+//
+// v1.1: the four-act bar race is replaced by an isometric code city — each
+// language is a building (footprint ∝ share of code, height ∝ lines). Every
+// sample carries its own squarified-treemap ground layout and baked building
+// heights; per-face colors are derived here so the renderer (and the GIF
+// palette) never computes a color.
 import type { Report, RepoHistory } from "../types";
 
 // A language track across the animation. `currentCode`/`currentShare` are
@@ -18,14 +24,14 @@ import type { Report, RepoHistory } from "../types";
 export type GrowthLanguage = {
   name: string;
   // Resolved visible color for the active scheme (matrix/paper) — baked into
-  // the scene so the GIF palette derives from the scene alone.
+  // the scene so the GIF palette derives from the scene alone. The building's
+  // left face uses `color` verbatim; `colorTop`/`colorRight` are the
+  // lightened/darkened derivatives for the roof and the shaded right face.
   color: string;
+  colorTop: string;
+  colorRight: string;
   currentCode: number;
   currentShare: number; // 0..100 of total code, real
-  // Sample index at which the language's bar first renders. v1 models every
-  // language from sample 0; the field exists so v2 real entrance dates swap
-  // in without touching the renderer.
-  entersAtSample: number;
 };
 
 // A detected drawdown between adjacent samples (threshold in buildScene).
@@ -33,6 +39,23 @@ export type GrowthDip = {
   sampleIndex: number; // the sample the count drops TO
   fromValue: number;
   toValue: number;
+};
+
+// One building on the ground plane: footprint rect in the normalized 100x100
+// ground grid (squarified treemap, area ∝ the block's code at this sample)
+// plus its full-rise height in design px. Face colors ride along so merged
+// "Other (N more)" blocks (not a language, no GrowthLanguage entry) render
+// identically to real ones.
+export type GrowthCityBlock = {
+  name: string; // language name, or "Other (N more)" for the merged tail
+  value: number; // code lines this block represents at this sample
+  rect: { x: number; y: number; w: number; h: number };
+  height: number; // design px, 0..MAX_BUILDING_H (buildScene)
+  color: string; // left face
+  colorTop: string; // roof
+  colorRight: string; // right face
+  merged?: number; // set on the Other block: how many languages it folds in
+  logo?: { path: string; color: string };
 };
 
 export type GrowthSample = {
@@ -43,10 +66,17 @@ export type GrowthSample = {
   // Modeled per-language code lines at this sample (share × code,
   // renormalized so the values sum to `code`).
   languageCode: Record<string, number>;
+  // City layout at this sample: one block per language with code > 0 (tail
+  // merged into Other past the limit), rects within the 100x100 ground and
+  // non-overlapping. The renderer interpolates between adjacent samples'
+  // layouts by block name.
+  city: GrowthCityBlock[];
 };
 
 // The finale stats view mirrors the report page's table semantics (top N by
-// code with the tail merged into one Other row, TOTAL row separate).
+// code with the tail merged into one Other row, TOTAL row separate). v1.1
+// renders only `metrics` on stage (the metric bar); the table payload stays
+// in the contract for the page and tests.
 export type GrowthTableRow = {
   name: string;
   color: string;
@@ -72,10 +102,11 @@ export type GrowthScene = {
   repoFullName: string;
   provider: string;
   durationMs: number; // template length, 10000
-  // "full" plays the four-act template; "compact" is the low-sample
-  // degradation (<3 samples): count-up + morph + finale, race bars omitted.
+  // "full" paces the city's growth across the samples; "compact" is the
+  // low-sample degradation (<3 samples): buildings rise straight to the
+  // final skyline on the same beat sheet.
   variant: "full" | "compact";
-  languages: GrowthLanguage[]; // sorted by currentCode desc; race order derives per-sample
+  languages: GrowthLanguage[]; // sorted by currentCode desc; entrance stagger derives from this order
   samples: GrowthSample[]; // ≥1, sorted by date asc; last = latest commit
   dips: GrowthDip[];
   starsNow: number | null;
@@ -85,19 +116,13 @@ export type GrowthScene = {
   // the history series was sampled under (>5% code-line gap vs the last
   // sample) — e.g. a visitor's include-all re-analysis became the canonical
   // report. The renderer shows a one-line disclosure instead of letting the
-  // counter and the finale table silently disagree.
+  // counter and the finale metrics silently disagree.
   finaleDiverged: boolean;
-  // Stats-view payload for the finale act (acts.finale carries only timing).
+  // Stats payload for the finale act (acts.finale carries only timing).
   finale: GrowthFinale;
   acts: {
     hook: { prompt: string }; // e.g. "octocounts facebook/react"
     data: { startTime: number; endTime: number; finalLock: number };
-    morph: {
-      startTime: number;
-      endTime: number;
-      stackOrder: string[]; // top 6 language names, final order
-      ringShares: Array<{ name: string; share: number; color: string }>; // renormalized over the six, sums to 100
-    };
     finale: { startTime: number; endTime: number; staticFrom: number };
   };
 };

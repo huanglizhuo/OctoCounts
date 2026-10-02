@@ -645,16 +645,24 @@
       "reducedMotionNote": "Animation paused — press play",
       "exportGif": "Export GIF",
       "exportFull": "10s",
-      "exportCompact": "6s",
       "exporting": "Exporting {{percent}}%",
       "cancelExport": "Cancel",
       "exportFailed": "GIF export failed. Try again.",
-      "divergedNote": "Final table uses this report's analysis options, which differ from the history series — numbers may not match the counter.",
+      "divergedNote": "Final metrics use this report's analysis options, which differ from the history series — numbers may not match the counter.",
       "thisReport": "this report: {{count}}",
       "historyData": "History data",
       "historyDate": "Date",
       "historyCode": "Code lines",
-      "historyStars": "Stars"
+      "historyStars": "Stars",
+      "beaconAria": "Repository stars",
+      "metricFiles": "Files",
+      "metricCode": "Code",
+      "metricComments": "Comments",
+      "metricBlanks": "Blanks",
+      "metricSpan": "Span",
+      "otherShort": "Other",
+      "otherBlock_one": "Other ({{count}} more)",
+      "otherBlock_other": "Other ({{count}} more)"
     }
   },
   "textReport": {

@@ -13,7 +13,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Download, Loader2, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Download, Loader2, RotateCcw, X } from "lucide-react";
 import { fetchCanonicalReport, fetchRepoHistory } from "../api";
 import { AnalyticsEvents, trackEvent } from "../analytics";
 import { downloadDataUrl, formatNumber, languageColor, normalizedProvider, visibleLanguageColor } from "../reportUtils";
@@ -31,15 +31,12 @@ import type { GrowthScene } from "../growth/types";
 // hammering the endpoint.
 const BACKFILL_POLL_INTERVAL_MS = 5000;
 
-// GIF length choice for the export buttons ("full" 10s / "compact" 6s cut).
-type GrowthExportVariant = "full" | "compact";
-
 // Player + controls + export, split out of the data-fetching section so the
 // useGrowthPlayer hook only mounts once a scene exists (the section renders
 // skeleton/disabled states before that, and the player needs durationMs).
 function GrowthStage({ scene }: { scene: GrowthScene }) {
   const { t } = useTranslation();
-  const [loop, setLoop] = useState(true);
+  const [loop, setLoop] = useState(false);
   const player = useGrowthPlayer(scene.durationMs, { loop });
   // The player already parks reduced-motion viewers on the static finale
   // frame; this hint tells them why and that play is still theirs to press.
@@ -54,7 +51,6 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
     trackEvent(AnalyticsEvents.growthPlayed, { provider: scene.provider, repo: scene.repoFullName });
   };
 
-  const [exportVariant, setExportVariant] = useState<GrowthExportVariant>("full");
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -74,7 +70,6 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
     const [owner = "repo", repo = owner] = scene.repoFullName.split("/");
     try {
       const { blob, filename } = await exportGrowthGif(scene, owner, repo, {
-        variant: exportVariant,
         signal: controller.signal,
         onProgress: (done, total) => setExportProgress(total > 0 ? done / total : 0),
       });
@@ -83,12 +78,12 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
       const url = URL.createObjectURL(blob);
       downloadDataUrl(url, filename);
       window.setTimeout(() => URL.revokeObjectURL(url), 5000);
-      trackEvent(AnalyticsEvents.growthGifExported, { variant: exportVariant, provider: scene.provider, repo: scene.repoFullName });
+      trackEvent(AnalyticsEvents.growthGifExported, { variant: "full", provider: scene.provider, repo: scene.repoFullName });
     } catch (error) {
       // The exporter rejects a cancel with a DOMException AbortError between
       // frames — that is the Cancel button working, not a failure.
       if (error instanceof DOMException && error.name === "AbortError") {
-        trackEvent(AnalyticsEvents.growthExportCancelled, { variant: exportVariant, provider: scene.provider, repo: scene.repoFullName });
+        trackEvent(AnalyticsEvents.growthExportCancelled, { variant: "full", provider: scene.provider, repo: scene.repoFullName });
       } else {
         setExportError(t("growth.animation.exportFailed"));
       }
@@ -105,20 +100,17 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
   const hasStars = scene.samples.some((sample) => typeof sample.stars === "number");
   return (
     <>
-      <GrowthAnimation scene={scene} progress={player.progress} playing={player.playing} />
+      <GrowthAnimation
+        scene={scene}
+        progress={player.progress}
+        playing={player.playing}
+        playbackLabel={playLabel}
+        onTogglePlayback={exporting ? undefined : () => {
+          markPlayed();
+          player.toggle();
+        }}
+      />
       <div className="growth-controls">
-        <button
-          className="copybtn"
-          type="button"
-          aria-label={playLabel}
-          onClick={() => {
-            markPlayed();
-            player.toggle();
-          }}
-        >
-          {player.playing ? <Pause size={13} /> : <Play size={13} />}{" "}
-          {t(player.playing ? "growth.animation.pause" : "growth.animation.play")}
-        </button>
         <button
           className="copybtn"
           type="button"
@@ -158,26 +150,7 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
           {exporting ? <Loader2 className="spin" size={13} /> : <Download size={13} />}{" "}
           {exporting ? t("growth.animation.exporting", { percent: Math.round(exportProgress * 100) }) : t("growth.animation.exportGif")}
         </button>
-        <span className="growth-variant" role="group" aria-label={t("growth.animation.exportGif")}>
-          <button
-            type="button"
-            className={exportVariant === "full" ? "is-active" : undefined}
-            aria-pressed={exportVariant === "full"}
-            disabled={exporting}
-            onClick={() => setExportVariant("full")}
-          >
-            {t("growth.animation.exportFull")}
-          </button>
-          <button
-            type="button"
-            className={exportVariant === "compact" ? "is-active" : undefined}
-            aria-pressed={exportVariant === "compact"}
-            disabled={exporting}
-            onClick={() => setExportVariant("compact")}
-          >
-            {t("growth.animation.exportCompact")}
-          </button>
-        </span>
+        <span className="growth-export-duration">{t("growth.animation.exportFull")}</span>
         {exporting ? (
           <button className="copybtn" type="button" onClick={() => cancelRef.current?.abort()}>
             <X size={13} /> {t("growth.animation.cancelExport")}

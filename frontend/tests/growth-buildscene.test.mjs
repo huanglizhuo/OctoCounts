@@ -6,16 +6,16 @@ import ts from "typescript";
 // Same transpile-to-node_modules-cache pattern as github-status.test.mjs: a
 // data: URL has no parent directory to resolve relative specifiers from, so
 // the compiled copy lands under node_modules/ where git already ignores it.
-// buildScene.ts imports only types from ./types, and `import type` is erased
-// by the transpiler, so the emitted .mjs has zero module specifiers to resolve.
 const cacheDir = new URL("../node_modules/.cache/octocounts-tests/", import.meta.url);
-const source = await readFile(new URL("../src/growth/buildScene.ts", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
-});
 await mkdir(cacheDir, { recursive: true });
 const modulePath = new URL("growth-buildscene.mjs", cacheDir);
-await writeFile(modulePath, compiled.outputText);
+for (const [name, target] of [["languageLogos", "languageLogos.mjs"], ["buildScene", "growth-buildscene.mjs"]]) {
+  const source = await readFile(new URL(`../src/growth/${name}.ts`, import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+  });
+  await writeFile(new URL(target, cacheDir), compiled.outputText.replace('"./languageLogos"', '"./languageLogos.mjs"'));
+}
 const { buildScene } = await import(modulePath.href);
 
 // ---------------------------------------------------------------------------
@@ -136,9 +136,9 @@ test("template timings are the fixed 10s beat sheet", () => {
   assert.equal(scene.durationMs, 10000);
   assert.deepEqual(scene.acts.hook, { prompt: "octocounts facebook/react" });
   assert.deepEqual(scene.acts.data, { startTime: 1.2, endTime: 8.5, finalLock: 8.5 });
-  assert.equal(scene.acts.morph.startTime, 8.55);
-  assert.equal(scene.acts.morph.endTime, 9.3);
-  assert.deepEqual(scene.acts.finale, { startTime: 9.3, endTime: 10, staticFrom: 9.6 });
+  // v1.1: the morph act is gone — the finale starts where the data act locks.
+  assert.deepEqual(scene.acts.finale, { startTime: 8.5, endTime: 10, staticFrom: 9.6 });
+  assert.ok(!("morph" in scene.acts));
 });
 
 test("builds 13 samples from the react history, first-to-last 4435 days", () => {
@@ -173,12 +173,11 @@ test("language tracks exclude zero-code Markdown and use injected colors", () =>
   const scene = reactScene();
   assert.equal(scene.languages.length, 10);
   assert.ok(scene.languages.every((language) => language.name !== "Markdown"));
-  // Sorted by currentCode desc; every track enters at sample 0 (v1 model).
+  // Sorted by currentCode desc.
   assert.deepEqual(
     scene.languages.map((language) => language.name),
     ["JavaScript", "Rust", "TypeScript", "JSON", "CSS", "TSX", "HTML", "Shell", "TOML", "SVG"],
   );
-  assert.ok(scene.languages.every((language) => language.entersAtSample === 0));
   assert.equal(scene.languages[0].currentCode, 231679);
   const expectedShare = (231679 / 365001) * 100;
   assert.ok(Math.abs(scene.languages[0].currentShare - expectedShare) < 1e-9);
@@ -190,6 +189,36 @@ test("language tracks exclude zero-code Markdown and use injected colors", () =>
   assert.equal(scene.leadingLanguage, "JavaScript");
   assert.equal(scene.modeledLanguageSplit, true);
   assert.equal(scene.starsNow, 250841);
+});
+
+test("city logos use language aliases and contrast against their roof", async () => {
+  const { languageLogo } = await import(new URL("languageLogos.mjs", cacheDir).href);
+  const city = reactScene().samples.at(-1).city;
+  assert.ok(city.find((block) => block.name === "JavaScript").logo.path.length > 0);
+  assert.equal(city.find((block) => block.name === "JavaScript").logo.color, "#000000");
+  assert.equal(city.find((block) => block.name === "CSS").logo.color, "#ffffff");
+  assert.equal(city.find((block) => block.merged).logo, undefined);
+  assert.deepEqual(languageLogo("TSX", "#ffffff"), languageLogo("JSX", "#ffffff"));
+  assert.deepEqual(languageLogo("Shell", "#ffffff"), languageLogo("Bash", "#ffffff"));
+  assert.equal(languageLogo("Unknown language", "#ffffff"), undefined);
+  assert.equal(languageLogo("constructor", "#ffffff"), undefined);
+  assert.equal(languageLogo("Rust", "#000000").color, "#ffffff");
+});
+
+test("face colors are baked: roof lighter than base, right face darker", () => {
+  const scene = reactScene();
+  const lum = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114;
+  };
+  for (const language of scene.languages) {
+    assert.match(language.colorTop, /^#[0-9a-f]{6}$/);
+    assert.match(language.colorRight, /^#[0-9a-f]{6}$/);
+    assert.ok(lum(language.colorTop) > lum(language.color), `${language.name} roof must be lighter`);
+    assert.ok(lum(language.colorRight) < lum(language.color), `${language.name} right face must be darker`);
+  }
+  // JavaScript #f1e05a: roof channels scale 1.28 (R/G clamp at 255, B 90→115).
+  assert.equal(scene.languages[0].colorTop, "#ffff73");
 });
 
 test("modeled languageCode sums to the sample total exactly at every sample", () => {
@@ -207,23 +236,72 @@ test("modeled languageCode sums to the sample total exactly at every sample", ()
   assert.ok(Math.abs(last.languageCode.JavaScript - expectedJavaScript) <= 1);
 });
 
-test("ring shares renormalize the top six to exactly 100", () => {
+test("city: every sample lays out blocks inside the 100x100 ground, non-overlapping, area ∝ code", () => {
   const scene = reactScene();
-  assert.deepEqual(scene.acts.morph.stackOrder, ["JavaScript", "Rust", "TypeScript", "JSON", "CSS", "TSX"]);
-  const ring = scene.acts.morph.ringShares;
-  assert.deepEqual(
-    ring.map((arc) => arc.name),
-    scene.acts.morph.stackOrder,
-  );
-  assert.equal(ring.reduce((sum, arc) => sum + arc.share, 0), 100);
-  // Largest-remainder outcome over the six (code sum 364036): JS 63.64,
-  // Rust 17.63, TS 16.50, JSON 0.97, CSS 0.90, TSX 0.37 → the four leftover
-  // units go to the biggest fractions, so TSX's 0.37 floors to zero.
-  assert.deepEqual(
-    ring.map((arc) => arc.share),
-    [64, 18, 16, 1, 1, 0],
-  );
-  assert.equal(ring[0].color, reactColors.JavaScript);
+  const overlap = (a, b) =>
+    Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) *
+    Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  for (const sample of scene.samples) {
+    assert.ok(sample.city.length >= 1 && sample.city.length <= 8, `${sample.date} block count within the cap`);
+    let areaSum = 0;
+    for (const block of sample.city) {
+      const { x, y, w, h } = block.rect;
+      assert.ok(x >= -1e-9 && y >= -1e-9 && x + w <= 100 + 1e-9 && y + h <= 100 + 1e-9, `${sample.date} ${block.name} in bounds`);
+      assert.ok(w > 0 && h > 0, `${sample.date} ${block.name} has a real footprint`);
+      // Footprint area is proportional to the block's code at this sample.
+      const expected = (block.value / sample.code) * 10000;
+      assert.ok(Math.abs(w * h - expected) < 0.5, `${sample.date} ${block.name} area ∝ value`);
+      areaSum += w * h;
+    }
+    // The layout tiles the whole plane (every language has modeled code).
+    assert.ok(Math.abs(areaSum - 10000) < 1, `${sample.date} footprints tile the ground`);
+    for (let a = 0; a < sample.city.length; a++) {
+      for (let b = a + 1; b < sample.city.length; b++) {
+        assert.ok(overlap(sample.city[a].rect, sample.city[b].rect) < 1e-6, `${sample.date} blocks ${a}/${b} overlap`);
+      }
+    }
+    // Face colors ride on every block (merged Other blocks included).
+    for (const block of sample.city) {
+      assert.match(block.colorTop, /^#[0-9a-f]{6}$/);
+      assert.match(block.colorRight, /^#[0-9a-f]{6}$/);
+    }
+  }
+});
+
+test("city: the tail merges into one gray Other block past 8 buildings", () => {
+  const scene = reactScene();
+  // 10 languages with code at the final sample → top 7 + Other (3 more).
+  const final = scene.samples[12].city;
+  assert.equal(final.length, 8);
+  const other = final.find((block) => block.merged);
+  assert.ok(other, "a merged Other block exists");
+  assert.equal(other.name, "Other (3 more)");
+  assert.equal(other.merged, 3);
+  assert.equal(other.color, "#57606a");
+  // The merged block folds in exactly Shell + TOML + SVG (the tail by code).
+  assert.equal(other.value, 316 + 223 + 10);
+  assert.ok(!final.some((block) => block.name === "SVG"));
+  assert.ok(final.some((block) => block.name === "HTML"));
+});
+
+test("city: heights scale so the tallest block across the series is 180px", () => {
+  const scene = reactScene();
+  let max = 0;
+  for (const sample of scene.samples) {
+    for (const block of sample.city) {
+      assert.ok(block.height > 0 && block.height <= 180 + 1e-9);
+      max = Math.max(max, block.height);
+    }
+  }
+  assert.ok(Math.abs(max - 180) < 1e-6, `peak height ${max} must be 180`);
+  // JavaScript at the final sample is within a hair of the peak (the peak
+  // itself is the same share of sample 11's slightly larger total).
+  const js = scene.samples[12].city.find((block) => block.name === "JavaScript");
+  assert.ok(Math.abs(js.height - 180) < 0.1);
+  // The first sample's JavaScript rides the same global scale.
+  const first = scene.samples[0].city.find((block) => block.name === "JavaScript");
+  const peakValue = Math.max(...scene.samples.flatMap((s) => s.city.map((b) => b.value)));
+  assert.ok(Math.abs(first.height - (first.value * 180) / peakValue) < 1e-6);
 });
 
 test("finale mirrors the report table: top 10 + merged Other, TOTAL untouched", () => {
@@ -287,6 +365,13 @@ test("a 12-language report merges two tail rows into Other; TOTAL is the report 
   });
   assert.deepEqual(finale.totalRow, total12);
   assert.deepEqual(finale.metrics, total12);
+  // The city merges one more tail language: 11 code-carrying languages →
+  // top 7 + Other (4 more) at the final sample.
+  const final = scene.samples[scene.samples.length - 1].city;
+  assert.equal(final.length, 8);
+  const other = final.find((block) => block.merged);
+  assert.equal(other.name, "Other (4 more)");
+  assert.equal(other.merged, 4);
 });
 
 test("fewer than 3 samples degrades to the compact variant, same beat sheet", () => {
@@ -298,13 +383,15 @@ test("fewer than 3 samples degrades to the compact variant, same beat sheet", ()
   assert.equal(scene.variant, "compact");
   assert.equal(scene.samples.length, 2);
   assert.equal(scene.starsNow, 250841);
-  // Compact omits the race act in the RENDERER; the timings stay identical.
+  // Compact skips the growth pacing in the RENDERER; the timings and the
+  // per-sample city layouts stay identical in shape.
   assert.deepEqual(scene.acts.data, { startTime: 1.2, endTime: 8.5, finalLock: 8.5 });
-  assert.deepEqual(scene.acts.finale, { startTime: 9.3, endTime: 10, staticFrom: 9.6 });
+  assert.deepEqual(scene.acts.finale, { startTime: 8.5, endTime: 10, staticFrom: 9.6 });
   assert.equal(scene.durationMs, 10000);
+  assert.ok(scene.samples.every((sample) => sample.city.length >= 1));
 });
 
-test("a single-language scene has no modeled split and one full ring", () => {
+test("a single-language scene has no modeled split and one full-plane block", () => {
   const only = lang("JavaScript", 1477, 294019, 231679, 38520, 23820);
   const scene = buildScene({
     report: makeReport([only], { ...only.stats }),
@@ -314,12 +401,15 @@ test("a single-language scene has no modeled split and one full ring", () => {
   assert.equal(scene.languages.length, 1);
   assert.equal(scene.modeledLanguageSplit, false);
   assert.equal(scene.leadingLanguage, "JavaScript");
-  assert.deepEqual(scene.acts.morph.stackOrder, ["JavaScript"]);
-  assert.deepEqual(scene.acts.morph.ringShares, [
-    { name: "JavaScript", share: 100, color: reactColors.JavaScript },
-  ]);
   for (const sample of scene.samples) {
     assert.deepEqual(sample.languageCode, { JavaScript: sample.code });
+    // One language tiles the whole ground plane; height keeps the global scale.
+    assert.equal(sample.city.length, 1);
+    const block = sample.city[0];
+    assert.equal(block.name, "JavaScript");
+    assert.ok(Math.abs(block.rect.x) < 1e-9 && Math.abs(block.rect.y) < 1e-9);
+    assert.ok(Math.abs(block.rect.w - 100) < 1e-6 && Math.abs(block.rect.h - 100) < 1e-6);
+    assert.ok(Math.abs(block.height - (sample.code / 365009) * 180) < 1e-6);
   }
 });
 

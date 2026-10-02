@@ -6,7 +6,10 @@
 // stars and the canonical exclude-all report stats. Historical per-language
 // splits are the demo's MODELED share tables scaled onto each sample's real
 // total and renormalized (largest-remainder) so they sum to the sample's
-// code exactly, as types.ts promises.
+// code exactly, as types.ts promises. v1.1: city layouts and face colors are
+// built through the same exported helpers buildScene uses, so the fixture
+// can never drift from the product geometry.
+import { deriveFaceColors, layoutCity, MAX_BUILDING_H } from "./buildScene";
 import type { GrowthSample, GrowthScene } from "./types";
 
 const EPOCH = Date.UTC(2014, 7, 8); // first sample: 2014-08-08
@@ -71,16 +74,6 @@ function alloc(total: number, weights: number[]): number[] {
   return out;
 }
 
-const samples: GrowthSample[] = SERIES.map((row) => {
-  const names = Object.keys(row.shares);
-  const counts = alloc(row.code, names.map((n) => row.shares[n]));
-  const languageCode: Record<string, number> = {};
-  names.forEach((name, i) => {
-    languageCode[name] = counts[i];
-  });
-  return { date: isoDate(row.day), dayOffset: row.day, code: row.code, stars: row.stars, languageCode };
-});
-
 const LANG_COLORS: Record<string, string> = {
   JavaScript: "#3fb950",
   Rust: "#dea584",
@@ -94,23 +87,40 @@ const LANG_COLORS: Record<string, string> = {
   SVG: "#f2cc60",
 };
 
-// Demo entrance beats: TypeScript 2017 (sample 2), TSX 2020-21 (sample 6),
-// Rust 2024 (sample 8); everything else modeled from sample 0.
-const ENTERS_AT: Record<string, number> = { TypeScript: 2, TSX: 6, Rust: 8 };
 const TOTAL_CODE = 365001;
 
-// Ring shares: the six race languages' real counts renormalized over the
-// six (they sum to exactly 100; the leader absorbs the rounding residue).
-const six = REAL_MIX.slice(0, 6);
-const sixTotal = six.reduce((a, [, c]) => a + c, 0);
-const restShares = six.slice(1).map(([, c]) => Math.round((c / sixTotal) * 10000) / 100);
-const leadShare = Math.round((100 - restShares.reduce((a, b) => a + b, 0)) * 100) / 100;
-const ringShares = [
-  { name: six[0][0], share: leadShare, color: LANG_COLORS[six[0][0]] },
-  ...six.slice(1).map(([name], i) => ({ name, share: restShares[i], color: LANG_COLORS[name] })),
-];
-
 export function buildFixtureScene(): GrowthScene {
+  const samples: GrowthSample[] = SERIES.map((row) => {
+    const names = Object.keys(row.shares);
+    const counts = alloc(row.code, names.map((n) => row.shares[n]));
+    const languageCode: Record<string, number> = {};
+    names.forEach((name, i) => {
+      languageCode[name] = counts[i];
+    });
+    // v1 models every language in every sample: languages missing from this
+    // share table enter with 0 lines (their block stays flat until the model
+    // gives them code).
+    for (const [name] of REAL_MIX) {
+      if (!(name in languageCode)) languageCode[name] = 0;
+    }
+    return { date: isoDate(row.day), dayOffset: row.day, code: row.code, stars: row.stars, languageCode, city: [] };
+  });
+
+  // City layouts through the product helper: entries per sample, a probe
+  // pass at scale 1 to find the series peak, then the real scale.
+  const entriesPerSample = samples.map((sample) =>
+    Object.entries(sample.languageCode)
+      .map(([name, value]) => ({ name, value, color: LANG_COLORS[name] }))
+      .filter((entry) => entry.value > 0)
+      .sort((a, b) => b.value - a.value),
+  );
+  const probe = entriesPerSample.map((entries) => layoutCity(entries, 1));
+  const peak = probe.flat().reduce((max, block) => Math.max(max, block.height), 0);
+  const heightScale = peak > 0 ? MAX_BUILDING_H / peak : 0;
+  samples.forEach((sample, i) => {
+    sample.city = layoutCity(entriesPerSample[i], heightScale);
+  });
+
   return {
     repoFullName: "facebook/react",
     provider: "github",
@@ -119,9 +129,9 @@ export function buildFixtureScene(): GrowthScene {
     languages: REAL_MIX.map(([name, code]) => ({
       name,
       color: LANG_COLORS[name],
+      ...deriveFaceColors(LANG_COLORS[name]),
       currentCode: code,
       currentShare: Math.round((code / TOTAL_CODE) * 1000) / 10,
-      entersAtSample: ENTERS_AT[name] ?? 0,
     })),
     samples,
     dips: [
@@ -156,13 +166,7 @@ export function buildFixtureScene(): GrowthScene {
     acts: {
       hook: { prompt: "octocounts facebook/react" },
       data: { startTime: 1.2, endTime: 8.5, finalLock: 8.5 },
-      morph: {
-        startTime: 8.55,
-        endTime: 9.3,
-        stackOrder: ["JavaScript", "Rust", "TypeScript", "JSON", "CSS", "TSX"],
-        ringShares,
-      },
-      finale: { startTime: 9.3, endTime: 10, staticFrom: 9.6 },
+      finale: { startTime: 8.5, endTime: 10, staticFrom: 9.6 },
     },
   };
 }

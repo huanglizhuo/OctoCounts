@@ -27,6 +27,9 @@ const compile = async (sourceRel, outRel, extraOptions = {}) => {
 };
 await compile("growth/exportGif.ts", "growth/exportGif.mjs");
 await compile("growth/GrowthAnimation.tsx", "growth/GrowthAnimation.mjs", { jsx: ts.JsxEmit.ReactJSX });
+// fixture.ts builds its city layouts through buildScene's exported helpers.
+await compile("growth/buildScene.ts", "growth/buildScene.mjs");
+await compile("growth/languageLogos.ts", "growth/languageLogos.mjs");
 await compile("growth/fixture.ts", "growth/fixture.mjs");
 await writeFile(
   new URL("reportUtils.mjs", cacheDir),
@@ -40,7 +43,7 @@ await writeFile(
 // current rasterization ordinal into the pixels (letting the tests tell
 // frames apart and pin the cached seed frame by object identity).
 // ---------------------------------------------------------------------------
-const domState = { rasterSeq: 0 };
+const domState = { rasterSeq: 0, canvasCalls: [] };
 
 class FakeStyle {
   constructor() {
@@ -89,7 +92,13 @@ class FakeCanvas extends FakeNode {
     if (kind !== "2d") return null;
     return {
       clearRect: () => {},
-      drawImage: () => {},
+      drawImage: (source, x, y, width, height) => {
+        domState.canvasCalls.push({
+          width: this.width, height: this.height,
+          sourceWidth: source.width, sourceHeight: source.height,
+          x, y, drawWidth: width, drawHeight: height,
+        });
+      },
       getImageData: (x, y, w, h) => {
         const data = new Uint8ClampedArray(w * h * 4);
         data[0] = domState.rasterSeq;
@@ -106,20 +115,53 @@ globalThis.document = {
 
 const { exportGrowthGif } = await import(new URL("growth/exportGif.mjs", cacheDir).href);
 const { buildFixtureScene } = await import(new URL("growth/fixture.mjs", cacheDir).href);
+const { GrowthAnimation } = await import(new URL("growth/GrowthAnimation.mjs", cacheDir).href);
+const { createElement } = await import("react");
+const { renderToString } = await import("react-dom/server");
+
+test("rooftop LOC follows growth from the start and date pages survive seeking", () => {
+  const scene = buildFixtureScene();
+  const frame = (progress, value = scene) => renderToString(createElement(GrowthAnimation, { scene: value, progress }));
+  const early = frame(0.13);
+  const middle = frame(0.5);
+  const final = frame(1);
+  const loc = (html) => Number(/data-language="JavaScript" data-loc="(\d+)"/.exec(html)[1]);
+  assert.ok(early.includes("growth-city-label"));
+  assert.ok(loc(early) < loc(middle));
+  assert.ok(loc(middle) < loc(final));
+  assert.equal(loc(final), scene.samples.at(-1).city.find((block) => block.name === "JavaScript").value);
+  assert.equal(frame(0.13), early);
+  assert.ok(middle.includes("growth-date-leaf"));
+  assert.ok(final.includes(`dateTime="${scene.samples.at(-1).date}"`));
+  assert.ok(!final.includes("growth-tl-"));
+  assert.ok(final.includes("translate(-238px,"));
+  assert.ok(final.includes('class="growth-stars-summary growth-num"'));
+  assert.ok(final.includes(`data-stars="${scene.starsNow}"`));
+  assert.ok(!final.includes("growth-playback-hit"));
+  const interactive = renderToString(createElement(GrowthAnimation, {
+    scene, progress: 1, playing: false, playbackLabel: "Replay", onTogglePlayback: () => {},
+  }));
+  assert.ok(interactive.includes('class="growth-playback-hit"'));
+  assert.ok(!interactive.includes('class="growth-paused"'));
+  const compact = { ...scene, variant: "compact", samples: scene.samples.slice(-1), dips: [] };
+  assert.ok(frame(0.5, compact).includes(`dateTime="${compact.samples[0].date}"`));
+});
 
 // ---------------------------------------------------------------------------
 // Harness: fake deps whose loaders record every call. `failOnFrame` makes
 // toCanvas throw when the host holds that frame index (error-path test).
 // ---------------------------------------------------------------------------
-function makeHarness({ failOnFrame } = {}) {
+function makeHarness({ failOnFrame, fontsReady } = {}) {
   domState.rasterSeq = 0;
+  domState.canvasCalls = [];
   document.body.children.length = 0;
+  document.fonts = fontsReady === undefined ? undefined : { ready: fontsReady };
   const log = {
-    rasterCalls: [], // { frame, progress, options, attached, host, htmlLength, htmlHasStage }
+    rasterCalls: [], // { frame, progress, options, attached, style, htmlLength, htmlHasStage }
+    canvasCalls: domState.canvasCalls,
     quantizeCalls: [], // { data, maxColors }
     applyCalls: [], // { data, palette }
     frames: [], // writeFrame(indexed, width, height, options)
-    progress: [], // [done, total]
     encoderOptions: null,
     finished: false,
   };
@@ -172,8 +214,8 @@ function makeHarness({ failOnFrame } = {}) {
         htmlHasStage: host.innerHTML.includes("growth-stage"),
       });
       const canvas = new FakeCanvas();
-      canvas.width = 640;
-      canvas.height = 360;
+      canvas.width = 1280;
+      canvas.height = 720;
       return canvas;
     },
   };
@@ -182,22 +224,31 @@ function makeHarness({ failOnFrame } = {}) {
 
 const isAbortError = (error) => error instanceof DOMException && error.name === "AbortError";
 
-test("full export: 100 frames, every delay 100ms at 640x360, progress 0 -> 1 monotonically", async () => {
+test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 monotonically", async () => {
   const { log, deps } = makeHarness();
   const seen = [];
   const result = await exportGrowthGif(
     buildFixtureScene(),
     "facebook",
     "react",
-    { variant: "full", onProgress: (done, total) => seen.push([done, total]) },
+    { onProgress: (done, total) => seen.push([done, total]) },
     deps,
   );
 
   assert.equal(log.frames.length, 100);
   for (const frame of log.frames) {
     assert.equal(frame.options.delay, 100, "frame delay must be 100ms (10fps)");
-    assert.equal(frame.width, 640);
-    assert.equal(frame.height, 360);
+    assert.equal(frame.width, 1280);
+    assert.equal(frame.height, 720);
+  }
+  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 10000);
+  assert.equal(log.canvasCalls.length, 100);
+  for (const call of log.canvasCalls) {
+    assert.deepEqual(call, {
+      width: 1280, height: 720,
+      sourceWidth: 1280, sourceHeight: 720,
+      x: 0, y: 0, drawWidth: 1280, drawHeight: 720,
+    });
   }
 
   // Rasterization order: the palette seed frame (35) first, then every frame
@@ -213,19 +264,22 @@ test("full export: 100 frames, every delay 100ms at 640x360, progress 0 -> 1 mon
     assert.ok(frameProgresses[i] > frameProgresses[i - 1], `frame ${i} progress went backwards`);
   }
 
-  // The hidden-host contract: parked offscreen, 640px wide, inert, scale 0.5.
+  // The hidden-host contract: parked offscreen, 1280px wide, inert, scale 1.
   const host = log.rasterCalls[0];
   assert.equal(host.ariaHidden, "true");
   assert.deepEqual(host.style, {
     position: "fixed",
     left: "-99999px",
-    width: "640px",
+    width: "1280px",
     pointerEvents: "none",
-    scaleVar: "0.5",
+    scaleVar: "1",
   });
   assert.ok(log.rasterCalls.every((call) => call.attached), "host must be live in the document while rasterizing");
   // The clone must be re-parked on-canvas or html-to-image clips to nothing.
-  assert.deepEqual(log.rasterCalls[0].options, { pixelRatio: 1, style: { position: "static", left: "0", top: "0" } });
+  assert.ok(log.rasterCalls.every((call) => {
+    assert.deepEqual(call.options, { pixelRatio: 1, style: { position: "static", left: "0", top: "0" } });
+    return true;
+  }));
 
   // The real GrowthAnimation ran per frame: markup present, varying with p.
   assert.ok(log.rasterCalls.every((call) => call.htmlHasStage));
@@ -247,53 +301,66 @@ test("full export: 100 frames, every delay 100ms at 640x360, progress 0 -> 1 mon
   assert.equal(document.body.children.length, 0, "host removed after success");
 });
 
-test("variant defaults to the scene's own variant", async () => {
-  const full = makeHarness();
-  await exportGrowthGif(buildFixtureScene(), "facebook", "react", {}, full.deps);
-  assert.equal(full.log.frames.length, 100); // fixture scene is variant "full"
-
-  const compactScene = { ...buildFixtureScene(), variant: "compact" };
-  const compact = makeHarness();
-  await exportGrowthGif(compactScene, "facebook", "react", {}, compact.deps);
-  assert.equal(compact.log.frames.length, 60);
-});
-
-test("compact export: 60 frames linear across scene seconds 1.2 -> 10, first 0.12 and last 1", async () => {
+test("compact scenes export all 100 frames across the complete 10-second timeline", async () => {
   const { log, deps } = makeHarness();
   const seen = [];
+  const scene = buildFixtureScene();
+  const compactScene = { ...scene, variant: "compact", samples: scene.samples.slice(-1), dips: [] };
   await exportGrowthGif(
-    buildFixtureScene(),
+    compactScene,
     "facebook",
     "react",
-    { variant: "compact", onProgress: (done, total) => seen.push([done, total]) },
+    { onProgress: (done, total) => seen.push([done, total]) },
     deps,
   );
 
-  assert.equal(log.frames.length, 60);
-  assert.equal(log.rasterCalls.length, 60);
-  // Seed frame rasterized first, then frames in order with 35 cached.
+  assert.equal(log.frames.length, 100);
+  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 10000);
+  assert.equal(log.rasterCalls.length, 100);
   assert.equal(log.rasterCalls[0].frame, 35);
   const rest = log.rasterCalls.slice(1);
-  assert.equal(rest.length, 59);
+  assert.equal(rest.length, 99);
   for (let i = 0; i < rest.length; i += 1) {
     assert.equal(rest[i].frame, i < 35 ? i : i + 1, `rasterization ${i + 1} ran on the wrong frame`);
   }
-  const progressOf = (frameIndex) =>
-    (frameIndex === 35 ? log.rasterCalls[0] : rest[frameIndex < 35 ? frameIndex : frameIndex - 1]).progress;
-  assert.ok(Math.abs(progressOf(0) - 1.2 / 10) < 1e-12, "compact skips the 1.2s hook act");
-  assert.ok(Math.abs(progressOf(59) - 1) < 1e-12);
-  const step = progressOf(1) - progressOf(0);
-  for (let i = 1; i < 60; i += 1) {
-    assert.ok(Math.abs(progressOf(i) - progressOf(i - 1) - step) < 1e-12, `frame ${i} broke linearity`);
+  for (const call of log.rasterCalls) {
+    assert.ok(Math.abs(call.progress - call.frame / 99) < 1e-12, `frame ${call.frame} skipped part of the timeline`);
   }
-  // The palette seed stays frame 35 of the frame list even in compact.
-  assert.ok(Math.abs(progressOf(35) - ((1.2 + (35 / 59) * 8.8) / 10)) < 1e-12);
-  assert.deepEqual(seen[seen.length - 1], [60, 60]);
+  assert.equal(rest[0].progress, 0);
+  assert.equal(rest.at(-1).progress, 1);
+  assert.equal(seen.length, 100);
+  assert.deepEqual(seen[0], [1, 100]);
+  assert.deepEqual(seen.at(-1), [100, 100]);
+});
+
+test("font readiness resolves before the seed frame is rasterized", async () => {
+  let releaseFonts;
+  let markFontWait;
+  const fontWaitStarted = new Promise((resolve) => { markFontWait = resolve; });
+  const fontsReady = new Promise((resolve) => { releaseFonts = resolve; });
+  const { log, deps } = makeHarness({ fontsReady });
+  Object.defineProperty(document.fonts, "ready", {
+    get() {
+      markFontWait();
+      return fontsReady;
+    },
+  });
+  const exporting = exportGrowthGif(buildFixtureScene(), "facebook", "react", {}, deps);
+  await fontWaitStarted;
+  assert.equal(document.body.children.length, 1);
+  assert.equal(log.rasterCalls.length, 0);
+  assert.equal(log.quantizeCalls.length, 0);
+  assert.equal(log.frames.length, 0);
+  releaseFonts();
+  await exporting;
+  assert.equal(log.rasterCalls[0].frame, 35);
+  assert.equal(log.frames.length, 100);
+  assert.equal(document.body.children.length, 0);
 });
 
 test("palette: quantized exactly once from the seed frame and reused for every frame", async () => {
   const { log, deps, palette } = makeHarness();
-  await exportGrowthGif(buildFixtureScene(), "facebook", "react", { variant: "full" }, deps);
+  await exportGrowthGif(buildFixtureScene(), "facebook", "react", {}, deps);
 
   assert.equal(log.quantizeCalls.length, 1);
   assert.equal(log.quantizeCalls[0].maxColors, 256);
@@ -325,7 +392,6 @@ test("aborting around frame 10 rejects with AbortError and removes the host", as
       "facebook",
       "react",
       {
-        variant: "full",
         signal: controller.signal,
         onProgress: (done) => {
           seen.push(done);
@@ -368,6 +434,6 @@ test("a rasterization failure rejects and still removes the host", async () => {
 
 test("filename interpolates owner and repo", async () => {
   const { deps } = makeHarness();
-  const result = await exportGrowthGif(buildFixtureScene(), "vercel", "next.js", { variant: "compact" }, deps);
+  const result = await exportGrowthGif(buildFixtureScene(), "vercel", "next.js", {}, deps);
   assert.equal(result.filename, "octocounts-vercel-next.js-growth.gif");
 });

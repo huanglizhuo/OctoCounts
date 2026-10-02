@@ -632,16 +632,24 @@
       "reducedMotionNote": "已暂停 —— 点击播放",
       "exportGif": "导出 GIF",
       "exportFull": "10 秒",
-      "exportCompact": "6 秒",
       "exporting": "导出中 {{percent}}%",
       "cancelExport": "取消",
       "exportFailed": "GIF 导出失败，请重试。",
-      "divergedNote": "结尾表格采用当前报告的分析选项，与历史序列口径不同，数字可能与计数器不一致。",
+      "divergedNote": "结尾指标采用当前报告的分析选项，与历史序列口径不同，数字可能与计数器不一致。",
       "thisReport": "当前报告：{{count}}",
       "historyData": "历史数据",
       "historyDate": "日期",
       "historyCode": "行代码",
-      "historyStars": "Star 数"
+      "historyStars": "Star 数",
+      "beaconAria": "仓库 Star 数",
+      "metricFiles": "文件",
+      "metricCode": "代码",
+      "metricComments": "注释",
+      "metricBlanks": "空行",
+      "metricSpan": "跨度",
+      "otherShort": "其他",
+      "otherBlock_one": "其他（{{count}} 门）",
+      "otherBlock_other": "其他（{{count}} 门）"
     }
   },
   "textReport": {

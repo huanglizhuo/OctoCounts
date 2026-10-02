@@ -25,7 +25,8 @@
     "lucide-react": "^0.503.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^17.0.7"
+    "react-i18next": "^17.0.7",
+    "simple-icons": "^16.33.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

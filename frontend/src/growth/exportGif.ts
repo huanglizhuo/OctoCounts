@@ -1,43 +1,17 @@
-// GIF export for the growth animation (GROWTH-ANIMATION-PLAN.md §5).
+// GIF export renders the full growth timeline at the native 1280x720
+// design resolution: 100 frames at 10fps, including low-sample scenes.
+// renderToString runs no effects, so the exporter sets --growth-scale to 1
+// on the hidden host and waits for document fonts before rasterizing.
+// html-to-image embeds @font-face rules and copies resolved styles from
+// the live subtree. Frame progress is deterministic.
 //
-// The renderer is a pure function of (scene, progress), so exporting is just
-// stepping it: render each frame into a hidden 640x360 host, rasterize the
-// host with html-to-image, and stream the frames through gifenc at 10fps.
-// Nothing here reads a clock or a random source — frame N of an export is
-// pixel-identical to what the on-page player shows at that progress.
-//
-// Render path decision: react-dom/server's renderToString per frame into the
-// live host's innerHTML (dynamically imported, so react-dom/server stays out
-// of the growth chunk until an export actually starts). The component is
-// pure and its only effect is the ResizeObserver that scales the 1280x720
-// design stage into its wrapper — the exporter owns the host width and sets
-// --growth-scale itself (renderToString runs no effects), which covers
-// exactly what that observer would have computed (640/1280 = 0.5). Fonts:
-// html-to-image embeds @font-face rules by parsing the document stylesheets
-// and inlining the woff2 files, and it copies RESOLVED computed styles from
-// the live subtree — both are independent of who created the DOM under the
-// host (the earlier history-chart GIF export relied on exactly this,
-// document-font text included). Real-browser verification of the embedded
-// font is Wave-3 QA; should it fail there, the swap is local to `rasterize`
-// below (a createRoot + flushSync live root renders the same component).
-//
-// Palette: quantizing per frame lets two near-identical frames pick
-// slightly different color tables, which plays back as flicker — the
-// original history-chart GIF palette documented the same determinism
-// requirement. The growth scene's inventory is too rich for a hand-written
-// table (language colors from the scene, the amber dip accent, the GitHub
-// gray #57606a, anti-aliased text over theme backgrounds), so the palette
-// is quantized ONCE from a mid-data-act seed frame — frame 35, which
-// already shows the race colors, the dip beat, and the terminal text — and
-// that single table maps every frame. If the seed frame carries more than
-// 256 distinct colors, quantize collapses them there, once, deterministically.
+// Quantize once from frame 35 and reuse that palette for every frame to
+// prevent color-table flicker. Keep the seed pixels for that frame's encode.
 import { createElement } from "react";
 import { GrowthAnimation } from "./GrowthAnimation";
 import type { GrowthScene } from "./types";
 
 export type GrowthGifOptions = {
-  /** Frame plan: "full" = the whole 10s template (100 frames); "compact" = 60 frames skipping the hook act. Defaults to the scene's own variant. */
-  variant?: "full" | "compact";
   /** Called after each encoded frame with (framesDone, framesTotal). */
   onProgress?: (done: number, total: number) => void;
   /** Aborting between frames rejects with a DOMException "AbortError" after cleaning up the export host. */
@@ -66,36 +40,19 @@ const defaultDeps: GrowthGifDeps = {
   loadEncoder: () => import("gifenc"),
 };
 
-// 640x360 (the 1280x720 design canvas at exactly 1/2) at 10fps. The 10s
-// template gives full = 100 frames at progress i/99; compact re-times 60
-// frames linearly across scene seconds 1.2 -> 10, skipping the terminal
-// hook act: progress = (1.2 + (i / 59) * 8.8) / 10.
-const EXPORT_WIDTH = 640;
-const EXPORT_HEIGHT = 360;
+const EXPORT_WIDTH = 1280;
+const EXPORT_HEIGHT = 720;
 const FRAME_DELAY_MS = 100;
-const FULL_FRAMES = 100;
-const COMPACT_FRAMES = 60;
-const COMPACT_START_SEC = 1.2;
-const COMPACT_SPAN_SEC = 8.8;
-const TEMPLATE_SEC = 10;
+const TOTAL_FRAMES = 100;
 const PALETTE_SEED_FRAME = 35;
 const MAX_COLORS = 256;
 
-function frameProgresses(variant: "full" | "compact"): number[] {
-  if (variant === "compact") {
-    return Array.from(
-      { length: COMPACT_FRAMES },
-      (_, i) => (COMPACT_START_SEC + (i / (COMPACT_FRAMES - 1)) * COMPACT_SPAN_SEC) / TEMPLATE_SEC,
-    );
-  }
-  return Array.from({ length: FULL_FRAMES }, (_, i) => i / (FULL_FRAMES - 1));
+function frameProgresses(): number[] {
+  return Array.from({ length: TOTAL_FRAMES }, (_, i) => i / (TOTAL_FRAMES - 1));
 }
 
-// The hidden export host: parked offscreen, never interactive, exactly one
-// 640px-wide wrapper — the component inside renders 640x360 by its own
-// aspect-ratio + scale rules. data-frame/data-progress mark which frame the
-// host currently holds (inspectable when a real-browser export misbehaves;
-// the tests read them back through the rasterizer fake).
+// data-frame/data-progress expose the hidden host's current frame to the
+// rasterizer harness and browser diagnostics.
 function createExportHost(): HTMLDivElement {
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -104,11 +61,7 @@ function createExportHost(): HTMLDivElement {
   host.style.left = "-99999px";
   host.style.width = `${EXPORT_WIDTH}px`;
   host.style.pointerEvents = "none";
-  // At 640px wide the 1280x720 design stage scales by exactly 0.5. The
-  // component would set this var from an effect; renderToString never runs
-  // effects, so the export sets it here. Custom properties inherit, so it
-  // reaches .growth-stage through .growth-wrap.
-  host.style.setProperty("--growth-scale", "0.5");
+  host.style.setProperty("--growth-scale", "1");
   return host;
 }
 
@@ -119,7 +72,7 @@ export async function exportGrowthGif(
   options: GrowthGifOptions = {},
   deps: GrowthGifDeps = defaultDeps,
 ): Promise<{ blob: Blob; filename: string }> {
-  const progresses = frameProgresses(options.variant ?? scene.variant);
+  const progresses = frameProgresses();
   const total = progresses.length;
   const signal = options.signal;
   const host = createExportHost();
@@ -132,6 +85,8 @@ export async function exportGrowthGif(
       deps.loadEncoder(),
       import("react-dom/server"),
     ]);
+    await document.fonts?.ready;
+    if (signal?.aborted) throw abortError();
     const shared = document.createElement("canvas");
     shared.width = EXPORT_WIDTH;
     shared.height = EXPORT_HEIGHT;
@@ -139,9 +94,8 @@ export async function exportGrowthGif(
     if (!ctx) throw new Error("growth GIF export: no 2D canvas context");
     const gif = gifenc.GIFEncoder({ auto: true });
 
-    // One frame: render at `progress` into the live host, rasterize the
-    // host, and normalize onto the shared 640x360 canvas (pixelRatio 1;
-    // drawImage rescales any rounding html-to-image measured on its own).
+    // Render into the live host and copy onto the native 1280x720 canvas
+    // at pixelRatio 1. drawImage handles any rasterizer rounding.
     const rasterize = async (frameIndex: number): Promise<ImageData> => {
       host.setAttribute("data-frame", String(frameIndex));
       host.setAttribute("data-progress", String(progresses[frameIndex]));

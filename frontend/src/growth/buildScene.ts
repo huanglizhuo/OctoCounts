@@ -7,15 +7,29 @@
 // real API data. Historical per-language splits are MODELED by scaling each
 // language's current share against every sample's real code total — v1 until
 // the backend samples per-language history.
-import type { GrowthDip, GrowthLanguage, GrowthSample, GrowthScene, GrowthTableRow, GrowthSceneInput } from "./types";
+//
+// v1.1 (code city): each sample additionally carries a squarified-treemap
+// ground layout (footprint area ∝ code) and per-building heights in design
+// px, plus per-face colors derived from the injected language palette — the
+// renderer never runs color or layout math.
+import type {
+  GrowthCityBlock,
+  GrowthDip,
+  GrowthLanguage,
+  GrowthSample,
+  GrowthScene,
+  GrowthTableRow,
+  GrowthSceneInput,
+} from "./types";
 import type { Stats } from "../types";
+import { languageLogo } from "./languageLogos";
 
-// Fixed template beat sheet (seconds within durationMs) — plan §4. Compact
-// scenes keep the same timings; the renderer simply omits the race bars.
+// Fixed template beat sheet (seconds within durationMs) — plan §4. v1.1: the
+// morph act is gone; the finale (rooftop labels + metric bar) starts right
+// where the data act locks, and staticFrom is unchanged.
 const DURATION_MS = 10000;
 const DATA_ACT = { startTime: 1.2, endTime: 8.5, finalLock: 8.5 };
-const MORPH_ACT = { startTime: 8.55, endTime: 9.3 };
-const FINALE_ACT = { startTime: 9.3, endTime: 10, staticFrom: 9.6 };
+const FINALE_ACT = { startTime: 8.5, endTime: 10, staticFrom: 9.6 };
 
 // A drop between adjacent samples counts as a dip only above this ratio
 // (toValue < fromValue × 0.7 means more than 30% of the code vanished —
@@ -24,11 +38,24 @@ const DIP_RATIO = 0.7;
 // The finale table mirrors the report page's demo truncation semantics
 // (DEMO_LANGUAGE_LIMIT in Charts.tsx): top N by code, tail merged into Other.
 const TABLE_LIMIT = 10;
-// The morph act's bar→ring geometry is built for six arcs.
-const MORPH_ARCS = 6;
+// The city caps its skyline at this many buildings; the tail merges into one
+// gray "Other (N more)" block (same semantics as TABLE_LIMIT's Other row).
+const CITY_LIMIT = 8;
+// The ground plane is a normalized 100×100 grid; the renderer projects it
+// isometrically. Building heights are design px on the 1280×720 stage.
+const GROUND_SIZE = 100;
+// The tallest building across the whole series tops out here (design px on
+// the 1280×720 stage), so heights stay comparable frame to frame.
+export const MAX_BUILDING_H = 180;
 // Neutral GitHub-gray fallback for languages missing a resolved color, and
-// for the merged Other row (which is not a language at all).
+// for merged Other blocks (which are not a language at all).
 const FALLBACK_COLOR = "#57606a";
+
+// Face shading: roof lightened, right face darkened, left face is the
+// language color verbatim. Derived here so the GIF palette is a function of
+// the scene alone (the renderer does no color math).
+const TOP_FACTOR = 1.28;
+const RIGHT_FACTOR = 0.66;
 
 export function buildScene(input: GrowthSceneInput): GrowthScene {
   const { report, history, languageColors } = input;
@@ -38,24 +65,25 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
   const prompt = `octocounts ${owner}/${repo}`;
 
   // --- Languages -----------------------------------------------------------
-  // Zero-current-code languages (e.g. a Markdown-only docs dir) never race:
+  // Zero-current-code languages (e.g. a Markdown-only docs dir) never rise:
   // their lines surface only in the finale's merged Other row, so they are
   // excluded from the tracks AND from the per-sample model below.
   const totalCode = report.total.code;
   const sortedByCode = [...report.languages].sort((a, b) => b.stats.code - a.stats.code);
   const languages: GrowthLanguage[] = sortedByCode
     .filter((language) => language.stats.code > 0)
-    .map((language) => ({
-      name: language.name,
-      color: languageColors[language.name] ?? FALLBACK_COLOR,
-      currentCode: language.stats.code,
-      // Real share of the latest commit's code; the model below renormalizes
-      // against each sample so float drift can never accumulate.
-      currentShare: totalCode > 0 ? (language.stats.code / totalCode) * 100 : 0,
-      // v1 models every language from sample 0; v2 real entrance dates swap
-      // in here without touching the renderer.
-      entersAtSample: 0,
-    }));
+    .map((language) => {
+      const color = languageColors[language.name] ?? FALLBACK_COLOR;
+      return {
+        name: language.name,
+        color,
+        ...deriveFaceColors(color),
+        currentCode: language.stats.code,
+        // Real share of the latest commit's code; the model below
+        // renormalizes against each sample so float drift never accumulates.
+        currentShare: totalCode > 0 ? (language.stats.code / totalCode) * 100 : 0,
+      };
+    });
   const leadingLanguage = languages.length > 0 ? languages[0].name : "";
 
   // --- Samples ---------------------------------------------------------------
@@ -79,7 +107,19 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
       code: point.totalLines,
       stars,
       languageCode: modelLanguageCode(languages, point.totalLines),
+      city: [], // laid out below, once the global height scale is known
     };
+  });
+
+  // --- City layouts -----------------------------------------------------------
+  // Heights are anchored to the tallest block across the WHOLE series (a
+  // merged Other block can out-tower any single language), so a building's
+  // height is comparable frame to frame and dips visibly sink the skyline.
+  const cityValues = samples.map((sample) => cityEntries(languages, sample.languageCode));
+  const peak = cityValues.reduce((max, entries) => Math.max(max, ...entries.map((entry) => entry.value), 0), 0);
+  const heightScale = peak > 0 ? MAX_BUILDING_H / peak : 0;
+  samples.forEach((sample, i) => {
+    sample.city = layoutCity(cityValues[i], heightScale);
   });
 
   // --- Dips ------------------------------------------------------------------
@@ -92,19 +132,7 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
     }
   }
 
-  // --- Morph act: top-6 stack order and ring shares ---------------------------
-  const topArcs = languages.slice(0, MORPH_ARCS);
-  const arcTotal = topArcs.reduce((sum, language) => sum + language.currentCode, 0);
-  const rawShares = topArcs.map((language) =>
-    arcTotal > 0 ? (language.currentCode / arcTotal) * 100 : 100 / topArcs.length,
-  );
-  const ringShares = largestRemainder(rawShares, 100).map((share, i) => ({
-    name: topArcs[i].name,
-    share,
-    color: topArcs[i].color,
-  }));
-
-  // --- Finale stats view -------------------------------------------------------
+  // --- Finale stats payload ----------------------------------------------------
   const shownRows = sortedByCode.slice(0, TABLE_LIMIT);
   const tailRows = sortedByCode.slice(TABLE_LIMIT);
   const tableRows: GrowthTableRow[] = shownRows.map((language) => ({
@@ -125,8 +153,8 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
     repoFullName: `${owner}/${repo}`,
     provider: history.provider,
     durationMs: DURATION_MS,
-    // <3 samples cannot pace a race act; the renderer degrades to
-    // count-up + morph + finale with the same beat sheet (plan §10).
+    // <3 samples cannot pace a growth act; the renderer rises straight to the
+    // final skyline on the same beat sheet (plan §10).
     variant: samples.length < 3 ? "compact" : "full",
     languages,
     samples,
@@ -148,25 +176,164 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
       tableCaption: `top ${Math.min(TABLE_LIMIT, report.languages.length)} of ${report.languages.length} languages`,
       tableRows,
       // Always the FULL report's totals, never the top-N sum, so the closing
-      // TOTAL row keeps reporting the real repository (Charts.tsx semantics).
+      // metrics keep reporting the real repository (Charts.tsx semantics).
       totalRow: { ...report.total },
     },
     acts: {
       hook: { prompt },
       data: { ...DATA_ACT },
-      morph: {
-        ...MORPH_ACT,
-        stackOrder: topArcs.map((language) => language.name),
-        ringShares,
-      },
       finale: { ...FINALE_ACT },
     },
   };
 }
 
+// ---------------------------------------------------------------------------
+// City layout. Two exported helpers so fixture.ts builds scenes through the
+// exact same geometry the product uses (no duplicated treemap to drift).
+
+// The shading trio for one base color: the roof is lightened, the right face
+// darkened, the left face is the base verbatim. Non-hex input (defensive —
+// callers inject resolved hex) falls back to the base on all faces.
+export function deriveFaceColors(color: string): { colorTop: string; colorRight: string } {
+  const rgb = /^#([0-9a-f]{6})$/i.exec(color);
+  if (!rgb) return { colorTop: color, colorRight: color };
+  const channels = [0, 2, 4].map((i) => parseInt(rgb[1].slice(i, i + 2), 16));
+  const scale = (factor: number) =>
+    `#${channels.map((c) => Math.round(Math.min(255, c * factor)).toString(16).padStart(2, "0")).join("")}`;
+  return { colorTop: scale(TOP_FACTOR), colorRight: scale(RIGHT_FACTOR) };
+}
+
+// One block per language with code > 0, tail merged into "Other (N more)"
+// past CITY_LIMIT, then squarified over the 100×100 ground with footprints
+// ∝ value and heights = value × heightScale (design px).
+export function layoutCity(
+  entries: Array<{ name: string; value: number; color: string }>,
+  heightScale: number,
+): GrowthCityBlock[] {
+  const positive = entries.filter((entry) => entry.value > 0);
+  const tail = positive.slice(CITY_LIMIT - 1);
+  const blocks = (
+    positive.length > CITY_LIMIT
+      ? [
+          ...positive.slice(0, CITY_LIMIT - 1),
+          {
+            name: `Other (${tail.length} more)`,
+            value: tail.reduce((sum, entry) => sum + entry.value, 0),
+            color: FALLBACK_COLOR,
+            merged: tail.length,
+          },
+        ]
+      : positive
+  ).sort((a, b) => b.value - a.value); // squarify wants desc; Other ranks by its merged sum
+  const rects = squarify(blocks.map((block) => block.value));
+  return blocks.map((block, i) => {
+    const faces = deriveFaceColors(block.color);
+    const logo = languageLogo(block.name, faces.colorTop);
+    return {
+      name: block.name,
+      value: block.value,
+      rect: rects[i],
+      height: block.value * heightScale,
+      color: block.color,
+      ...faces,
+      ...(logo ? { logo } : {}),
+      ...("merged" in block ? { merged: block.merged } : {}),
+    };
+  });
+}
+
+// The per-sample block list before layout: every modeled language with code,
+// sorted desc (the city's visual hierarchy and the renderer's entrance
+// stagger both follow this order).
+function cityEntries(
+  languages: GrowthLanguage[],
+  languageCode: Record<string, number>,
+): Array<{ name: string; value: number; color: string }> {
+  return languages
+    .map((language) => ({
+      name: language.name,
+      value: languageCode[language.name] ?? 0,
+      color: language.color,
+    }))
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+// Squarified treemap (Bruls–Huizing–van Wijk) over the GROUND_SIZE² plane:
+// values are scaled to the plane area, packed into rows along the current
+// rect's short side, and a row closes when adding the next item would worsen
+// its worst aspect ratio. Output rects stay in input order, tile the plane
+// exactly (float dust clamped back into bounds), and never overlap.
+function squarify(values: number[]): Array<{ x: number; y: number; w: number; h: number }> {
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (total <= 0 || values.length === 0) return [];
+  const areas = values.map((value) => (value / total) * GROUND_SIZE * GROUND_SIZE);
+  const rects: Array<{ x: number; y: number; w: number; h: number }> = [];
+  let x = 0;
+  let y = 0;
+  let w = GROUND_SIZE;
+  let h = GROUND_SIZE;
+  let row: number[] = [];
+
+  // Worst (least square) aspect ratio a row would produce along `side`.
+  const worst = (indices: number[], side: number) => {
+    const sum = indices.reduce((acc, i) => acc + areas[i], 0);
+    const max = Math.max(...indices.map((i) => areas[i]));
+    const min = Math.min(...indices.map((i) => areas[i]));
+    return Math.max((side * side * max) / (sum * sum), (sum * sum) / (side * side * min));
+  };
+
+  const layoutRow = () => {
+    const rowArea = row.reduce((sum, i) => sum + areas[i], 0);
+    if (w >= h) {
+      // vertical strip on the left of the remaining rect
+      const stripW = rowArea / h;
+      let cy = y;
+      for (const i of row) {
+        const ih = areas[i] / stripW;
+        rects[i] = { x, y: cy, w: stripW, h: ih };
+        cy += ih;
+      }
+      x += stripW;
+      w -= stripW;
+    } else {
+      // horizontal strip across the top
+      const stripH = rowArea / w;
+      let cx = x;
+      for (const i of row) {
+        const iw = areas[i] / stripH;
+        rects[i] = { x: cx, y, w: iw, h: stripH };
+        cx += iw;
+      }
+      y += stripH;
+      h -= stripH;
+    }
+    row = [];
+  };
+
+  for (let i = 0; i < areas.length; i += 1) {
+    const side = Math.min(w, h);
+    if (row.length > 0 && worst([...row, i], side) > worst(row, side)) layoutRow();
+    row.push(i);
+  }
+  if (row.length > 0) layoutRow();
+
+  // Clamp float dust so every rect sits exactly inside the plane.
+  return rects.map((rect) => {
+    const cx = clamp(rect.x, 0, GROUND_SIZE);
+    const cy = clamp(rect.y, 0, GROUND_SIZE);
+    return {
+      x: cx,
+      y: cy,
+      w: clamp(rect.w, 0, GROUND_SIZE - cx),
+      h: clamp(rect.h, 0, GROUND_SIZE - cy),
+    };
+  });
+}
+
 // Modeled per-language code at one sample: current share × the sample's real
 // code total, then largest-remainder rounded so the tracks sum to the sample
-// exactly — the counter and the stacked bars can never disagree by a line.
+// exactly — the counter and the skyline can never disagree by a line.
 function modelLanguageCode(languages: GrowthLanguage[], sampleCode: number): Record<string, number> {
   const raw = languages.map((language) => (language.currentShare / 100) * sampleCode);
   const rounded = largestRemainder(raw, sampleCode);
@@ -216,6 +383,8 @@ function sumStats(rows: Stats[]): Stats {
     { files: 0, lines: 0, code: 0, comments: 0, blanks: 0 },
   );
 }
+
+const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
 // UTC day number for a "YYYY-MM-DD" string: date-only strings parse the same
 // in every timezone, and day arithmetic (dayOffset, ordering) stays exact.

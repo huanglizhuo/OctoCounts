@@ -1466,7 +1466,9 @@ test("the prerendered homepage is the app's real first paint with real FAQ conte
   assert.match(html, /<h1 id="hero-title"/);
   assert.match(html, /<input id="repo-url"/);
   assert.match(html, /<input id="repo-ref"/);
-  assert.match(html, /537,565/); // demo seed's exact JavaScript code-line count
+  const seed = JSON.parse(await readFile(new URL("src/initialReport.json", ROOT), "utf8"));
+  const javascript = seed.languages.find((language) => language.name === "JavaScript");
+  assert.ok(html.includes(new Intl.NumberFormat("en-US").format(javascript.stats.code)));
   assert.ok((html.match(/class="step"/g) ?? []).length >= 4, "how-it-works / use-case steps render");
   for (const item of HOME_FAQ.en) {
     assert.ok(html.includes(`<h3>${item.question}</h3>`), item.question);

@@ -1,37 +1,40 @@
-// The growth-animation renderer. Renders THE SINGLE FRAME of the approved
-// 10s four-act template (octocounts-growth-demo) at a given progress — a
-// pure function of (scene, progress): no clocks, no state, no effect that
-// touches the DOM by time. The Wave-2 player drives progress via rAF and
-// the GIF exporter steps it frame by frame; both get pixel-identical
-// frames because every value below derives from `progress` alone.
+// The growth-animation renderer. Renders THE SINGLE FRAME of the 10s
+// template at a given progress — a pure function of (scene, progress): no
+// clocks, no state, no effect that touches the DOM by time. The player
+// drives progress via rAF and the GIF exporter steps it frame by frame;
+// both get pixel-identical frames because every value below derives from
+// `progress` alone.
 //
-// Geometry: a fixed 1280x720 design canvas — the demo's 1920x1080 at
-// exactly 2/3 scale — scaled into whatever width the wrapper measures,
-// via the same ResizeObserver/CSS-var pattern as the share card
-// (Share.tsx useElementScale). All inner layout is design px; provenance
-// comments cite the demo values being ported. The ring keeps the demo's
-// 1:1 dasharray math (r=180, stroke-width=62, C=2*pi*180 inside a 520
-// viewBox) and is simply rendered at 2/3 size.
+// v1.1 — isometric code city. Each language is a building: footprint ∝ its
+// share of the code (squarified treemap layout baked into every sample by
+// buildScene), height ∝ its lines (design px, baked). The renderer projects
+// the 100×100 ground plane with the standard 2:1 isometric projection into
+// pure SVG polygons (no CSS 3D, no canvas) and interpolates rects/heights
+// between adjacent samples by block name. All colors arrive pre-derived in
+// the scene — this file does no color math (GIF palette determinism).
 //
-// Act map (screen seconds; timings come from scene.acts, values in
-// comments are the demo beats this ports):
+// Geometry: a fixed 1280x720 design canvas scaled into whatever width the
+// wrapper measures, via the same ResizeObserver/CSS-var pattern as the
+// share card (Share.tsx useElementScale). All inner layout is design px.
+//
+// Act map (screen seconds; timings come from scene.acts):
 //   0.0-1.2  hook     terminal typing + repo title, counter boot ramp
-//   1.2-8.5  data     counter follows the sample clock (dip segments hold
-//                    then drop), 6-language race, dip beats (amber counter
-//                    + annotation), date timeline strip, stars HUD
-//   8.55-9.3 morph    race bars collapse to one stacked bar centered on
-//                    the finale ring, then dissolve as the six ring arcs
-//                    grow (staggered, JS first)
-//   9.3-10   finale   stats card assembles around the ring; static 9.6+
+//   1.2-8.5  data     empty lot → buildings rise (rank-staggered), heights
+//                     follow the sample clock (dip segments hold then drop —
+//                     the skyline visibly sinks), dip beats (amber flash +
+//                     annotation), live rooftop LOC, flipping date cards,
+//                     stars beacon on the tallest roof
+//   8.5-10   finale   metric bar slides in; date and city settle; static 9.6+
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { formatCompactNumber, formatNumber } from "../reportUtils";
-import type { GrowthScene } from "./types";
+import type { GrowthCityBlock, GrowthScene } from "./types";
 
 // ---------------------------------------------------------------------------
 // Scale-to-container (pattern twin of Share.tsx useElementScale; written to
 // a --growth-scale CSS var straight on the node so per-frame renders never
-// re-run for resize ticks). The GIF exporter's hidden 640x360 clone gets
-// scale 0.5 from the same mechanism.
+// re-run for resize ticks). The GIF exporter sets scale 1 on its native
+// 1280x720 host.
 function useGrowthScale(baseWidth: number) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -48,14 +51,10 @@ function useGrowthScale(baseWidth: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Pure math. Easings are the GSAP curves the demo used (power1=quad,
-// power2=cubic, power3=quart).
+// Pure math. Easings are GSAP-compatible curves (power1=quad, power2=cubic,
+// power3=quart) so beats keep the approved demo's feel.
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const smoothstep = (x: number) => {
-  const u = clamp(x, 0, 1);
-  return u * u * (3 - 2 * u);
-};
 const quadInOut = (x: number) => {
   const u = clamp(x, 0, 1);
   return u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
@@ -72,10 +71,6 @@ const cubicInOut = (x: number) => {
 const quartOut = (x: number) => {
   const u = clamp(x, 0, 1);
   return 1 - (1 - u) * (1 - u) * (1 - u) * (1 - u);
-};
-const quartInOut = (x: number) => {
-  const u = clamp(x, 0, 1);
-  return u < 0.5 ? 8 * u * u * u * u : 1 - 8 * (1 - u) * (1 - u) * (1 - u) * (1 - u);
 };
 // 0..1 across [t0, t1], clamped — the universal beat window.
 const w01 = (t: number, t0: number, t1: number) => clamp((t - t0) / (t1 - t0 || 1), 0, 1);
@@ -122,69 +117,39 @@ const DAY_MS = 86_400_000;
 const epochOf = (date: string) => Date.parse(`${date}T00:00:00Z`);
 const dateAtDay = (epoch: number, day: number) => new Date(epoch + day * DAY_MS);
 const isoDate = (epoch: number, day: number) => dateAtDay(epoch, day).toISOString().slice(0, 10);
-const daysSinceEpoch = (epoch: number, y: number) => (Date.UTC(y, 0, 1) - epoch) / DAY_MS;
 const monthYear = (date: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(
     new Date(epochOf(date)),
   );
 
 // ---------------------------------------------------------------------------
-// Stage geometry (design px; demo 1920x1080 x 2/3). The finale column stack
-// is exact arithmetic so the ring's absolute position matches the card
-// layout by construction: 64 pad + 40 head + 13+2 rule + 23+54 summary +
-// 29 gap = body top 225; body height = 720 - 64 - 225 = 431.
+// Stage geometry (design px on the fixed 1280x720 canvas).
 const STAGE_W = 1280;
 const STAGE_H = 720;
-const PAD = 64; // demo 96
 
-// hero counter (top-left)
-const KICKER_Y = 100; // demo y150
-const HERO_TOP = 159; // demo y238; 117px/1 text band lands ~y140-295
-const HERO_SIZE = 117; // demo 176px
-const DIP_Y = 308; // demo y462, clear of the number's text band
+// ---------------------------------------------------------------------------
+// Isometric projection. Ground coords (gx, gy) in the scene's 100x100 grid;
+// screen = ((gx-gy)·cos30°·S, (gx+gy)·0.5·S) with the building height z
+// subtracted from y. S and the origin place the plate in the right-center
+// of the stage, clear of the hero counter (left) and the metric bar (bottom).
+const GROUND = 100; // must match GROUND_SIZE in buildScene.ts
+const ISO_COS = Math.sqrt(3) / 2; // 0.8660 — the 2:1 isometric x factor
+const GROUND_SCALE = 3.4; // screen px per ground unit: plate ≈ 589w x 340d
+const ORIGIN_X = 878; // screen x of the ground's back corner (0,0)
+const ORIGIN_Y = 266; // screen y of the back corner; front corner lands y=606
+const isoX = (gx: number, gy: number) => ORIGIN_X + (gx - gy) * ISO_COS * GROUND_SCALE;
+const isoY = (gx: number, gy: number, z = 0) => ORIGIN_Y + (gx + gy) * 0.5 * GROUND_SCALE - z;
+const pt = (gx: number, gy: number, z = 0) => `${isoX(gx, gy).toFixed(2)},${isoY(gx, gy, z).toFixed(2)}`;
 
-// hook block (terminal + repo title)
-const TERM_TOP = 307; // demo y460, below the booting counter's band
-const TERM_W = 733; // demo 1100
-
-// race zone (right)
-const RACE_LEFT = 687; // demo x1030
-const RACE_TITLE_Y = 173; // demo y260
-const PLOT_TOP = 200; // demo y300
-const ROW_H = 56; // demo 84
-const NAME_W = 113; // demo 170
-const TRACK_W = 353; // demo 530
-const BAR_H = 29; // demo 44
-
-// timeline strip (bottom)
-const TL_TOP = 633; // demo y950
-const TL_H = 5; // demo 8
-
-// morph ring / finale donut — one absolutely-positioned box shared by both
-// acts so the bar -> ring -> donut handoff is pixel-continuous.
-const RING_BOX = 347; // demo 520 box rendered at 2/3; viewBox stays 520 (1:1 math)
-const RING_R = 180;
-const RING_SW = 62;
-const RING_C = 2 * Math.PI * RING_R; // 1130.973
-const FIN_COL_GAP = 37; // demo 56
-const FIN_DONUT_W = (STAGE_W - 2 * PAD - FIN_COL_GAP) * 0.38; // 38fr of the body grid = 423.5
-const FIN_BODY_TOP = 225;
-const FIN_BODY_H = STAGE_H - PAD - FIN_BODY_TOP; // 431
-const RING_LEFT = PAD + FIN_DONUT_W / 2 - RING_BOX / 2; // ~102.3
-const RING_TOP = FIN_BODY_TOP + (FIN_BODY_H - RING_BOX) / 2; // 267
-const RING_CX = RING_LEFT + RING_BOX / 2; // ~275.8 (demo center 413.7 x 2/3)
-const RING_CY = RING_TOP + RING_BOX / 2; // 440.5 (demo 664.2 x 2/3)
-const STACK_W = 392; // demo 588; widest bar that respects the donut-zone margins
-const STACK_H = BAR_H; // demo: the collapse never changes bar height
-const STACK_TOP = RING_CY - STACK_H / 2;
-const STACK_X0 = RING_CX - STACK_W / 2;
-
-// compact variant: the single full-width bar lives mid-stage
-const COMPACT_BAR_Y = 430;
+// Small roofs keep compact text; these thresholds reserve space for logos.
+const LABEL_MIN_EDGE = 13; // ground units
+const LABEL_MIN_AREA = 220; // ground units²
 
 // demo constants that structure the choreography
 const DIP_DROP = 0.225; // dip segments hold, then drop over the last 0.225s
-const DIP_AMBER = 0.35; // counter stays amber this long after entering a dip
+const DIP_AMBER = 0.35; // skyline stays amber-stroked this long after entering a dip
+const RISE_STAGGER = 0.15; // entrance delay per rank (full variant)
+const RISE_DUR = 0.5;
 
 // ---------------------------------------------------------------------------
 // deriveFrame(scene, t) — every animated number at screen second t. Pure:
@@ -195,14 +160,9 @@ function deriveFrame(scene: GrowthScene, t: number) {
   const n = samples.length;
   const lastIdx = n - 1;
   const isCompact = scene.variant === "compact";
-  const dataStart = acts.data.startTime; // demo 1.2
-  const dataEnd = acts.data.endTime; // demo 8.5
-  const mStart = acts.morph.startTime; // demo 8.55
-  const mEnd = acts.morph.endTime; // demo 9.3
-  const fStart = acts.finale.startTime; // demo 9.3
-  const staticFrom = acts.finale.staticFrom; // demo 9.6
-  const collapseDur = 0.3; // demo 8.55-8.85 bars -> stacked bar
-  const wrapStart = mStart + collapseDur; // demo 8.85: arcs start growing
+  const dataStart = acts.data.startTime;
+  const dataEnd = acts.data.endTime;
+  const fStart = acts.finale.startTime;
 
   // -- the sample clock: time<->sample linear in dayOffset across the data
   // act (plan: "time<->sample linear mapping, 4,435 days -> 7.3s"). --
@@ -240,73 +200,15 @@ function deriveFrame(scene: GrowthScene, t: number) {
 
   const codeNow = sampleLerp((s) => s.code);
   const dayNow = sampleLerp((s) => s.dayOffset);
-  const langNow = (name: string) =>
-    lerp(samples[i0].languageCode[name] ?? 0, samples[i1].languageCode[name] ?? 0, f);
 
-  // -- date scaffolding (ticks, chip, dip labels, hook copy) --
+  // -- calendar dates for the hook, dip labels, and flip cards --
   const epoch = epochOf(samples[0].date);
   const firstYear = dateAtDay(epoch, 0).getUTCFullYear();
   const lastYear = new Date(epochOf(samples[lastIdx].date)).getUTCFullYear();
   const years = Math.max(lastYear - firstYear, 1);
   const rangeLabel = `${firstYear} → ${lastYear}`;
 
-  // -- ranks: order within the six race languages, interpolated with the
-  // demo's smoothstep glide so rows swap places without a FLIP. --
-  const order = acts.morph.stackOrder;
-  const rankAt = (idx: number) => {
-    const sorted = [...order].sort(
-      (a, b) => (samples[idx].languageCode[b] ?? 0) - (samples[idx].languageCode[a] ?? 0) || order.indexOf(a) - order.indexOf(b),
-    );
-    const rank = new Map(sorted.map((name, pos) => [name, pos]));
-    return order.map((name) => rank.get(name) ?? 0);
-  };
-  const ranks0 = rankAt(i0);
-  const ranks1 = rankAt(i1);
-  const rankNow = order.map((_, l) => lerp(ranks0[l], ranks1[l], smoothstep(f)));
-  const finalRanks = rankAt(lastIdx);
-
-  // -- race rows (value = interpolated languageCode; width = value / leader
-  // at that time, per the growth-animation spec) --
-  const valuesNow = order.map((name) => langNow(name));
-  const maxCode = Math.max(...valuesNow, 0);
-  const langColor = new Map(scene.languages.map((l) => [l.name, l.color]));
-  const entersAt = new Map(scene.languages.map((l) => [l.name, l.entersAtSample]));
-  const raceRows = order.map((name, l) => {
-    const enterSample = entersAt.get(name) ?? 0;
-    // sample-0 rows stagger by initial rank; later entrants appear AT their
-    // entry sample's beat (demo: TS 2.7s, TSX 5.6s, Rust 7.0s)
-    const enterT = enterSample <= 0 ? dataStart + ranks0[l] * 0.055 : timeOf(enterSample);
-    const dur = enterSample <= 0 ? 0.275 : 0.25;
-    const k = quartOut(w01(t, enterT, enterT + dur));
-    const fromX = enterSample <= 0 ? -37 : -27; // demo -56 / -40
-    const value = valuesNow[l];
-    const sharePct = codeNow > 0 ? (value / codeNow) * 100 : 0;
-    const widthPx = maxCode > 0 ? (value / maxCode) * TRACK_W : 0;
-    // value label rides the bar end; flips INSIDE the leader bar when it
-    // would overflow the track (demo: exact 0.6em char advance, no reads)
-    const valText = `${formatNumber(Math.round(value))} · ${sharePct.toFixed(1)}%`;
-    const valW = valText.length * (0.6 * 13);
-    const valInside = widthPx + 8 + valW > TRACK_W - 4;
-    const valX = valInside ? Math.max(widthPx - 8 - valW, 3) : widthPx + 8;
-    return {
-      name,
-      color: langColor.get(name) ?? "var(--accent)",
-      value,
-      sharePct,
-      widthPx,
-      valText,
-      valX,
-      valInside,
-      top: rankNow[l] * ROW_H,
-      enterAlpha: k,
-      enterX: fromX * (1 - k),
-      // names/values dissolve at morph start, 0.12s staggered (demo 8.55)
-      labelAlpha: 1 - w01(t, mStart + l * 0.03, mStart + l * 0.03 + 0.12),
-      trackAlpha: 1 - w01(t, mStart, mStart + 0.2),
-    };
-  });
-
-  // -- dips: amber window on the counter + annotation band under it --
+  // -- dips: amber window on the counter + skyline + annotation band --
   const dipBeats = scene.dips.map((d) => {
     const t0 = timeOf(d.sampleIndex);
     const kIn = w01(t, t0, t0 + 0.11);
@@ -314,7 +216,7 @@ function deriveFrame(scene: GrowthScene, t: number) {
     return {
       amber: t >= t0 && t < t0 + DIP_AMBER,
       alpha: kIn * (1 - kOut),
-      y: 7 * (1 - quartOut(kIn)) - 4 * kOut, // demo y10 -> 0 -> y-6 (x 2/3)
+      y: 7 * (1 - quartOut(kIn)) - 4 * kOut,
       label: `↘ repo restructure · ${monthYear(samples[d.sampleIndex].date)}`,
     };
   });
@@ -323,16 +225,16 @@ function deriveFrame(scene: GrowthScene, t: number) {
   // -- hook: typewriter tables + word reveal, all anchored to dataStart --
   const prompt = acts.hook.prompt;
   const outText = `scanning ${years} years of commits · ${rangeLabel}`;
-  const promptEnd = dataStart - 0.5; // demo 0.7 of 1.2
-  const outputEnd = dataStart - 0.1; // demo 1.1
+  const promptEnd = dataStart - 0.5;
+  const outputEnd = dataStart - 0.1;
   const promptTable = buildTypeTable(prompt, 0, promptEnd);
   const outputTable = buildTypeTable(outText, promptEnd, outputEnd);
-  // word reveal: owner/repo split with the slash as its own span (demo .rw)
+  // word reveal: owner/repo split with the slash as its own span
   const words = scene.repoFullName
     .split("/")
     .flatMap((w, i) => (i > 0 ? [{ text: "/", own: false }, { text: w, own: true }] : [{ text: w, own: true }]))
     .map((word, i) => {
-      const t0 = dataStart - 0.95 + i * 0.06; // demo 0.25 + i*0.06
+      const t0 = dataStart - 0.95 + i * 0.06;
       const k = quartOut(w01(t, t0, t0 + 0.3));
       return { ...word, alpha: k, y: 24 * (1 - k) };
     });
@@ -343,7 +245,7 @@ function deriveFrame(scene: GrowthScene, t: number) {
     caret1: t < promptEnd ? (Math.sin((t / promptEnd) * Math.PI * 2) >= 0 ? 1 : 0) : 0,
     caret2Gate: w01(t, promptEnd, promptEnd + 0.025),
     caret2: t >= outputEnd ? 1 : Math.sin(((t - promptEnd) / (outputEnd - promptEnd)) * Math.PI * 2) >= 0 ? 1 : 0,
-    kickerAlpha: w01(t, dataStart - 0.675, dataStart - 0.425), // demo 0.525-0.775
+    kickerAlpha: w01(t, dataStart - 0.675, dataStart - 0.425),
     // the whole block settles DOWN and away (never up into the counter band)
     exitAlpha: 1 - w01(t, dataStart, dataStart + 0.15),
     exitY: 9 * cubicIn(w01(t, dataStart, dataStart + 0.15)),
@@ -351,9 +253,8 @@ function deriveFrame(scene: GrowthScene, t: number) {
     titleText: `${years} years of code — ${rangeLabel}`,
   };
 
-  // -- hero counter: boot ramp 0 -> first sample over the hook (demo
-  // power3.out, scale 0.55 -> 1, same ease so the growth is the value),
-  // then the sample clock; one restrained pulse at the final lock. --
+  // -- hero counter: boot ramp 0 -> first sample over the hook, then the
+  // sample clock; one restrained pulse at the final lock. --
   const bootK = quartOut(w01(t, 0, dataStart));
   const pulse = (() => {
     const u = t - acts.data.finalLock;
@@ -369,83 +270,111 @@ function deriveFrame(scene: GrowthScene, t: number) {
     kickerY: -5 * (1 - quartOut(w01(t, dataStart, dataStart + 0.2))),
   };
 
-  // -- timeline strip: playhead is dayOffset progress; ticks + dip carets --
-  const tlFrac = clamp(dayNow / totalDays, 0, 1);
-  const ticks: Array<{ label: string; left: number; alpha: number }> = [];
-  for (let y = firstYear; y <= lastYear; y += 1) {
-    const dayY = daysSinceEpoch(epoch, y);
-    // A year whose Jan 1 predates the first sample has no spot on the axis —
-    // pinning it to the left edge collides with the next year's centered
-    // label (e.g. an Aug-2014 start stacked "2014" onto "2015").
-    if (dayY < 0) continue;
-    const x = (dayY / totalDays) * (STAGE_W - 2 * PAD);
-    ticks.push({
-      label: String(y),
-      left: x,
-      alpha: w01(t, dataStart + 0.1 + ticks.length * 0.015, dataStart + 0.25 + ticks.length * 0.015),
-    });
-  }
-  const tl = {
-    wipe: quartOut(w01(t, dataStart, dataStart + 0.25)),
-    frac: tlFrac,
-    date: isoDate(epoch, dayNow),
-    playheadAlpha: w01(t, dataStart + 0.175, dataStart + 0.325),
-    chipAlpha: w01(t, dataStart + 0.2, dataStart + 0.35),
-    exitAlpha: 1 - w01(t, fStart - 0.05, fStart + 0.1),
-    carets: scene.dips.map((d) => ({
-      left: (samples[d.sampleIndex].dayOffset / totalDays) * (STAGE_W - 2 * PAD),
-      alpha: w01(t, dataStart + 0.175, dataStart + 0.3),
-    })),
+  const dateAtTime = (time: number) => {
+    const index = sampleAt(time);
+    const left = Math.min(Math.floor(index), lastIdx);
+    const right = Math.min(left + 1, lastIdx);
+    return isoDate(epoch, lerp(samples[left].dayOffset, samples[right].dayOffset, index - left));
+  };
+  const pageStart = dataStart + Math.floor(Math.max(0, t - dataStart) / 0.25) * 0.25;
+  const lockedDate = isCompact || t >= dataEnd;
+  const date = {
+    current: lockedDate ? samples[lastIdx].date : dateAtTime(pageStart),
+    previous: lockedDate ? samples[lastIdx].date : dateAtTime(Math.max(dataStart, pageStart - 0.25)),
+    exact: isCompact ? samples[lastIdx].date : isoDate(epoch, dayNow),
+    turn: lockedDate ? 1 : w01(t, pageStart, pageStart + 0.2),
+    alpha: w01(t, dataStart, dataStart + 0.2),
   };
 
-  // -- morph: bars FLIP-free interpolate from their final race geometry to
-  // the stacked bar centered on the ring (demo 8.55-8.85 power3.inOut),
-  // then dissolve while the arcs grow (8.85-9.3, JS first). --
-  const finalMax = Math.max(...order.map((name) => samples[lastIdx].languageCode[name] ?? 0), 0);
-  const morphSegs = acts.morph.ringShares.map((share, k) => {
-    const frac = share.share / 100;
-    // source geometry at morph start: the locked race bar (or, in compact,
-    // the single full-width bar); absolute stage coords in both cases
-    const from = isCompact
-      ? { left: PAD, top: COMPACT_BAR_Y, width: STAGE_W - 2 * PAD }
-      : {
-          left: RACE_LEFT + NAME_W,
-          top: PLOT_TOP + finalRanks[k] * ROW_H + (ROW_H - BAR_H) / 2,
-          width: finalMax > 0 ? ((samples[lastIdx].languageCode[share.name] ?? 0) / finalMax) * TRACK_W : 0,
-        };
-    const stackAcc = acts.morph.ringShares.slice(0, k).reduce((acc, s) => acc + (s.share / 100) * STACK_W, 0);
-    const u = quartInOut(w01(t, mStart, wrapStart));
+  // -- the city: interpolate every block's rect + height between the two
+  // surrounding samples (compact variant: straight to the final skyline).
+  // Heights ride the SAME eased sample clock as the counter, so a dip
+  // segment holds the skyline flat then sinks it cubic-in — the buildings
+  // themselves beat the dip. --
+  const ci0 = isCompact ? lastIdx : i0;
+  const ci1 = isCompact ? lastIdx : i1;
+  const cf = isCompact ? 0 : f;
+  const city0 = samples[ci0].city;
+  const city1 = samples[ci1].city;
+  const finalCity = samples[lastIdx].city;
+  // Entrance order = the final skyline's rank (largest first); blocks absent
+  // from the final sample (zero-code tails that vanished) enter last.
+  const entranceRank = new Map(finalCity.map((block, i) => [block.name, i]));
+  const stagger = isCompact ? 0.06 : RISE_STAGGER;
+  const riseDur = isCompact ? 0.7 : RISE_DUR;
+  const cityNames = [...new Set([...city0, ...city1].map((block) => block.name))].sort(
+    (a, b) => (entranceRank.get(a) ?? 999) - (entranceRank.get(b) ?? 999),
+  );
+  const blockByName = (city: GrowthCityBlock[]) => {
+    const map = new Map(city.map((block) => [block.name, block]));
+    return map;
+  };
+  const map0 = blockByName(city0);
+  const map1 = blockByName(city1);
+  const blocks = cityNames
+    .map((name) => {
+      const b0 = map0.get(name);
+      const b1 = map1.get(name);
+      const ref = (b1 ?? b0)!; // a missing side collapses to a point at the other's spot
+      const rect = {
+        x: lerp(b0?.rect.x ?? ref.rect.x + ref.rect.w / 2, b1?.rect.x ?? ref.rect.x + ref.rect.w / 2, cf),
+        y: lerp(b0?.rect.y ?? ref.rect.y + ref.rect.h / 2, b1?.rect.y ?? ref.rect.y + ref.rect.h / 2, cf),
+        w: lerp(b0?.rect.w ?? 0, b1?.rect.w ?? 0, cf),
+        h: lerp(b0?.rect.h ?? 0, b1?.rect.h ?? 0, cf),
+      };
+      const rank = entranceRank.get(name) ?? cityNames.length;
+      const enterK = quartOut(w01(t, dataStart + rank * stagger, dataStart + rank * stagger + riseDur));
+      const height = lerp(b0?.height ?? 0, b1?.height ?? 0, cf) * enterK;
+      return {
+        name,
+        rect,
+        height,
+        enterK,
+        color: ref.color,
+        colorTop: ref.colorTop,
+        colorRight: ref.colorRight,
+        value: lerp(b0?.value ?? 0, b1?.value ?? 0, cf) * enterK,
+        logo: ref.logo,
+        merged: ref.merged,
+        // painter's depth: larger gx+gy sits closer to the viewer
+        depth: rect.x + rect.y,
+      };
+    })
+    .sort((a, b) => a.depth - b.depth);
+
+  const groundAlpha = quartOut(w01(t, dataStart, dataStart + 0.3));
+
+  const labels = blocks.map((block) => {
+    const fits =
+      block.rect.w >= LABEL_MIN_EDGE &&
+      block.rect.h >= LABEL_MIN_EDGE &&
+      block.rect.w * block.rect.h >= LABEL_MIN_AREA;
+    const edge = Math.min(block.rect.w, block.rect.h);
+    const size = Math.min(10, edge * 0.42);
+    const offset = Math.min(4, edge * 0.15);
+    const gx = block.rect.x + block.rect.w / 2 - offset - size / 2;
+    const gy = block.rect.y + block.rect.h / 2 - offset - size / 2;
+    const a = ISO_COS * GROUND_SCALE * size / 24;
+    const b = 0.5 * GROUND_SCALE * size / 24;
     return {
-      color: share.color,
-      left: lerp(from.left, STACK_X0 + stackAcc, u),
-      top: lerp(from.top, STACK_TOP, u),
-      width: lerp(from.width, frac * STACK_W, u),
-      alpha: 1 - w01(t, wrapStart, wrapStart + 0.15),
+      name: block.name,
+      merged: block.merged,
+      value: block.value,
+      x: isoX(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2),
+      y: isoY(block.rect.x + block.rect.w / 2, block.rect.y + block.rect.h / 2, block.height),
+      alpha: block.enterK > 0 ? 1 : 0,
+      dy: 0,
+      compact: !fits,
+      logo: fits && block.logo ? {
+        ...block.logo,
+        transform: `matrix(${a} ${b} ${-a} ${b} ${isoX(gx, gy)} ${isoY(gx, gy, block.height)})`,
+      } : undefined,
     };
   });
 
-  // arc growth windows: quad-eased starts across [wrapStart, mEnd-0.04]
-  // with shrinking durations — reproduces the demo's JS-first stagger
-  // (8.85/.2, 9.0/.15, 9.1/.12, 9.2/.1, 9.23/.07, 9.26/.04).
-  const arcCount = acts.morph.ringShares.length;
-  const arcs = acts.morph.ringShares.map((share, k) => {
-    const uk = arcCount > 1 ? k / (arcCount - 1) : 0;
-    let start = wrapStart + (mEnd - 0.04 - wrapStart) * (1 - (1 - uk) * (1 - uk));
-    let dur = 0.2 * (1 - 0.8 * uk);
-    dur = Math.min(dur, Math.max(mEnd - start, 0.02));
-    if (k === arcCount - 1) start = Math.min(start, mEnd - dur);
-    const growth = cubicInOut(w01(t, start, start + dur));
-    const acc = acts.morph.ringShares.slice(0, k).reduce((a, s) => a + s.share, 0) / 100;
-    return {
-      color: share.color,
-      dash: (share.share / 100) * RING_C * growth,
-      rotate: -90 + 360 * acc,
-    };
-  });
-
-  // -- stars HUD: fades in at the first sample that carries stars (demo
-  // 7.75s), value interpolates across the starred samples to starsNow. --
-  let stars: { alpha: number; value: number; brackets: [number, number] } | null = null;
+  // -- stars beacon: a glowing diamond hovering over the tallest roof, value
+  // interpolating across the starred samples to starsNow (old HUD anchors). --
+  let beacon: { alpha: number; value: number; x: number; y: number; anchorEnd: boolean } | null = null;
   if (scene.starsNow != null) {
     const anchors = samples
       .map((s, i) => ({ t: timeOf(i), v: s.stars }))
@@ -458,60 +387,66 @@ function deriveFrame(scene: GrowthScene, t: number) {
     for (let k = 0; k < anchors.length - 1; k += 1) {
       value = lerp(anchors[k].v, anchors[k + 1].v, w01(t, anchors[k].t, anchors[k + 1].t));
     }
-    stars = {
-      alpha: w01(t, tIn, tIn + 0.15),
-      value,
-      // corner brackets draw on 0.025s after the fade-in, 0.04s apart
-      brackets: [0, 1].map((k) => cubicInOut(w01(t, tIn + 0.025 + k * 0.04, tIn + 0.225 + k * 0.04))) as [number, number],
-    };
+    const tallest = blocks.reduce<(typeof blocks)[number] | null>(
+      (max, block) => (block.height > (max?.height ?? 0) ? block : max),
+      null,
+    );
+    if (tallest && tallest.height > 1) {
+      const gx = tallest.rect.x + tallest.rect.w / 2;
+      const gy = tallest.rect.y + tallest.rect.h / 2;
+      const bx = isoX(gx, gy);
+      const by = isoY(gx, gy, tallest.height) - 50;
+      beacon = {
+        alpha: w01(t, tIn, tIn + 0.2),
+        value,
+        x: bx,
+        y: by,
+        anchorEnd: bx > STAGE_W - 220, // keep the label on-stage
+      };
+    }
   }
 
-  // -- finale cascade: furniture rises y+11->0 power2.out (head 9.3, rule
-  // 9.35, summary 9.4, donut readout 9.35); table rows (thead + rows +
-  // TOTAL) cascade from 9.35, stagger derived so all settle by staticFrom. --
-  const rise = (t0: number, dur = 0.2) => {
-    const k = cubicOut(w01(t, t0, t0 + dur));
-    return { alpha: k, y: 11 * (1 - k) };
-  };
-  const rowsCount = scene.finale.tableRows.length + 2; // + thead + TOTAL
-  const rowStagger = Math.min(0.02, Math.max((staticFrom - 0.1 - (fStart + 0.05)) / Math.max(rowsCount - 1, 1), 0.005));
-  const finale = {
-    head: rise(fStart),
-    rule: rise(fStart + 0.05),
-    summary: rise(fStart + 0.1),
-    centerAlpha: w01(t, fStart + 0.05, fStart + 0.2),
-    caption: { ...rise(fStart + 0.05, 0.1), y: 5 * (1 - cubicOut(w01(t, fStart + 0.05, fStart + 0.15))) },
-    rows: Array.from({ length: rowsCount }, (_, k) => {
-      const t0 = fStart + 0.05 + k * rowStagger;
-      const kk = cubicOut(w01(t, t0, t0 + 0.1));
-      return { alpha: kk, y: 5 * (1 - kk) };
+  // -- metric bar (finale): slides up at the bottom, metrics cascade until
+  // staticFrom. Counts come from scene.finale.metrics; the span is the real
+  // sample date range. --
+  const barK = cubicOut(w01(t, fStart + 0.05, fStart + 0.35));
+  const metrics = {
+    alpha: barK,
+    y: 14 * (1 - barK),
+    items: [0, 1, 2, 3, 4].map((k) => {
+      const kk = cubicOut(w01(t, fStart + 0.12 + k * 0.05, fStart + 0.32 + k * 0.05));
+      return { alpha: kk, y: 8 * (1 - kk) };
     }),
   };
 
+  const finaleK = cubicInOut(w01(t, fStart, fStart + 0.5));
+  const cityTop = Math.min(ORIGIN_Y, ...finalCity.map((block) => isoY(block.rect.x, block.rect.y, block.height)));
+  const cityBottom = isoY(GROUND, GROUND);
+  const cityOffset = {
+    x: (STAGE_W / 2 - ORIGIN_X) * finaleK,
+    y: (STAGE_H / 2 - (cityTop + cityBottom) / 2) * finaleK,
+  };
   const firstCode = samples[0].code;
   const lastCode = samples[lastIdx].code;
   return {
+    finaleK,
+    cityOffset,
     isCompact,
     t,
     dataStart,
-    mStart,
-    raceRows,
     hero,
     hook,
     words,
     dipBeats,
-    stars,
-    tl,
-    ticks,
-    morphSegs,
-    arcs,
-    finale,
-    ringVisible: t >= wrapStart,
-    // data-layer exits (hero + timeline 9.25, stars 9.3 — demo card handoff)
+    date,
+    groundAlpha,
+    blocks,
+    amber,
+    labels,
+    beacon,
+    metrics,
+    // hero counter hands off to the finale at 8.5
     heroExit: 1 - w01(t, fStart - 0.05, fStart + 0.1),
-    starsExit: 1 - w01(t, fStart, fStart + 0.15),
-    raceTitleAlpha: quartOut(w01(t, dataStart, dataStart + 0.25)) * (1 - w01(t, mStart, mStart + 0.15)),
-    raceTitleX: -16 * (1 - quartOut(w01(t, dataStart, dataStart + 0.25))),
     ariaLabel: `Growth animation: ${scene.repoFullName} code lines ${formatNumber(firstCode)}→${formatNumber(lastCode)}, ${years} years`,
     summary: `${scene.repoFullName} grew from ${formatNumber(firstCode)} code lines on ${samples[0].date} to ${formatNumber(lastCode)} code lines on ${samples[lastIdx].date}.`,
   };
@@ -521,15 +456,19 @@ export type GrowthFrame = ReturnType<typeof deriveFrame>;
 
 // ---------------------------------------------------------------------------
 // Component: one pure render of the frame at `progress`. `playing` only
-// suppresses the pause affordance — the player (Wave 2) owns all timing.
+// suppresses the pause affordance — the player owns all timing.
 export function GrowthAnimation({
   scene,
   progress,
   playing,
+  playbackLabel,
+  onTogglePlayback,
 }: {
   scene: GrowthScene;
   progress: number;
   playing?: boolean;
+  playbackLabel?: string;
+  onTogglePlayback?: () => void;
 }) {
   const wrapRef = useGrowthScale(STAGE_W);
   const seconds = clamp(progress, 0, 1) * (scene.durationMs / 1000);
@@ -537,16 +476,23 @@ export function GrowthAnimation({
   return (
     <div className="growth-wrap" ref={wrapRef}>
       <p className="visually-hidden">{f.summary}</p>
-      <div className="growth-stage" role="img" aria-label={f.ariaLabel}>
-        <DataAct scene={scene} f={f} />
-        <FinaleCard scene={scene} f={f} />
-        <RingLayer scene={scene} f={f} />
-        <MorphLayer f={f} />
+      <div className="growth-stage" role={onTogglePlayback ? "group" : "img"} aria-label={f.ariaLabel}>
+        <CityLayer f={f} />
+        <HudLayer scene={scene} f={f} />
+        <MetricBar scene={scene} f={f} />
         <HookAct f={f} />
-        {playing === false ? (
+        {playing === false && progress < 1 ? (
           <div className="growth-paused" aria-hidden="true">
             <span>▶</span>
           </div>
+        ) : null}
+        {onTogglePlayback ? (
+          <button
+            className="growth-playback-hit"
+            type="button"
+            aria-label={playbackLabel}
+            onClick={onTogglePlayback}
+          />
         ) : null}
       </div>
     </div>
@@ -594,13 +540,153 @@ function HookAct({ f }: { f: GrowthFrame }) {
   );
 }
 
-// Act 2 — data: hero counter + dip annotations (left), language race
-// (right), timeline strip (bottom), stars HUD (top-right).
-function DataAct({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
-  const tlW = STAGE_W - 2 * PAD;
-  const px = f.tl.frac * tlW;
-  const chipMax = STAGE_W - PAD - 100 - (PAD - 50);
-  const barsOwnedByMorph = f.t >= f.mStart;
+// The city itself — one full-stage SVG. Ground plate + grid, then buildings
+// back-to-front (painter's algorithm over gx+gy depth), rooftop labels, and
+// the stars beacon. All geometry arrives pre-computed in the frame.
+function CityLayer({ f }: { f: GrowthFrame }) {
+  const { t } = useTranslation();
+  const gridLines: string[] = [];
+  for (let u = 20; u < GROUND; u += 20) {
+    gridLines.push(`${pt(u, 0)} ${pt(u, GROUND)}`);
+    gridLines.push(`${pt(0, u)} ${pt(GROUND, u)}`);
+  }
+  return (
+    <svg
+      className="growth-city-svg"
+      viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}
+      aria-hidden="true"
+      style={{ transform: `translate(${f.cityOffset.x}px, ${f.cityOffset.y}px)` }}
+    >
+      {/* ground plate: the empty lot the city rises from */}
+      <g opacity={f.groundAlpha}>
+        <polygon className="growth-city-plate" points={`${pt(0, 0)} ${pt(GROUND, 0)} ${pt(GROUND, GROUND)} ${pt(0, GROUND)}`} />
+        {gridLines.map((points, i) => (
+          <polyline key={i} className="growth-city-grid" points={points} />
+        ))}
+      </g>
+
+      {/* buildings: three polygons each — roof (top shade), left face (base
+          color), right face (dark shade); amber stroke during dip beats */}
+      {f.blocks.map((block) => {
+        const { x, y, w, h } = block.rect;
+        const z = block.height;
+        if (block.enterK <= 0 || w <= 0 || h <= 0) return null;
+        const stroke = f.amber ? "var(--warn)" : undefined;
+        return (
+          <g key={block.name}>
+            {z > 0.5 ? (
+              <>
+                <polygon
+                  className="growth-city-face"
+                  fill={block.color}
+                  style={stroke ? { stroke } : undefined}
+                  points={`${pt(x, y + h)} ${pt(x + w, y + h)} ${pt(x + w, y + h, z)} ${pt(x, y + h, z)}`}
+                />
+                <polygon
+                  className="growth-city-face"
+                  fill={block.colorRight}
+                  style={stroke ? { stroke } : undefined}
+                  points={`${pt(x + w, y)} ${pt(x + w, y + h)} ${pt(x + w, y + h, z)} ${pt(x + w, y, z)}`}
+                />
+              </>
+            ) : null}
+            <polygon
+              className="growth-city-face"
+              fill={block.colorTop}
+              style={stroke ? { stroke } : undefined}
+              points={`${pt(x, y, z)} ${pt(x + w, y, z)} ${pt(x + w, y + h, z)} ${pt(x, y + h, z)}`}
+            />
+          </g>
+        );
+      })}
+
+      {/* rooftop labels follow every building; logos appear where space allows */}
+      {f.labels.map((label) =>
+        label.alpha <= 0 ? null : (
+          <g key={label.name} opacity={label.alpha} transform={`translate(0 ${label.dy})`}>
+            {label.logo ? (
+              <path
+                className="growth-city-logo"
+                data-language={label.name}
+                d={label.logo.path}
+                fill={label.logo.color}
+                transform={label.logo.transform}
+              />
+            ) : null}
+            <text
+              className={label.compact ? "growth-city-label growth-city-label-small" : "growth-city-label"}
+              data-language={label.name}
+              data-loc={Math.round(label.value)}
+              x={label.x}
+              y={label.y + (label.logo ? 14 : 0)}
+              textAnchor="middle"
+            >
+              <tspan x={label.x} dy={-2} className="growth-city-label-name">
+                {label.merged ? t(label.compact ? "growth.animation.otherShort" : "growth.animation.otherBlock", { count: label.merged }) : label.name}
+              </tspan>
+              <tspan x={label.x} dy={13} className="growth-city-label-value growth-num">
+                {formatNumber(Math.round(label.value))}
+              </tspan>
+            </text>
+          </g>
+        ),
+      )}
+
+      {/* stars beacon over the tallest roof */}
+      {f.beacon && f.beacon.alpha > 0 && f.finaleK < 1 ? (
+        <g opacity={f.beacon.alpha * (1 - f.finaleK)} aria-label={t("growth.animation.beaconAria")}>
+          <polygon
+            className="growth-beacon-glow"
+            points={`${f.beacon.x},${f.beacon.y - 13} ${f.beacon.x + 9},${f.beacon.y} ${f.beacon.x},${f.beacon.y + 13} ${f.beacon.x - 9},${f.beacon.y}`}
+          />
+          <polygon
+            className="growth-beacon-core"
+            points={`${f.beacon.x},${f.beacon.y - 6} ${f.beacon.x + 4.5},${f.beacon.y} ${f.beacon.x},${f.beacon.y + 6} ${f.beacon.x - 4.5},${f.beacon.y}`}
+          />
+          <text
+            className="growth-beacon-value growth-num"
+            x={f.beacon.anchorEnd ? f.beacon.x - 12 : f.beacon.x + 12}
+            y={f.beacon.y + 4}
+            textAnchor={f.beacon.anchorEnd ? "end" : "start"}
+          >
+            ★ {formatNumber(Math.round(f.beacon.value))}
+          </text>
+        </g>
+      ) : null}
+    </svg>
+  );
+}
+
+function FlipDate({ f }: { f: GrowthFrame }) {
+  const previous = f.date.previous.split("-");
+  const current = f.date.current.split("-");
+  return (
+    <time className="growth-date growth-num" dateTime={f.date.exact} style={autoAlpha(f.date.alpha)}>
+      {current.map((value, i) => {
+        const changed = value !== previous[i];
+        const turn = changed ? f.date.turn : 1;
+        return (
+          <span key={i} className={`growth-date-cell${i === 0 ? " growth-date-year" : ""}`}>
+            <span className="growth-date-static">{value}</span>
+            {changed && turn < 1 ? (
+              <>
+                <span className="growth-date-old" aria-hidden="true" style={{ opacity: 1 - turn }}>{previous[i]}</span>
+                <span className="growth-date-leaf" aria-hidden="true" style={{ transform: `scaleY(${Math.cos(turn * Math.PI)})` }}>
+                  <span style={{ transform: turn > 0.5 ? "scaleY(-1)" : undefined }}>
+                    {turn <= 0.5 ? previous[i] : value}
+                  </span>
+                </span>
+              </>
+            ) : null}
+            <span className="growth-date-reduced">{f.date.exact.split("-")[i]}</span>
+          </span>
+        );
+      })}
+    </time>
+  );
+}
+
+function HudLayer({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
   return (
     <div className="growth-layer">
       {/* hero zone */}
@@ -633,261 +719,51 @@ function DataAct({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
         </div>
       </div>
 
-      {/* language race */}
-      {!f.isCompact && (
-        <div className="growth-race-zone">
-          <div
-            className="growth-race-title"
-            style={{ ...autoAlpha(f.raceTitleAlpha), transform: `translateX(${f.raceTitleX}px)` }}
-          >
-            CODE LINES BY LANGUAGE
-          </div>
-          <div className="growth-race-plot">
-            {f.raceRows.map((row) => (
-              <div
-                key={row.name}
-                className="growth-race-row"
-                style={{ top: row.top, ...autoAlpha(row.enterAlpha), transform: `translateX(${row.enterX}px)` }}
-              >
-                <span className="growth-race-name" style={autoAlpha(row.labelAlpha)}>
-                  {row.name}
-                </span>
-                <span className="growth-race-track" style={autoAlpha(row.trackAlpha)}>
-                  <span
-                    className="growth-race-bar"
-                    style={{
-                      width: Math.max(row.widthPx, 0),
-                      background: row.color,
-                      ...(barsOwnedByMorph ? autoAlpha(0) : autoAlpha(1)),
-                    }}
-                  />
-                  <span
-                    className="growth-race-val growth-num"
-                    style={{
-                      transform: `translate(${row.valX}px, -50%)`,
-                      color: row.valInside ? "#0d1117" : undefined,
-                      ...autoAlpha(row.labelAlpha),
-                    }}
-                  >
-                    {row.valText}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* compact variant: one full-width bar instead of the race */}
-      {f.isCompact && (
+      {f.beacon ? (
         <div
-          className="growth-compact-bar"
-          style={{
-            background: scene.acts.morph.ringShares[0]?.color ?? "var(--accent)",
-            ...autoAlpha(quartOut(w01(f.t, f.dataStart, f.dataStart + 0.25)) * (barsOwnedByMorph ? 0 : 1)),
-          }}
-        />
-      )}
-
-      {/* timeline strip */}
-      {!f.isCompact && (
-        <div className="growth-tl-zone" style={autoAlpha(f.tl.exitAlpha)}>
-          <div className="growth-tl-track" style={{ transform: `scaleX(${f.tl.wipe})` }} />
-          <div className="growth-tl-fill" style={{ width: `${f.tl.frac * 100}%` }} />
-          <div className="growth-tl-playhead" style={{ left: PAD + px - 1, ...autoAlpha(f.tl.playheadAlpha) }} />
-          <div className="growth-tl-chip growth-num" style={{ transform: `translateX(${Math.min(px, chipMax)}px)`, ...autoAlpha(f.tl.chipAlpha) }}>
-            {f.tl.date}
-          </div>
-          {f.ticks.map((tick) => (
-            <span
-              key={tick.label}
-              className="growth-tl-tick"
-              style={{
-                left: PAD + tick.left,
-                transform: "translateX(-50%)",
-                ...autoAlpha(tick.alpha),
-              }}
-            >
-              {tick.label}
-            </span>
-          ))}
-          {f.tl.carets.map((c, i) => (
-            <span key={i} className="growth-tl-caret" style={{ left: PAD + c.left, ...autoAlpha(c.alpha) }} />
-          ))}
+          className="growth-stars-summary growth-num"
+          data-stars={Math.round(f.beacon.value)}
+          style={autoAlpha(f.finaleK * f.beacon.alpha)}
+        >
+          <span className="growth-stars-icon" aria-hidden="true">★</span>
+          <span>{formatNumber(Math.round(f.beacon.value))}</span>
+          <span className="growth-stars-caption">Stars</span>
         </div>
-      )}
-
-      {/* stars HUD */}
-      {f.stars && (
-        <div className="growth-stars" style={autoAlpha(f.stars.alpha * f.starsExit)}>
-          <svg className="growth-star-bracket growth-sb-tl" viewBox="0 0 32 32" aria-hidden="true">
-            <path
-              d="M 30 2 L 12 2 Q 2 2 2 12 L 2 30"
-              pathLength={100}
-              strokeDasharray={100}
-              strokeDashoffset={100 * (1 - f.stars.brackets[0])}
-            />
-          </svg>
-          <svg className="growth-star-bracket growth-sb-br" viewBox="0 0 32 32" aria-hidden="true">
-            <path
-              d="M 2 30 L 20 30 Q 30 30 30 20 L 30 2"
-              pathLength={100}
-              strokeDasharray={100}
-              strokeDashoffset={100 * (1 - f.stars.brackets[1])}
-            />
-          </svg>
-          <span className="growth-star-glyph">★</span>
-          <span className="growth-star-label">STARS</span>
-          <span className="growth-star-value growth-num">{formatNumber(Math.round(f.stars.value))}</span>
-        </div>
-      )}
+      ) : null}
+      <FlipDate f={f} />
     </div>
   );
 }
 
-// Act 3 — the collapse: bars interpolate from their locked race geometry to
-// the stacked bar centered on the ring, then dissolve into the arcs.
-function MorphLayer({ f }: { f: GrowthFrame }) {
-  return (
-    <div className="growth-layer">
-      {f.morphSegs.map((seg, k) => (
-        <div
-          key={k}
-          className="growth-stack-seg"
-          style={{
-            left: seg.left,
-            top: seg.top,
-            width: Math.max(seg.width, 0),
-            background: seg.color,
-            ...autoAlpha(seg.alpha),
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// The ring — stage-level and never moving, so the morph handoff and the
-// finale donut are pixel-continuous by construction. The center readout is
-// the finale's donut center.
-function RingLayer({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
-  return (
-    <>
-      <svg
-        className="growth-ring"
-        width={RING_BOX}
-        height={RING_BOX}
-        viewBox="0 0 520 520"
-        style={{ left: RING_LEFT, top: RING_TOP, ...autoAlpha(f.ringVisible ? 1 : 0) }}
-        aria-hidden="true"
-      >
-        {f.arcs.map((arc, k) => (
-          <circle
-            key={k}
-            cx={260}
-            cy={260}
-            r={RING_R}
-            fill="none"
-            stroke={arc.color}
-            strokeWidth={RING_SW}
-            strokeDasharray={`${arc.dash.toFixed(2)} ${RING_C.toFixed(2)}`}
-            transform={`rotate(${arc.rotate.toFixed(3)} 260 260)`}
-          />
-        ))}
-      </svg>
-      <div className="growth-ring-center" style={{ left: RING_CX, top: RING_CY, ...autoAlpha(f.finale.centerAlpha) }}>
-        <span className="lbl">code</span>
-        <strong className="growth-num">{formatCompactNumber(scene.finale.metrics.code)}</strong>
-      </div>
-    </>
-  );
-}
-
-// Act 4 — the report-stats finale assembling around the ring: header with
-// meta + accent rule, compact metrics row, and the top-N table cascading in
-// row by row until staticFrom.
-function FinaleCard({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
+// The finale metric bar: files / code / comments / blanks / date span, one
+// line sliding up at the bottom of the settled skyline.
+function MetricBar({ scene, f }: { scene: GrowthScene; f: GrowthFrame }) {
+  const { t } = useTranslation();
   const fin = scene.finale;
-  const rowStyle = (k: number) => ({
-    ...autoAlpha(f.finale.rows[k].alpha),
-    transform: `translateY(${f.finale.rows[k].y}px)`,
-  });
-  const metric = (label: string, value: number, accent = false) => (
-    <div className={accent ? "growth-fin-metric accent" : "growth-fin-metric"} key={label}>
-      <span className="lbl">{label}</span>
-      <span className="val growth-num">{formatCompactNumber(value)}</span>
-    </div>
-  );
-  const cell = (value: number, cls?: string) => (
-    <span className={cls ? `growth-fin-td growth-num ${cls}` : "growth-fin-td growth-num"}>{formatNumber(value)}</span>
-  );
+  const samples = scene.samples;
+  const span = `${samples[0].date.slice(0, 4)}–${samples[samples.length - 1].date.slice(0, 4)}`;
+  const items: Array<{ label: string; value: string; accent?: boolean }> = [
+    { label: t("growth.animation.metricFiles"), value: formatCompactNumber(fin.metrics.files) },
+    { label: t("growth.animation.metricCode"), value: formatCompactNumber(fin.metrics.code), accent: true },
+    { label: t("growth.animation.metricComments"), value: formatCompactNumber(fin.metrics.comments) },
+    { label: t("growth.animation.metricBlanks"), value: formatCompactNumber(fin.metrics.blanks) },
+    { label: t("growth.animation.metricSpan"), value: span },
+  ];
   return (
-    <div className="growth-fin-card">
-      <div
-        className="growth-fin-head"
-        style={{ ...autoAlpha(f.finale.head.alpha), transform: `translateY(${f.finale.head.y}px)` }}
-      >
-        <h2 className="growth-fin-repo">{scene.repoFullName}</h2>
-        <span className="growth-fin-meta growth-num">
-          {fin.refName} · {fin.commitSha12} · {fin.generatedDate}
-        </span>
-      </div>
-      <div
-        className="growth-fin-rule"
-        style={{ ...autoAlpha(f.finale.rule.alpha), transform: `translateY(${f.finale.rule.y}px)` }}
-      />
-      <div
-        className="growth-fin-summary"
-        style={{ ...autoAlpha(f.finale.summary.alpha), transform: `translateY(${f.finale.summary.y}px)` }}
-      >
-        {metric("Code", fin.metrics.code, true)}
-        {metric("Files", fin.metrics.files)}
-        {metric("Lines", fin.metrics.lines)}
-        {metric("Comments", fin.metrics.comments)}
-        {metric("Blanks", fin.metrics.blanks)}
-      </div>
-      <div className="growth-fin-body">
-        {/* the donut column is reserved space — the ring itself is a
-            stage-level element at the exact same coordinates (RingLayer) */}
-        <div className="growth-fin-donut-col" />
-        <div className="growth-fin-table-col">
-          <div
-            className="growth-fin-caption"
-            style={{ ...autoAlpha(f.finale.caption.alpha), transform: `translateY(${f.finale.caption.y}px)` }}
-          >
-            {fin.tableCaption}
-          </div>
-          <div className="growth-fin-tr growth-fin-thead" style={rowStyle(0)}>
-            <span className="growth-fin-th lang">Language</span>
-            <span className="growth-fin-th">Files</span>
-            <span className="growth-fin-th">Lines</span>
-            <span className="growth-fin-th">Code</span>
-            <span className="growth-fin-th">Comments</span>
-            <span className="growth-fin-th">Blanks</span>
-          </div>
-          {fin.tableRows.map((r, k) => (
-            <div className={r.merged ? "growth-fin-tr other" : "growth-fin-tr"} key={r.name} style={rowStyle(k + 1)}>
-              <span className="growth-fin-lang">
-                <span className="growth-fin-swatch" style={{ background: r.color }} />
-                {r.name}
-              </span>
-              {cell(r.files)}
-              {cell(r.lines)}
-              {cell(r.code, "code")}
-              {cell(r.comments)}
-              {cell(r.blanks)}
-            </div>
-          ))}
-          <div className="growth-fin-tr total" style={rowStyle(fin.tableRows.length + 1)}>
-            <span className="growth-fin-lang">TOTAL</span>
-            {cell(fin.totalRow.files)}
-            {cell(fin.totalRow.lines)}
-            {cell(fin.totalRow.code, "code")}
-            {cell(fin.totalRow.comments)}
-            {cell(fin.totalRow.blanks)}
-          </div>
+    <div
+      className="growth-city-metrics"
+      style={{ ...autoAlpha(f.metrics.alpha), transform: `translateY(${f.metrics.y}px)` }}
+    >
+      {items.map((item, i) => (
+        <div
+          key={item.label}
+          className={item.accent ? "growth-city-metric accent" : "growth-city-metric"}
+          style={{ ...autoAlpha(f.metrics.items[i].alpha), transform: `translateY(${f.metrics.items[i].y}px)` }}
+        >
+          <span className="lbl">{item.label}</span>
+          <span className="val growth-num">{item.value}</span>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
