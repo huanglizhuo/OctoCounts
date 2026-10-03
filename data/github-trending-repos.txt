@@ -1,16 +1,18 @@
-# GitHub Trending daily snapshot generated 2026-10-02T08:28:48.860Z
+# GitHub Trending daily snapshot generated 2026-10-03T08:03:52.305Z
+Panniantong/Agent-Reach
+JuliusBrussee/caveman
+obra/superpowers
 DietrichGebert/ponytail
+pbakaus/impeccable
 mattpocock/skills
 NVIDIA/OpenShell
-firebase/firebase-ios-sdk
-mvschwarz/openrig
-cursor/plugins
-obra/superpowers
-mksglu/context-mode
+coreyhaines31/marketingskills
 heygen-com/hyperframes
-earendil-works/pi
-tile-ai/tilelang
+mksglu/context-mode
+google/skills
+getsentry/sentry
+colbymchenry/codegraph
+cursor/plugins
+mvschwarz/openrig
+Effect-TS/effect
 pablostanley/yoinks
-HunxByts/GhostTrack
-pbakaus/impeccable
-Friedrich-M/UniMate
