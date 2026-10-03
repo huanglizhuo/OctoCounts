@@ -321,11 +321,12 @@ export function App() {
     if (typedRef !== refName) setRefName(typedRef);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // `main` is a homepage suggestion, not a replacement for an intentional
-  // ref. Once someone supplies a ref by hand (including an intentional blank),
-  // opens a report/deep link, or chooses a recent result, URL edits leave that
-  // choice alone. A newly pasted unambiguous tree/commit URL is also explicit.
-  const refIsExplicit = useRef(!initialRequest.usesSuggestedMain);
+  // A blank ref means "resolve the repository's default branch" — the form
+  // never guesses one on the user's behalf. Once someone supplies a ref by
+  // hand (including an intentional blank), opens a report/deep link, or
+  // chooses a recent result, URL edits leave that choice alone. A newly
+  // pasted unambiguous tree/commit URL is also explicit.
+  const refIsExplicit = useRef(!initialRequest.freshHomepageForm);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => initialRequest.analysisOptions ?? defaultAnalysisOptions);
   const {
     report,
@@ -500,9 +501,11 @@ export function App() {
                   const next = event.target.value;
                   setRepoUrl(next);
                   setAmbiguousRef(hasAmbiguousRefPath(next));
-                  // Only a fresh homepage suggestion may derive a ref from
-                  // the URL. A hand-entered value — including an intentional
-                  // blank — is a stronger choice than any pasted tree path.
+                  // Only a fresh homepage form may derive a ref from the URL.
+                  // A hand-entered value — including an intentional blank — is
+                  // a stronger choice than any pasted tree path. A plain
+                  // repository URL leaves the ref blank: the backend resolves
+                  // the actual default branch (which may not be `main`).
                   if (!refIsExplicit.current) {
                     const urlRef = refFromRepoUrl(next);
                     if (urlRef) {
@@ -513,8 +516,6 @@ export function App() {
                       // the repository default branch instead of guessing.
                       refIsExplicit.current = true;
                       setRefName("");
-                    } else {
-                      setRefName("main");
                     }
                   }
                 }}
@@ -996,10 +997,11 @@ function initialRequestFromLocation() {
   const route = parsePublicReportPath(window.location.pathname);
   if (route) return { ...route, analysisOptions };
 
-  // Only a brand-new homepage form receives the product's `main`
-  // suggestion. Query and report routes keep blank refs meaningful: they ask
-  // the provider to resolve its actual default branch.
-  return { repoUrl: "", refName: "main", analysisOptions, usesSuggestedMain: true };
+  // A brand-new homepage form starts with a blank ref (blank = the
+  // repository's default branch); the flag only marks the form as fresh so
+  // URL edits may still derive a ref from a pasted tree/commit path. Query
+  // and report routes carry whatever ref their URL states, blank included.
+  return { repoUrl: "", refName: "", analysisOptions, freshHomepageForm: true };
 }
 
 function optionsFromSnapshotParam(value: string | null): AnalysisOptions | null {

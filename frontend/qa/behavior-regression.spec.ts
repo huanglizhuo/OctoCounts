@@ -49,7 +49,7 @@ test.describe("analysis behavior regressions", () => {
     await expect(page.locator(".summary .cell.accent .val")).toContainText("222");
   });
 
-  test("homepage suggests main while explicit and blank ref choices survive URL edits", async ({ page }) => {
+  test("homepage starts with a blank ref while explicit and blank ref choices survive URL edits", async ({ page }) => {
     const requests: Array<{ repoUrl: string; refName?: string }> = [];
     await page.route("**/api/analyze", async (route) => {
       const request = route.request().postDataJSON() as { repoUrl: string; refName?: string };
@@ -59,11 +59,12 @@ test.describe("analysis behavior regressions", () => {
     await page.goto(BASE_URL);
     const repo = page.locator("#repo-url");
     const ref = page.locator("#repo-ref");
-    await expect(ref).toHaveValue("main");
+    await expect(ref).toHaveValue("");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
-    // An empty form falls back to the demo seed repo (facebook/react) while
-    // keeping the homepage's "main" suggestion.
-    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "main")).toBe(true);
+    // An empty form falls back to the demo seed repo (facebook/react) with its
+    // pinned demo tag; a blank ref never gets rewritten to a guessed branch —
+    // the backend resolves the repository's actual default branch.
+    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "v19.3.0")).toBe(true);
     await ref.fill("release");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
     await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "release")).toBe(true);
