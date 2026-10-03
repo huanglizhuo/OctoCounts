@@ -12,7 +12,7 @@ const event = await readGitHubEvent();
 const repo = input("repo") || envRepo(event);
 const baseRef = input("base-ref") || event?.pull_request?.base?.sha || process.env.GITHUB_BASE_REF;
 const headRef = input("head-ref") || event?.pull_request?.head?.sha || process.env.GITHUB_SHA;
-const apiBase = trimTrailingSlash(input("api-base") || "https://api.octocounts.com");
+const apiBase = trimTrailingSlash(validateApiBase(input("api-base") || "https://api.octocounts.com"));
 const shouldComment = input("comment") !== "false";
 const token = input("github-token");
 
@@ -67,7 +67,7 @@ async function upsertComment({ token, owner, repo, issueNumber, body }) {
       method: "PATCH",
       body: { body },
     });
-    console.log(`Updated OctoCounts comment ${existing.id}`);
+    console.log("Updated OctoCounts comment " + existing.id);
     return;
   }
   const created = await githubJson(token, `/repos/${owner}/${repo}/issues/${issueNumber}/comments`, {
@@ -78,7 +78,7 @@ async function upsertComment({ token, owner, repo, issueNumber, body }) {
 }
 
 async function postJson(apiBase, path, body) {
-  const response = await fetch(`${apiBase}${path}`, {
+  const response = await fetch(apiBase + path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -87,12 +87,12 @@ async function postJson(apiBase, path, body) {
 }
 
 async function getJson(apiBase, path) {
-  const response = await fetch(`${apiBase}${path}`);
+  const response = await fetch(apiBase + path);
   return readJsonResponse(response);
 }
 
 async function githubJson(token, path, options = {}) {
-  const response = await fetch(`https://api.github.com${path}`, {
+  const response = await fetch("https://api.github.com" + path, {
     method: options.method || "GET",
     headers: {
       accept: "application/vnd.github+json",
@@ -130,6 +130,19 @@ function envRepo(event) {
 
 function trimTrailingSlash(value) {
   return String(value).replace(/\/+$/, "");
+}
+
+function validateApiBase(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail(`Invalid api-base URL: ${value}`);
+  }
+  if (url.protocol !== "https:") {
+    fail(`api-base must be an https URL: ${value}`);
+  }
+  return value;
 }
 
 function sleep(ms) {
