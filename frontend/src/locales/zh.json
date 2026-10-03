@@ -227,6 +227,7 @@
       "位置设置"
     ],
     "installChrome": "从 Chrome 应用商店安装",
+    "chromeRating": "Chrome 应用商店 {{score}} · {{ratings}} 条评分 · {{users}} 名用户",
     "installEdge": "从 Microsoft Edge 加载项安装",
     "installFirefox": "下载 Firefox 版（GitHub Release）",
     "viewSource": "查看源码",

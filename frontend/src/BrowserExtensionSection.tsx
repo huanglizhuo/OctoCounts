@@ -43,6 +43,13 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
         <div className="terminal-label">{t("extensionSection.terminalLabel")}</div>
         <h3>{t("extensionSection.name")}</h3>
         <p>{t("extensionSection.description")}</p>
+        {/* Live store figures (constants.ts), shown per the no-hidden-evidence
+            brand rule; once the rating count grows this line is also what makes
+            an aggregateRating JSON-LD block policy-compliant on this page. */}
+        <p className="extension-rating">
+          <span className="extension-rating-stars" aria-hidden="true">★★★★★</span>{" "}
+          {t("extensionSection.chromeRating", extensionInfo.chromeRating)}
+        </p>
         <ul className="extension-features">
           {features.map((feature) => <li key={feature}>{feature}</li>)}
         </ul>

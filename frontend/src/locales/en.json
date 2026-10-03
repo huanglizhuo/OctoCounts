@@ -240,6 +240,7 @@
       "Placement setting"
     ],
     "installChrome": "Install from Chrome Web Store",
+    "chromeRating": "{{score}} on the Chrome Web Store · {{ratings}} ratings · {{users}} users",
     "installEdge": "Install from Microsoft Edge Add-ons",
     "installFirefox": "Download for Firefox (GitHub release)",
     "viewSource": "View source",

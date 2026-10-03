@@ -14,4 +14,7 @@ export const extensionInfo = {
   chromeWebStoreUrl: "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
   edgeAddOnsUrl: "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
   firefoxAddOnsUrl: "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
+  // Live Chrome Web Store listing figures, read off the store page by hand.
+  // Refresh when they move; Edge/Firefox are not shown (2 users / 0 reviews).
+  chromeRating: { score: "5.0", ratings: 2, users: 169, asOf: "2026-10-03" },
 };

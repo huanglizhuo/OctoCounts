@@ -128,11 +128,14 @@
       ]
     }
     </script>
-    <!-- No aggregateRating here: Google's structured-data policy requires a
-         rating asserted on a page to be visibly displayed on that same page,
-         and octocounts.com has no rating UI. The real 5.0/118 figure lives on
-         the Chrome Web Store listing itself (linked via downloadUrl/sameAs
-         below) — assert it there, not here. -->
+    <!-- No aggregateRating yet. Google's policy requires the rating to be
+         visibly displayed on the same page that asserts it; the homepage does
+         show the live store figures (extension section, from constants.ts
+         chromeRating — 5.0, 2 ratings, 169 users, verified 2026-10-03), but a
+         2-rating rich result reads as weak, so the markup waits until the
+         count is worth showing in search snippets (≥10). An earlier comment
+         here claimed "5.0/118"; that figure was wrong — always re-read the
+         store page instead of trusting this file's history. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",

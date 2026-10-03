@@ -2788,6 +2788,18 @@ table.report tr.totals td.lang {
   font-size: var(--text-sm);
 }
 
+/* Chrome Web Store rating line (verified figures from constants.ts);
+   double class so it outspecifies `.extension-copy p`. */
+.extension-copy .extension-rating {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+}
+
+.extension-rating-stars {
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
 .extension-features {
   list-style: none;
   display: grid;
