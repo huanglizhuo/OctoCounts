@@ -1,18 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-10-03T08:03:52.305Z
-Panniantong/Agent-Reach
-JuliusBrussee/caveman
-obra/superpowers
+# GitHub Trending daily snapshot generated 2026-10-04T08:24:59.202Z
 DietrichGebert/ponytail
 pbakaus/impeccable
-mattpocock/skills
-NVIDIA/OpenShell
-coreyhaines31/marketingskills
-heygen-com/hyperframes
-mksglu/context-mode
-google/skills
-getsentry/sentry
-colbymchenry/codegraph
-cursor/plugins
-mvschwarz/openrig
+affaan-m/ECC
 Effect-TS/effect
-pablostanley/yoinks
+JuliusBrussee/caveman
+Panniantong/Agent-Reach
+pingdotgg/t3code
+thedotmack/claude-mem
+cloudflare/cloudflare-os
+addyosmani/agent-skills
+obra/superpowers
+mattpocock/skills
+mksglu/context-mode
+earendil-works/pi
+getsentry/sentry
+anthropics/claude-code
+jamwithai/production-agentic-rag-course
+meituan-longcat/LongCat-Video
+OpenCut-app/OpenCut
