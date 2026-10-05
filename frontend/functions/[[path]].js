@@ -372,6 +372,17 @@ async function reportResponse(context, route, options = {}) {
   if (!reportMatchesRoute(report, route)) {
     return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
   }
+  // Below the indexable floor the page would be a thin URL Google crawls and
+  // drops; answer the same hard 404 the missing branch does so the URL leaves
+  // the index (and stop paying the render). Totals live in the same payload
+  // the guard above just validated, so no second fetch is needed. The 404
+  // body is still the working SPA shell, and the interactive app continues to
+  // serve the analysis itself — only the indexable report page retires.
+  const reportFiles = report.total?.files;
+  if (typeof reportFiles === "number" && reportFiles < MIN_INDEXABLE_REPORT_FILES) {
+    if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
+    return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
+  }
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
   const relatedReports = await relatedPromise;
@@ -537,6 +548,7 @@ async function listPageResponse(context, kind, url) {
         name: title,
         description,
         url: pageMeta.canonical,
+        breadcrumb: breadcrumbItemList(pageMeta.breadcrumbLabel, pageMeta.canonical),
         mainEntity: {
           "@type": "ItemList",
           itemListElement: payload.reports.map((report, index) => ({
@@ -630,6 +642,7 @@ async function trendingPageResponse(context, options = {}) {
         // defines — attribution without re-inlining a second copy of the
         // entity on every daily page (H4).
         publisher: ORGANIZATION_ID,
+        breadcrumb: breadcrumbItemList("Trending repositories", "https://octocounts.com/trending"),
         // The daily snapshot is both created and modified on its snapshot
         // date; there is no earlier publication moment to report.
         datePublished: snapshot.date,
@@ -813,6 +826,7 @@ async function statsPageResponse(context, options = {}) {
         name: title,
         description,
         url: "https://octocounts.com/stats",
+        breadcrumb: breadcrumbItemList("Site stats", "https://octocounts.com/stats"),
         // The stats dashboard shipped on 2026-07-10 (backend fd456cb, edge
         // function 82ed24a); the API exposes no earlier creation timestamp.
         datePublished: "2026-07-10",
@@ -825,6 +839,19 @@ async function statsPageResponse(context, options = {}) {
   );
 }
 
+/// Home → page breadcrumb, nested as the page node's own `breadcrumb`
+/// property so each page keeps one JSON-LD script and no second copy of the
+/// Organization entity (H4 discipline applies to breadcrumbs too).
+function breadcrumbItemList(label, canonicalUrl) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "OctoCounts", item: "https://octocounts.com/" },
+      { "@type": "ListItem", position: 2, name: label, item: canonicalUrl },
+    ],
+  };
+}
+
 async function comparePageResponse(context, pathname) {
   const index = await indexHtml(context);
   const isCompare = pathname === "/compare";
@@ -832,9 +859,13 @@ async function comparePageResponse(context, pathname) {
   const description = isCompare
     ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
     : "Compare source line count changes between two branches, tags, or commits in a public repository.";
+  // Example links use the repository's current canonical spelling. The React
+  // repository lives at react/react since GitHub's 2026 transfer; the old
+  // facebook/react paths still answer (308 via the rename-follow chain), but
+  // the site's own pages should not make crawlers spend a hop on them.
   const example = isCompare
-    ? `<p>Example: <a href="/compare?left=https%3A%2F%2Fgithub.com%2Ffacebook%2Freact&amp;right=https%3A%2F%2Fgithub.com%2Fvuejs%2Fcore">facebook/react vs vuejs/core</a>. Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`
-    : `<p>Example: <a href="/diff?repo=https%3A%2F%2Fgithub.com%2Ffacebook%2Freact&amp;base=v18.0.0&amp;head=main">facebook/react v18.0.0 to main</a>. Example reports: <a href="/github/facebook/react">facebook/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`;
+    ? `<p>Example: <a href="/compare?left=https%3A%2F%2Fgithub.com%2Freact%2Freact&amp;right=https%3A%2F%2Fgithub.com%2Fvuejs%2Fcore">react/react vs vuejs/core</a>. Example reports: <a href="/github/react/react">react/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`
+    : `<p>Example: <a href="/diff?repo=https%3A%2F%2Fgithub.com%2Freact%2Freact&amp;base=v18.0.0&amp;head=main">react/react v18.0.0 to main</a>. Example reports: <a href="/github/react/react">react/react</a>, <a href="/github/vitejs/vite">vitejs/vite</a>.</p>`;
   const internalLinks = `<nav aria-label="Related OctoCounts pages"><ul>
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
@@ -856,7 +887,38 @@ async function comparePageResponse(context, pathname) {
       canonical: `https://octocounts.com${pathname}`,
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
-      jsonLd: null,
+      // The compare/diff pair was the last zero-schema template (SEO audit
+      // M14): WebPage + the interactive WebApplication, author merged with
+      // the homepage Person via @id. Visible facts only — no usage counts.
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": `https://octocounts.com${pathname}#webpage`,
+            name: title,
+            description,
+            url: `https://octocounts.com${pathname}`,
+            breadcrumb: breadcrumbItemList(isCompare ? "Compare repositories" : "Branch SLOC diff", `https://octocounts.com${pathname}`),
+          },
+          {
+            "@type": "WebApplication",
+            name: isCompare ? "OctoCounts repository SLOC comparison" : "OctoCounts branch SLOC diff",
+            url: `https://octocounts.com${pathname}`,
+            operatingSystem: "Web",
+            applicationCategory: "DeveloperApplication",
+            description,
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            author: {
+              "@type": "Person",
+              "@id": PERSON_ID,
+              name: "huanglizhuo",
+              url: "https://github.com/huanglizhuo",
+              sameAs: PERSON_SAME_AS,
+            },
+          },
+        ],
+      },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
@@ -1804,7 +1866,8 @@ async function fetchReportSitemapEntries(context) {
 ///   repository analyzed under two casings ships two rows while at most one
 ///   casing is canonical (the other 308s at report time).
 /// - entries that provably measured nothing ("0 code lines across 0 files")
-/// are dropped, but only when the payload actually carries totals: the check
+/// or measured fewer files than MIN_INDEXABLE_REPORT_FILES are dropped, but
+/// only when the payload actually carries totals: the check
 /// reads the total shapes the other SEO endpoints already use (nested
 /// total.{files,lines,code} like /api/seo/report, or flat camelCase
 /// totalFiles/totalLines/totalCode like /api/seo/related), so the moment the
@@ -1816,6 +1879,17 @@ async function fetchReportSitemapEntries(context) {
 /// 308s). Nothing in {loc, lastmod} reveals that; it needs a store-side
 /// canonicalization or a live-name check before the rows are returned.
 const REPORT_SITEMAP_LOC_PATTERN = /^https:\/\/octocounts\.com\/github\/[A-Za-z0-9_.~-]+(?:%[0-9A-Fa-f]{2})*\/[A-Za-z0-9_.~-]+(?:%[0-9A-Fa-f]{2})*$/;
+
+// Analyses measuring fewer than this many files are near-zero-value URLs
+// (typo owners, markdown-only placeholder repos): Google crawls them and
+// drops them ("Crawled - currently not indexed"), spending report-page crawl
+// budget on pages that will never rank. Below the floor the sitemap drops
+// the entry and the report page itself answers 404, so the URL leaves the
+// index instead of sitting in it as thin content. The analysis itself stays
+// reachable through the web app, and the floor is deliberately conservative:
+// real two-file gists are rare, and a repo that grows past the floor is
+// re-listed on its next analysis.
+const MIN_INDEXABLE_REPORT_FILES = 5;
 
 function filterReportSitemapEntries(entries) {
   if (!Array.isArray(entries)) return [];
@@ -1832,10 +1906,13 @@ function filterReportSitemapEntries(entries) {
   return kept;
 }
 
-/// True unless every total the entry carries is zero. An entry with no totals
-/// at all (today's {loc, lastmod} shape) stays: absence of data is not proof
-/// of an empty analysis.
+/// True unless the entry's own totals prove it is not worth indexing: an
+/// analysis that measured nothing at all (every total zero), or one whose
+/// file count sits below the indexable floor. An entry with no totals at all
+/// stays: absence of data is not proof of an empty analysis.
 function sitemapEntryMeasuredAnything(entry) {
+  const files = entry.total?.files ?? entry.totalFiles;
+  if (typeof files === "number" && files < MIN_INDEXABLE_REPORT_FILES) return false;
   const totals = [
     entry.total?.files,
     entry.total?.lines,
@@ -1927,6 +2004,7 @@ function listPageMeta(kind) {
       title: "Recently analyzed repositories | OctoCounts",
       description: "Recently analyzed public GitHub repositories with source line count reports.",
       canonical: "https://octocounts.com/recent",
+      breadcrumbLabel: "Recent reports",
     };
   }
   if (kind === "monoliths") {
@@ -1938,12 +2016,14 @@ function listPageMeta(kind) {
       title: "Hall of Monoliths: largest repositories by SLOC | OctoCounts",
       description: "A live OctoCounts leaderboard of large public GitHub repositories ranked by total source lines of code.",
       canonical: "https://octocounts.com/hall-of-monoliths",
+      breadcrumbLabel: "Hall of Monoliths",
     };
   }
   return {
     title: "Popular SLOC reports | OctoCounts",
     description: "Popular OctoCounts source line count reports for public GitHub repositories.",
     canonical: "https://octocounts.com/popular",
+    breadcrumbLabel: "Popular reports",
   };
 }
 

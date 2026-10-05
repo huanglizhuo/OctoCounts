@@ -493,6 +493,102 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
   }
 });
 
+test("report sitemap drops sub-floor analyses while keeping real ones", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json([
+    { loc: "https://octocounts.com/github/octo/tiny", lastmod: "2026-07-14", total: { files: 2, lines: 40, code: 30 } },
+    { loc: "https://octocounts.com/github/octo/real", lastmod: "2026-07-14", total: { files: 120, lines: 900, code: 800 } },
+    { loc: "https://octocounts.com/github/octo/flat-tiny", lastmod: "2026-07-14", totalFiles: 1, totalLines: 10, totalCode: 8 },
+    // No totals at all: absence of data is not proof of an empty analysis.
+    { loc: "https://octocounts.com/github/octo/untotaled", lastmod: "2026-07-14" },
+    { loc: "https://octocounts.com/github/octo/empty", lastmod: "2026-07-14", total: { files: 0, lines: 0, code: 0 } },
+  ]);
+  try {
+    const xml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml"))).text();
+    assert.match(xml, /<loc>https:\/\/octocounts\.com\/github\/octo\/real<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/octocounts\.com\/github\/octo\/untotaled<\/loc>/);
+    assert.doesNotMatch(xml, /octo\/tiny/);
+    assert.doesNotMatch(xml, /octo\/flat-tiny/);
+    assert.doesNotMatch(xml, /octo\/empty/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a report below the indexable file floor answers 404 like a missing report", async () => {
+  const report = {
+    provider: "github",
+    owner: "octo-org",
+    repo: "octo-repo",
+    repoFullName: "octo-org/octo-repo",
+    htmlUrl: "https://github.com/octo-org/octo-repo",
+    publicPath: "/github/octo-org/octo-repo",
+    canonicalUrl: "https://octocounts.com/github/octo-org/octo-repo",
+    title: "octo-org/octo-repo: 30 lines of code | OctoCounts",
+    description: "Source line count for octo-org/octo-repo.",
+    citation: "Counted at commit abcdef123456.",
+    generatedAt: "2026-07-15T00:00:00Z",
+    refName: "main",
+    commitSha: "abcdef1234567890abcdef1234567890abcdef12",
+    tokeiVersion: "13.0.0",
+    durationMs: 100,
+    total: { files: 2, lines: 40, code: 30, comments: 5, blanks: 5 },
+    topLanguage: { name: "Rust", code: 30, percent: 100 },
+    languages: [{ name: "Rust", stats: { files: 2, lines: 40, code: 30, comments: 5, blanks: 5 } }],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json(report);
+  try {
+    const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
+    assert.equal(response.status, 404);
+    const html = await response.text();
+    // The fallback shell still boots the SPA (the interactive tool keeps the
+    // analysis reachable); no thin-report facts are published for indexing.
+    assert.doesNotMatch(html, /30 lines of code/);
+    const markdown = await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"));
+    assert.equal(markdown.status, 404);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("compare and diff pages carry tool schema with merged author and breadcrumbs", async () => {
+  for (const path of ["/compare", "/diff"]) {
+    const response = await onRequest(await renderedContext(path));
+    const html = await response.text();
+    // Assert on the JSON-LD script only: the shell's HTML comments discuss
+    // the no-aggregateRating-yet policy by name and would false-positive.
+    const jsonLd = html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)?.[1] ?? "";
+    assert.ok(jsonLd, `${path} carries a JSON-LD block`);
+    assert.match(jsonLd, /"@type":"WebApplication"/, path);
+    assert.match(jsonLd, /"applicationCategory":"DeveloperApplication"/, path);
+    assert.match(jsonLd, /"price":"0"/, path);
+    assert.match(jsonLd, /"@type":"BreadcrumbList"/, path);
+    // Visible facts only: no invented ratings or usage counts.
+    assert.doesNotMatch(jsonLd, /aggregateRating|ratingCount|installCount/i, path);
+  }
+});
+
+test("list and trending pages carry breadcrumbs in their existing JSON-LD", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ reports: [] });
+  try {
+    for (const path of ["/recent", "/popular"]) {
+      const html = await (await onRequest(await renderedContext(path))).text();
+      assert.match(html, /"@type":"BreadcrumbList"/, path);
+    }
+    const trending = await (await onRequest(await renderedContext("/trending", {
+      source: "https://github.com/trending",
+      generatedAt: "2026-07-15T02:17:00Z",
+      date: "2026-07-15",
+      repositories: [],
+    }))).text();
+    assert.match(trending, /"@type":"BreadcrumbList"/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("sitemap index lists the child sitemaps and keeps text assets out of every sitemap", async () => {
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();
