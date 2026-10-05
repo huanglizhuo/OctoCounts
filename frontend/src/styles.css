@@ -1423,35 +1423,6 @@ body.embed-mode {
   max-width: 36ch;
 }
 
-.hero-other-browsers {
-  position: relative;
-}
-
-.hero-other-browsers summary {
-  min-height: max(34px, var(--tap-min));
-  display: inline-flex;
-  align-items: center;
-  color: var(--fg-dim);
-  cursor: pointer;
-}
-
-.hero-other-browsers > div {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% + 4px);
-  right: 0;
-  display: grid;
-  gap: 4px;
-  min-width: max-content;
-  padding: 6px;
-  border: 1px solid var(--rule);
-  background: var(--panel);
-  box-shadow: var(--terminal-shadow);
-}
-
-.hero-other-browsers:not([open]) > div { display: none; }
-.hero-other-browsers .install-btn { width: 100%; }
-
 .hero-install-primary { min-height: 44px; }
 
 .trust-strip {
@@ -4060,6 +4031,9 @@ td.lang .row-share {
   box-shadow: var(--terminal-shadow);
 }
 .topbar-popover a { color: var(--fg-dim); padding: 6px 8px; text-decoration: none; white-space: nowrap; }
+/* Store links in the Install menu render icon + label via the shared
+   StoreLink (no JSX space); keep the gap here instead. */
+.topbar-popover a svg { margin-right: 6px; }
 .topbar-nav a:hover, .topbar-menu summary:hover, .topbar-popover a:hover { color: var(--accent); }
 /* Install is a regular menu item now (T7: one primary CTA per screen): same
    shape as the other menus, marked only by a small accent dot. */
@@ -4168,8 +4142,6 @@ td.lang .row-share {
     line-height: 1.25;
   }
   .hero-paths .hero-install-primary { width: auto; min-height: 44px; }
-  .hero-other-browsers { grid-column: 1 / -1; }
-  .hero-other-browsers summary { min-height: 28px; font-size: var(--text-xs); }
 }
 
 
@@ -4281,12 +4253,9 @@ td.lang .row-share {
   max-width: none;
 }
 
-.hero-paths-line .install-btn {
-  width: auto;
-}
-
-.hero-store-link {
-  padding: 3px 10px;
+/* The hero's one extension entry: a plain text link to /extension. */
+.hero-paths-line > a {
+  color: var(--link);
 }
 
 /* ---- Coarse-pointer mobile: no extension install CTAs (T8) ----

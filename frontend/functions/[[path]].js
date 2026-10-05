@@ -1035,8 +1035,12 @@ async function extensionPageResponse(context, options = {}) {
   }
   const index = await indexHtml(context);
   const content = EXTENSION_CONTENT;
+  // The "Install from …" copy must stay identical to the client
+  // ExtensionPage's en labels (src/locales/en.json extensionSection.install*)
+  // so hydration does not swap the button text. The markdown twin below keeps
+  // the fuller "Install OctoCounts from …" sentence.
   const installButtons = EXTENSION_STORES.map(
-    (store) => `<a href="${escapeAttr(store.url)}" data-store="${store.store}" data-placement="extension_page" rel="noreferrer">Install OctoCounts from ${escapeHtml(store.label)}</a>`
+    (store) => `<a href="${escapeAttr(store.url)}" data-store="${store.store}" data-placement="extension_page" rel="noreferrer">Install from ${escapeHtml(store.label)}</a>`
   ).join(" ");
   const steps = `<ol>${content.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`;
   const faqHtml = `<h2>Extension FAQ</h2>${content.faq

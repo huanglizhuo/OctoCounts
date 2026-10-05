@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AnalyticsEvents, trackEvent } from "./analytics";
-import { sourceRepoUrl, extensionInfo } from "./constants";
-import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
+import { sourceRepoUrl } from "./constants";
 import { ThemeSwitch } from "./scheme";
+import { StoreLink } from "./StoreLink";
 
 export const publicReportLinks = [
   { href: "/stats", key: "stats" },
@@ -81,9 +80,9 @@ export function Topbar() {
           <a href="/badges" aria-current={isActive("/badges") ? "page" : undefined}>{t("topbar.badges")}</a>
         </>)}
         {menu("install", t("topbar.installExtension"), <>
-          <StoreLink store="chrome" label={t("topbar.chrome")} />
-          <StoreLink store="edge" label={t("topbar.edge")} />
-          <StoreLink store="firefox" label={t("topbar.firefox")} />
+          <StoreLink store="chrome" placement="topbar">{t("topbar.chrome")}</StoreLink>
+          <StoreLink store="edge" placement="topbar">{t("topbar.edge")}</StoreLink>
+          <StoreLink store="firefox" placement="topbar">{t("topbar.firefox")}</StoreLink>
         </>)}
       </nav>
       <div className="topbar-controls" role="group" aria-label={t("languageSwitcher.label")}>
@@ -113,9 +112,9 @@ export function Topbar() {
           <a href="/extension" aria-current={isActive("/extension") ? "page" : undefined}>{t("footer.extension")}</a>
         </div>
         <div className="site-menu-group">
-          <StoreLink store="chrome" label={t("topbar.chrome")} />
-          <StoreLink store="edge" label={t("topbar.edge")} />
-          <StoreLink store="firefox" label={t("topbar.firefox")} />
+          <StoreLink store="chrome" placement="topbar">{t("topbar.chrome")}</StoreLink>
+          <StoreLink store="edge" placement="topbar">{t("topbar.edge")}</StoreLink>
+          <StoreLink store="firefox" placement="topbar">{t("topbar.firefox")}</StoreLink>
         </div>
         <div className="site-menu-group site-menu-preferences">
           <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
@@ -125,17 +124,5 @@ export function Topbar() {
         </div>
       </>)}
     </header>
-  );
-}
-
-function StoreLink({ store, label }: { store: "chrome" | "edge" | "firefox"; label: string }) {
-  const href = store === "chrome"
-    ? extensionInfo.chromeWebStoreUrl
-    : store === "edge" ? extensionInfo.edgeAddOnsUrl : extensionInfo.firefoxAddOnsUrl;
-  const Icon = store === "chrome" ? ChromeIcon : store === "edge" ? EdgeIcon : FirefoxIcon;
-  return (
-    <a href={href} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store, placement: "topbar" })}>
-      <Icon size={15} aria-hidden="true" /> {label}
-    </a>
   );
 }

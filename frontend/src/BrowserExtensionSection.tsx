@@ -1,8 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ChromeIcon, EdgeIcon, FirefoxIcon } from "./icons";
 import { defaultRepoUrl, extensionInfo } from "./constants";
-import { AnalyticsEvents, trackEvent } from "./analytics";
+import { StoreLink } from "./StoreLink";
 
 export default function BrowserExtensionSection({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation();
@@ -55,10 +54,9 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
         </ul>
         <div className="extension-actions">
           <a className="copybtn" href="/extension">{t("extensionSection.learnMore")}</a>
-          <a className="btn install-btn primary-install" href={extensionInfo.chromeWebStoreUrl} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store: "chrome", placement: "extension_section" })}>
-            <ChromeIcon size={15} />
+          <StoreLink store="chrome" placement="extension_section" className="btn install-btn primary-install">
             {t("extensionSection.installChrome")}
-          </a>
+          </StoreLink>
           {/* Pre-rendered coarse-pointer replacement for the install buttons —
               toggled purely by the pointer:coarse media block in styles.css. */}
           <p className="mobile-install-note">
@@ -66,15 +64,17 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
           </p>
           {compact ? (
             <details className="extension-other-stores">
-              <summary>{t("hero.otherBrowsers")}</summary>
+              {/* Summary names the two stores so visitors can tell without
+                  opening it whether their browser is covered. */}
+              <summary>{t("topbar.edge")} & {t("topbar.firefox")}</summary>
               <div>
-                <StoreLink store="edge" label={t("extensionSection.installEdge")} />
-                <StoreLink store="firefox" label={t("extensionSection.installFirefox")} />
+                <StoreLink store="edge" placement="extension_section" className="copybtn install-btn secondary-install" size={14}>{t("extensionSection.installEdge")}</StoreLink>
+                <StoreLink store="firefox" placement="extension_section" className="copybtn install-btn secondary-install" size={14}>{t("extensionSection.installFirefox")}</StoreLink>
               </div>
             </details>
           ) : <>
-            <StoreLink store="edge" label={t("extensionSection.installEdge")} />
-            <StoreLink store="firefox" label={t("extensionSection.installFirefox")} />
+            <StoreLink store="edge" placement="extension_section" className="copybtn install-btn secondary-install" size={14}>{t("extensionSection.installEdge")}</StoreLink>
+            <StoreLink store="firefox" placement="extension_section" className="copybtn install-btn secondary-install" size={14}>{t("extensionSection.installFirefox")}</StoreLink>
             <a className="copybtn" href={defaultRepoUrl} target="_blank" rel="noreferrer">
               <ExternalLink size={14} />
               {t("extensionSection.viewSource")}
@@ -84,13 +84,4 @@ export default function BrowserExtensionSection({ compact = false }: { compact?:
       </div>
     </div>
   );
-}
-
-function StoreLink({ store, label }: { store: "edge" | "firefox"; label: string }) {
-  const href = store === "edge" ? extensionInfo.edgeAddOnsUrl : extensionInfo.firefoxAddOnsUrl;
-  const Icon = store === "edge" ? EdgeIcon : FirefoxIcon;
-  return <a className="copybtn install-btn secondary-install" href={href} target="_blank" rel="noreferrer" onClick={() => trackEvent(AnalyticsEvents.extensionStoreClick, { store, placement: "extension_section" })}>
-    <Icon size={14} />
-    {label}
-  </a>;
 }

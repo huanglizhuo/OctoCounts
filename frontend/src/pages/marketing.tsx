@@ -456,7 +456,9 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
 // facts the Pages Function server-renders (functions/[[path]].js
 // EXTENSION_CONTENT); the product-facts checker keeps the store URLs in both
 // files identical. Install links reuse the site-wide StoreLink analytics with
-// placement=extension_page.
+// placement=extension_page. The en button labels (extensionSection.install*)
+// must stay identical to the SSR fallback's "Install from …" copy so
+// hydration does not swap the text.
 export function ExtensionPage() {
   const { t } = useTranslation();
   return (
@@ -473,13 +475,13 @@ export function ExtensionPage() {
         </div>
         <div className="hero-paths">
           <StoreLink store="chrome" placement="extension_page" className="btn install-btn hero-install-primary" size={15}>
-            {t("hero.addToChrome")}
+            {t("extensionSection.installChrome")}
           </StoreLink>
           <StoreLink store="edge" placement="extension_page" className="copybtn install-btn secondary-install" size={14}>
-            {t("hero.installEdge")}
+            {t("extensionSection.installEdge")}
           </StoreLink>
           <StoreLink store="firefox" placement="extension_page" className="copybtn install-btn secondary-install" size={14}>
-            {t("hero.installFirefox")}
+            {t("extensionSection.installFirefox")}
           </StoreLink>
         </div>
       </section>

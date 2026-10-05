@@ -13,7 +13,6 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { History, Loader2, Play } from "lucide-react";
 import React, { FormEvent, ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { StoreLink } from "./StoreLink";
 import { defaultRepoUrl, defaultRefName, siteLastUpdated, sourceRepoUrl } from "./constants";
 import { analyzeRepository, fetchGrowthStats } from "./api";
 import { isHostDegraded, useGithubStatus } from "./githubStatus";
@@ -558,21 +557,15 @@ export function App() {
                     </button>
                   ))}
                 </div>
-                {/* Secondary path to the extension: one lightweight Chrome
-                    entry; Edge/Firefox fold into a disclosure so the first
-                    screen carries a single install surface while all three
-                    store links remain present. Analyze stays the only solid
-                    primary button on the first screen. */}
+                {/* Secondary path to the extension: a plain text link to the
+                    landing page. Install CTAs live in exactly one surface —
+                    the promo panel below the example report — plus the
+                    always-available topbar Install menu, so the same store
+                    link is not repeated across the page. Analyze stays the
+                    only solid primary button on the first screen. */}
                 <div className="hero-paths hero-paths-line">
                   <span>{t("hero.alsoLine")}</span>
-                  <StoreLink store="chrome" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("hero.addToChrome")}</StoreLink>
-                  <details className="hero-other-browsers">
-                    <summary>{t("hero.otherBrowsers")}</summary>
-                    <div>
-                      <StoreLink store="edge" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.edge")}</StoreLink>
-                      <StoreLink store="firefox" placement="hero" className="copybtn install-btn hero-store-link" size={13}>{t("topbar.firefox")}</StoreLink>
-                    </div>
-                  </details>
+                  <a href="/extension">{t("extensionSection.learnMore")}</a>
                 </div>
                 {/* Pre-rendered (CSS-toggled, no JS) coarse-pointer replacement
                     for the install CTAs — see the pointer:coarse media block. */}
