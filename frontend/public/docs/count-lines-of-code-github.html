@@ -52,7 +52,7 @@
       "headline": "How to count lines of code in a GitHub repository",
       "description": "Four ways to count lines of code in a GitHub repository: the no-install OctoCounts web counter, a browser extension, git commands on a clone, and cloc or tokei — with exact commands and trade-offs.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-07",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -127,6 +127,30 @@
             "@type": "Answer",
             "text": "It depends on the tool, and the distinction is the whole point of SLOC. wc -l counts everything; tokei and cloc separate code lines from comment lines and blank lines, and SLOC usually means the code-line figure. OctoCounts reports all three categories side by side, and its counting methodology page documents exactly which directories are ignored by default, how doc and test files can be included or excluded, and how each language classifies comments — so a number you cite can be reproduced."
           }
+        },
+        {
+          "@type": "Question",
+          "name": "How does OctoCounts count a repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "OctoCounts validates the public repository URL and resolves the requested branch, tag, or commit SHA, downloads a source archive for that exact ref instead of cloning full git history, counts the extracted source tree with tokei, ignores generated and heavy dependency folders such as .git, node_modules, target, dist, and vendor by default, and caches the report by repository, commit SHA, tokei version, and analysis options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What do the reported metrics mean?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Files are the source files detected by language rules. Total lines equal code lines plus comment lines plus blank lines. Code lines are executable or meaningful source lines after language parsing. Comments are line and block comments recognized by the language parser. Blanks are whitespace-only lines. Languages are detected programming languages and file types, sorted by code lines."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts support private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally."
+          }
         }
       ]
     }
@@ -146,9 +170,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Count lines of code in a GitHub repo</nav>
     <main>
-      <p class="meta">Updated September 30, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How to count lines of code in a GitHub repository</h1>
-      <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like cloc or tokei on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.</p>
+      <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like <a href="https://github.com/AlDanial/cloc">cloc</a> or <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.</p>
 
       <h2>How do I count lines of code in a GitHub repository without cloning it?</h2>
       <p>Paste the repository URL into the <a href="/">OctoCounts web app</a> — for example <code>https://github.com/facebook/react</code>. OctoCounts downloads the source archive pinned to an exact commit SHA, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at <a href="/github/facebook/react">octocounts.com/github/facebook/react</a>. Results export as text, JSON, or a PNG card, and feed <a href="/badges">README badges</a>.</p>
@@ -167,8 +191,37 @@ cloc .</code></pre>
       <h2>Can the GitHub API count lines of code?</h2>
       <p>No. The GitHub REST API has no endpoint that returns line counts for a repository. The closest native signal is the languages endpoint (<code>GET /repos/{owner}/{repo}/languages</code>), which returns <strong>bytes</strong> per language — the same byte-based data behind the repository language bar — not lines, and it excludes files GitHub classifies as vendored or generated. To get actual line counts programmatically, use the <a href="/docs/api">OctoCounts report API</a>: it analyzes public GitHub repositories with tokei, pins each result to a commit SHA, and returns files, code, comment, and blank lines per language as JSON.</p>
 
+      <h2>How does OctoCounts count a repository?</h2>
+      <ol>
+        <li>OctoCounts validates the public repository URL and resolves the requested branch, tag, or commit SHA.</li>
+        <li>The backend downloads a source archive for that exact ref instead of cloning full git history.</li>
+        <li>The extracted source tree is counted with tokei.</li>
+        <li>Generated and heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default.</li>
+        <li>The report is cached by repository, commit SHA, tokei version, and analysis options.</li>
+      </ol>
+      <p>For the full counting policy, cache key, exclusions, limitations, and citation format, see the <a href="/docs/methodology">OctoCounts methodology</a>. For measured examples of how the exclusion options change the reported numbers, see the <a href="/research">pilot study on SLOC filtering effects</a>. Agent-readable context is also available in <a href="/llms.txt">/llms.txt</a> and <a href="/llms-full.txt">/llms-full.txt</a>.</p>
+
+      <h2>What do the reported metrics mean?</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Files</td><td>Source files detected by language rules.</td></tr>
+          <tr><td>Total lines</td><td>Code lines + comment lines + blank lines.</td></tr>
+          <tr><td>Code lines</td><td>Executable or meaningful source lines after language parsing.</td></tr>
+          <tr><td>Comments</td><td>Line and block comments recognized by the language parser.</td></tr>
+          <tr><td>Blanks</td><td>Whitespace-only lines.</td></tr>
+          <tr><td>Languages</td><td>Detected programming languages and file types, sorted by code lines.</td></tr>
+        </tbody>
+      </table>
+      <p>Each metric is defined precisely in the <a href="/docs/glossary">SLOC glossary</a>.</p>
+
       <h2>Do comment and blank lines count as lines of code?</h2>
       <p>It depends on the tool, and the distinction is the whole point of SLOC. <code>wc -l</code> counts everything; tokei and cloc separate code lines from comment lines and blank lines, and &ldquo;SLOC&rdquo; usually means the code-line figure. OctoCounts reports all three categories side by side, and its <a href="/docs/methodology">counting methodology page</a> documents exactly which directories are ignored by default (<code>node_modules</code>, <code>build</code>, <code>dist</code>, <code>vendor</code>, and friends), how doc and test files can be included or excluded, and how each language classifies comments — so a number you cite can be reproduced.</p>
+
+      <h2>Does OctoCounts support private repositories?</h2>
+      <p>No. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally &mdash; the <a href="/docs/tokei-online">tokei online guide</a> compares the two routes.</p>
 
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub repo size checker: check before cloning | OctoCounts</title>
+    <meta name="description" content="Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports — with real numbers for linux, firefox, and kubernetes." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/github-repository-size-checker" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/github-repository-size-checker.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="GitHub repo size checker: check before cloning | OctoCounts" />
+    <meta property="og:description" content="Five ways to check how big a GitHub repository is before cloning — API size field, shallow clone, git-sizer, local counting, and no-clone SLOC reports." />
+    <meta property="og:url" content="https://octocounts.com/docs/github-repository-size-checker" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GitHub repo size checker: check before cloning | OctoCounts" />
+    <meta name="twitter:description" content="How big is a repo before you clone it? Five checked methods, with real numbers for linux, firefox, and kubernetes." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "GitHub repo size checker: check a repository before cloning",
+      "description": "Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports — with real numbers for linux, firefox, and kubernetes.",
+      "datePublished": "2026-10-07",
+      "dateModified": "2026-10-07",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/github-repository-size-checker",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "GitHub repo size checker: check before cloning", "item": "https://octocounts.com/docs/github-repository-size-checker" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How can I check a GitHub repository's size before cloning?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The fastest no-clone check is GitHub's REST API: GET /repos/{owner}/{repo} returns a size field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does GitHub show a repository's size on the website?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. A GitHub repository page shows the language bar and file listing but not a total size figure. The documented way to get one without cloning is the REST API's size field on the repository endpoint, which reports kilobytes of the repository as stored by GitHub, refreshed hourly. GitHub's own git-sizer tool goes further and reports detailed size metrics, but it needs a complete local clone to analyze."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between repository size and lines of code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Repository size measures bytes: every version of every file in the git history, including binaries, media, and compressed packfiles. Lines of code measures the text volume of one snapshot: source lines, comment lines, and blank lines per language. A repository can be large in bytes because of history or assets while having modest source lines, or have millions of code lines stored compactly as text. As a concrete pair of numbers: torvalds/linux reports about 6.1 GB via the API size field and 32,353,830 code lines at commit 67f0943b394d via an OctoCounts report."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does a shallow clone download the whole history?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. git clone --depth 1 fetches only the most recent commit of the branch, not the full history, which is the documented behavior of the --depth option. That usually cuts the download substantially on old, active repositories, but you still receive the full working tree of that commit, and some git operations such as fetching further history or running history-aware tools work differently on a shallow copy. git-sizer and any history-based size analysis require the full clone."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How big is the Linux kernel repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "On October 7, 2026, the GitHub REST API reported torvalds/linux with a size field of 6,401,075 KB, about 6.1 GB. OctoCounts' cached report for the same repository, counted at commit 67f0943b394d on October 5, 2026 with tokei 14.0.0, shows 89,158 files, 42,571,003 total lines, and 32,353,830 code lines across 50 languages, with C the top language at 60.8% of code. The two numbers answer different questions: bytes of history versus lines in one snapshot."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo", "https://github.com/huanglizhuo/OctoCounts", "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj", "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim", "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/", "https://www.npmjs.com/package/octocounts"],
+      "knowsAbout": ["source lines of code", "git", "repository size", "code metrics", "developer tools"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / repository size checker</nav>
+    <main>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>GitHub repo size checker: check before cloning</h1>
+      <p class="answer">There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API <code>size</code> field (a one-line <code>curl</code>, no clone), a shallow clone (<code>git clone --depth 1</code>), GitHub's git-sizer tool on a full clone, a local line counter such as <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> on a checkout, and a no-clone SLOC report from <a href="/">OctoCounts</a>. They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.</p>
+      <p class="note">Every number on this page was checked on October 7, 2026. SLOC figures come from OctoCounts reports that name their exact commit SHA and tokei version; byte figures come from GitHub's REST API <code>size</code> field, which GitHub documents as calculated hourly.</p>
+
+      <h2>Why check a repository's size before cloning?</h2>
+      <p>Cloning is the most expensive first step in working with an unfamiliar repository, and its cost scales with things you cannot see from the repository page. Four costs are worth predicting:</p>
+      <ul>
+        <li><strong>Disk space.</strong> A full clone writes both the working tree and a <code>.git</code> directory holding every version of every file in the project's history. Old, active projects can accumulate gigabytes of history that remain on disk even after you delete your local branches.</li>
+        <li><strong>Download time.</strong> Clone transfer is proportional to the packed history plus the checkout. On a metered or slow connection, discovering that a repository is gigabytes only after the clone stalls is the exact situation a size check prevents.</li>
+        <li><strong>CI minutes.</strong> Pipelines that clone from scratch on every run pay the same cost repeatedly. Knowing whether a repository is tens of megabytes or several gigabytes decides between a full clone, a shallow clone, or a cached archive download.</li>
+        <li><strong>Day-to-day git speed.</strong> Large histories make <code>git status</code>, <code>git log</code>, and garbage collection slower over time. Size is a long-term tax, not just a one-time download.</li>
+      </ul>
+
+      <h2>Method 1: the GitHub REST API size field (no clone)</h2>
+      <p>GitHub's REST API documents a <code>size</code> field on the repository endpoint (<code>GET /repos/{owner}/{repo}</code>) as the size of the repository in kilobytes, calculated hourly. One <code>curl</code> returns it with no authentication for public repositories:</p>
+      <pre><code>curl -s https://api.github.com/repos/torvalds/linux | grep '"size"'
+  # "size": 6401075  (about 6.1 GB, checked 2026-10-07)</code></pre>
+      <p>This is the cheapest byte-level check and the only one that works before anything touches your disk. Its limits are worth knowing: the figure covers the repository as GitHub stores it (history plus checkout, in packed form), it is refreshed hourly rather than live, and it tells you nothing about what the bytes are — a repository can be large because of binaries and media, or because of twenty years of history, and the number cannot distinguish them.</p>
+
+      <h2>Method 2: a shallow clone (<code>git clone --depth 1</code>)</h2>
+      <p><code>git clone --depth 1</code> is git's documented way to fetch only the most recent commit of a branch instead of the full history. On old, active repositories this usually cuts the transfer by a large factor while still giving you a complete, buildable working tree of the latest commit. Measure what arrived with <code>git count-objects -vH</code>, which reports the local object store size:</p>
+      <pre><code>git clone --depth 1 https://github.com/kubernetes/kubernetes
+git -C kubernetes count-objects -vH   # size-pack: how much history you actually got</code></pre>
+      <p>A shallow clone answers a slightly different question than the API: it measures the current snapshot's transfer cost on your connection, not the repository's total stored size. Two caveats follow from the mechanism. First, history-based tools do not work on a shallow copy — <a href="https://github.com/github/git-sizer">git-sizer</a>, for instance, needs a complete clone. Second, a shallow clone still writes the full checkout to disk, so it does not help when the working tree itself is what will not fit.</p>
+
+      <h2>Method 3: git-sizer on a full clone</h2>
+      <p><a href="https://github.com/github/git-sizer">git-sizer</a> is GitHub's open-source tool (written in Go) that computes a set of size metrics over a repository's complete history — counts of commits, trees, and blobs, the largest blobs, and similar structural measures — and flags the values that tend to cause problems for git hosting and tooling. It is the right check when your question is not "how big is this?" but "will this repository misbehave?": contributor-side slowness, push failures, or hosting limits. Its trade-off is the loop you were trying to avoid: git-sizer analyzes a local clone, so you need the full history on disk before it can tell you whether you should have cloned it.</p>
+
+      <h2>Method 4: count lines on a checkout you already have</h2>
+      <p>If a checkout already exists locally, a line counter turns it into source-level numbers. <a href="https://github.com/XAMPPRocky/tokei">tokei</a> (Rust) counts files, code, comments, and blanks per language; <a href="https://github.com/AlDanial/cloc">cloc</a> (Perl) is the long-established alternative with very broad language support; <a href="https://github.com/boyter/scc">scc</a> (Go) adds complexity estimates. These tools answer "how much source is in this snapshot?", never "how many bytes will the clone take?" — and they need the code on disk first, which puts them after the clone rather than before it.</p>
+
+      <h2>Method 5: a no-clone SLOC report from OctoCounts</h2>
+      <p><a href="/">OctoCounts</a> is the check designed to run before any clone: paste a public GitHub repository URL and it downloads the repository's compressed source archive for the requested branch, tag, or commit — not the full git history — runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on it, and returns a cached, shareable report with files, total lines, code, comments, blanks, and per-language totals, pinned to an exact commit SHA. Each report also carries its tokei version, so the numbers are reproducible and citable. For the scale question ("is this codebase a hundred thousand lines or thirty million?") it is the only method here that needs nothing on your disk; for the byte question it says nothing, which is why the two kinds of check complement each other. Try it on <a href="/github/torvalds/linux">torvalds/linux</a> or <a href="/github/mozilla-firefox/firefox">mozilla-firefox/firefox</a>.</p>
+
+      <h2>SLOC size versus disk size: different questions</h2>
+      <p>The most common confusion when checking repository size is treating bytes and lines as the same measurement. They diverge in both directions:</p>
+      <table>
+        <thead><tr><th></th><th>Repository size (bytes)</th><th>SLOC (lines)</th></tr></thead>
+        <tbody>
+          <tr><td>Measures</td><td>Compressed history + checkout, all file types</td><td>Text lines in one snapshot's source files</td></tr>
+          <tr><td>Driven by</td><td>History length, binaries, media, fixtures</td><td>Source files in the checked-out commit</td></tr>
+          <tr><td>Answers</td><td>"What will this cost to clone and keep?"</td><td>"How much code is in this codebase?"</td></tr>
+          <tr><td>Checked with</td><td>API size field, git-sizer, count-objects</td><td>tokei, cloc, scc, OctoCounts</td></tr>
+        </tbody>
+      </table>
+      <p>Concrete divergence: a repository with 40 MB of design assets and 5,000 lines of code is byte-large and line-small; a compiler codebase can hold tens of millions of lines of highly compressible text while its stored size stays modest relative to, say, a media-heavy repository of the same byte count. Neither number implies the other, and "big" means different things for cloning (bytes) and for evaluating a codebase's scale (lines).</p>
+
+      <h2>Real numbers: three large repositories</h2>
+      <p>Both kinds of measurement, side by side. Byte figures are GitHub's REST API <code>size</code> field (checked October 7, 2026); line figures are OctoCounts reports, each pinned to its commit.</p>
+      <table>
+        <thead><tr><th>Repository</th><th>API size (2026-10-07)</th><th>Files</th><th>Code lines</th><th>Top language</th></tr></thead>
+        <tbody>
+          <tr><td><a href="/github/torvalds/linux">torvalds/linux</a></td><td>6,401,075 KB (&asymp;6.1 GB)</td><td>89,158</td><td>32,353,830</td><td>C (60.8%)</td></tr>
+          <tr><td><a href="/github/mozilla-firefox/firefox">mozilla-firefox/firefox</a></td><td>not checked</td><td>139,651</td><td>24,523,020</td><td>C++</td></tr>
+          <tr><td><a href="https://github.com/kubernetes/kubernetes">kubernetes/kubernetes</a></td><td>1,529,410 KB (&asymp;1.5 GB)</td><td>—</td><td>—</td><td>Go</td></tr>
+        </tbody>
+      </table>
+      <p>The linux line counts come from the cached OctoCounts report at commit <code>67f0943b394d</code> (counted October 5, 2026 with tokei 14.0.0): 42,571,003 total lines, of which 32,353,830 are code, 4,868,080 comments, and 5,349,093 blanks, across 50 languages. The firefox figures come from its <a href="/github/mozilla-firefox/firefox">OctoCounts report</a> of the same date (139,651 files, 24,523,020 code lines, top language C++). Where a cell is marked "—" the figure was not measured for this page; the point of the table is that the two columns are independent measurements, not two views of one number.</p>
+
+      <h2>Which check should I use?</h2>
+      <table>
+        <thead><tr><th>Scenario</th><th>Best check</th></tr></thead>
+        <tbody>
+          <tr><td>Quick byte-size check, nothing installed, nothing on disk</td><td>GitHub REST API <code>size</code> field</td></tr>
+          <tr><td>How much source code does it have, before cloning anything</td><td><a href="/">OctoCounts</a> no-clone SLOC report</td></tr>
+          <tr><td>Build the code today without downloading history</td><td><code>git clone --depth 1</code></td></tr>
+          <tr><td>Will this repository stress git tooling or hosting limits</td><td><a href="https://github.com/github/git-sizer">git-sizer</a> on a full clone</td></tr>
+          <tr><td>Count lines in a checkout already on your machine</td><td><a href="https://github.com/XAMPPRocky/tokei">tokei</a>, <a href="https://github.com/AlDanial/cloc">cloc</a>, or <a href="https://github.com/boyter/scc">scc</a></td></tr>
+          <tr><td>Shareable, citable source-size numbers for a report or PR</td><td><a href="/">OctoCounts</a> (commit-pinned URL, <a href="/badges">badges</a>, <a href="/docs/api">API</a>)</td></tr>
+        </tbody>
+      </table>
+      <p class="note"><strong>Bottom line:</strong> decide what "size" you mean before checking. Bytes before cloning come from the API's <code>size</code> field or a shallow clone; lines of code before cloning come from an OctoCounts report; structural git-health warnings come from git-sizer after a full clone. The torvalds/linux pair above — about 6.1 GB of repository versus 32,353,830 code lines in one snapshot — is the clearest reminder that the answers are different numbers about different things.</p>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <h3>How can I check a GitHub repository's size before cloning?</h3>
+      <p>The fastest no-clone check is GitHub's REST API: <code>GET /repos/{owner}/{repo}</code> returns a <code>size</code> field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all.</p>
+
+      <h3>Does GitHub show a repository's size on the website?</h3>
+      <p>No. A GitHub repository page shows the language bar and file listing but not a total size figure. The documented way to get one without cloning is the REST API's <code>size</code> field on the repository endpoint, which reports kilobytes of the repository as stored by GitHub, refreshed hourly. GitHub's own git-sizer tool goes further and reports detailed size metrics, but it needs a complete local clone to analyze.</p>
+
+      <h3>What is the difference between repository size and lines of code?</h3>
+      <p>Repository size measures bytes: every version of every file in the git history, including binaries, media, and compressed packfiles. Lines of code measures the text volume of one snapshot: source lines, comment lines, and blank lines per language. A repository can be large in bytes because of history or assets while having modest source lines, or have millions of code lines stored compactly as text. As a concrete pair of numbers: torvalds/linux reports about 6.1 GB via the API size field and 32,353,830 code lines at commit 67f0943b394d via an OctoCounts report.</p>
+
+      <h3>Does a shallow clone download the whole history?</h3>
+      <p>No. <code>git clone --depth 1</code> fetches only the most recent commit of the branch, not the full history, which is the documented behavior of the <code>--depth</code> option. That usually cuts the download substantially on old, active repositories, but you still receive the full working tree of that commit, and some git operations such as fetching further history or running history-aware tools work differently on a shallow copy. git-sizer and any history-based size analysis require the full clone.</p>
+
+      <h3>How big is the Linux kernel repository?</h3>
+      <p>On October 7, 2026, the GitHub REST API reported torvalds/linux with a size field of 6,401,075 KB, about 6.1 GB. OctoCounts' cached report for the same repository, counted at commit <code>67f0943b394d</code> on October 5, 2026 with tokei 14.0.0, shows 89,158 files, 42,571,003 total lines, and 32,353,830 code lines across 50 languages, with C the top language at 60.8% of code. The two numbers answer different questions: bytes of history versus lines in one snapshot.</p>
+
+      <h2>Related OctoCounts pages</h2>
+      <ul>
+        <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
+        <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository</a></li>
+        <li><a href="/docs/tokei-online">tokei online: run tokei on GitHub repositories</a></li>
+        <li><a href="/docs/octocounts-vs-tokei">OctoCounts vs tokei</a></li>
+        <li><a href="/docs/octocounts-vs-scc">OctoCounts vs scc</a></li>
+        <li><a href="/docs/methodology">Counting methodology</a></li>
+        <li><a href="/docs/glossary">SLOC glossary</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

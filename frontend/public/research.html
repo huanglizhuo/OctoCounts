@@ -52,7 +52,7 @@
       "headline": "How Filtering Changes SLOC Counts: OctoCounts Pilot Study",
       "description": "OctoCounts counts facebook/react and vitejs/vite at identical commits under four analysis configurations. Test filtering removes 47.7% of react's code lines and 26.6% of Vite's; docs and generated-file filters barely move.",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-07",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -87,7 +87,7 @@
       "name": "Pilot dataset: how analysis-configuration filtering changes SLOC counts (facebook/react, vitejs/vite)",
       "description": "Eight recorded counting runs: facebook/react and vitejs/vite at pinned commits (9b7a0d4029ee, e6f6b3e31192), each counted under four OctoCounts analysis configurations (default, exclude-tests, exclude-docs, exclude-generated). Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version, and full totals (files, lines, code, comments, blanks).",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-07",
       "creator": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -140,7 +140,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / Research</nav>
     <main>
-      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How Filtering Changes SLOC Counts: OctoCounts Pilot Study</h1>
       <p class="note">This is an OctoCounts original research page. All measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to <a href="/research">octocounts.com/research</a>.</p>
 
@@ -177,7 +177,7 @@
       <ul>
         <li>The sample is not random and n=2: these are two JavaScript/TypeScript tooling repositories. No claim about open source in general is possible from it.</li>
         <li>Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.</li>
-        <li>A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits.</li>
+        <li>A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. OctoCounts' production engine has since been upgraded to <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 14.0.0 (see the <a href="/docs/methodology">counting methodology</a>); the pilot was not rerun, so these figures describe tokei-12.1 only.</li>
       </ul>
 
       <h2>Next steps</h2>

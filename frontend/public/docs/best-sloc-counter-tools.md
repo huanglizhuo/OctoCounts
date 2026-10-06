@@ -1,6 +1,6 @@
 # Best Tools to Count Lines of Code (SLOC) in 2026
 
-Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories and one of six tools compared on this page. It counts files, total lines, code lines, comments, and blanks per language with tokei, run on a downloaded source archive instead of a git clone, and returns a shareable, commit-pinned report. The other tools — tokei, cloc, scc, sloccount, and GitHub's language bar — each measure size differently and suit different workflows.
 
@@ -14,7 +14,7 @@ Six tools compared for counting source lines of code — OctoCounts, tokei, cloc
 | [tokei](https://github.com/XAMPPRocky/tokei) | CLI | Rust | Fast local/private counts, CI pipelines | Free, open source |
 | [cloc](https://github.com/AlDanial/cloc) | CLI | Perl | Widest language support, legacy/unusual codebases | Free, open source |
 | [scc](https://github.com/boyter/scc) | CLI | Go | Fast counts plus complexity estimates in one pass | Free, open source |
-| sloccount | CLI | Perl / C | COCOMO cost estimates on older Unix-style codebases | Free, open source (unmaintained) |
+| [sloccount](https://www.dwheeler.com/sloccount/) | CLI | Perl / C | COCOMO cost estimates on older Unix-style codebases | Free, open source (unmaintained) |
 | GitHub language bar | Built into GitHub | — | A quick, no-setup glance at language mix by bytes | Free (built in) |
 
 ### OctoCounts
@@ -34,6 +34,8 @@ tokei is an open-source, Rust-based command-line counter that supports over 200 
 
 - **Pros:** Very fast, works on private repos, no network required, widely used as a library inside other tools
 - **Cons:** Requires installing a Rust binary or crate, no built-in report sharing or hosting, results aren't reproducible across machines without pinning the tokei version
+
+tokei has no official web interface. OctoCounts runs tokei online, free, at commit-pinned URLs — see the [tokei online guide](https://octocounts.com/docs/tokei-online) if you want tokei's numbers for a public GitHub repository without installing anything.
 
 ### cloc
 
@@ -91,6 +93,9 @@ No. Every tool in this comparison measures size, not quality, complexity, or mai
 
 - [OctoCounts home: count any public GitHub repository](https://octocounts.com/)
 - [OctoCounts vs cloc, scc, and tokei (head-to-head)](https://octocounts.com/docs/octocounts-vs-cloc)
+- [OctoCounts vs tokei (head-to-head)](https://octocounts.com/docs/octocounts-vs-tokei)
+- [OctoCounts vs scc (head-to-head)](https://octocounts.com/docs/octocounts-vs-scc)
+- [GitHub repo size checker: check before cloning](https://octocounts.com/docs/github-repository-size-checker)
 - [GitHub language bar alternative](https://octocounts.com/docs/github-language-bar-alternative)
 - [Counting methodology](https://octocounts.com/docs/methodology)
 - [Frequently asked questions](https://octocounts.com/docs/faq)

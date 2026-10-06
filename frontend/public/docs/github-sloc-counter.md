@@ -1,8 +1,8 @@
 # GitHub SLOC Counter Guide
 
-Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.
+OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.
 
 > OctoCounts is a free source lines of code counter for public repositories. It works from a URL, does not clone git history, and reports files, total lines, code, comments, blanks, and language totals.
 
@@ -25,28 +25,26 @@ OctoCounts is one option among several. For head-to-head trade-offs see [OctoCou
 | GitHub public repositories | Web app, API, report pages, badges, Chrome extension, Edge extension, Firefox extension | `https://github.com/owner/repo` |
 | Private repositories | Not supported | Run `tokei` locally instead |
 
-## How the Count Works
+## tokei online, without installing anything
 
-1. OctoCounts validates the public repository URL and resolves the requested branch, tag, or commit SHA.
-2. The backend downloads a source archive for that exact ref instead of cloning full git history.
-3. The extracted source tree is counted with [tokei](https://github.com/XAMPPRocky/tokei).
-4. Generated and heavy dependency folders such as `.git`, `node_modules`, `target`, `dist`, and `vendor` are ignored by default.
-5. The report is cached by repository, commit SHA, tokei version, and analysis options.
+tokei itself has no official web interface — it is a command-line tool. OctoCounts runs tokei online, free, at commit-pinned URLs: paste a public GitHub repository URL and get the same counts the CLI would produce, pinned to an exact commit. The [tokei online guide](https://octocounts.com/docs/tokei-online) explains when an online run beats the CLI and how the two compare.
 
-For the full counting policy, cache key, exclusions, limitations, and citation format, see the [OctoCounts methodology](https://octocounts.com/docs/methodology). For measured examples of how the exclusion options change the reported numbers, see the [pilot study on SLOC filtering effects](https://octocounts.com/research). Agent-readable context is also available in [/llms.txt](https://octocounts.com/llms.txt) and [/llms-full.txt](https://octocounts.com/llms-full.txt).
+## OctoCounts Docs Guides
 
-## Metrics Explained
+Every guide in this section, with what each covers:
 
-| Metric | Meaning |
-| --- | --- |
-| Files | Source files detected by language rules. |
-| Total lines | Code lines + comment lines + blank lines. |
-| Code lines | Executable or meaningful source lines after language parsing. |
-| Comments | Line and block comments recognized by the language parser. |
-| Blanks | Whitespace-only lines. |
-| Languages | Detected programming languages and file types, sorted by code lines. |
-
-Each metric is defined precisely in the [SLOC glossary](https://octocounts.com/docs/glossary).
+- [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github) — four practical methods (web counter, browser extension, git commands, API) with exact commands and trade-offs.
+- [GitHub repository size checker](https://octocounts.com/docs/github-repository-size-checker) — five ways to check how big a repository is before cloning, with real numbers.
+- [Counting methodology](https://octocounts.com/docs/methodology) — the full counting pipeline, cache key, exclusions, and citation format.
+- [tokei online](https://octocounts.com/docs/tokei-online) — run tokei on public GitHub repositories without installing it.
+- [OctoCounts vs cloc, scc, and tokei](https://octocounts.com/docs/octocounts-vs-cloc) — head-to-head trade-offs against the local counting tools.
+- [OctoCounts vs tokei](https://octocounts.com/docs/octocounts-vs-tokei) — web reports vs the local CLI, same counting engine.
+- [OctoCounts vs scc](https://octocounts.com/docs/octocounts-vs-scc) — local complexity and COCOMO estimates vs shareable web reports.
+- [Best SLOC counter tools compared](https://octocounts.com/docs/best-sloc-counter-tools) — six tools including sloccount and GitHub's built-in language bar.
+- [GitHub language bar alternative](https://octocounts.com/docs/github-language-bar-alternative) — why GitHub's byte-based language bar is not a line count.
+- [SLOC glossary](https://octocounts.com/docs/glossary) — precise definitions of code lines, comments, blanks, and related terms.
+- [OctoCounts API docs](https://octocounts.com/docs/api) — analyze endpoints, report fields, and badge routes.
+- [OctoCounts FAQ](https://octocounts.com/docs/faq) — answers about counting, extensions, badges, and the API.
 
 ## Examples
 
@@ -77,19 +75,5 @@ Programmatic users can start an analysis with `POST /api/analyze`, poll `GET /ap
 ## Privacy and Scope
 
 OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.
-
-## Frequently Asked Questions
-
-### What does OctoCounts count?
-
-OctoCounts counts files, total lines, code lines, comment lines, blank lines, and per-language totals for public GitHub repositories.
-
-### Do I need to clone the repository?
-
-No. OctoCounts downloads the source archive for a branch, tag, or commit SHA, runs tokei on the extracted files, and caches the result by commit and analysis options.
-
-### Does OctoCounts support private repositories?
-
-No. OctoCounts analyzes public repositories only and does not accept source-code uploads or request account access.
 
 More questions about counting, extensions, badges, and the API are answered in the [OctoCounts FAQ](https://octocounts.com/docs/faq).

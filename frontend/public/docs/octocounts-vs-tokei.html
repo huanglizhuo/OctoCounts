@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts vs tokei: web vs CLI SLOC counting | OctoCounts</title>
+    <meta name="description" content="OctoCounts vs tokei compared: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos with commit-pinned, shareable reports." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/octocounts-vs-tokei" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/octocounts-vs-tokei.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts vs tokei: web vs CLI SLOC counting | OctoCounts" />
+    <meta property="og:description" content="OctoCounts runs the same tokei engine server-side on public GitHub repositories — commit-pinned, cached, shareable — while the tokei CLI counts local checkouts, including private code." />
+    <meta property="og:url" content="https://octocounts.com/docs/octocounts-vs-tokei" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts vs tokei: web vs CLI SLOC counting | OctoCounts" />
+    <meta name="twitter:description" content="Same counting engine, different workflow: when to use OctoCounts and when to run the tokei CLI." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts vs tokei: web vs CLI SLOC counting",
+      "description": "OctoCounts vs tokei compared: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos with commit-pinned, shareable reports.",
+      "datePublished": "2026-10-07",
+      "dateModified": "2026-10-07",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/octocounts-vs-tokei",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "OctoCounts vs tokei", "item": "https://octocounts.com/docs/octocounts-vs-tokei" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is there an official tokei web UI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. tokei is distributed as a command-line tool from github.com/XAMPPRocky/tokei, and its repository ships no official web service. OctoCounts is an independent web app that runs tokei as its server-side counting engine: paste a public GitHub repository URL and the web app downloads the source archive, runs tokei, and publishes the result as a shareable report. The CLI remains the tool of record for local code."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do OctoCounts and local tokei produce the same numbers?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, when the input matches: OctoCounts runs tokei on the repository's source archive at one exact commit, so an OctoCounts report and a local tokei run on the same commit, at the same tokei version, with the same options (ignored directories, docs, tests, generated files) count the same lines. Every OctoCounts report states the tokei version and commit SHA it used, which is what makes the claim checkable rather than promotional."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which tokei version does OctoCounts run?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Production currently runs tokei 14.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "When is the tokei CLI the only option?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Four cases belong to the CLI: code that is private or not hosted on GitHub (OctoCounts analyzes public GitHub repositories only), machines without reliable network access, counting a working tree mid-edit before anything is committed, and scripted pipelines that must run on your own infrastructure. OctoCounts covers the public-GitHub, share-the-result side of that split."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does OctoCounts replace tokei?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No — it wraps tokei for one workflow. OctoCounts downloads a public GitHub repository's archive, runs tokei, and adds commit pinning, caching, shareable URLs, badges, JSON/text/PNG export, an API, and browser extensions. tokei itself is unchanged: install it with cargo install tokei or a package manager and count anything on your machine, private code included."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo", "https://github.com/huanglizhuo/OctoCounts", "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj", "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim", "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/", "https://www.npmjs.com/package/octocounts"],
+      "knowsAbout": ["source lines of code", "tokei", "commit pinning", "code metrics", "developer tools"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / vs tokei</nav>
+    <main>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>OctoCounts vs tokei</h1>
+      <p class="answer">tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a> — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. <a href="/">OctoCounts</a> is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.</p>
+      <p class="note">This is not a matchup of rival engines — OctoCounts runs tokei under the hood. The comparison below is about workflow: where the code lives, how the result is pinned, and what you can do with the numbers afterward.</p>
+
+      <h2>Quick comparison</h2>
+      <table>
+        <thead>
+          <tr><th></th><th>tokei (CLI)</th><th>OctoCounts (web)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>What it is</td><td>Command-line tool (Rust)</td><td>Web app + extensions + API, running tokei server-side</td></tr>
+          <tr><td>Install</td><td><code>cargo install tokei</code>, brew, or a release binary</td><td>None — paste a URL</td></tr>
+          <tr><td>Input</td><td>Any directory on your machine</td><td>Public github.com repositories, any branch/tag/commit</td></tr>
+          <tr><td>Private code</td><td>Yes</td><td>No</td></tr>
+          <tr><td>Commit pinning</td><td>Whatever checkout you run it on</td><td>Every report pinned to an exact commit SHA</td></tr>
+          <tr><td>Output</td><td>Terminal table (text/JSON formats)</td><td>Linkable report page, PNG card, text/JSON export</td></tr>
+          <tr><td>Sharing</td><td>Copy-paste yourself</td><td>Stable URL, <a href="/badges">README badges</a>, <a href="/docs/api">API</a></td></tr>
+          <tr><td>Caching</td><td>None — each run recounts</td><td>Cached by commit + tokei version + options</td></tr>
+        </tbody>
+      </table>
+
+      <h2>The web side: what OctoCounts adds around tokei</h2>
+      <p>OctoCounts takes a public GitHub repository URL, resolves the requested branch, tag, or commit, downloads that revision's compressed source archive (not the full git history), and runs tokei on it. The report you get back states the commit SHA and the exact tokei version used, breaks out files, total lines, code, comments, and blanks per language, and lives at a stable URL you can paste into a pull request, README, or issue.</p>
+      <ul>
+        <li><strong>No install and no clone:</strong> the archive download happens server-side; your disk never touches the repository.</li>
+        <li><strong>Commit-pinned citations:</strong> a report URL names the revision it counted, so numbers stay verifiable after the repository moves on.</li>
+        <li><strong>Reproducibility:</strong> results are cached by repository, commit SHA, tokei version, and analysis options, so re-opening a report reproduces the same numbers.</li>
+        <li><strong>Integrations:</strong> browser extensions for Chrome, Edge, and Firefox show a SLOC card in the GitHub sidebar; a CLI, GitHub Action, and MCP server cover automated use.</li>
+        <li><strong>Limitation:</strong> public GitHub repositories only — no private repositories, no other forges, no source uploads.</li>
+      </ul>
+
+      <h2>The CLI side: what tokei does on its own</h2>
+      <p><a href="https://github.com/XAMPPRocky/tokei">tokei</a> is the counting engine itself. It is written in Rust, recognizes hundreds of languages, and reports files, code, comment, and blank lines grouped by language. Installed with <code>cargo install tokei</code>, a system package manager, or a prebuilt release binary, it runs against any directory — a git checkout, a tarball, a folder with no version control at all.</p>
+      <ul>
+        <li><strong>Private and local code:</strong> the only path of the two for closed-source projects, local-only experiments, and non-GitHub forges.</li>
+        <li><strong>Works offline:</strong> once installed, counting needs no network at all.</li>
+        <li><strong>Counts the working tree as it is:</strong> uncommitted edits are counted immediately, with no commit required first.</li>
+        <li><strong>Scriptable:</strong> fits directly into shell pipelines and CI jobs on your own runners.</li>
+        <li><strong>Trade-off:</strong> you own the plumbing — getting from "terminal table" to a shared, dated, reproducible citation is manual work.</li>
+      </ul>
+
+      <h2>Do the numbers match?</h2>
+      <p>Yes, when the inputs match. OctoCounts runs tokei on the source archive of one exact commit; run the same tokei version over the same revision locally with the same options — ignored directories, whether docs, tests, or generated files are included — and the counts agree, because it is the same program doing the counting. The <a href="/docs/methodology">counting methodology page</a> documents the pipeline and the default exclusions. This is also why an OctoCounts report can serve as a citation: it names the engine (tokei, with version), the revision (commit SHA), and the options, which is everything a skeptical reader needs to reproduce the number. Production currently runs tokei 14.0.0; every report shows the version that produced it.</p>
+
+      <h2>Which one should I use?</h2>
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th>Reach for</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Check a public repo's size from someone else's machine or a locked-down laptop</td><td>OctoCounts</td></tr>
+          <tr><td>Link a count in a PR or issue so others can verify it later</td><td>OctoCounts (commit-pinned URL)</td></tr>
+          <tr><td>Cite a codebase size in a paper or report with engine and version named</td><td>OctoCounts (report carries tokei version + SHA)</td></tr>
+          <tr><td>Live badge in a README that follows the cached report</td><td>OctoCounts <a href="/badges">badges</a></td></tr>
+          <tr><td>Count private or closed-source code</td><td>tokei CLI</td></tr>
+          <tr><td>Count a working tree mid-edit, before any commit exists</td><td>tokei CLI</td></tr>
+          <tr><td>Air-gapped or offline environment</td><td>tokei CLI</td></tr>
+          <tr><td>Step in a pipeline on your own CI runners</td><td>tokei CLI (or the OctoCounts <a href="/docs/api">API</a>/<a href="/docs/faq">GitHub Action</a> for public repos)</td></tr>
+          <tr><td>Code hosted outside github.com</td><td>tokei CLI</td></tr>
+        </tbody>
+      </table>
+      <p class="note"><strong>Bottom line:</strong> the code's location decides. On GitHub and public → OctoCounts gives you the same tokei numbers with sharing, pinning, and badges for free; on your machine, private, or mid-edit → install the CLI. Using both is normal: many projects count locally with tokei during development and cite an OctoCounts report when the number needs to travel.</p>
+
+      <h2>Frequently Asked Questions</h2>
+
+      <h3>Is there an official tokei web UI?</h3>
+      <p>No. tokei is distributed as a command-line tool from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a>, and its repository ships no official web service. OctoCounts is an independent web app that runs tokei as its server-side counting engine: paste a public GitHub repository URL and the web app downloads the source archive, runs tokei, and publishes the result as a shareable report. The CLI remains the tool of record for local code.</p>
+
+      <h3>Do OctoCounts and local tokei produce the same numbers?</h3>
+      <p>Yes, when the input matches: OctoCounts runs tokei on the repository's source archive at one exact commit, so an OctoCounts report and a local tokei run on the same commit, at the same tokei version, with the same options (ignored directories, docs, tests, generated files) count the same lines. Every OctoCounts report states the tokei version and commit SHA it used, which is what makes the claim checkable rather than promotional.</p>
+
+      <h3>Which tokei version does OctoCounts run?</h3>
+      <p>Production currently runs tokei 14.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work.</p>
+
+      <h3>When is the tokei CLI the only option?</h3>
+      <p>Four cases belong to the CLI: code that is private or not hosted on GitHub (OctoCounts analyzes public GitHub repositories only), machines without reliable network access, counting a working tree mid-edit before anything is committed, and scripted pipelines that must run on your own infrastructure. OctoCounts covers the public-GitHub, share-the-result side of that split.</p>
+
+      <h3>Does OctoCounts replace tokei?</h3>
+      <p>No — it wraps tokei for one workflow. OctoCounts downloads a public GitHub repository's archive, runs tokei, and adds commit pinning, caching, shareable URLs, badges, JSON/text/PNG export, an API, and browser extensions. tokei itself is unchanged: install it with <code>cargo install tokei</code> or a package manager and count anything on your machine, private code included.</p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li><a href="/docs/octocounts-vs-scc">OctoCounts vs scc</a></li>
+        <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
+        <li><a href="/docs/tokei-online">tokei online: run tokei on GitHub repositories</a></li>
+        <li><a href="/docs/github-repository-size-checker">GitHub repo size checker</a></li>
+        <li><a href="/docs/methodology">OctoCounts counting methodology</a></li>
+        <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared</a></li>
+      </ul>
+    </main>
+  </body>
+</html>

@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-09-16
+Last-Updated: 2026-10-07
 
 ## What OctoCounts Does
 
@@ -28,6 +28,52 @@ The browser extension is available from the Chrome Web Store, Microsoft Edge Add
 
 Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users may also ignore additional directories or languages and choose whether docs, tests, or generated files are included.
 
+## MCP Server
+
+OctoCounts publishes an MCP (Model Context Protocol) server so AI coding tools (Claude, Cursor, and any MCP client) can pull SLOC reports directly. The npm package is `octocounts-mcp`, and the server speaks MCP over stdio. It exposes two tools:
+
+- `analyze_repo`: count files, total lines, code lines, comment lines, blank lines, and per-language totals for a public GitHub repository.
+- `compare_repos`: compare two public GitHub repositories or refs.
+
+Agents connect by registering the server in their MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "octocounts": {
+      "command": "npx",
+      "args": ["-y", "octocounts-mcp"]
+    }
+  }
+}
+```
+
+The server calls the public OctoCounts API; the `OCTOCOUNTS_API_BASE` environment variable overrides the API base and defaults to `https://api.octocounts.com`.
+
+## CLI
+
+`octocounts` is an npm CLI that counts a public GitHub repository without cloning, powered by the OctoCounts API with tokei under the hood:
+
+```sh
+npx octocounts vitejs/vite
+npx octocounts https://github.com/tokio-rs/axum --ref main
+npx octocounts rust-lang/rust --json
+```
+
+Options: `--ref <ref>` (branch, tag, or commit SHA), `--json` (print the raw report JSON), `--api-base <url>` (alternate API), and `--sample` (print a local sample report without network calls).
+
+## GitHub Action
+
+`huanglizhuo/octocounts-sloc-diff-action` (GitHub Marketplace) comments on pull requests with the SLOC change between the base and head refs, with a link to the full OctoCounts report:
+
+```yaml
+- uses: huanglizhuo/octocounts-sloc-diff-action@v1
+  with:
+    github-token: ${{ github.token }}
+```
+
+Optional inputs: `repo` (defaults to the current repository), `base-ref` (defaults to `pull_request.base.sha`), `head-ref` (defaults to `pull_request.head.sha`), `api-base` (defaults to `https://api.octocounts.com`), and `comment` (set to `false` to print the markdown without writing a PR comment).
+
 ## Scope and Limitations
 
 | Capability | Support |
@@ -47,15 +93,20 @@ For private repositories, run tokei locally.
 - Popular reports: https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
 - Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Public growth stats: https://octocounts.com/stats
+- Compare hub and interactive tool (compare two repositories, forks, branches, tags, or commits): https://octocounts.com/compare
+- Diff two refs of one repository: https://octocounts.com/diff
 - README badge builder: https://octocounts.com/badges
 - Browser extension landing page: https://octocounts.com/extension
 - Curated comparisons (server-rendered "X vs Y" SLOC pages, e.g. React vs Vue): https://octocounts.com/compare/react-vs-vue
 - Methodology: https://octocounts.com/docs/methodology
-- SLOC guide: https://octocounts.com/docs/github-sloc-counter
+- SLOC guide (docs hub): https://octocounts.com/docs/github-sloc-counter
 - Glossary: https://octocounts.com/docs/glossary
 - API docs: https://octocounts.com/docs/api
 - FAQ: https://octocounts.com/docs/faq
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
+- tokei online (run tokei on GitHub repos without installing): https://octocounts.com/docs/tokei-online
+- How to count lines of code in a GitHub repository: https://octocounts.com/docs/count-lines-of-code-github
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
 - Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research
@@ -78,6 +129,11 @@ Cached report pages include:
 - Dataset, SoftwareSourceCode, FAQPage, and BreadcrumbList JSON-LD.
 - An embedded `application/json` report summary with totals, commit, language rows, and citation text.
 - Links to recent reports, popular reports, Hall of Monoliths, methodology, guide, and API docs.
+
+## Compare and Diff Pages
+
+- Compare hub and interactive tool: https://octocounts.com/compare — compare two repositories, forks, branches, tags, or commits side by side. Interactive URL pattern: `https://octocounts.com/compare?left=...&right=...&leftRef=...&rightRef=...`. Curated pairs additionally have server-rendered pages at `https://octocounts.com/compare/:slug` (for example https://octocounts.com/compare/react-vs-vue); the full curated pair list is maintained in llms.txt.
+- Diff tool: https://octocounts.com/diff — counts two refs of one repository and shows how the line counts moved between them. URL pattern: `https://octocounts.com/diff?repo=...&base=...&head=...`.
 
 ## API
 

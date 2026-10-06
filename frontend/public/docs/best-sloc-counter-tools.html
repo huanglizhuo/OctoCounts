@@ -56,7 +56,7 @@
       "headline": "Best Tools to Count Lines of Code (SLOC) in 2026",
       "description": "A practical comparison of OctoCounts, tokei, cloc, scc, sloccount, and GitHub's language bar for counting source lines of code.",
       "datePublished": "2026-08-30",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-07",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -149,7 +149,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Best SLOC tools</nav>
     <main>
-      <p class="meta">Updated September 17, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>Best Tools to Count Lines of Code (SLOC) in 2026</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories and one of six tools compared on this page. It counts files, total lines, code lines, comments, and blanks per language with tokei, run on a downloaded source archive instead of a git clone, and returns a shareable, commit-pinned report. The other tools — tokei, cloc, scc, sloccount, and GitHub's language bar — each measure size differently and suit different workflows.</p>
       <p class="note">Six tools compared for counting source lines of code — OctoCounts, tokei, cloc, scc, sloccount, and GitHub's built-in language bar — with what each measures, who it's best for, and where it falls short. None of these tools measure code quality; they measure size.</p>
@@ -162,7 +162,7 @@
           <tr><td><a href="https://github.com/XAMPPRocky/tokei">tokei</a></td><td>CLI</td><td>Rust</td><td>Fast local/private counts, CI pipelines</td><td>Free, open source</td></tr>
           <tr><td><a href="https://github.com/AlDanial/cloc">cloc</a></td><td>CLI</td><td>Perl</td><td>Widest language support, legacy/unusual codebases</td><td>Free, open source</td></tr>
           <tr><td><a href="https://github.com/boyter/scc">scc</a></td><td>CLI</td><td>Go</td><td>Fast counts plus complexity estimates in one pass</td><td>Free, open source</td></tr>
-          <tr><td>sloccount</td><td>CLI</td><td>Perl / C</td><td>COCOMO cost estimates on older Unix-style codebases</td><td>Free, open source (unmaintained)</td></tr>
+          <tr><td><a href="https://www.dwheeler.com/sloccount/">sloccount</a></td><td>CLI</td><td>Perl / C</td><td>COCOMO cost estimates on older Unix-style codebases</td><td>Free, open source (unmaintained)</td></tr>
           <tr><td>GitHub language bar</td><td>Built into GitHub</td><td>—</td><td>A quick, no-setup glance at language mix by bytes</td><td>Free (built in)</td></tr>
         </tbody>
       </table>
@@ -185,6 +185,7 @@
           <div><strong>Pros</strong>Very fast · works on private repos · no network required · widely used as a library inside other tools</div>
           <div><strong>Cons</strong>Requires installing a Rust binary or crate · no built-in report sharing or hosting · results aren't reproducible across machines without pinning the tokei version</div>
         </div>
+        <p>tokei has no official web interface. OctoCounts runs tokei online, free, at commit-pinned URLs &mdash; see the <a href="/docs/tokei-online">tokei online guide</a> if you want tokei's numbers for a public GitHub repository without installing anything.</p>
       </div>
 
       <div class="tool-card">
@@ -242,6 +243,9 @@
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>
         <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei (head-to-head)</a></li>
+        <li><a href="/docs/octocounts-vs-tokei">OctoCounts vs tokei (head-to-head)</a></li>
+        <li><a href="/docs/octocounts-vs-scc">OctoCounts vs scc (head-to-head)</a></li>
+        <li><a href="/docs/github-repository-size-checker">GitHub repo size checker: check before cloning</a></li>
         <li><a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a></li>
         <li><a href="/docs/methodology">Counting methodology</a></li>
         <li><a href="/docs/faq">Frequently asked questions</a></li>

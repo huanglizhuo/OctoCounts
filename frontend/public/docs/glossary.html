@@ -49,7 +49,7 @@
       "headline": "SLOC Glossary",
       "description": "Precise definitions of source lines of code terms and how each one maps to OctoCounts reports.",
       "datePublished": "2026-08-28",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-07",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -217,9 +217,9 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Glossary</nav>
     <main>
-      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>SLOC Glossary</h1>
-      <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from tokei, an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.</p>
+      <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.</p>
       <p class="note">Precise definitions of source lines of code terms, and how each one appears in OctoCounts reports. OctoCounts counts public GitHub repositories with <a href="https://github.com/XAMPPRocky/tokei">tokei</a> at a pinned commit; see the <a href="/docs/methodology">methodology</a> for the full counting policy.</p>
 
       <section id="sloc">
@@ -259,12 +259,12 @@
 
       <section id="cloc">
         <h2>cloc</h2>
-        <p>cloc (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages. It is one of the oldest widely used counters and is a common baseline for comparing code-counting results. Like tokei, it classifies lines with language-specific rules, so its figures may differ slightly from other tools on ambiguous lines. OctoCounts uses tokei rather than cloc, but the reported metrics map one-to-one, so cloc output for the same tree is a reasonable cross-check.</p>
+        <p><a href="https://github.com/AlDanial/cloc">cloc</a> (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages. It is one of the oldest widely used counters and is a common baseline for comparing code-counting results. Like tokei, it classifies lines with language-specific rules, so its figures may differ slightly from other tools on ambiguous lines. OctoCounts uses tokei rather than cloc, but the reported metrics map one-to-one, so cloc output for the same tree is a reasonable cross-check.</p>
       </section>
 
       <section id="scc">
         <h2>scc</h2>
-        <p>scc (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates. It is designed for speed on very large repositories and adds derived metrics beyond raw line counts. Its cost and effort numbers come from applying a COCOMO-like model to the measured SLOC. OctoCounts reports line counts only; tools like scc are the reference when an estimated cost figure is needed.</p>
+        <p><a href="https://github.com/boyter/scc">scc</a> (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates. It is designed for speed on very large repositories and adds derived metrics beyond raw line counts. Its cost and effort numbers come from applying a COCOMO-like model to the measured SLOC. OctoCounts reports line counts only; tools like scc are the reference when an estimated cost figure is needed.</p>
       </section>
 
       <section id="cocomo">
@@ -292,6 +292,14 @@
 
       <h3>Which tool does OctoCounts use to count lines of code?</h3>
       <p>OctoCounts counts public GitHub repositories with tokei, a fast code statistics tool written in Rust, run against the source archive of a pinned commit.</p>
+
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a> &mdash; the docs hub for counting public repositories.</li>
+        <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository</a> &mdash; four practical methods with exact commands.</li>
+        <li><a href="/docs/tokei-online">tokei online</a> &mdash; run tokei on public GitHub repositories without installing it.</li>
+        <li><a href="/docs/methodology">Counting methodology</a> &mdash; the full counting policy behind every report.</li>
+        <li><a href="/docs/faq">OctoCounts FAQ</a> &mdash; answers about counting, extensions, badges, and the API.</li>
+      </ul></nav>
     </main>
     <footer>
       <nav class="meta">Docs: <a href="/docs/github-sloc-counter">SLOC guide</a> &middot; <a href="/docs/methodology">Methodology</a> &middot; <a href="/docs/api">API docs</a> &middot; <a href="/">Home</a> &middot; <a href="/badges">Badges</a></nav>

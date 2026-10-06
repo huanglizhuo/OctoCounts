@@ -1,6 +1,6 @@
 # tokei online: run tokei on GitHub repositories
 
-Updated September 30, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.
 
@@ -40,4 +40,5 @@ Yes. From any OctoCounts report you can export plain text, JSON, or a shareable 
 - [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github)
 - [OctoCounts vs cloc, scc, and tokei](https://octocounts.com/docs/octocounts-vs-cloc)
 - [Counting methodology](https://octocounts.com/docs/methodology)
+- [SLOC glossary](https://octocounts.com/docs/glossary)
 - [GitHub SLOC badges for your README](https://octocounts.com/badges)

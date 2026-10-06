@@ -34,7 +34,7 @@ The instrument itself worked: commit pinning, per-run timing, and totals were al
 
 - The sample is not random and n=2: these are two JavaScript/TypeScript tooling repositories. No claim about open source in general is possible from it.
 - Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.
-- A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits.
+- A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. OctoCounts' production engine has since been upgraded to [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (see the [counting methodology](https://octocounts.com/docs/methodology)); the pilot was not rerun, so these figures describe tokei-12.1 only.
 
 ## Next steps
 

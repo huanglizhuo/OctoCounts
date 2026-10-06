@@ -1,8 +1,8 @@
 # SLOC Glossary
 
-Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from tokei, an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.
+OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.
 
 > Precise definitions of source lines of code terms, and how each one appears in OctoCounts reports. OctoCounts counts public GitHub repositories with [tokei](https://github.com/XAMPPRocky/tokei) at a pinned commit; see the [methodology](https://octocounts.com/docs/methodology) for the full counting policy.
 
@@ -38,11 +38,11 @@ tokei is a fast, open-source code statistics tool written in Rust that counts fi
 
 ## cloc
 
-cloc (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages. It is one of the oldest widely used counters and is a common baseline for comparing code-counting results. Like tokei, it classifies lines with language-specific rules, so its figures may differ slightly from other tools on ambiguous lines. OctoCounts uses tokei rather than cloc, but the reported metrics map one-to-one, so cloc output for the same tree is a reasonable cross-check.
+[cloc](https://github.com/AlDanial/cloc) (Count Lines of Code) is an open-source command-line tool written in Perl that counts blank lines, comment lines, and physical lines of source code in many programming languages. It is one of the oldest widely used counters and is a common baseline for comparing code-counting results. Like tokei, it classifies lines with language-specific rules, so its figures may differ slightly from other tools on ambiguous lines. OctoCounts uses tokei rather than cloc, but the reported metrics map one-to-one, so cloc output for the same tree is a reasonable cross-check.
 
 ## scc
 
-scc (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates. It is designed for speed on very large repositories and adds derived metrics beyond raw line counts. Its cost and effort numbers come from applying a COCOMO-like model to the measured SLOC. OctoCounts reports line counts only; tools like scc are the reference when an estimated cost figure is needed.
+[scc](https://github.com/boyter/scc) (Sloc Cloc and Code) is an open-source code counter written in Go that reports code, comment, and blank line counts along with complexity and COCOMO-style cost estimates. It is designed for speed on very large repositories and adds derived metrics beyond raw line counts. Its cost and effort numbers come from applying a COCOMO-like model to the measured SLOC. OctoCounts reports line counts only; tools like scc are the reference when an estimated cost figure is needed.
 
 ## COCOMO
 
@@ -69,3 +69,11 @@ Physical SLOC counts raw text lines in source files; logical SLOC counts executa
 ### Which tool does OctoCounts use to count lines of code?
 
 OctoCounts counts public GitHub repositories with tokei, a fast code statistics tool written in Rust, run against the source archive of a pinned commit.
+
+## Related OctoCounts pages
+
+- [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter) — the docs hub for counting public repositories.
+- [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github) — four practical methods with exact commands.
+- [tokei online](https://octocounts.com/docs/tokei-online) — run tokei on public GitHub repositories without installing it.
+- [Counting methodology](https://octocounts.com/docs/methodology) — the full counting policy behind every report.
+- [OctoCounts FAQ](https://octocounts.com/docs/faq) — answers about counting, extensions, badges, and the API.
