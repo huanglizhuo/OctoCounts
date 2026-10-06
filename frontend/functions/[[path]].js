@@ -26,17 +26,20 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/research", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/about", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
@@ -225,6 +228,20 @@ export async function onRequest(context) {
     return homePageResponse(context);
   }
 
+  // Bare .md assets with no function route of their own (public/about.md).
+  // Every function-rendered twin returned above; this catches the rest so
+  // they go out through markdownResponse with the same text/markdown type
+  // and noindex X-Robots-Tag as every other twin. Function-served responses
+  // bypass the asset layer's _headers, so that file cannot be relied on for
+  // this. A miss (no such asset) falls through to the plain asset 404.
+  if (url.pathname.endsWith(".md")) {
+    const assetUrl = new URL(url);
+    assetUrl.pathname = routePath;
+    assetUrl.search = "";
+    const asset = await context.env.ASSETS.fetch(new Request(assetUrl.toString(), { method: "GET" }));
+    if (asset.ok) return markdownResponse(asset.body, "public, max-age=3600");
+  }
+
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
 }
 
@@ -243,7 +260,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -372,6 +389,11 @@ async function reportResponse(context, route, options = {}) {
   if (!reportMatchesRoute(report, route)) {
     return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
   }
+  // The backend formats every report title/description identically ("N lines
+  // of code") even though a filtered count is code lines under that filter.
+  // When the payload's analysisOptions prove a non-default configuration,
+  // reword so "lines of code" cannot be read as a whole-repository count.
+  applyReportFilterWording(report);
   // Below the indexable floor the page would be a thin URL Google crawls and
   // drops; answer the same hard 404 the missing branch does so the URL leaves
   // the index (and stop paying the render). Totals live in the same payload
@@ -487,6 +509,13 @@ function reportMissingMarkdown(route) {
   return `# ${fullName} SLOC report\n\nNo cached report exists yet for ${fullName}. Open https://octocounts.com/${route.provider}/${route.owner}/${route.repo} with JavaScript enabled to run an analysis.\n`;
 }
 
+// Peers below this many code lines are the junk tail of the similarity
+// ranking (placeholder and toy repositories surfaced as size-peers of large
+// ones). RelatedReport carries only totals — no stars — so an absolute code
+// floor is the simplest honest filter; when fewer peers qualify the section
+// renders fewer links, and at zero it omits (both renderers already do).
+const MIN_RELATED_PEER_CODE_LINES = 10_000;
+
 async function fetchRelatedReports(context, route) {
   try {
     const params = new URLSearchParams({
@@ -499,7 +528,9 @@ async function fetchRelatedReports(context, route) {
     });
     if (!response.ok) return [];
     const payload = await response.json();
-    return Array.isArray(payload?.reports) ? payload.reports.slice(0, 6) : [];
+    return Array.isArray(payload?.reports)
+      ? payload.reports.filter((item) => (Number(item?.totalCode) || 0) >= MIN_RELATED_PEER_CODE_LINES).slice(0, 6)
+      : [];
   } catch {
     return [];
   }
@@ -507,11 +538,12 @@ async function fetchRelatedReports(context, route) {
 
 async function listPageResponse(context, kind, url) {
   const page = url.searchParams.get("page") || "1";
-  // The API fetch does not need the SPA shell, so start it before reading
-  // the asset and overlap the two instead of paying both serially.
+  // Neither API fetch needs the SPA shell, so start both before reading the
+  // asset and overlap all three instead of paying them serially.
   const apiResponse = fetch(`${apiBase(context)}/api/seo/${kind}?page=${encodeURIComponent(page)}`, {
     headers: { accept: "application/json" },
   });
+  const rotatingPromise = fetchRotatingReportLocs(context);
   const index = await indexHtml(context);
   const response = await apiResponse;
   const payload = response.ok ? await response.json() : { reports: [] };
@@ -534,6 +566,7 @@ async function listPageResponse(context, kind, url) {
   // says nothing. Answer whatever the page is about instead, and keep the
   // internal links so the crawl continues.
   const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
+  const moreReports = moreReportsHtml(await rotatingPromise);
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -559,7 +592,7 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -593,6 +626,62 @@ function listPageFallback(kind) {
     </ul></nav>`;
 }
 
+/// Rotating "More repository reports" block for the hub pages: roughly 4,400
+/// of the ~4,500 report pages are orphans (no internal link reaches them), so
+/// each hub page carries a crawlable slice of the report corpus that rotates
+/// by UTC day. The slice is a pure function of (entries, day), so the whole
+/// day serves the same links and the edge cache stays coherent.
+const ROTATING_REPORT_LINK_COUNT = 64;
+
+function rotatingReportLocs(entries, dayNumber) {
+  const locs = entries.map((entry) => entry.loc).sort();
+  if (!locs.length) return [];
+  const start = dayNumber % locs.length;
+  const picked = [];
+  for (let i = 0; i < Math.min(ROTATING_REPORT_LINK_COUNT, locs.length); i++) {
+    picked.push(locs[(start + i) % locs.length]);
+  }
+  return picked;
+}
+
+/// One /api/seo/sitemap fetch per isolate per day (the rotating slice only
+/// changes at the day boundary, so caching it longer than the hub pages'
+/// own 5-minute TTL is safe). Empty on any failure — the block just omits.
+async function fetchRotatingReportLocs(context) {
+  const dayNumber = Math.floor(Date.now() / 86_400_000);
+  const cache = envScratchMap(context.env); // shared per-env scratch Map
+  const cacheKey = `rotating-reports:${dayNumber}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+    const locs = rotatingReportLocs(filterReportSitemapEntries(await response.json()), dayNumber);
+    cache.set(cacheKey, locs);
+    return locs;
+  } catch {
+    return [];
+  }
+}
+
+function reportLocName(loc) {
+  return decodeURIComponent(loc.replace("https://octocounts.com/github/", ""));
+}
+
+function moreReportsHtml(locs) {
+  if (!locs.length) return "";
+  const items = locs.map((loc) => `<li><a href="${escapeAttr(loc)}">${escapeHtml(reportLocName(loc))}</a></li>`).join("");
+  return `<section><h2>More repository reports</h2><ul>${items}</ul></section>`;
+}
+
+function moreReportsMarkdown(locs) {
+  if (!locs.length) return "";
+  return `\n## More repository reports\n\n${locs.map((loc) => `- [${reportLocName(loc)}](${loc})`).join("\n")}\n`;
+}
+
 const TRENDING_TITLE = "Trending GitHub repositories today | OctoCounts";
 
 function trendingDescription(snapshot) {
@@ -612,9 +701,10 @@ function trendingMarkdown(snapshot) {
 }
 
 async function trendingPageResponse(context, options = {}) {
+  const rotatingPromise = fetchRotatingReportLocs(context);
   const snapshot = await trendingSnapshot(context);
   if (options.markdown) {
-    return markdownResponse(trendingMarkdown(snapshot), "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(trendingMarkdown(snapshot) + moreReportsMarkdown(await rotatingPromise), "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
   const index = await indexHtml(context);
   const title = TRENDING_TITLE;
@@ -622,6 +712,7 @@ async function trendingPageResponse(context, options = {}) {
   const body = snapshot.repositories
     .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
     .join("");
+  const moreReports = moreReportsHtml(await rotatingPromise);
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -640,13 +731,14 @@ async function trendingPageResponse(context, options = {}) {
         url: "https://octocounts.com/trending",
         // Publisher is a bare @id reference to the Organization the homepage
         // defines — attribution without re-inlining a second copy of the
-        // entity on every daily page (H4).
-        publisher: ORGANIZATION_ID,
+        // entity on every daily page (H4). The object shape (not a bare
+        // string) is what schema.org validators expect for a node reference.
+        publisher: { "@id": ORGANIZATION_ID },
         breadcrumb: breadcrumbItemList("Trending repositories", "https://octocounts.com/trending"),
         // The daily snapshot is both created and modified on its snapshot
         // date; there is no earlier publication moment to report.
         datePublished: snapshot.date,
-        dateModified: snapshot.generatedAt,
+        dateModified: isoMilliseconds(snapshot.generatedAt),
         isBasedOn: snapshot.source,
         mainEntity: {
           "@type": "ItemList",
@@ -658,7 +750,7 @@ async function trendingPageResponse(context, options = {}) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1144,8 +1236,11 @@ async function extensionPageResponse(context, options = {}) {
             operatingSystem: "Chrome, Edge, Firefox",
             applicationCategory: "BrowserApplication",
             offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            // url is the primary (Chrome Web Store) listing; downloadUrl lists
+            // one URL per store so it agrees with operatingSystem instead of
+            // advertising Chrome, Edge, and Firefox while linking only Chrome.
             url: EXTENSION_STORES[0].url,
-            downloadUrl: EXTENSION_STORES[0].url,
+            downloadUrl: EXTENSION_STORES.map((store) => store.url),
             screenshot: "https://octocounts.com/og-image.jpg",
             description: content.description,
             // The homepage Person (@id https://github.com/huanglizhuo) with
@@ -1250,9 +1345,17 @@ async function homePageResponse(context) {
   return htmlResponse(await indexHtml(context), "no-store");
 }
 
-/// Per-URL 503 for curated compare pages: backend down or an integrity-guard
-/// mismatch. Not noindex — see reportUnavailableMeta.
-async function compareUnavailableResponse(context, entry) {
+/// Degraded-state response for curated compare pages: backend down or an
+/// integrity-guard mismatch. Stale-while-error first — a slug with a last-good
+/// render gets that render back with a normal 200 and a short TTL so the next
+/// good pass replaces it; only a never-rendered slug falls through to the 503.
+/// Not noindex — see reportUnavailableMeta.
+async function compareUnavailableResponse(context, entry, options = {}) {
+  const cached = envScratchMap(context.env).get(entry.slug);
+  if (cached) {
+    if (options.markdown && cached.markdown) return markdownResponse(cached.markdown, "public, max-age=60, stale-while-revalidate=600");
+    if (!options.markdown && cached.html) return htmlResponse(cached.html, "public, max-age=60, stale-while-revalidate=600");
+  }
   return serviceUnavailableResponse(await indexHtml(context), {
     title: `${entry.name}: source lines of code compared | OctoCounts`,
     description: `The ${entry.name} source line count comparison is temporarily unavailable. Please try again shortly.`,
@@ -1272,7 +1375,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
   ]);
 
   if (leftResult.state === "unavailable" || rightResult.state === "unavailable") {
-    return compareUnavailableResponse(context, entry);
+    return compareUnavailableResponse(context, entry, options);
   }
 
   if (leftResult.state === "missing" || rightResult.state === "missing") {
@@ -1288,13 +1391,20 @@ async function curatedCompareResponse(context, entry, options = {}) {
   // and table all derive from these two payloads, so a mis-keyed cache tier
   // would publish one repository's numbers under another's name. Fail closed.
   if (!reportMatchesRoute(left, entry.left) || !reportMatchesRoute(right, entry.right)) {
-    return compareUnavailableResponse(context, entry);
+    return compareUnavailableResponse(context, entry, options);
   }
   const model = await buildCompareViewModel(entry, left, right);
+  // Record the good render for stale-while-error before answering. Each
+  // representation is cached as it is produced; the other (if any) survives.
+  const stale = envScratchMap(context.env);
   if (options.markdown) {
-    return markdownResponse(compareMarkdown(model), "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    const markdown = compareMarkdown(model);
+    stale.set(entry.slug, { ...stale.get(entry.slug), markdown });
+    return markdownResponse(markdown, "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
-  return htmlResponse(injectCuratedCompare(await indexHtml(context), model), "public, s-maxage=300, stale-while-revalidate=600");
+  const html = injectCuratedCompare(await indexHtml(context), model);
+  stale.set(entry.slug, { ...stale.get(entry.slug), html });
+  return htmlResponse(html, "public, s-maxage=300, stale-while-revalidate=600");
 }
 
 /// Serializable view model shared by three renderers of the same comparison:
@@ -1464,6 +1574,25 @@ export function __resetCompareExistenceCacheForTests() {
   compareExistenceCache.clear();
 }
 
+/// Per-request-env scratch caches, keyed per env the way indexHtmlCache is so
+/// test contexts (fresh env objects) never share state with each other while a
+/// production isolate (one env for its lifetime) does. Holds:
+/// - "<compare slug>" -> { html, markdown }: last-good curated-compare
+///   renders for stale-while-error (see compareUnavailableResponse).
+/// - "rotating-reports:<day>" -> [loc]: the hub pages' daily report slice
+///   (see fetchRotatingReportLocs). Key namespaces cannot collide: registry
+///   slugs contain no ":".
+const lastGoodEnvCache = new WeakMap();
+
+function envScratchMap(env) {
+  let store = lastGoodEnvCache.get(env);
+  if (!store) {
+    store = new Map();
+    lastGoodEnvCache.set(env, store);
+  }
+  return store;
+}
+
 /// Fetch an /api/seo/report and classify the outcome:
 /// - "ok": report exists (response attached, unread)
 /// - "missing": 404 — the repository has no cached report
@@ -1576,6 +1705,14 @@ function httpDate(value) {
   if (!value) return null;
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : new Date(ms).toUTCString();
+}
+
+/// JSON-LD dateModified values are ISO 8601 instants; the backend serializes
+/// generatedAt with nanosecond precision (e.g. ...T13:57:14.791200737+00:00),
+/// which schema consumers do not all parse. Truncate fractional seconds to
+/// milliseconds; values already at ms/second precision pass through.
+function isoMilliseconds(value) {
+  return typeof value === "string" ? value.replace(/(\.\d{3})\d+/, "$1") : value;
 }
 
 /// If-Modified-Since has second granularity while generatedAt carries
@@ -1769,7 +1906,7 @@ function compareJsonLd(model) {
         name: `${model.name} source line count comparison`,
         description: model.description,
         url: model.canonical,
-        dateModified: model.updatedAt,
+        dateModified: isoMilliseconds(model.updatedAt),
         // Mirrors the report pages: the h1 plus the summary sentence are the
         // self-contained block an answer engine would read aloud or quote.
         speakable: {
@@ -1954,12 +2091,29 @@ async function compareSitemapResponse(context) {
   return urlsetResponse(await indexableCompareEntries(context));
 }
 
+/// An out-of-range or empty reports chunk used to answer 200 with an empty
+/// <urlset> — a dead artifact Search Console indexed as a valid-but-empty
+/// sitemap (and which nothing referenced). 404 instead: the sitemap index
+/// only ever lists non-empty pages, so an empty page is a URL that should
+/// not exist.
+function sitemapNotFoundResponse() {
+  return new Response("Not found\n", {
+    status: 404,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "public, max-age=300",
+      ...securityHeaders(),
+    },
+  });
+}
+
 async function reportsSitemapResponse(context, page) {
-  if (!Number.isInteger(page) || page < 1) return urlsetResponse([]);
+  if (!Number.isInteger(page) || page < 1) return sitemapNotFoundResponse();
   const dynamicEntries = await fetchReportSitemapEntries(context);
   const slice = dynamicEntries
     .slice((page - 1) * REPORTS_SITEMAP_PAGE_SIZE, page * REPORTS_SITEMAP_PAGE_SIZE)
     .map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod }));
+  if (!slice.length) return sitemapNotFoundResponse();
   return urlsetResponse(slice);
 }
 
@@ -2103,7 +2257,11 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // multi-modal pages more heavily, and the alt text doubles as another
   // self-contained citable summary next to the one in #octocounts-citation.
   const ogImageUrl = `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
-  const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" />`;
+  // The OG card sits right under the h1 and is the page's LCP element (a
+  // ~39 KB cross-origin PNG, ~1s cold). fetchpriority plus a head preload
+  // starts the cross-origin fetch with the first bytes of the document
+  // instead of after HTML/CSS parsing discovers the <img>.
+  const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" fetchpriority="high" />`;
   // The h1 is the repository (owner/repo): the page's subject and the value
   // the client-side hero renders on /github/ routes — semantically consistent
   // pre- and post-hydration, and never a second "OctoCounts" h1.
@@ -2131,7 +2289,8 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     ogImageAlt: report.citation,
     jsonLd: reportJsonLd(report),
     mdAlternate: `${report.canonicalUrl}.md`,
-    extraHead: `<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
+    extraHead: `<link rel="preload" as="image" href="${escapeAttr(ogImageUrl)}" fetchpriority="high" />
+<script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
     bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
   });
 }
@@ -2142,6 +2301,37 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
 /// disagree with the table, FAQ, or client summary it sits next to.
 function reportCapsuleText(report) {
   return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} by the OctoCounts tokei engine on ${report.generatedAt.slice(0, 10)}. The report is cached by commit, tokei version, and analysis options, so recounting the same revision returns exactly these numbers.`;
+}
+
+/// Human label for a report's non-default analysis configuration, mirroring
+/// the backend's own configuration_summary phrases. Returns null for a default
+/// configuration (title stays as-is) and for pre-option-tracking reports
+/// (options absent — the filter set is unknown, so nothing may be claimed).
+function reportFilterLabel(report) {
+  const options = report.analysisOptions;
+  if (!options || typeof options !== "object") return null;
+  const parts = [];
+  if (options.includeTests === false) parts.push("tests excluded");
+  if (options.includeDocs === false) parts.push("docs excluded");
+  if (options.includeGenerated === false) parts.push("generated excluded");
+  if (options.profile === "source-only") parts.push("source-only profile");
+  const ignored = [
+    ...(Array.isArray(options.ignoredDirs) ? options.ignoredDirs : []),
+    ...(Array.isArray(options.ignoredLanguages) ? options.ignoredLanguages : []),
+  ];
+  if (ignored.length) parts.push(`${ignored.length} custom ${ignored.length === 1 ? "ignore" : "ignores"}`);
+  return parts.length ? parts.join(", ") : null;
+}
+
+/// Reword the backend-built title ("owner/repo: N lines of code | OctoCounts")
+/// and meta description so a filtered count reads as what it is. The backend
+/// format is fixed, but both rewrites no-op harmlessly if a future format
+/// change stops matching rather than mangling the string.
+function applyReportFilterWording(report) {
+  const label = reportFilterLabel(report);
+  if (!label) return;
+  report.title = report.title.replace(/ lines of code \| OctoCounts$/, ` code lines (${label}) | OctoCounts`);
+  report.description = report.description.replace(" code lines ", ` code lines (${label}) `);
 }
 
 /// Plain-text core of the report lead, shared by the HTML page and the
@@ -2242,7 +2432,7 @@ function reportJsonLd(report) {
         name: `${report.repoFullName} source line count`,
         description: report.description,
         url: report.canonicalUrl,
-        dateModified: report.generatedAt,
+        dateModified: isoMilliseconds(report.generatedAt),
         // The backend's stable configuration digest; absent on reports stored
         // before option tracking, matching analysisKey in the JSON payload.
         ...(report.analysisKey ? { identifier: report.analysisKey } : {}),
@@ -2282,7 +2472,7 @@ function reportJsonLd(report) {
         url: report.htmlUrl,
         programmingLanguage: report.languages.map((language) => language.name),
         version: report.commitSha,
-        dateModified: report.generatedAt,
+        dateModified: isoMilliseconds(report.generatedAt),
       },
       {
         "@type": "BreadcrumbList",
@@ -2450,6 +2640,11 @@ function markdownResponse(markdown, cacheControl, options = {}) {
     status: options.status,
     headers: {
       "content-type": "text/markdown; charset=utf-8",
+      // Every markdown twin is a non-canonical serialization of its HTML page;
+      // keep the .md URL out of the index while the links inside it stay
+      // crawlable (follow). Covers report/compare/trending/stats/extension
+      // twins and the docs/research .md assets served through this function.
+      "x-robots-tag": "noindex, follow",
       "cache-control": options.uaOnly ? "private, no-store" : cacheControl,
       ...(options.uaOnly ? { vary: "User-Agent" } : {}),
       ...securityHeaders(),

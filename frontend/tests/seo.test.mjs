@@ -630,16 +630,16 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
       assert.doesNotMatch(xml, /llms\.txt|llms-full\.txt/, path);
     }
 
-    // Out-of-range report chunks answer a valid empty urlset, not a 500.
+    // Out-of-range report chunks 404: the index never lists them, and a 200
+    // with an empty <urlset> published a dead artifact as a valid sitemap.
     const overflow = await onRequest(await renderedContext("/sitemap-reports-9.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
       repositories: [],
     }));
-    assert.equal(overflow.status, 200);
-    const overflowXml = await overflow.text();
-    assert.match(overflowXml, /<urlset[^>]*>\s*<\/urlset>|<urlset[^>]*>\n<\/urlset>/);
+    assert.equal(overflow.status, 404);
+    assert.doesNotMatch(await overflow.text(), /<urlset/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1433,7 +1433,7 @@ test("report SSR links similar repository reports when the related API answers",
   const restore = stubReportAndRelatedFetch({
     reports: [
       { provider: "github", owner: "tokio-rs", repo: "axum", repoFullName: "tokio-rs/axum", publicPath: "/github/tokio-rs/axum", topLanguage: "Rust", totalCode: 16000, totalLines: 21000 },
-      { provider: "github", owner: "octo-org", repo: "odd & <named>", repoFullName: "octo-org/odd & <named>", publicPath: "/github/octo-org/odd%20%26%20%3Cnamed%3E", topLanguage: null, totalCode: 1200, totalLines: 1500 },
+      { provider: "github", owner: "octo-org", repo: "odd & <named>", repoFullName: "octo-org/odd & <named>", publicPath: "/github/octo-org/odd%20%26%20%3Cnamed%3E", topLanguage: null, totalCode: 12000, totalLines: 15000 },
     ],
   });
   let html;
@@ -1447,7 +1447,7 @@ test("report SSR links similar repository reports when the related API answers",
   assert.match(html, /<h2>Similar repository reports<\/h2>/);
   assert.ok(html.includes('<a href="/github/tokio-rs/axum">tokio-rs/axum</a> — Rust, 16,000 code lines'));
   // Missing top language and HTML-significant characters are handled safely.
-  assert.ok(html.includes("octo-org/odd &amp; &lt;named&gt;</a> — mixed, 1,200 code lines"));
+  assert.ok(html.includes("octo-org/odd &amp; &lt;named&gt;</a> — mixed, 12,000 code lines"));
   assert.doesNotMatch(html, /odd & <named>/);
 });
 
