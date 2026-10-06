@@ -481,7 +481,17 @@ export function App() {
                 <p className="subtitle">
                   <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
                 </p>
-                <p className="hero-trust">{t("hero.trustLine")}</p>
+                {/* Static trust strip: prerendered with the page, so it can
+                    never reflow above the fold. Availability chips carry no
+                    numbers (the real store figures — 5.0 from 2 ratings —
+                    are too thin to advertise; constants.ts stays the only
+                    surface that shows them). */}
+                <p className="hero-trust">
+                  <span>{t("hero.trustLine")}</span>
+                  <span className="trust-chip">Chrome</span>
+                  <span className="trust-chip">Edge</span>
+                  <span className="trust-chip">Firefox</span>
+                </p>
               </>
             )}
             {isHostDegraded(hostStatus) ? (

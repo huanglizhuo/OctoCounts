@@ -285,28 +285,11 @@ body {
 }
 
 
-.topbar-links-scroll,
 .row-flex {
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
   align-items: center;
-}
-
-.topbar-links {
-  min-width: 0;
-  position: relative;
-}
-
-.topbar-links-scroll {
-  min-width: 0;
-  flex-wrap: nowrap;
-}
-
-.marketing-controls {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-3);
 }
 
 .github-link {
@@ -339,66 +322,6 @@ body {
 }
 
 .github-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.github-link.install-link {
-  min-height: 44px;
-  padding-inline: 14px;
-}
-
-.github-link.signal-link {
-  min-height: 44px;
-  padding-inline: 12px;
-  color: var(--fg);
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-}
-
-.github-link.signal-link.active,
-.github-link.signal-link[aria-current="page"] {
-  color: var(--accent);
-  box-shadow: var(--active-shadow);
-}
-
-.report-rail {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  border: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
-}
-
-.report-rail a {
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 10px;
-  font-size: var(--text-xs);
-  letter-spacing: .5px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.report-rail a {
-  color: var(--fg-dim);
-  text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out);
-}
-
-.report-rail a:hover,
-.report-rail a[aria-current="page"] {
-  color: var(--accent);
-}
-
-.report-rail a:hover,
-.report-rail a[aria-current="page"] {
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
-}
-
-.report-rail a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -522,8 +445,7 @@ section {
   position: relative;
 }
 
-.ok,
-.hl {
+.ok {
   color: var(--accent);
 }
 
@@ -1284,13 +1206,6 @@ body.embed-mode {
   margin-left: 8px;
 }
 
-.export-error {
-  margin: 8px 0 0;
-  flex-basis: 100%;
-  color: var(--err);
-  font-size: var(--text-xs);
-}
-
 .compare-results {
   border-top: 1px solid var(--rule);
 }
@@ -1424,17 +1339,6 @@ body.embed-mode {
 }
 
 .hero-install-primary { min-height: 44px; }
-
-.trust-strip {
-  margin-top: var(--space-4);
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-
-.trust-strip .social-proof {
-  margin: 0;
-}
 
 .report-index {
   margin-top: var(--space-4);
@@ -1732,14 +1636,6 @@ body.embed-mode {
 
 .insight-card.accent {
   border-top-color: var(--accent);
-}
-
-.insight-card.blue {
-  border-top-color: var(--blue);
-}
-
-.insight-card.violet {
-  border-top-color: var(--violet);
 }
 
 .insight-card.warn {
@@ -2090,24 +1986,6 @@ table.report tr.totals td.lang {
   cursor: pointer;
 }
 
-.runner-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  border-top: 1px solid var(--rule);
-  color: var(--fg-mute);
-  font-size: var(--text-xs);
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.runner-foot .actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 /* The growth moment: a visible shareable card (this used to be exported off
    screen only, never actually shown to the person about to share it) next to
    the one-click share targets and the two primary CTAs. Prominent on purpose
@@ -2352,11 +2230,6 @@ table.report tr.totals td.lang {
   color: var(--fg);
   font-size: var(--text-base);
   font-weight: 700;
-}
-
-.demo-report-more {
-  display: flex;
-  padding: 0 var(--space-4) var(--space-4);
 }
 
 .trust-details div {
@@ -2992,46 +2865,6 @@ footer a:focus-visible {
     width: fit-content;
   }
 
-  .topbar-links {
-    width: 100%;
-  }
-
-  .topbar-links-scroll {
-    padding-bottom: var(--space-1);
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: thin;
-  }
-
-  /* The scrollbar alone doesn't signal there's more to scroll to on mobile
-     (thin/auto-hiding scrollbars are easy to miss). A background-color fade
-     was invisible here: the tab pills already sit at nearly the same tone
-     as the page background in both themes, so fading toward --bg produced
-     no visible contrast. An accent-colored chevron doesn't depend on that
-     contrast. Lives on .topbar-links (sized to just this row and not
-     itself scrolling), not .topbar-links-scroll (which scrolls and would
-     carry the chevron away with it) or .topbar (whose height also covers
-     the brand row above, misaligning the chevron vertically). */
-  .topbar-links::after {
-    content: "\203A";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: var(--space-1);
-    width: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 18px;
-    background: linear-gradient(to right, transparent, var(--bg) 55%);
-    pointer-events: none;
-  }
-
-  .report-rail,
-  .github-link.install-link,
-  .github-link.signal-link,
   .github-link.icon-link {
     flex: 0 0 auto;
     white-space: nowrap;
@@ -3093,21 +2926,6 @@ footer a:focus-visible {
     padding-block: var(--space-2) 0;
   }
 
-  .report-rail {
-    flex: 0 0 auto;
-    width: auto;
-    display: inline-flex;
-    grid-template-columns: none;
-  }
-
-  .report-rail a {
-    justify-content: center;
-    padding-inline: 10px;
-    white-space: nowrap;
-  }
-
-  .github-link.install-link,
-  .github-link.signal-link,
   .github-link.icon-link {
     min-width: 0;
     min-height: 44px;
@@ -3115,14 +2933,6 @@ footer a:focus-visible {
     justify-content: center;
     flex: 0 0 auto;
     white-space: nowrap;
-  }
-
-  .github-link.install-link span {
-    display: none;
-  }
-
-  .github-link.signal-link span:last-child {
-    display: inline;
   }
 
   .brand .logo {
@@ -3273,14 +3083,6 @@ footer a:focus-visible {
     gap: 10px;
   }
 
-  .report-rail {
-    grid-template-columns: none;
-  }
-
-  .report-rail a {
-    min-height: 38px;
-  }
-
   .report-index-link {
     flex-basis: 100%;
   }
@@ -3307,18 +3109,23 @@ footer a:focus-visible {
 
 }
 
-/* Touch: enlarge interactive targets to meet 44×44px minimum */
-@media (pointer: coarse) {
+/* Touch and narrow viewports: enlarge interactive targets to meet the
+   44×44px minimum. The max-width arm keeps a 390px viewport at the same
+   floor even without touch emulation (pointer stays "fine" there); desktop
+   (fine pointer, >720px) keeps the compact spacing. */
+@media (pointer: coarse), (max-width: 720px) {
   :root,
   html[data-scheme="matrix"],
   html[data-scheme="paper"] {
     --tap-min: 44px;
   }
 
-  /* Sentence links (subtitle's tokei credit, the coarse-pointer extension
-     note) are ~17px as bare inline boxes; give them a real hit box. */
+  /* Sentence links (subtitle's tokei credit, the hero extension link, the
+     coarse-pointer extension note) are ~17px as bare inline boxes; give
+     them a real hit box. */
   .subtitle a,
-  .mobile-install-note a {
+  .mobile-install-note a,
+  .hero-paths-line > a {
     display: inline-flex;
     align-items: center;
     min-height: var(--tap-min);
@@ -3348,21 +3155,11 @@ footer a:focus-visible {
     min-height: 44px;
   }
 
-  .report-rail a {
-    min-height: 44px;
-  }
-
   .sort-btn {
     min-height: 44px;
   }
 
   .compare-field input {
-    min-height: 44px;
-  }
-
-  a.proof-badge {
-    display: inline-flex;
-    align-items: center;
     min-height: 44px;
   }
 }
@@ -3402,30 +3199,6 @@ footer a:focus-visible {
   table.report tr.lang-row:hover td.lang {
     background: var(--bg-2);
   }
-}
-
-/* Social proof badges */
-.social-proof {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 4px;
-}
-
-.proof-badge {
-  font-size: var(--fs-min);
-  padding: 2px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  color: var(--fg-dim);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-a.proof-badge:hover {
-  color: var(--fg);
-  border-color: var(--accent);
 }
 
 /* Demo note above seeded runner result */
@@ -3473,13 +3246,6 @@ a.proof-badge:hover {
 .recent-rows .recent-chip svg {
   color: var(--fg-mute);
   flex-shrink: 0;
-}
-
-/* Cache-hit flex in the runner head */
-.cache-flex {
-  color: var(--accent);
-  font-weight: 700;
-  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* Anchored sections (share jump, in-page links) must clear the sticky bar. */
@@ -3723,12 +3489,6 @@ td.lang .row-share {
 
 .tool-hero p {
   max-width: 70ch;
-}
-
-.growth-nav {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
 }
 
 .growth-metrics {
@@ -4093,7 +3853,7 @@ td.lang .row-share {
   .table-wrap.is-full-stats .report { min-width: 700px; }
   .table-wrap:not(.is-full-stats) .mobile-code-share { display: block; color: var(--fg-mute); font-size: var(--text-xs); margin-top: 2px; }
   .report { min-width: 0; width: 100%; }
-  .hero-trust, .trust-strip { display: none; }
+  /* .hero-trust now shows on mobile too (static line, wraps, no CLS). */
   .hero-paths > .secondary-install { display: none; }
 }
 
@@ -4194,11 +3954,28 @@ td.lang .row-share {
   overflow-wrap: anywhere;
 }
 
-/* ---- Hero trust line (T7): one text line, no badge frames ---- */
+/* ---- Hero trust strip (T7): one muted text line + availability chips.
+     Content is fully static and prerendered with the page, so it can never
+     reflow above the fold (CLS stays 0). ---- */
 .hero-trust {
   margin: 0 0 var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
   font-size: var(--text-sm);
   color: var(--fg-dim);
+}
+
+.trust-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--fg-mute);
+  white-space: nowrap;
 }
 
 /* ---- Sample chips as a text-link row (T7) ---- */

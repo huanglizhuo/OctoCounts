@@ -36,7 +36,7 @@
     "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
     "reportSubtitle": "SLOC 报告",
     "reportSubtitleRef": "SLOC 报告 · {{ref}}",
-    "trustLine": "开源 · 支持 200+ 种语言"
+    "trustLine": "开源 · 由 tokei 驱动 · 支持 200+ 种语言"
   },
   "samples": {
     "label": "示例",

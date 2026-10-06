@@ -36,7 +36,7 @@
     "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
     "reportSubtitle": "SLOC report",
     "reportSubtitleRef": "SLOC report · {{ref}}",
-    "trustLine": "Open source · 200+ languages"
+    "trustLine": "Open source · Powered by tokei · 200+ languages"
   },
   "samples": {
     "label": "sample",
