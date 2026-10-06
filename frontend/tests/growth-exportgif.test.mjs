@@ -276,7 +276,7 @@ function makeHarness({ failOnFrame, fontsReady, supportedTypes } = {}) {
 
 const isAbortError = (error) => error instanceof DOMException && error.name === "AbortError";
 
-test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 monotonically", async () => {
+test("export: 50 frames, every delay 100ms at native 1280x720, progress 0 -> 1 monotonically", async () => {
   const { log, deps } = makeHarness();
   const seen = [];
   const result = await exportGrowthGif(
@@ -287,14 +287,14 @@ test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 
     deps,
   );
 
-  assert.equal(log.frames.length, 100);
+  assert.equal(log.frames.length, 50);
   for (const frame of log.frames) {
     assert.equal(frame.options.delay, 100, "frame delay must be 100ms (10fps)");
     assert.equal(frame.width, 1280);
     assert.equal(frame.height, 720);
   }
-  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 10000);
-  assert.equal(log.canvasCalls.length, 100);
+  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 5000);
+  assert.equal(log.canvasCalls.length, 50);
   for (const call of log.canvasCalls) {
     assert.deepEqual(call, {
       width: 1280, height: 720,
@@ -303,13 +303,13 @@ test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 
     });
   }
 
-  // Rasterization order: the palette seed frame (35) first, then every frame
-  // in order except the cached seed — 100 toCanvas calls for 100 frames.
-  assert.equal(log.rasterCalls.length, 100);
-  assert.equal(log.rasterCalls[0].frame, 35);
-  assert.ok(Math.abs(log.rasterCalls[0].progress - 35 / 99) < 1e-12);
+  // Rasterization order: the palette seed frame (17) first, then every frame
+  // in order except the cached seed — 50 toCanvas calls for 50 frames.
+  assert.equal(log.rasterCalls.length, 50);
+  assert.equal(log.rasterCalls[0].frame, 17);
+  assert.ok(Math.abs(log.rasterCalls[0].progress - 17 / 49) < 1e-12);
   const frameProgresses = log.rasterCalls.slice(1).map((call) => call.progress);
-  assert.equal(frameProgresses.length, 99);
+  assert.equal(frameProgresses.length, 49);
   assert.equal(frameProgresses[0], 0);
   assert.equal(frameProgresses[frameProgresses.length - 1], 1);
   for (let i = 1; i < frameProgresses.length; i += 1) {
@@ -345,9 +345,9 @@ test("export: 100 frames, every delay 100ms at native 1280x720, progress 0 -> 1 
   assert.equal(result.blob.type, "image/gif");
 
   // onProgress fires once per encoded frame, 1-based, ending at (total,total).
-  assert.equal(seen.length, 100);
-  assert.deepEqual(seen[0], [1, 100]);
-  assert.deepEqual(seen[seen.length - 1], [100, 100]);
+  assert.equal(seen.length, 50);
+  assert.deepEqual(seen[0], [1, 50]);
+  assert.deepEqual(seen[seen.length - 1], [50, 50]);
   for (let i = 1; i < seen.length; i += 1) assert.ok(seen[i][0] > seen[i - 1][0]);
 
   assert.equal(document.body.children.length, 0, "host removed after success");
@@ -376,7 +376,7 @@ test("png export: the finale frame rasterizes once at 2× into a PNG blob", asyn
   assert.equal(document.body.children.length, 0, "host removed after success");
 });
 
-test("compact scenes export all 100 frames across the complete 10-second timeline", async () => {
+test("compact scenes export all 50 frames across the complete 5-second timeline", async () => {
   const { log, deps } = makeHarness();
   const seen = [];
   const scene = buildFixtureScene();
@@ -389,23 +389,23 @@ test("compact scenes export all 100 frames across the complete 10-second timelin
     deps,
   );
 
-  assert.equal(log.frames.length, 100);
-  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 10000);
-  assert.equal(log.rasterCalls.length, 100);
-  assert.equal(log.rasterCalls[0].frame, 35);
+  assert.equal(log.frames.length, 50);
+  assert.equal(log.frames.reduce((duration, frame) => duration + frame.options.delay, 0), 5000);
+  assert.equal(log.rasterCalls.length, 50);
+  assert.equal(log.rasterCalls[0].frame, 17);
   const rest = log.rasterCalls.slice(1);
-  assert.equal(rest.length, 99);
+  assert.equal(rest.length, 49);
   for (let i = 0; i < rest.length; i += 1) {
-    assert.equal(rest[i].frame, i < 35 ? i : i + 1, `rasterization ${i + 1} ran on the wrong frame`);
+    assert.equal(rest[i].frame, i < 17 ? i : i + 1, `rasterization ${i + 1} ran on the wrong frame`);
   }
   for (const call of log.rasterCalls) {
-    assert.ok(Math.abs(call.progress - call.frame / 99) < 1e-12, `frame ${call.frame} skipped part of the timeline`);
+    assert.ok(Math.abs(call.progress - call.frame / 49) < 1e-12, `frame ${call.frame} skipped part of the timeline`);
   }
   assert.equal(rest[0].progress, 0);
   assert.equal(rest.at(-1).progress, 1);
-  assert.equal(seen.length, 100);
-  assert.deepEqual(seen[0], [1, 100]);
-  assert.deepEqual(seen.at(-1), [100, 100]);
+  assert.equal(seen.length, 50);
+  assert.deepEqual(seen[0], [1, 50]);
+  assert.deepEqual(seen.at(-1), [50, 50]);
 });
 
 test("font readiness resolves before the seed frame is rasterized", async () => {
@@ -428,8 +428,8 @@ test("font readiness resolves before the seed frame is rasterized", async () => 
   assert.equal(log.frames.length, 0);
   releaseFonts();
   await exporting;
-  assert.equal(log.rasterCalls[0].frame, 35);
-  assert.equal(log.frames.length, 100);
+  assert.equal(log.rasterCalls[0].frame, 17);
+  assert.equal(log.frames.length, 50);
   assert.equal(document.body.children.length, 0);
 });
 
@@ -441,18 +441,18 @@ test("palette: quantized exactly once from the seed frame and reused for every f
   assert.equal(log.quantizeCalls[0].maxColors, 256);
   assert.equal(log.quantizeCalls[0].data[0], 1, "quantize must feed on the first rasterization (the seed frame)");
 
-  assert.equal(log.applyCalls.length, 100);
+  assert.equal(log.applyCalls.length, 50);
   for (const call of log.applyCalls) assert.ok(call.palette === palette, "applyPalette must reuse the fixed palette");
   for (const frame of log.frames) assert.ok(frame.options.palette === palette, "writeFrame must carry the fixed palette");
 
-  // The seed frame's pixels are cached, not re-rasterized: frame 35's
+  // The seed frame's pixels are cached, not re-rasterized: frame 17's
   // applyPalette receives the exact ImageData buffer quantize saw, and the
-  // rasterization sequence runs seed(1), frames 0..34 (seq 2..36), frames
-  // 36..99 (seq 37..100) — 100 calls, none wasted on frame 35 again.
-  assert.equal(log.applyCalls[35].data, log.quantizeCalls[0].data);
-  assert.equal(log.rasterCalls.length, 100);
-  for (let i = 0; i < 100; i += 1) {
-    const expectedSeq = i === 35 ? 1 : i < 35 ? i + 2 : i + 1;
+  // rasterization sequence runs seed(1), frames 0..16 (seq 2..18), frames
+  // 18..49 (seq 19..50) — 50 calls, none wasted on frame 17 again.
+  assert.equal(log.applyCalls[17].data, log.quantizeCalls[0].data);
+  assert.equal(log.rasterCalls.length, 50);
+  for (let i = 0; i < 50; i += 1) {
+    const expectedSeq = i === 17 ? 1 : i < 17 ? i + 2 : i + 1;
     assert.equal(log.applyCalls[i].data[0], expectedSeq, `frame ${i} encoded the wrong rasterization`);
   }
 });
@@ -513,7 +513,7 @@ test("filename interpolates owner and repo", async () => {
   assert.equal(result.filename, "octocounts-vercel-next.js-growth.gif");
 });
 
-test("webm export: 100 frames drawn into a 10fps captureStream, recorded start->stop, progress to (100,100)", async () => {
+test("webm export: 50 frames drawn into a 10fps captureStream, recorded start->stop, progress to (50,50)", async () => {
   const { log, webmDeps } = makeHarness();
   const seen = [];
   const result = await exportGrowthWebm(
@@ -526,11 +526,11 @@ test("webm export: 100 frames drawn into a 10fps captureStream, recorded start->
 
   // Every frame rasterizes in timeline order (no palette-seed shortcut) and
   // is drawn onto the 1280x720 canvas backing the stream.
-  assert.equal(log.rasterCalls.length, 100);
-  assert.equal(log.canvasCalls.length, 100);
-  for (let i = 0; i < 100; i += 1) {
+  assert.equal(log.rasterCalls.length, 50);
+  assert.equal(log.canvasCalls.length, 50);
+  for (let i = 0; i < 50; i += 1) {
     assert.equal(log.rasterCalls[i].frame, i);
-    assert.ok(Math.abs(log.rasterCalls[i].progress - i / 99) < 1e-12, `frame ${i} skipped part of the timeline`);
+    assert.ok(Math.abs(log.rasterCalls[i].progress - i / 49) < 1e-12, `frame ${i} skipped part of the timeline`);
     assert.deepEqual(log.canvasCalls[i], {
       width: 1280, height: 720,
       sourceWidth: 1280, sourceHeight: 720,
@@ -551,9 +551,9 @@ test("webm export: 100 frames drawn into a 10fps captureStream, recorded start->
   assert.equal(recorder.state, "inactive");
 
   // onProgress fires once per drawn frame, 1-based, ending at (total,total).
-  assert.equal(seen.length, 100);
-  assert.deepEqual(seen[0], [1, 100]);
-  assert.deepEqual(seen[seen.length - 1], [100, 100]);
+  assert.equal(seen.length, 50);
+  assert.deepEqual(seen[0], [1, 50]);
+  assert.deepEqual(seen[seen.length - 1], [50, 50]);
 
   assert.ok(result.blob instanceof Blob);
   assert.equal(result.blob.type, "video/webm");

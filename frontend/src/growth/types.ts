@@ -114,7 +114,7 @@ export type GrowthFinale = {
 export type GrowthScene = {
   repoFullName: string;
   provider: string;
-  durationMs: number; // template length, 10000
+  durationMs: number; // template length, 5000
   // "full" paces the city's growth across the samples; "compact" is the
   // low-sample degradation (<3 samples): buildings rise straight to the
   // final skyline on the same beat sheet.
@@ -159,6 +159,6 @@ export type GrowthSceneInput = {
   // injected rather than imported so tests can pin the palette.
   languageColors: Record<string, string>;
   // Optional URL-driven config (?gdur= seconds, ?glang= buildings). Both are
-  // clamped inside buildScene; absent overrides reproduce the 10s/8 defaults.
+  // clamped inside buildScene; absent overrides reproduce the 5s/8 defaults.
   overrides?: { durationMs?: number; cityLimit?: number };
 };

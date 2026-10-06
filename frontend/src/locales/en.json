@@ -619,7 +619,7 @@
     },
     "animation": {
       "title": "Watch this repo grow",
-      "subtitle": "A 10-second replay of how this repository accumulated code, language by language.",
+      "subtitle": "A 5-second replay of how this repository accumulated code, language by language.",
       "play": "Play",
       "pause": "Pause",
       "replay": "Replay",
@@ -640,7 +640,7 @@
       "exportGif": "Export GIF",
       "exportWebm": "Export WebM",
       "exportPng": "Export PNG",
-      "exportFull": "10s",
+      "exportFull": "5s",
       "exporting": "Exporting {{percent}}%",
       "cancelExport": "Cancel",
       "exportFailed": "Export failed. Try again.",

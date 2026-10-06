@@ -142,13 +142,13 @@ const reactScene = () =>
     languageColors: reactColors,
   });
 
-test("template timings are the fixed 10s beat sheet", () => {
+test("template timings are the fixed 5s beat sheet", () => {
   const scene = reactScene();
-  assert.equal(scene.durationMs, 10000);
+  assert.equal(scene.durationMs, 5000);
   assert.deepEqual(scene.acts.hook, { prompt: "octocounts facebook/react" });
-  assert.deepEqual(scene.acts.data, { startTime: 1.2, endTime: 8.5, finalLock: 8.5 });
+  assert.deepEqual(scene.acts.data, { startTime: 0.6, endTime: 4.25, finalLock: 4.25 });
   // v1.1: the morph act is gone — the finale starts where the data act locks.
-  assert.deepEqual(scene.acts.finale, { startTime: 8.5, endTime: 10, staticFrom: 9.6 });
+  assert.deepEqual(scene.acts.finale, { startTime: 4.25, endTime: 5, staticFrom: 4.8 });
   assert.ok(!("morph" in scene.acts));
 });
 
@@ -396,9 +396,9 @@ test("fewer than 3 samples degrades to the compact variant, same beat sheet", ()
   assert.equal(scene.starsNow, 250841);
   // Compact skips the growth pacing in the RENDERER; the timings and the
   // per-sample city layouts stay identical in shape.
-  assert.deepEqual(scene.acts.data, { startTime: 1.2, endTime: 8.5, finalLock: 8.5 });
-  assert.deepEqual(scene.acts.finale, { startTime: 8.5, endTime: 10, staticFrom: 9.6 });
-  assert.equal(scene.durationMs, 10000);
+  assert.deepEqual(scene.acts.data, { startTime: 0.6, endTime: 4.25, finalLock: 4.25 });
+  assert.deepEqual(scene.acts.finale, { startTime: 4.25, endTime: 5, staticFrom: 4.8 });
+  assert.equal(scene.durationMs, 5000);
   assert.ok(scene.samples.every((sample) => sample.city.length >= 1));
 });
 

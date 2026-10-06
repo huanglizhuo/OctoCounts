@@ -606,7 +606,7 @@
     },
     "animation": {
       "title": "看这个仓库成长",
-      "subtitle": "用 10 秒回放这个仓库的代码是如何一门语言一门语言积累起来的。",
+      "subtitle": "用 5 秒回放这个仓库的代码是如何一门语言一门语言积累起来的。",
       "play": "播放",
       "pause": "暂停",
       "replay": "重播",
@@ -627,7 +627,7 @@
       "exportGif": "导出 GIF",
       "exportWebm": "导出 WebM",
       "exportPng": "导出 PNG",
-      "exportFull": "10 秒",
+      "exportFull": "5 秒",
       "exporting": "导出中 {{percent}}%",
       "cancelExport": "取消",
       "exportFailed": "导出失败，请重试。",

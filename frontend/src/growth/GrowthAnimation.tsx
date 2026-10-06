@@ -1,4 +1,4 @@
-// The growth-animation renderer. Renders THE SINGLE FRAME of the 10s
+// The growth-animation renderer. Renders THE SINGLE FRAME of the 5s
 // template at a given progress — a pure function of (scene, progress): no
 // clocks, no state, no effect that touches the DOM by time. The player
 // drives progress via rAF and the GIF exporter steps it frame by frame;

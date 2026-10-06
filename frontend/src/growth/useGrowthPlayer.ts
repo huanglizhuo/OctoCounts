@@ -16,22 +16,22 @@ export const LOOP_HOLD_MS = 600;
 
 // Idle frame for viewers who have not started playback: the data act's
 // final-lock beat — buildScene's fixed template parks the counter/race/timeline
-// at their final values at 8.5s of the pinned 10s template. It is the one
+// at their final values at 4.25s of the pinned 5s template. It is the one
 // growth-only content (the time dimension) the report page does not already
 // show in static form, and its numbers equal the finale's, so the idle frame
 // never contradicts the report. The finale stats card stays reserved for the
 // played animation (and for reduced-motion viewers, who park on progress 1).
 export const IDLE_POSTER_PROGRESS = 0.85;
 
-// The four-act template length (types.ts pins scene.durationMs to 10000). A
+// The four-act template length (types.ts pins scene.durationMs to 5000). A
 // malformed duration (0/NaN/negative) would divide into NaN progress on the
 // very first frame, so it falls back to the only length v1 ever wires up.
-const TEMPLATE_DURATION_MS = 10000;
+const TEMPLATE_DURATION_MS = 5000;
 
 // Accumulating `progress += dt / duration` across ~600 frames leaves float
 // dust; without the snap, the "finished" frame would sit at 0.9999999999998
 // and the exact-1 assertions (and the hold) would never trigger. 1e-9 of a
-// 10s timeline is 10µs — invisible, and far above double rounding error.
+// 5s timeline is 5µs — invisible, and far above double rounding error.
 const PROGRESS_EPSILON = 1e-9;
 
 export type GrowthPlayerState = {
@@ -105,7 +105,7 @@ export function step(state: GrowthPlayerState, dtMs: number, options: GrowthPlay
   let { progress, holdMs } = state;
   let remainingMs = dtMs;
   // Safety valve only, so an absurd gap (hours) cannot spin the phase loop:
-  // 1000 phases ≈ 178 minutes of 10s-template playback.
+  // 1000 phases ≈ 93 minutes of 5s-template playback.
   for (let guard = 0; remainingMs > 0 && guard < 1000; guard += 1) {
     if (progress >= 1) {
       if (!options.loop) return { ...state, progress: 1, playing: false, holdMs: 0 };

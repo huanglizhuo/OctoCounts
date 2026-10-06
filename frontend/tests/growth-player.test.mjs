@@ -51,9 +51,9 @@ test("defaults: paused on the data-act poster frame; reduced-motion starts on th
   });
 });
 
-test("a malformed duration falls back to the 10s template length instead of NaN progress", () => {
+test("a malformed duration falls back to the 5s template length instead of NaN progress", () => {
   for (const bad of [0, -5, NaN, Infinity]) {
-    assert.equal(createPlayerState(bad).durationMs, 10000, String(bad));
+    assert.equal(createPlayerState(bad).durationMs, 5000, String(bad));
   }
   // Even a crafted state that bypassed the constructor is inert, not
   // NaN-poisoned (the constructor above would already have normalized it).

@@ -1,11 +1,11 @@
 // GIF export renders the full growth timeline at the native 1280x720
-// design resolution: 100 frames at 10fps, including low-sample scenes.
+// design resolution: 50 frames at 10fps, including low-sample scenes.
 // renderToString runs no effects, so the exporter sets --growth-scale to 1
 // on the hidden host and waits for document fonts before rasterizing.
 // html-to-image embeds @font-face rules and copies resolved styles from
 // the live subtree. Frame progress is deterministic.
 //
-// Quantize once from frame 35 and reuse that palette for every frame to
+// Quantize once from frame 17 and reuse that palette for every frame to
 // prevent color-table flicker. Keep the seed pixels for that frame's encode.
 import { createElement } from "react";
 import type { ReactElement } from "react";
@@ -71,11 +71,13 @@ const PNG_WIDTH = 2560;
 const PNG_HEIGHT = 1440;
 const PNG_PROGRESS = 1;
 const FRAME_DELAY_MS = 100;
-const TOTAL_FRAMES = 100;
+// 50 frames × 100ms = the 5s template. The seed frame sits at the same
+// ~35% timeline beat the 100-frame/10s grid quantized from.
+const TOTAL_FRAMES = 50;
 // captureStream frame rate for the WebM export: 10fps matches FRAME_DELAY_MS
 // so each drawn frame is recorded exactly once.
 const EXPORT_FPS = 10;
-const PALETTE_SEED_FRAME = 35;
+const PALETTE_SEED_FRAME = 17;
 const MAX_COLORS = 256;
 
 function frameProgresses(): number[] {
@@ -203,10 +205,10 @@ export async function exportGrowthPng(
 }
 
 // WebM export reuses the GIF pipeline's hidden host and rasterizer, but
-// instead of quantizing frames it draws each of the same 100 deterministic
+// instead of quantizing frames it draws each of the same 50 deterministic
 // frames onto a live 1280x720 canvas and records that canvas's 10fps stream
 // with a MediaRecorder. Every frame is left on screen for FRAME_DELAY_MS so
-// the 10-second timeline is captured in real time — the sleeps exist for
+// the 5-second timeline is captured in real time — the sleeps exist for
 // correctness of the capture, not to yield the main thread.
 const WEBM_MIME_CANDIDATES = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
 

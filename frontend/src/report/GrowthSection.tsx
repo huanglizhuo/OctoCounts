@@ -71,8 +71,8 @@ function GrowthStage({ scene }: { scene: GrowthScene }) {
   };
 
   // All three exporters render the deterministic scene offscreen — the PNG is
-  // the finale frame at 2× (the share card), the GIF quantizes the full 10s
-  // timeline, and the WebM records the same 100 frames off a live canvas.
+  // the finale frame at 2× (the share card), the GIF quantizes the full 5s
+  // timeline, and the WebM records the same 50 frames off a live canvas.
   const [owner = "repo", repo = owner] = scene.repoFullName.split("/");
 
   const runPngExport = async () => {

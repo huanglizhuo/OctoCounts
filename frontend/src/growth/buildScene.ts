@@ -28,8 +28,8 @@ import { languageLogo } from "./languageLogos";
 // finale (rooftop labels + metric bar) starts right where the data act locks.
 // The acts are fractions of the template length so a ?gdur= override stretches
 // the whole choreography instead of padding a frozen finale: with the default
-// 10s the boundaries are exactly the v1 values (1.2 / 8.5 / 9.6).
-const DEFAULT_DURATION_MS = 10000;
+// 5s the boundaries land at (0.6 / 4.25 / 4.8).
+const DEFAULT_DURATION_MS = 5000;
 const HOOK_END_FRAC = 0.12;
 const DATA_END_FRAC = 0.85;
 const STATIC_FRAC = 0.96;
@@ -71,7 +71,7 @@ export function buildScene(input: GrowthSceneInput): GrowthScene {
   const prompt = `octocounts ${owner}/${repo}`;
 
   // URL-overridable template config (?gdur= seconds, ?glang= buildings): the
-  // defaults reproduce the shipped 10s / 8-building template exactly.
+  // defaults reproduce the shipped 5s / 8-building template exactly.
   const clampInt = (value: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, value)));
   const durationMs = input.overrides?.durationMs
     ? clampInt(input.overrides.durationMs, MIN_DURATION_MS, MAX_DURATION_MS)

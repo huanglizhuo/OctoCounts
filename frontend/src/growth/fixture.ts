@@ -174,7 +174,7 @@ export function buildFixtureScene(): GrowthScene {
   return {
     repoFullName: "facebook/react",
     provider: "github",
-    durationMs: 10000,
+    durationMs: 5000,
     variant: "full",
     languages,
     languageDetails: statsByName,
@@ -191,8 +191,8 @@ export function buildFixtureScene(): GrowthScene {
     finale,
     acts: {
       hook: { prompt: "octocounts facebook/react" },
-      data: { startTime: 1.2, endTime: 8.5, finalLock: 8.5 },
-      finale: { startTime: 8.5, endTime: 10, staticFrom: 9.6 },
+      data: { startTime: 0.6, endTime: 4.25, finalLock: 4.25 },
+      finale: { startTime: 4.25, endTime: 5, staticFrom: 4.8 },
     },
   };
 }
