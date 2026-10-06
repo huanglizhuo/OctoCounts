@@ -1,17 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-10-05T08:59:21.709Z
+# GitHub Trending daily snapshot generated 2026-10-06T08:56:35.685Z
 tester-army/e2e
-pbakaus/impeccable
-coreyhaines31/marketingskills
-DietrichGebert/ponytail
-earthtojake/text-to-cad
-Panniantong/Agent-Reach
-getsentry/sentry
-calesthio/OpenMontage
-pingdotgg/t3code
-caddyserver/caddy
-michael-denyer/pstack-claude
-addyosmani/agent-skills
 thedotmack/claude-mem
-garrytan/gstack
-OpenCut-app/OpenCut
-antirez/ds4
+earthtojake/text-to-cad
+pingdotgg/t3code
+boykopovar/AnyPS5
+Panniantong/Agent-Reach
+calesthio/OpenMontage
+caddyserver/caddy
+DuarteSantos8/openGym
+cloudflare/cloudflare-os
+Stremio/stremio-web
+msitarzewski/agency-agents
+M-Abozaid/esp32-c3-adblock
