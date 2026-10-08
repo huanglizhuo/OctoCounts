@@ -1,13 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-10-07T08:36:33.286Z
-tester-army/e2e
-mattpocock/skills
-earthtojake/text-to-cad
-boykopovar/AnyPS5
-pbakaus/impeccable
-thedotmack/claude-mem
-ayghri/i-have-adhd
+# GitHub Trending daily snapshot generated 2026-10-08T08:55:09.743Z
 morluto/rea
-deepseek-ai/DeepGEMM
-msitarzewski/agency-agents
-DuarteSantos8/openGym
+mattpocock/skills
+boykopovar/AnyPS5
+ayghri/i-have-adhd
 cathrynlavery/diagram-design
+addyosmani/agent-skills
+EpicGames/raddebugger
+thedotmack/claude-mem
+manaflow-ai/cmux
+trycua/cua
+cloudflare/security-audit-skill
+tester-army/e2e
+DuarteSantos8/openGym
