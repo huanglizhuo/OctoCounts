@@ -1,14 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-10-08T08:55:09.743Z
+# GitHub Trending daily snapshot generated 2026-10-09T08:59:21.362Z
+boykopovar/AnyPS5
+cathrynlavery/diagram-design
 morluto/rea
 mattpocock/skills
-boykopovar/AnyPS5
-ayghri/i-have-adhd
-cathrynlavery/diagram-design
-addyosmani/agent-skills
-EpicGames/raddebugger
 thedotmack/claude-mem
-manaflow-ai/cmux
-trycua/cua
-cloudflare/security-audit-skill
-tester-army/e2e
-DuarteSantos8/openGym
+EpicGames/raddebugger
+anthropics/knowledge-work-plugins
+storytold/artcraft
+liquidslr/system-design-notes
