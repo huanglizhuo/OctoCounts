@@ -1,12 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-10-10T08:27:19.838Z
+# GitHub Trending daily snapshot generated 2026-10-11T08:46:02.961Z
 morluto/rea
 boykopovar/AnyPS5
-mattpocock/skills
-cathrynlavery/diagram-design
-alibaba/open-code-review
-anthropics/knowledge-work-plugins
-BerriAI/litellm
-addyosmani/agent-skills
 storytold/artcraft
-Robbyant/lingbot-map
-twostraws/SwiftUI-Agent-Skill
+cathrynlavery/diagram-design
+mksglu/context-mode
+mattpocock/skills
+flutter/flutter
+tensorflow/tensorflow
+hugohe3/ppt-master
+pytorch/pytorch
+huggingface/transformers
+anthropics/knowledge-work-plugins
+multica-ai/andrej-karpathy-skills
