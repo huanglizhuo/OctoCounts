@@ -201,6 +201,7 @@ to `main` and on `v*` tags, publishing:
 |---|---|
 | `ghcr.io/huanglizhuo/octocounts-api` | backend (`backend/`) |
 | `ghcr.io/huanglizhuo/octocounts-web` | frontend (`frontend/`) |
+| `ghcr.io/huanglizhuo/octocounts-mcp` | hosted MCP HTTP server (`mcp/`) |
 
 Cut a release by pushing a version tag (`git tag v0.4.0 && git push origin v0.4.0`),
 which also tags the images `:v0.4.0` and `:latest`.

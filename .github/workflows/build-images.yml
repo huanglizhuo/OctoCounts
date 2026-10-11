@@ -1,6 +1,6 @@
 name: Build & Push images (GHCR)
 
-# Builds the OctoCounts backend (api) and frontend (web) images and pushes
+# Builds the OctoCounts backend (api), frontend (web) and MCP images and pushes
 # them to GitHub Container Registry. The infra repo pulls these by tag.
 #
 # Triggers:
@@ -24,9 +24,10 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # images: ghcr.io/<owner>/octocounts-api , ghcr.io/<owner>/octocounts-web
+  # images: ghcr.io/<owner>/octocounts-{api,web,mcp}
   IMAGE_API: ${{ github.repository_owner }}/octocounts-api
   IMAGE_WEB: ${{ github.repository_owner }}/octocounts-web
+  IMAGE_MCP: ${{ github.repository_owner }}/octocounts-mcp
   VITE_API_BASE: ${{ github.event.inputs.vite_api_base || '/api' }}
 
 jobs:
@@ -47,6 +48,11 @@ jobs:
             image_var: IMAGE_WEB
             build_args: |
               VITE_API_BASE=${{ github.event.inputs.vite_api_base || '/api' }}
+          - name: mcp
+            context: ./mcp
+            dockerfile: ./mcp/Dockerfile
+            image_var: IMAGE_MCP
+            build_args: ""
     steps:
       - uses: actions/checkout@v7
 
