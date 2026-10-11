@@ -149,7 +149,7 @@ test.describe("analysis behavior regressions", () => {
   test("a timed-out POST releases the UI and ignores its late response", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeSetTimeout = window.setTimeout.bind(window);
-      window.setTimeout = ((callback: TimerHandler, timeout?: number, ...args: any[]) => nativeSetTimeout(callback, timeout === 120_000 ? 25 : timeout, ...args)) as typeof window.setTimeout;
+      window.setTimeout = ((callback: TimerHandler, timeout?: number, ...args: any[]) => nativeSetTimeout(callback, timeout === 300_000 ? 25 : timeout, ...args)) as typeof window.setTimeout;
       const nativeFetch = window.fetch.bind(window);
       window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => nativeFetch(input, init ? { ...init, signal: undefined } : init)) as typeof window.fetch;
     });

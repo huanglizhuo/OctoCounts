@@ -1,6 +1,6 @@
 # OctoCounts Methodology
 
-Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 11, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.
 
@@ -10,7 +10,7 @@ Canonical page: https://octocounts.com/docs/methodology
 
 ## What is SLOC?
 
-SLOC, or source lines of code, is a measure of software size counted as the number of lines in a project's source files. A SLOC count normally separates three kinds of line: **code** lines carrying executable statements or declarations, **comment** lines carrying documentation, and **blank** lines. "Lines of code" without qualification usually means the code figure alone, while "total lines" means all three added together. Because the ratio between them varies widely by language and project, a SLOC report is only comparable when the counting rules are stated. OctoCounts reports all three figures separately for every language, counted with [tokei](https://github.com/XAMPPRocky/tokei) at a pinned commit, so any two reports can be compared directly.
+SLOC, or source lines of code, is a measure of software size counted as the number of lines in a project's source files. A SLOC count normally separates three kinds of line: **code** lines carrying executable statements or declarations, **comment** lines carrying documentation, and **blank** lines. "Lines of code" without qualification usually means the code figure alone, while "total lines" means all three added together. Because the ratio between them varies widely by language and project, a SLOC report is only comparable when the counting rules are stated. OctoCounts reports all three figures separately for every language, counted with [tokei](https://github.com/XAMPPRocky/tokei) at a pinned commit, so reports with matching effective rules can be compared.
 
 ## Counting Pipeline
 
@@ -42,6 +42,30 @@ target
 vendor
 ```
 
+## Counting policy and comparable results
+
+Code lines measure source size under the stated rules, not quality, productivity, effort or executable statements. Total lines are code + comments + blanks. The report's countingPolicy records the effective inclusion toggles, exact directory exclusions, ignored languages and declaration mode. Old reports without this metadata show unknown.
+
+Directory exclusions match exact, case-sensitive path components, not globs. Tokei also applies its own language detection, hidden-file and ignore-file traversal defaults. Source-only forces docs, tests and generated directory exclusions. Compare and diff check policy version, tokei version and effective rules; the same declaration mode still applies each repository's own declarations.
+
+Diff reports a net size change between two counted trees (head minus base). It is not Git's added/deleted line count. Percentage change uses the base count; a zero base and positive head is shown as New.
+
+
+## Repository declarations in .gitattributes
+
+Repository-declared filtering is optional and off by default. Enable respectGitattributes to apply linguist-generated and linguist-vendored. Generated declarations are excluded unless includeGenerated is true; source-only always excludes them. Vendored declarations are excluded whenever the mode is on.
+
+Git check-attr supplies nested precedence, macros, quoted paths and unset/unspecified overrides. Only attributes set or assigned true activate exclusion. Hard directory exclusions run before declarations and cannot be overridden. Server/user Git configuration and attributes are isolated. This feature does not run GitHub Linguist's heuristics or change tokei's language classifier.
+
+Reports distinguish declarations off, enabled with no declarations found in the extracted tree, and applied. Removal counts describe extracted files, not necessarily files tokei would count as source. Filtering has a 30-second deadline and an 8 MiB cumulative declaration limit; invalid Git declarations or filtering errors fail the analysis explicitly.
+
+
+## Fixed and live sharing
+
+Fixed sharing uses the saved report ID, commit SHA and options. The report, badge and iframe read the same saved count. Comparison URLs pin both saved results. Engine or policy differences are shown before interpreting a comparison; reports with unknown rules cannot be marked compatible.
+
+Saved reports remain subject to cache cleanup and replacement. Missing fixed reports show unavailable and are never silently re-counted. Export the report JSON or text for durable retention. Live mode follows the chosen ref using canonical public options and can change as the ref moves; cache refreshes across surfaces are independent.
+
 ## Metrics
 
 | Metric | Definition |
@@ -69,7 +93,7 @@ For measured examples of how these analysis options change reported counts acros
 As of {date} (commit {sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei via OctoCounts.
 ```
 
-Every cached report page includes its own generated citation text. Prefer citing the canonical report URL, for example `https://octocounts.com/github/torvalds/linux`.
+Every cached report page includes its own generated citation text. For stable counts, prefer the saved report link with reportId and keep an exported copy. Canonical repository URLs follow cached public reports, for example `https://octocounts.com/github/torvalds/linux`.
 
 ## Frequently Asked Questions
 

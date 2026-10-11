@@ -5,7 +5,7 @@ use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::models::{
-    AnalysisOptions, AnalysisSource, ApiErrorBody, GrowthLanguageStat, GrowthRepositoryStat,
+    AnalysisOptions, AnalysisSource, ApiErrorBody, CountingPolicy, GrowthLanguageStat, GrowthRepositoryStat,
     GrowthSourceStat, GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus,
     LanguageReport, LanguageStats, Report, RepositoryProvider,
 };
@@ -17,6 +17,7 @@ macro_rules! card_projection {
     () => {
         r#"
         SELECT
+            r.id AS report_id,
             r.provider AS provider,
             r.owner AS owner,
             r.repo AS repo,
@@ -28,6 +29,7 @@ macro_rules! card_projection {
             r.body->>'tokeiVersion' AS tokei_version,
             r.body->>'analysisKey' AS analysis_key,
             (r.body->'analysisOptions')::text AS analysis_options,
+            (r.body->'countingPolicy')::text AS counting_policy,
             (r.body->'total')::text AS total,
             COALESCE((
                 SELECT jsonb_agg(entry ORDER BY idx)
@@ -1995,7 +1997,7 @@ impl Store {
         let body = serde_json::to_string(report)?;
         let body_bytes = body.len() as i64;
         let provider = provider_to_str(&report.repository.provider);
-        sqlx::query(
+        let saved = sqlx::query(
             r#"
             INSERT INTO reports (
                 id, provider, owner, repo, commit_sha, tokei_version, body, created_at,
@@ -2011,6 +2013,12 @@ impl Store {
                 access_count = 0,
                 body_bytes = EXCLUDED.body_bytes,
                 source = EXCLUDED.source
+            WHERE reports.id <> EXCLUDED.id OR (
+                reports.body->'total' = EXCLUDED.body->'total'
+                AND reports.body->'languages' = EXCLUDED.body->'languages'
+                AND reports.body->'analysisOptions' IS NOT DISTINCT FROM EXCLUDED.body->'analysisOptions'
+                AND reports.body->'countingPolicy' IS NOT DISTINCT FROM EXCLUDED.body->'countingPolicy'
+            )
             "#,
         )
         .bind(&report.id)
@@ -2025,6 +2033,7 @@ impl Store {
         .bind(source_to_str(&source))
         .execute(&self.pool)
         .await?;
+        anyhow::ensure!(saved.rows_affected() == 1, "a report id cannot overwrite measured statistics");
         Ok(())
     }
 
@@ -3223,6 +3232,7 @@ pub const SEO_CARD_LANGUAGES: usize = 12;
 /// materialize the full language list or re-serialize a body we already had.
 #[derive(Clone, Debug)]
 pub struct ReportCard {
+    pub report_id: Option<String>,
     pub provider: RepositoryProvider,
     pub owner: String,
     pub repo: String,
@@ -3238,6 +3248,7 @@ pub struct ReportCard {
     /// The stored `analysisOptions` snapshot, `None` when the row predates the
     /// field (same rule as `analysis_key`).
     pub analysis_options: Option<AnalysisOptions>,
+    pub counting_policy: Option<CountingPolicy>,
     pub total: LanguageStats,
     /// The number of languages in the report, *not* `languages.len()`.
     pub language_count: usize,
@@ -3248,6 +3259,7 @@ pub struct ReportCard {
 impl From<&Report> for ReportCard {
     fn from(report: &Report) -> Self {
         Self {
+            report_id: Some(report.id.clone()),
             provider: report.repository.provider,
             owner: report.repository.owner.clone(),
             repo: report.repository.name.clone(),
@@ -3258,6 +3270,7 @@ impl From<&Report> for ReportCard {
             tokei_version: report.tokei_version.clone(),
             analysis_key: Some(report.analysis_key.clone()),
             analysis_options: Some(report.analysis_options.clone()),
+            counting_policy: report.counting_policy.clone(),
             total: report.total.clone(),
             language_count: report.languages.len(),
             languages: report
@@ -3447,12 +3460,14 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
     let generated_at: String = row.try_get("generated_at")?;
     let duration_ms: String = row.try_get("duration_ms")?;
     let analysis_options: Option<String> = row.try_get("analysis_options")?;
+    let counting_policy: Option<String> = row.try_get("counting_policy")?;
     let total: String = row.try_get("total")?;
     let languages: String = row.try_get("languages")?;
     let language_count: Option<i32> = row.try_get("language_count")?;
     let languages: Vec<LanguageReport> = serde_json::from_str(&languages)?;
 
     Ok(ReportCard {
+        report_id: row.try_get("report_id")?,
         provider: provider_from_str(&provider)
             .ok_or_else(|| anyhow::anyhow!("unknown provider in database: {provider}"))?,
         owner: row.try_get("owner")?,
@@ -3468,6 +3483,7 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
         analysis_options: analysis_options
             .map(|json| serde_json::from_str(&json))
             .transpose()?,
+        counting_policy: counting_policy.map(|json| serde_json::from_str(&json)).transpose()?,
         total: serde_json::from_str(&total)?,
         // Maintained by the reports_materialize_stats trigger, so it is only NULL
         // if a row escaped both the trigger and the backfill. The projected slice
@@ -3739,6 +3755,16 @@ mod tests {
 
         assert_eq!(cached.total.code, 250);
         assert_eq!(cached.id, "report-upsert-2");
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn the_same_report_id_cannot_be_overwritten_with_different_counts() {
+        let Some(store) = test_store().await else { return; };
+        let owner = unique_name("octo");
+        store.save_report(&test_report("fixed-id", &owner, 100), AnalysisSource::Unknown).await.unwrap();
+        assert!(store.save_report(&test_report("fixed-id", &owner, 250), AnalysisSource::Unknown).await.is_err());
+        assert_eq!(store.report("fixed-id").await.unwrap().unwrap().total.code, 100);
         store.drop_schema().await;
     }
 
@@ -4904,6 +4930,7 @@ mod tests {
             .set_job_failed(
                 job.id,
                 crate::models::ApiErrorBody {
+                    request_accepted: None,
                     code: "bad_repo".to_string(),
                     message: "repository is invalid".to_string(),
                 },
@@ -5998,6 +6025,7 @@ mod tests {
             include_docs: true,
             include_tests: true,
             include_generated: true,
+            respect_gitattributes: false,
         }
     }
 
@@ -6824,6 +6852,7 @@ mod tests {
             tokei_version: "tokei-test".to_string(),
             analysis_key: "tokei-test:default".to_string(),
             analysis_options: AnalysisOptions::default(),
+            counting_policy: None,
             languages: vec![LanguageReport {
                 name: "Rust".to_string(),
                 stats: LanguageStats {

@@ -32,6 +32,8 @@ export function useAnalysisRunner({
   const [report, setReport] = useState<Report | null>(seedReport);
   const [error, setError] = useState<AnalysisError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitingMessage, setWaitingMessage] = useState<string | null>(null);
+  const activeJobId = useRef<string | null>(null);
   const [lastCommand, setLastCommand] = useState(commandText(defaultRepoUrl, defaultRefName, false));
   // Network aborts are advisory: a completed request can still resolve after it
   // has been aborted. The monotonically increasing operation is the authority
@@ -42,8 +44,9 @@ export function useAnalysisRunner({
   const deadlineTimer = useRef<number | null>(null);
   const [jobOperation, setJobOperation] = useState(0);
 
-  const jobQuery = useQuery({
+  const jobQuery = useQuery<JobRecord>({
     queryKey: ["job", jobId],
+    retry: false,
     enabled: Boolean(jobId && !report),
     refetchInterval: (query) => {
       const data = query.state.data as JobRecord | undefined;
@@ -57,7 +60,7 @@ export function useAnalysisRunner({
     // status change instead of one 1.2–5s slice. TanStack Query never
     // overlaps refetches of the same key, and the interval below becomes
     // just the gap between polls.
-    queryFn: () => fetchJson<JobRecord>(`/api/jobs/${jobId}?wait=20`),
+    queryFn: ({ signal }) => fetchJson<JobRecord>(`/api/jobs/${jobId}?wait=20`, { signal: activeController.current?.signal ?? signal }),
   });
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export function useAnalysisRunner({
 
     const operation = jobOperation;
     let cancelled = false;
-    fetchJson<Report>(`/api/reports/${reportId}`)
+    fetchJson<Report>(`/api/reports/${reportId}`, { signal: activeController.current?.signal })
       .then((nextReport) => {
         if (cancelled || operation !== operationRef.current) return;
         clearDeadline(deadlineTimer);
@@ -85,7 +88,7 @@ export function useAnalysisRunner({
       .catch((err) => {
         if (cancelled || operation !== operationRef.current) return;
         clearDeadline(deadlineTimer);
-        setError(toAnalysisError(err));
+        setError(toAnalysisError(err, activeJobId.current));
         setJobId(null);
         setJobStartedAt(null);
       });
@@ -106,7 +109,7 @@ export function useAnalysisRunner({
 
   useEffect(() => {
     if (!jobQuery.isError || jobOperation !== operationRef.current) return;
-    setError(toAnalysisError(jobQuery.error));
+    setError(toAnalysisError(jobQuery.error, activeJobId.current));
     clearDeadline(deadlineTimer);
     setJobId(null);
     setJobStartedAt(null);
@@ -114,27 +117,36 @@ export function useAnalysisRunner({
 
   useEffect(() => () => { activeController.current?.abort(); clearDeadline(deadlineTimer); }, []);
 
-  const runAnalysis = async (forceRefresh: boolean, overrides?: { repoUrl?: string; refName?: string }) => {
+  const runAnalysis = async (forceRefresh: boolean, overrides?: { repoUrl?: string; refName?: string; reportId?: string }) => {
     const operation = operationRef.current + 1;
     operationRef.current = operation;
     activeController.current?.abort();
     clearDeadline(deadlineTimer);
     const controller = new AbortController();
     activeController.current = controller;
+    activeJobId.current = null;
     deadlineTimer.current = window.setTimeout(() => {
       if (operation !== operationRef.current) return;
       operationRef.current += 1;
       controller.abort();
-      setError({ message: i18n.t("runner.status.timedOut") });
+      setError({ message: i18n.t("runner.status.timedOut") + (activeJobId.current ? ` · ${i18n.t("error.resumeJob", { jobId: activeJobId.current })}` : "") });
       setJobId(null);
       setJobStartedAt(null);
       setIsSubmitting(false);
-    }, 120_000);
+      setWaitingMessage(null);
+    }, 300_000);
+    if (!overrides?.reportId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("reportId");
+      url.searchParams.delete("analysis");
+      window.history.replaceState(null, "", url);
+    }
     const requestedRepoUrl = overrides?.repoUrl ?? repoUrl;
     const requestedRefName = overrides?.refName ?? refName;
     const effectiveRepoUrl = requestedRepoUrl.trim() || defaultRepoUrl;
     const effectiveRefName = requestedRefName.trim() || (requestedRepoUrl.trim() ? "" : defaultRefName);
     setError(null);
+    setWaitingMessage(null);
     setReport(null);
     setJobId(null);
     setJobStartedAt(null);
@@ -147,7 +159,9 @@ export function useAnalysisRunner({
     });
 
     try {
-      const result = await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions, signal: controller.signal });
+      const result = overrides?.reportId
+        ? { kind: "cached" as const, reportId: overrides.reportId, report: await fetchJson<Report>(`/api/reports/${encodeURIComponent(overrides.reportId)}`, { signal: controller.signal }) }
+        : await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions, signal: controller.signal, onRetry: (waitMs) => { if (operation === operationRef.current) setWaitingMessage(i18n.t("error.retryAfter", { seconds: Math.ceil(waitMs / 1000) })); } });
       if (operation !== operationRef.current) return;
       if (result.kind === "cached") {
         clearDeadline(deadlineTimer);
@@ -159,6 +173,8 @@ export function useAnalysisRunner({
           languages: result.report.languages.length,
         });
       } else {
+        if (result.kind !== "job" || !result.jobId) throw new Error(i18n.t("error.requestFailed"));
+        activeJobId.current = result.jobId;
         setJobStartedAt(Date.now());
         setJobOperation(operation);
         setJobId(result.jobId);
@@ -166,9 +182,11 @@ export function useAnalysisRunner({
     } catch (err) {
       if (operation !== operationRef.current || (err instanceof DOMException && err.name === "AbortError")) return;
       clearDeadline(deadlineTimer);
-      setError(toAnalysisError(err));
+      setError(overrides?.reportId && err instanceof ApiRequestError && err.status === 404
+        ? { code: "snapshot_unavailable", message: i18n.t("error.snapshotUnavailable") }
+        : toAnalysisError(err));
     } finally {
-      if (operation === operationRef.current) setIsSubmitting(false);
+      if (operation === operationRef.current) { setIsSubmitting(false); setWaitingMessage(null); }
     }
   };
 
@@ -178,6 +196,7 @@ export function useAnalysisRunner({
     clearDeadline(deadlineTimer);
     setReport(null);
     setError(null);
+    setWaitingMessage(null);
     setJobId(null);
     setJobStartedAt(null);
     setIsSubmitting(false);
@@ -193,6 +212,7 @@ export function useAnalysisRunner({
 
   return {
     report,
+    waitingMessage,
     error: error?.message ?? jobQuery.data?.error?.message ?? null,
     errorCode: error?.code ?? jobQuery.data?.error?.code,
     isSubmitting,
@@ -225,11 +245,12 @@ function errorMessage(error: JobRecord["error"]): AnalysisError {
   return { code: error.code, message: localizedErrorMessage(error.code, error.message) };
 }
 
-function toAnalysisError(error: unknown): AnalysisError {
+function toAnalysisError(error: unknown, jobId?: string | null): AnalysisError {
+  const resume = jobId ? ` · ${i18n.t("error.resumeJob", { jobId })}` : "";
   if (error instanceof ApiRequestError) {
-    return { code: error.code, message: error.message };
+    return { code: error.code, message: error.message + resume };
   }
-  return { message: error instanceof Error ? error.message : i18n.t("error.requestFailed") };
+  return { message: (error instanceof Error ? error.message : i18n.t("error.requestFailed")) + resume };
 }
 
 function localizedErrorMessage(code: string | undefined, fallback: string) {

@@ -1,14 +1,15 @@
 import { ArrowLeftRight, Loader2, Play, Clipboard } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import i18n from "./i18n";
-import { analyzeRepository, fetchJson } from "./api";
+import { analyzeAndWait, fetchJson } from "./api";
 import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { defaultRefName, defaultRepoUrl } from "./constants";
 import { copyText, formatNumber, languageColor, visibleLanguageColor } from "./reportUtils";
 import { useScheme } from "./scheme";
 import { ShareButtons } from "./ShareButtons";
-import type { JobRecord, Report } from "./types";
+import { AnalysisOptionsPanel, canonicalAnalysisOptions, parseAnalysisOptions } from "./AnalysisOptionsPanel";
+import { comparePolicies } from "./report/CountingPolicy";
+import type { AnalysisOptions, Report } from "./types";
 
 // Compare (two repos) and Diff (two refs of one repo) share one panel layout,
 // one status machine, and one results table. Extracted from main.tsx so the
@@ -27,31 +28,65 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
   const [compareError, setCompareError] = useState("");
   const [completedShareUrl, setCompletedShareUrl] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
-  const operation = useRef(0);
+  const operation = useRef<number>(0);
+  const activeRequest = useRef<AbortController | null>(null);
+  const [options, setOptions] = useState<AnalysisOptions>(() => parseAnalysisOptions(new URLSearchParams(window.location.search).get("analysis")) ?? canonicalAnalysisOptions);
+  const [optionsKey, setOptionsKey] = useState(0);
+  const [completedDraft, setCompletedDraft] = useState("");
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
-  const runCompare = async () => {
+
+  const runCompare = async (countingOptions = options) => {
     const run = operation.current + 1;
     operation.current = run;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     const snapshot = { leftRepo: leftRepo.trim(), leftRef: leftRef.trim(), rightRepo: rightRepo.trim(), rightRef: rightRef.trim() };
     trackEvent("compare_run", { mode: "repos", leftProvider: providerFromRepoUrl(snapshot.leftRepo), rightProvider: providerFromRepoUrl(snapshot.rightRepo) });
     setCompareStatus("running");
     setCompareError("");
     try {
       const [left, right] = await Promise.all([
-        analyzeAndWait(snapshot.leftRepo, snapshot.leftRef),
-        analyzeAndWait(snapshot.rightRepo, snapshot.rightRef),
+        analyzeAndWait({ repoUrl: snapshot.leftRepo, refName: snapshot.leftRef, options: countingOptions, signal: controller.signal }),
+        analyzeAndWait({ repoUrl: snapshot.rightRepo, refName: snapshot.rightRef, options: countingOptions, signal: controller.signal }),
       ]);
       if (run !== operation.current) return;
       setLeftReport(left);
       setRightReport(right);
-      setCompletedShareUrl(buildCompareUrl(snapshot.leftRepo, snapshot.rightRepo, snapshot.leftRef, snapshot.rightRef));
+      setCompletedShareUrl(buildCompareUrl(snapshot.leftRepo, snapshot.rightRepo, left.commitSha, right.commitSha, countingOptions, left.id, right.id));
+      setCompletedDraft(buildCompareUrl(snapshot.leftRepo, snapshot.rightRepo, snapshot.leftRef, snapshot.rightRef, countingOptions));
       setCompareStatus("completed");
     } catch (error) {
       if (run !== operation.current) return;
+      controller.abort();
       setCompareError(error instanceof Error ? error.message : t("error.requestFailed"));
       setCompareStatus("failed");
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const leftId = params.get("leftReportId");
+    const rightId = params.get("rightReportId");
+    if (!leftId && !rightId) return;
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    const run = ++operation.current;
+    setCompareStatus("running");
+    if (!leftId || !rightId) { setCompareStatus("failed"); setCompareError(t("compare.snapshotUnavailable")); return; }
+    Promise.all([fetchJson<Report>(`/api/reports/${encodeURIComponent(leftId)}`, { signal: controller.signal }), fetchJson<Report>(`/api/reports/${encodeURIComponent(rightId)}`, { signal: controller.signal })])
+      .then(([left, right]) => {
+        if (run !== operation.current) return;
+        const nextOptions = parseAnalysisOptions(params.get("analysis")) ?? left.analysisOptions ?? canonicalAnalysisOptions;
+        setLeftReport(left); setRightReport(right);
+        setOptions(nextOptions); setOptionsKey((key) => key + 1);
+        setCompletedShareUrl(window.location.href);
+        setCompletedDraft(buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef, nextOptions));
+        setCompareStatus("completed");
+      }).catch(() => { if (run === operation.current && !controller.signal.aborted) { setCompareStatus("failed"); setCompareError(t("compare.snapshotUnavailable")); controller.abort(); } });
+    return () => controller.abort();
+  }, []);
 
   return (
     <div className="compare-panel">
@@ -78,6 +113,7 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
           {t("compare.run")}
         </button>
       </form>
+      <AnalysisOptionsPanel key={optionsKey} options={options} setOptions={setOptions} defaults={canonicalAnalysisOptions} />
       <div className="compare-share-row">
         <code>{completedShareUrl ?? t("compare.resultPending")}</code>
         <button className="copybtn" type="button" disabled={!completedShareUrl} onClick={() => { if (completedShareUrl) void copyCompareUrl(completedShareUrl).then((copied) => setCopyFeedback(copied ? "copied" : "failed")); }}>
@@ -92,8 +128,8 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
           <button type="button" className="copybtn retry-btn" onClick={() => void runCompare()}>{t("error.retry")}</button>
         </div>
       ) : null}
-      {completedShareUrl && completedShareUrl !== buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef) ? <p className="draft-notice" role="status">{t("compare.draftChanged")}</p> : null}
-      {leftReport && rightReport && completedShareUrl ? <CompareResults left={leftReport} right={rightReport} shareUrl={completedShareUrl} sharePlacement="compare" /> : null}
+      {completedShareUrl && completedDraft !== buildCompareUrl(leftRepo, rightRepo, leftRef, rightRef, options) ? <p className="draft-notice" role="status">{t("compare.draftChanged")}</p> : null}
+      {leftReport && rightReport && completedShareUrl ? <CompareResults left={leftReport} right={rightReport} shareUrl={completedShareUrl} sharePlacement="compare" running={compareStatus === "running"} onAlign={() => { const next = leftReport.countingPolicy ? leftReport.analysisOptions : canonicalAnalysisOptions; setOptions(next); setOptionsKey((key) => key + 1); void runCompare(next); }} /> : null}
     </div>
   );
 }
@@ -145,31 +181,65 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
   const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [error, setError] = useState("");
   const [completedShareUrl, setCompletedShareUrl] = useState<string | null>(null);
-  const operation = useRef(0);
+  const operation = useRef<number>(0);
+  const activeRequest = useRef<AbortController | null>(null);
+  const [options, setOptions] = useState<AnalysisOptions>(() => parseAnalysisOptions(new URLSearchParams(window.location.search).get("analysis")) ?? canonicalAnalysisOptions);
+  const [optionsKey, setOptionsKey] = useState(0);
+  const [completedDraft, setCompletedDraft] = useState("");
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
-  const runDiff = async () => {
+
+  const runDiff = async (countingOptions = options) => {
     const run = operation.current + 1;
     operation.current = run;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     const snapshot = { repo: repo.trim(), base: baseRef.trim(), head: headRef.trim() };
     trackEvent("compare_run", { mode: "diff", provider: providerFromRepoUrl(snapshot.repo) });
     setStatus("running");
     setError("");
     try {
       const [base, head] = await Promise.all([
-        analyzeAndWait(snapshot.repo, snapshot.base),
-        analyzeAndWait(snapshot.repo, snapshot.head),
+        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.base, options: countingOptions, signal: controller.signal }),
+        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.head, options: countingOptions, signal: controller.signal }),
       ]);
       if (run !== operation.current) return;
       setBaseReport(base);
       setHeadReport(head);
-      setCompletedShareUrl(buildDiffUrl(snapshot.repo, snapshot.base, snapshot.head));
+      setCompletedShareUrl(buildDiffUrl(snapshot.repo, base.commitSha, head.commitSha, countingOptions, base.id, head.id));
+      setCompletedDraft(buildDiffUrl(snapshot.repo, snapshot.base, snapshot.head, countingOptions));
       setStatus("completed");
     } catch (err) {
       if (run !== operation.current) return;
+      controller.abort();
       setStatus("failed");
       setError(err instanceof Error ? err.message : t("error.requestFailed"));
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const leftId = params.get("baseReportId");
+    const rightId = params.get("headReportId");
+    if (!leftId && !rightId) return;
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    const run = ++operation.current;
+    setStatus("running");
+    if (!leftId || !rightId) { setStatus("failed"); setError(t("compare.snapshotUnavailable")); return; }
+    Promise.all([fetchJson<Report>(`/api/reports/${encodeURIComponent(leftId)}`, { signal: controller.signal }), fetchJson<Report>(`/api/reports/${encodeURIComponent(rightId)}`, { signal: controller.signal })])
+      .then(([left, right]) => {
+        if (run !== operation.current) return;
+        const nextOptions = parseAnalysisOptions(params.get("analysis")) ?? left.analysisOptions ?? canonicalAnalysisOptions;
+        setBaseReport(left); setHeadReport(right);
+        setOptions(nextOptions); setOptionsKey((key) => key + 1);
+        setCompletedShareUrl(window.location.href);
+        setCompletedDraft(buildDiffUrl(repo, baseRef, headRef, nextOptions));
+        setStatus("completed");
+      }).catch(() => { if (run === operation.current && !controller.signal.aborted) { setStatus("failed"); setError(t("compare.snapshotUnavailable")); controller.abort(); } });
+    return () => controller.abort();
+  }, []);
 
   return (
     <div className="compare-panel diff-panel">
@@ -198,6 +268,7 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
           {t("diff.run")}
         </button>
       </form>
+      <AnalysisOptionsPanel key={optionsKey} options={options} setOptions={setOptions} defaults={canonicalAnalysisOptions} />
       <div className="compare-share-row">
         <code>{completedShareUrl ?? t("diff.resultPending")}</code>
         <button className="copybtn" type="button" disabled={!completedShareUrl} onClick={() => { if (completedShareUrl) void copyText(completedShareUrl).then((copied) => { if (copied) trackEvent(AnalyticsEvents.shareClicked, { share_type: "diff_url" }); setCopyFeedback(copied ? "copied" : "failed"); }); }}>
@@ -212,13 +283,13 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
           <button type="button" className="copybtn retry-btn" onClick={() => void runDiff()}>{t("error.retry")}</button>
         </div>
       ) : null}
-      {completedShareUrl && completedShareUrl !== buildDiffUrl(repo, baseRef, headRef) ? <p className="draft-notice" role="status">{t("compare.draftChanged")}</p> : null}
-      {baseReport && headReport && completedShareUrl ? <CompareResults left={baseReport} right={headReport} shareUrl={completedShareUrl} sharePlacement="diff" /> : null}
+      {completedShareUrl && completedDraft !== buildDiffUrl(repo, baseRef, headRef, options) ? <p className="draft-notice" role="status">{t("compare.draftChanged")}</p> : null}
+      {baseReport && headReport && completedShareUrl ? <CompareResults left={baseReport} right={headReport} shareUrl={completedShareUrl} sharePlacement="diff" running={status === "running"} onAlign={() => { const next = baseReport.countingPolicy ? baseReport.analysisOptions : canonicalAnalysisOptions; setOptions(next); setOptionsKey((key) => key + 1); void runDiff(next); }} /> : null}
     </div>
   );
 }
 
-function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Report; right: Report; shareUrl: string; sharePlacement: string }) {
+function CompareResults({ left, right, shareUrl, sharePlacement, running, onAlign }: { left: Report; right: Report; shareUrl: string; sharePlacement: string; running: boolean; onAlign: () => void }) {
   const { t } = useTranslation();
   const scheme = useScheme();
   const topLeft = left.languages[0]?.name ?? t("charts.noData");
@@ -232,9 +303,17 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
     { label: t("compare.languages"), left: left.languages.length, right: right.languages.length },
   ];
   const languageRows = compareLanguages(left, right).slice(0, 8);
+  const policy = comparePolicies(left, right);
 
   return (
     <div className="compare-results">
+      <div className={`compare-policy ${policy.status}`} role="status">
+        <strong>{t(`compare.policy.${policy.status}`)}</strong>
+        {policy.differences.length ? <ul>{policy.differences.map((difference) => <li key={difference.key}>{t(`compare.policyFields.${difference.key}`)}: <code>{difference.left}</code> → <code>{difference.right}</code></li>)}</ul> : null}
+        {left.countingPolicy?.repositoryAttributes.status !== "off" && left.countingPolicy ? <p>{t("compare.repositoryDeclarations")}</p> : null}
+        {policy.status !== "same" ? <button className="copybtn" type="button" disabled={running} onClick={onAlign}>{t("compare.alignPolicy")}</button> : null}
+      </div>
+      {sharePlacement === "diff" ? <p className="compare-help">{t("diff.netChange")}</p> : null}
       <div className="compare-head">
         <div>
           <span>{left.repository.owner}/{left.repository.name}</span>
@@ -255,6 +334,7 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
               <th>{t("compare.left")}</th>
               <th>{t("compare.right")}</th>
               <th>{t("compare.delta")} = {t("compare.right")} − {t("compare.left")}</th>
+              <th>{t("compare.percentChange")}</th>
             </tr>
           </thead>
           <tbody>
@@ -264,6 +344,7 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
                 <td>{formatNumber(row.left)}</td>
                 <td>{formatNumber(row.right)}</td>
                 <td className={row.right - row.left >= 0 ? "pos" : "neg"}>{formatSignedNumber(row.right - row.left)}</td>
+                <td>{row.left === 0 ? row.right === 0 ? "0%" : t("compare.newValue") : `${row.right > row.left ? "+" : ""}${(((row.right - row.left) / row.left) * 100).toFixed(1)}%`}</td>
               </tr>
             ))}
           </tbody>
@@ -288,29 +369,6 @@ function CompareResults({ left, right, shareUrl, sharePlacement }: { left: Repor
       />
     </div>
   );
-}
-
-async function analyzeAndWait(repoUrl: string, refName: string) {
-  const result = await analyzeRepository({ repoUrl, refName, forceRefresh: false });
-  if (result.kind === "cached") return result.report;
-
-  for (let attempt = 0; attempt < 14; attempt += 1) {
-    await delay(1_500);
-    // Long-poll (backend holds each request up to 20s per status change);
-    // 14 attempts ≈ the ~5-minute wall-clock cap the tight poll used to have.
-    const job = await fetchJson<JobRecord>(`/api/jobs/${result.jobId}?wait=20`);
-    if (job.status === "failed") {
-      throw new Error(job.error?.message ?? i18n.t("compare.analysisFailed"));
-    }
-    if (job.status === "completed" && job.reportId) {
-      return fetchJson<Report>(`/api/reports/${job.reportId}`);
-    }
-  }
-  throw new Error(i18n.t("compare.analysisTimedOut"));
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function compareLanguages(left: Report, right: Report) {
@@ -379,14 +437,20 @@ function initialDiffFromLocation() {
   };
 }
 
-function buildCompareUrl(leftRepo: string, rightRepo: string, leftRef: string, rightRef: string) {
+function buildCompareUrl(leftRepo: string, rightRepo: string, leftRef: string, rightRef: string, options: AnalysisOptions, leftReportId?: string, rightReportId?: string) {
   const params = new URLSearchParams({ left: leftRepo.trim(), right: rightRepo.trim() });
   if (leftRef.trim()) params.set("leftRef", leftRef.trim());
   if (rightRef.trim()) params.set("rightRef", rightRef.trim());
+  params.set("analysis", JSON.stringify(options));
+  if (leftReportId) params.set("leftReportId", leftReportId);
+  if (rightReportId) params.set("rightReportId", rightReportId);
   return `${window.location.origin}/compare?${params.toString()}`;
 }
 
-function buildDiffUrl(repo: string, base: string, head: string) {
+function buildDiffUrl(repo: string, base: string, head: string, options: AnalysisOptions, baseReportId?: string, headReportId?: string) {
   const params = new URLSearchParams({ repo: repo.trim(), base: base.trim(), head: head.trim() });
+  params.set("analysis", JSON.stringify(options));
+  if (baseReportId) params.set("baseReportId", baseReportId);
+  if (headReportId) params.set("headReportId", headReportId);
   return `${window.location.origin}/diff?${params.toString()}`;
 }

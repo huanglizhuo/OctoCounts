@@ -41,6 +41,7 @@ export function buildSnapshotReportPath(report: Report) {
   const base = buildPublicReportPath(report.repository.owner, report.repository.name, ref);
   const params = new URLSearchParams();
   params.set("analysis", JSON.stringify(report.analysisOptions));
+  if (report.id) params.set("reportId", report.id);
   return `${base}?${params.toString()}`;
 }
 
@@ -49,5 +50,6 @@ export function buildSnapshotReportUrl(report: Report) {
   const base = buildPublicReportUrl(report.repository.owner, report.repository.name, ref);
   const params = new URLSearchParams();
   params.set("analysis", JSON.stringify(report.analysisOptions));
+  if (report.id) params.set("reportId", report.id);
   return `${base}?${params.toString()}`;
 }

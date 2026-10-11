@@ -8,9 +8,10 @@ import React, { useState } from "react";
 import { Clipboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "../analytics";
-import { buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl } from "../badges";
+import { buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, buildReportBadgeUrl } from "../badges";
 import { ShareButtons } from "../ShareButtons";
-import { copyText, formatNumber, formatPercent, normalizedProvider, tickerRows, visibleLanguageColor } from "../reportUtils";
+import { canonicalAnalysisOptions } from "../AnalysisOptionsPanel";
+import { copyText, formatNumber, formatPercent, normalizedProvider, policySummary, tickerRows, visibleLanguageColor } from "../reportUtils";
 import type { Report } from "../types";
 import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
 
@@ -25,6 +26,10 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
   const copied = useCopied();
   const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
   const [manualCopyValue, setManualCopyValue] = useState<string | null>(null);
+  const [shareMode, setShareMode] = useState<"snapshot" | "live">("snapshot");
+  const liveUrl = new URL(buildPublicReportUrl(report.repository.owner, report.repository.name, report.refName));
+  liveUrl.searchParams.set("analysis", JSON.stringify(canonicalAnalysisOptions));
+  const shareUrl = shareMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl.href;
   const runCopy = async (action: () => Promise<boolean>, fallbackValue?: string) => {
     const ok = await action();
     setCopyFeedback(ok ? "copied" : "failed");
@@ -32,9 +37,9 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
   };
 
   const copyBadge = async () => {
-    const url = buildSnapshotReportUrl(report);
+    const url = shareUrl;
     const badgeUrl = isGitHub
-      ? buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
+      ? shareMode === "snapshot" && report.id ? buildReportBadgeUrl(report.id) : buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
       : "";
     if (!badgeUrl) return false;
     const ok = await copyText(`[![OctoCounts](${badgeUrl})](${url})`);
@@ -44,7 +49,9 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
 
   const copyEmbed = async () => {
     const provider = normalizedProvider(report);
-    const ok = await copyText(buildEmbedSnippet(buildEmbedUrl(provider, report.repository.owner, report.repository.name)));
+    const embedUrl = new URL(buildEmbedUrl(provider, report.repository.owner, report.repository.name, shareMode === "snapshot" ? report.id : undefined));
+    if (shareMode === "live") embedUrl.searchParams.set("ref", report.refName);
+    const ok = await copyText(buildEmbedSnippet(embedUrl.href));
     if (ok) { copied.showCopied("embed"); trackEvent(AnalyticsEvents.embedSnippetCopied, { provider, placement: "report_utility" }); }
     return ok;
   };
@@ -56,20 +63,21 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
         <span>{t("reportCta.subtitle")}</span>
       </div>
       <div className="share-showcase-body">
+        <label className="share-mode"><span>{t("reportCta.shareMode")}</span><select value={shareMode} onChange={(event) => setShareMode(event.target.value as "snapshot" | "live")}><option value="snapshot">{t("reportCta.snapshot")}</option><option value="live">{t("reportCta.live")}</option></select><small>{t(shareMode === "snapshot" ? "reportCta.snapshotNote" : "reportCta.liveNote")}</small></label>
         <div className="share-showcase-actions">
           <ShareButtons
-            url={buildSnapshotReportUrl(report)}
-            text={t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) })}
+            url={shareUrl}
+            text={shareMode === "snapshot" ? t("share.reportText", { repo: `${report.repository.owner}/${report.repository.name}`, code: formatNumber(report.total.code) }) : t("share.liveReportText", { repo: `${report.repository.owner}/${report.repository.name}`, ref: report.refName })}
             placement="report"
           />
           <div className="row-flex">
             {isGitHub ? (
-              <button className="copybtn" type="button" onClick={() => void runCopy(copyBadge)}>
+              <button className="copybtn" type="button" disabled={shareMode === "snapshot" && !report.id} onClick={() => void runCopy(copyBadge)}>
                 <Clipboard size={14} />
                 {copied.copiedKey === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
               </button>
             ) : null}
-            <button className="copybtn" type="button" onClick={() => void runCopy(copyEmbed)}>
+            <button className="copybtn" type="button" disabled={shareMode === "snapshot" && !report.id} onClick={() => void runCopy(copyEmbed)}>
               <Clipboard size={14} />
               {copied.copiedKey === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}
             </button>
@@ -112,6 +120,7 @@ export const ShareTickerCard = React.forwardRef<HTMLDivElement, { report: Report
             <ShareStat color="var(--violet)" label={t("shareCard.labelBlanks")} value={report.total.blanks} />
           </div>
           <div className="share-ticker">
+            <div className="share-policy">{policySummary(report)} · {report.tokeiVersion} · {report.analysisKey || t("countingPolicy.unknown")}</div>
             <div className="share-ticker-list">
               {rows.map((row) => (
                 <div className="share-ticker-row" key={row.label}>

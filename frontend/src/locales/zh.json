@@ -117,7 +117,12 @@
     "copied": "已复制",
     "copyFailed": "复制失败。请选中链接后手动复制。",
     "copyFailedShort": "复制失败",
-    "manualContentAria": "用于手动复制的内容"
+    "manualContentAria": "用于手动复制的内容",
+    "shareMode": "分享方式",
+    "snapshot": "固定结果",
+    "live": "跟随该版本更新",
+    "snapshotNote": "报告、徽章和嵌入卡片使用同一份已保存结果；记录清理后链接会明确失效。",
+    "liveNote": "使用公开默认统计口径，跟随指定版本更新；不应用自定义过滤。"
   },
   "similarRepos": {
     "ariaLabel": "相似仓库",
@@ -182,7 +187,9 @@
     "profiles": {
       "default": "默认",
       "source-only": "仅源码"
-    }
+    },
+    "respectGitattributes": "使用仓库声明过滤（.gitattributes）",
+    "attributesHelp": "应用 linguist-generated 和 linguist-vendored。开启时会关闭“包含生成代码”，你仍可重新开启。"
   },
   "charts": {
     "languageShare": "语言构成",
@@ -321,7 +328,10 @@
     "analysisFailed": "统计仓库时分析失败。",
     "requestFailed": "请求失败",
     "failedCode": "失败",
-    "retry": "重试"
+    "retry": "重试",
+    "retryAfter": "请在 {{seconds}} 秒后重试。",
+    "resumeJob": "任务 {{jobId}} 可通过 /api/jobs/{{jobId}} 继续查询。",
+    "snapshotUnavailable": "这份已保存结果已不可用。重新分析可以创建新的报告。"
   },
   "errorHelp": {
     "private_repo": "OctoCounts 只分析公开仓库。它不请求 GitHub 账号授权，不支持私有仓库，也不接收源码上传。",
@@ -430,7 +440,8 @@
     "label": "分享：",
     "native": "分享",
     "reportText": "{{repo}} 共有 {{code}} 行代码 —— OctoCounts SLOC 报告",
-    "compareText": "{{left}} vs {{right}} —— OctoCounts 代码行数对比"
+    "compareText": "{{left}} vs {{right}} —— OctoCounts 代码行数对比",
+    "liveReportText": "在 OctoCounts 查看 {{repo}} 的 {{ref}} 实时统计报告。"
   },
   "shareButtons": {
     "postX": "分享到 X",
@@ -460,7 +471,27 @@
     "analysisFailed": "分析失败。请稍等几分钟后再试。",
     "analysisTimedOut": "对比耗时过长。请稍等几分钟后再试。",
     "swapAria": "交换仓库",
-    "noSharedLanguages": "两份报告没有共同语言，无法显示分语言差异。"
+    "noSharedLanguages": "两份报告没有共同语言，无法显示分语言差异。",
+    "snapshotUnavailable": "一份或两份已保存结果已不可用。重新对比可以创建新报告。",
+    "percentChange": "变化比例",
+    "newValue": "新增",
+    "alignPolicy": "按同一口径重新分析两侧",
+    "repositoryDeclarations": "仅当上方验证通过时分析设置才一致；各仓库的声明分别生效。",
+    "policy": {
+      "same": "统计口径和引擎版本一致",
+      "different": "统计口径不同，请查看差异",
+      "unknown": "历史口径不完整，无法确认可比性"
+    },
+    "policyFields": {
+      "counter": "统计引擎",
+      "version": "过滤版本",
+      "includeDocs": "包含文档",
+      "includeTests": "包含测试",
+      "includeGenerated": "包含生成代码",
+      "ignoredDirs": "排除目录",
+      "ignoredLanguages": "排除语言",
+      "respectGitattributes": "仓库声明过滤"
+    }
   },
   "curatedCompare": {
     "unavailable": "该对比页暂时不可用。请稍后再试，或使用下方工具重新发起对比。",
@@ -485,7 +516,8 @@
     "base": "基准引用",
     "head": "目标引用",
     "run": "对比差异",
-    "resultPending": "运行差异比较后生成结果链接。"
+    "resultPending": "运行差异比较后生成结果链接。",
+    "netChange": "这些数字表示仓库规模的净变化，不是 Git diff 的新增和删除行数。"
   },
   "growth": {
     "reportsLabel": "报告",
@@ -722,5 +754,37 @@
     "permissions": "扩展只读取你正在浏览的公开 GitHub 仓库页面以识别仓库和所有者，并通过 OctoCounts API 对公开数据计数。它不请求 GitHub 账号权限、无需 API 令牌、只支持公开仓库、不收集个人数据。结果按仓库和 ref 本地缓存，重复访问即时加载。",
     "scopeTitle": "支持的仓库",
     "scope": "公开 GitHub 仓库。不支持私有仓库和源码上传；如需统计私有代码，请在本地运行 tokei。"
+  },
+  "countingPolicy": {
+    "title": "统计口径",
+    "details": "查看完整规则",
+    "unknown": "未记录",
+    "legacy": "这份历史报告未记录完整统计口径。",
+    "definition": "总行数 = 代码行 + 注释行 + 空行。代码行按 Tokei 实际分类统计。",
+    "engineDefaults": "文件发现遵循所记录 Tokei 版本的默认隐藏文件和忽略文件处理行为。",
+    "directoryMatching": "目录排除按路径组成部分精确匹配，区分大小写。生成目录过滤不能识别全部生成代码。",
+    "docs": {
+      "included": "包含文档",
+      "excluded": "排除文档目录"
+    },
+    "tests": {
+      "included": "包含测试",
+      "excluded": "排除测试目录"
+    },
+    "generated": {
+      "included": "包含生成代码",
+      "excluded": "排除生成目录"
+    },
+    "attributes": {
+      "off": "未启用仓库声明过滤。",
+      "not_found": "已开启；本次分析文件中未发现 .gitattributes 声明。",
+      "applied": "仓库声明排除 {{count}} 个文件：生成代码 {{generated}} 个、第三方代码 {{vendored}} 个。重叠文件只计一次；这是排除文件数，不是排除的代码行数。"
+    },
+    "attributeSummary": {
+      "off": "仓库声明未启用",
+      "not_found": "未发现仓库声明",
+      "applied": "已应用仓库声明"
+    },
+    "exclusionSummary": "排除 {{dirs}} 个目录名称 · 忽略 {{languages}} 种语言"
   }
 }

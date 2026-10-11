@@ -810,6 +810,80 @@ body.embed-mode {
   justify-self: start;
 }
 
+.analysis-options-grid .repository-attributes-toggle {
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 44px;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.repository-attributes-toggle small {
+  grid-column: 2;
+  line-height: 1.6;
+  color: var(--fg-dim);
+}
+
+.counting-policy,
+.compare-policy {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 14px;
+  margin: 12px 0;
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.counting-policy-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: baseline;
+}
+
+.counting-policy-head span,
+.counting-policy p {
+  color: var(--fg-dim);
+}
+
+.counting-policy summary {
+  cursor: pointer;
+  padding: 8px 0;
+  min-height: 44px;
+}
+
+.compare-policy.different,
+.compare-policy.unknown {
+  border-left: 3px solid var(--warn);
+}
+
+.share-mode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  font-size: var(--text-xs);
+}
+
+.share-mode select {
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--rule);
+  padding: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.share-mode small {
+  grid-column: 1 / -1;
+  color: var(--fg-dim);
+  line-height: 1.6;
+}
+
 .analysis-options-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2430,6 +2504,12 @@ table.report tr.totals td.lang {
   font-size: 15px;
   line-height: 1.35;
   grid-column: 1;
+}
+
+.share-policy {
+  color: var(--fg-mute);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .share-total {

@@ -1,4 +1,5 @@
 mod analyzer;
+mod attributes;
 mod api;
 mod badge;
 mod cache;
@@ -154,6 +155,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
+        .route("/api/reports/{report_id}/badge.svg", get(badge::badge_report))
         .route("/api/stats", get(api::stats))
         .route("/api/repo-info", get(api::repo_info))
         .route("/api/seo/report", get(seo::report))
@@ -206,7 +208,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     router
-        .layer(CorsLayer::permissive())
+        .layer(CorsLayer::permissive().expose_headers([axum::http::header::RETRY_AFTER]))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
 }

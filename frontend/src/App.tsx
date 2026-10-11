@@ -34,6 +34,7 @@ import {
 import type { AnalysisOptions, GrowthRepositoryStat, GrowthStats, Report, Stats } from "./types";
 import type { JobRecord } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
+import { AnalysisOptionsPanel, defaultAnalysisOptions, parseAnalysisOptions } from "./AnalysisOptionsPanel";
 
 // The homepage extension promo comes from the injection context (see
 // prerenderContext.ts): lazy on plain SPA loads, eager on the prerendered
@@ -158,14 +159,7 @@ function DeferredContent({ children, rootMargin = "300px", estimatePx = 240 }: {
   );
 }
 
-const defaultAnalysisOptions: AnalysisOptions = {
-  ignoredDirs: [],
-  ignoredLanguages: [],
-  profile: "default",
-  includeDocs: true,
-  includeTests: true,
-  includeGenerated: true,
-};
+
 
 // On report deep links the edge function server-renders the facts and embeds a
 // machine-readable summary (#octocounts-report-summary). Seeding the runner
@@ -188,7 +182,7 @@ function seedReportFromSsrSummary(): Report | null {
     const summaryRepo = String(summary.repository?.repo ?? "").toLowerCase();
     if (summaryOwner !== parsedRoute.owner.toLowerCase() || summaryRepo !== parsedRoute.repo.toLowerCase()) return null;
     return {
-      id: "",
+      id: summary.reportId ?? "",
       repository: {
         owner: summary.repository.owner,
         name: summary.repository.repo,
@@ -204,6 +198,7 @@ function seedReportFromSsrSummary(): Report | null {
       analysisKey: summary.analysisKey ?? "",
       analysisOptions: summary.analysisOptions ?? defaultAnalysisOptions,
       snapshotUrl: summary.snapshotUrl,
+      countingPolicy: summary.countingPolicy,
       languages: (summary.languages ?? []).map((language: { name: string; stats: Stats }) => ({
         name: language.name,
         stats: language.stats,
@@ -327,8 +322,10 @@ export function App() {
   // pasted unambiguous tree/commit URL is also explicit.
   const refIsExplicit = useRef(!initialRequest.freshHomepageForm);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>(() => initialRequest.analysisOptions ?? defaultAnalysisOptions);
+  const [optionsPanelKey, setOptionsPanelKey] = useState(0);
   const {
     report,
+    waitingMessage,
     error,
     errorCode,
     isSubmitting,
@@ -348,11 +345,17 @@ export function App() {
     // A server seed represents the default report URL only. A snapshot URL
     // carries explicit analysis options and must fetch that exact configuration
     // instead of briefly presenting the unrelated default SSR report.
-    seedReport: initialRequest.analysisOptions ? null : seedReport,
+    seedReport: initialRequest.analysisOptions || initialRequest.reportId ? null : seedReport,
     analysisOptions,
   });
 
   const autoRan = useRef(false);
+  useEffect(() => {
+    if (report?.analysisOptions && new URLSearchParams(window.location.search).has("reportId")) {
+      setAnalysisOptions(report.analysisOptions);
+      setOptionsPanelKey((key) => key + 1);
+    }
+  }, [report]);
   // A run occupies the button from submit through queued/running until the
   // report (or failure) lands — not just the initial POST.
   const runActive = isSubmitting || status === "queued" || status === "running";
@@ -393,6 +396,7 @@ export function App() {
     params.delete("q");
     params.delete("url");
     params.delete("ref");
+    if (params.has("reportId")) return;
     const query = params.toString();
     window.history.replaceState(null, "", canonical.pathname + (query ? `?${query}` : ""));
   }, [report]);
@@ -414,8 +418,8 @@ export function App() {
       // seed (same data the edge page rendered from, at most 1h old). Skip the
       // auto-run: it would clear the seed, flash the runner, and re-download
       // what the page already has. Force refresh is still available by hand.
-      if (ssrSeed && !initialRequest.analysisOptions) return;
-      void runAnalysis(false);
+      if (ssrSeed && !initialRequest.analysisOptions && !initialRequest.reportId) return;
+      void runAnalysis(false, initialRequest.reportId ? { reportId: initialRequest.reportId } : undefined);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -548,7 +552,7 @@ export function App() {
                 </button>
               ) : null}
             </form>
-            <AnalysisOptionsPanel options={analysisOptions} setOptions={setAnalysisOptions} />
+            <AnalysisOptionsPanel key={optionsPanelKey} options={analysisOptions} setOptions={setAnalysisOptions} />
             {ambiguousRef ? <p className="input-hint" role="status">{t("hero.ambiguousRef")}</p> : null}
             {!isReportRoute && (
               <>
@@ -626,6 +630,7 @@ export function App() {
             status={status}
             report={report}
             error={error}
+            waitingMessage={waitingMessage}
             errorCode={errorCode}
             onReset={reset}
             onRerun={() => void runAnalysis(true)}
@@ -845,79 +850,6 @@ function ToolsGrid() {
   );
 }
 
-// How many configured fields differ from the defaults — one point per field,
-// array-valued fields (ignored dirs/languages) counting as a single field.
-// Drives the "N modified" summary so a non-default configuration is visible
-// while the panel stays collapsed.
-function countModifiedAnalysisOptions(options: AnalysisOptions): number {
-  let count = 0;
-  if (options.profile !== defaultAnalysisOptions.profile) count += 1;
-  if (options.ignoredDirs.join("\u0000") !== defaultAnalysisOptions.ignoredDirs.join("\u0000")) count += 1;
-  if (options.ignoredLanguages.join("\u0000") !== defaultAnalysisOptions.ignoredLanguages.join("\u0000")) count += 1;
-  if (options.includeDocs !== defaultAnalysisOptions.includeDocs) count += 1;
-  if (options.includeTests !== defaultAnalysisOptions.includeTests) count += 1;
-  if (options.includeGenerated !== defaultAnalysisOptions.includeGenerated) count += 1;
-  return count;
-}
-
-function AnalysisOptionsPanel({ options, setOptions }: { options: AnalysisOptions; setOptions: (options: AnalysisOptions) => void }) {
-  const { t } = useTranslation();
-  // Keep what the person is typing separate from its parsed value. Rebuilding
-  // the field from `split(',')` on each keystroke used to eat commas/spaces and
-  // move the caret, making a normal `examples, fixtures` entry impossible.
-  const [ignoredDirsDraft, setIgnoredDirsDraft] = useState(() => options.ignoredDirs.join(", "));
-  const [ignoredLanguagesDraft, setIgnoredLanguagesDraft] = useState(() => options.ignoredLanguages.join(", "));
-  const update = (patch: Partial<AnalysisOptions>) => setOptions({ ...options, ...patch });
-  const modifiedCount = countModifiedAnalysisOptions(options);
-  // Reset must restore the parsed options AND both CSV drafts; leaving a stale
-  // draft would resurrect the old entries on the next keystroke or blur.
-  const resetDefaults = () => {
-    setIgnoredDirsDraft("");
-    setIgnoredLanguagesDraft("");
-    setOptions(defaultAnalysisOptions);
-  };
-  return (
-    <details className="analysis-options">
-      <summary>
-        {modifiedCount > 0
-          ? t("analysisOptions.summaryModified", { count: modifiedCount })
-          : t("analysisOptions.summary")}
-      </summary>
-      <div className="analysis-options-grid">
-        <label>
-          <span>{t("analysisOptions.profile")}</span>
-          <select name="analysisProfile" value={options.profile} onChange={(event) => update({ profile: event.target.value as AnalysisOptions["profile"] })}>
-            <option value="default">{t("analysisOptions.defaultProfile")}</option>
-            <option value="source-only">{t("analysisOptions.sourceOnlyProfile")}</option>
-          </select>
-        </label>
-        <label>
-          <span>{t("analysisOptions.ignoredDirs")}</span>
-          <input name="ignoredDirs" value={ignoredDirsDraft} onChange={(event) => { setIgnoredDirsDraft(event.target.value); update({ ignoredDirs: csvList(event.target.value) }); }} onBlur={() => update({ ignoredDirs: csvList(ignoredDirsDraft) })} placeholder="examples, fixtures" />
-        </label>
-        <label>
-          <span>{t("analysisOptions.ignoredLanguages")}</span>
-          <input name="ignoredLanguages" value={ignoredLanguagesDraft} onChange={(event) => { setIgnoredLanguagesDraft(event.target.value); update({ ignoredLanguages: csvList(event.target.value) }); }} onBlur={() => update({ ignoredLanguages: csvList(ignoredLanguagesDraft) })} placeholder="Markdown, JSON" />
-        </label>
-        <div className="analysis-toggles">
-          <label><input type="checkbox" name="includeDocs" checked={options.includeDocs} onChange={(event) => update({ includeDocs: event.target.checked })} />{t("analysisOptions.includeDocs")}</label>
-          <label><input type="checkbox" name="includeTests" checked={options.includeTests} onChange={(event) => update({ includeTests: event.target.checked })} />{t("analysisOptions.includeTests")}</label>
-          <label><input type="checkbox" name="includeGenerated" checked={options.includeGenerated} onChange={(event) => update({ includeGenerated: event.target.checked })} />{t("analysisOptions.includeGenerated")}</label>
-        </div>
-        {modifiedCount > 0 ? (
-          <button type="button" className="copybtn options-reset" onClick={resetDefaults}>
-            {t("analysisOptions.reset")}
-          </button>
-        ) : null}
-      </div>
-    </details>
-  );
-}
-
-function csvList(value: string) {
-  return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
 // Path segments after which a github.com URL names a ref.
 const githubRefMarkers = new Set(["tree", "blob", "commit", "commits"]);
 
@@ -994,37 +926,20 @@ function initialRequestFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const queryRepo = params.get("q") ?? params.get("url");
   const queryRef = params.get("ref") ?? "";
-  const analysisOptions = optionsFromSnapshotParam(params.get("analysis"));
-  if (queryRepo) return { repoUrl: queryRepo, refName: queryRef, analysisOptions };
+  const analysisOptions = parseAnalysisOptions(params.get("analysis"));
+  const reportId = params.get("reportId") || undefined;
+  if (queryRepo) return { repoUrl: queryRepo, refName: queryRef, analysisOptions, reportId };
 
   const route = parsePublicReportPath(window.location.pathname);
-  if (route) return { ...route, analysisOptions };
+  if (route) return { ...route, analysisOptions, reportId };
 
   // A brand-new homepage form starts with a blank ref (blank = the
   // repository's default branch); the flag only marks the form as fresh so
   // URL edits may still derive a ref from a pasted tree/commit path. Query
   // and report routes carry whatever ref their URL states, blank included.
-  return { repoUrl: "", refName: "", analysisOptions, freshHomepageForm: true };
+  return { repoUrl: "", refName: "", analysisOptions, reportId, freshHomepageForm: true };
 }
 
-function optionsFromSnapshotParam(value: string | null): AnalysisOptions | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<AnalysisOptions>;
-    if (parsed.profile !== "default" && parsed.profile !== "source-only") return null;
-    if (!Array.isArray(parsed.ignoredDirs) || !Array.isArray(parsed.ignoredLanguages)) return null;
-    return {
-      profile: parsed.profile,
-      ignoredDirs: parsed.ignoredDirs.filter((item): item is string => typeof item === "string"),
-      ignoredLanguages: parsed.ignoredLanguages.filter((item): item is string => typeof item === "string"),
-      includeDocs: typeof parsed.includeDocs === "boolean" ? parsed.includeDocs : true,
-      includeTests: typeof parsed.includeTests === "boolean" ? parsed.includeTests : true,
-      includeGenerated: typeof parsed.includeGenerated === "boolean" ? parsed.includeGenerated : true,
-    };
-  } catch {
-    return null;
-  }
-}
 
 function normalizeReport(report: Report): Report {
   return {
@@ -1116,11 +1031,12 @@ function applyPageMetadata({ title, description, canonical, extraRobots }: { tit
   // identical before and after the report arrives while the description (with
   // live line counts) and canonical change -- a title-only guard would skip
   // those updates entirely.
-  const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? ""]);
+  const snapshot = new URLSearchParams(window.location.search).has("reportId");
+  const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? "", snapshot]);
   if (fingerprint === lastMetaFingerprint) return;
   lastMetaFingerprint = fingerprint;
   document.title = title;
-  const robots = `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
+  const robots = snapshot ? "noindex,follow" : `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
   const image = `${window.location.origin}/og-image.jpg`;
   const metas: Array<["name" | "property", string, string]> = [
     ["name", "description", description],

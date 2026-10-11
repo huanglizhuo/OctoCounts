@@ -32,6 +32,10 @@ pub struct PageQuery {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SeoReport {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    report_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    counting_policy: Option<crate::models::CountingPolicy>,
     provider: String,
     owner: String,
     repo: String,
@@ -684,9 +688,15 @@ fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
     let snapshot_url = card
         .analysis_options
         .as_ref()
-        .and_then(|options| snapshot_url(&canonical_url, &card.commit_sha, options));
+        .and_then(|options| snapshot_url(&canonical_url, &card.commit_sha, options))
+        .map(|url| match &card.report_id {
+            Some(id) => format!("{url}&reportId={}", urlencoding::encode(id)),
+            None => url,
+        });
 
     SeoReport {
+        report_id: card.report_id.clone(),
+        counting_policy: card.counting_policy.clone(),
         provider: provider_to_str(&card.provider).to_string(),
         owner: card.owner.clone(),
         repo: card.repo.clone(),
@@ -842,11 +852,14 @@ mod tests {
             include_docs: true,
             include_tests: true,
             include_generated: true,
+            respect_gitattributes: false,
         }
     }
 
     fn card(options: Option<AnalysisOptions>) -> ReportCard {
         ReportCard {
+            report_id: None,
+            counting_policy: None,
             provider: crate::models::RepositoryProvider::GitHub,
             owner: "rust-lang".to_string(),
             repo: "rust".to_string(),
@@ -935,6 +948,7 @@ mod tests {
             include_docs: false,
             include_tests: false,
             include_generated: true,
+            respect_gitattributes: false,
         };
         let summary = configuration_summary(Some(&options));
         assert_eq!(
@@ -1009,4 +1023,3 @@ mod tests {
         );
     }
 }
-

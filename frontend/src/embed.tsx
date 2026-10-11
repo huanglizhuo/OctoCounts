@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Loader2 } from "lucide-react";
 import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchJson } from "./api";
+import { analyzeAndWait, fetchJson } from "./api";
+import { canonicalAnalysisOptions } from "./AnalysisOptionsPanel";
+import type { Report } from "./types";
+import { buildSnapshotReportPath } from "./report/shared";
 import { buildEmbedUrl, buildPublicReportUrl, type EmbedProvider } from "./badges";
 import { formatCompactNumber, formatNumber, formatPercent, languageColor } from "./reportUtils";
 
@@ -38,6 +41,9 @@ export function parseEmbedPath(pathname: string): EmbedRoute | null {
 export function EmbedPage() {
   const { t } = useTranslation();
   const route = useMemo(() => parseEmbedPath(window.location.pathname), []);
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const reportId = params.get("reportId");
+  const liveRef = params.get("ref");
 
   // The card must blend into the host page: kill the app's dark scheme
   // background and grid overlay for the lifetime of the embed view.
@@ -51,13 +57,19 @@ export function EmbedPage() {
   }, []);
 
   const query = useQuery({
-    queryKey: ["embed-report", route?.provider, route?.owner, route?.repo],
+    queryKey: ["embed-report", route?.provider, route?.owner, route?.repo, reportId, liveRef],
     enabled: Boolean(route),
     staleTime: 60 * 60 * 1000,
     retry: 0,
-    queryFn: () => {
+    queryFn: async ({ signal }): Promise<EmbedReportSummary> => {
+      if (reportId || liveRef !== null) {
+        const report = reportId
+          ? await fetchJson<Report>(`/api/reports/${encodeURIComponent(reportId)}`, { signal })
+          : await analyzeAndWait({ repoUrl: `https://github.com/${route!.owner}/${route!.repo}`, refName: liveRef ?? "", options: canonicalAnalysisOptions, signal });
+        return { repoFullName: `${report.repository.owner}/${report.repository.name}`, provider: "github", publicPath: buildSnapshotReportPath(report), refName: report.commitSha.slice(0, 12), total: report.total, languages: report.languages };
+      }
       const params = new URLSearchParams({ provider: route!.provider, owner: route!.owner, repo: route!.repo });
-      return fetchJson<EmbedReportSummary>(`/api/seo/report?${params.toString()}`);
+      return fetchJson<EmbedReportSummary>(`/api/seo/report?${params.toString()}`, { signal });
     },
   });
 
@@ -90,7 +102,7 @@ export function EmbedPage() {
         <div className="embed-card embed-state" role="status">
           {query.isError ? (
             <>
-              <span>{t("embedCard.unavailable")}</span>
+              <span>{t(reportId ? "error.snapshotUnavailable" : "embedCard.unavailable")}</span>
               <a href={reportUrl} target="_blank" rel="noreferrer">{t("embedCard.viewReport")} <ExternalLink size={11} aria-hidden="true" /></a>
             </>
           ) : (

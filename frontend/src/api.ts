@@ -1,11 +1,13 @@
 import i18n from "./i18n";
-import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats, RepoHistory, Report } from "./types";
+import type { AnalysisOptions, AnalysisSource, AnalyzeResponse, GrowthStats, JobRecord, RepoHistory, Report } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8080";
 
 export class ApiRequestError extends Error {
   code?: string;
   status: number;
+  retryAfterMs?: number;
+  requestAccepted?: boolean;
 
   constructor(message: string, status: number, code?: string) {
     super(message);
@@ -22,6 +24,7 @@ export async function analyzeRepository(request: {
   options?: AnalysisOptions;
   source?: AnalysisSource;
   signal?: AbortSignal;
+  onRetry?: (waitMs: number) => void;
 }): Promise<AnalyzeResponse> {
   return fetchJson<AnalyzeResponse>("/api/analyze", {
     method: "POST",
@@ -34,11 +37,40 @@ export async function analyzeRepository(request: {
       source: request.source ?? "web",
     }),
     signal: request.signal,
-  });
+  }, { onRetry: request.onRetry });
 }
 
 export function fetchGrowthStats() {
   return fetchJson<GrowthStats>("/api/stats");
+}
+
+export async function analyzeAndWait(request: { repoUrl: string; refName: string; options?: AnalysisOptions; signal?: AbortSignal }): Promise<Report> {
+  const controller = new AbortController();
+  const deadline = Date.now() + 300_000;
+  const abort = () => controller.abort(request.signal?.reason);
+  request.signal?.throwIfAborted();
+  request.signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => controller.abort(new DOMException(i18n.t("compare.analysisTimedOut"), "TimeoutError")), 300_000);
+  let jobId: string | undefined;
+  try {
+    const result = await analyzeRepository({ ...request, forceRefresh: false, signal: controller.signal });
+    if (result.kind === "cached") return result.report;
+    if (result.kind !== "job" || !result.jobId) throw new Error(i18n.t("error.requestFailed"));
+    jobId = result.jobId;
+    while (Date.now() < deadline) {
+      const job = await fetchJson<JobRecord>(`/api/jobs/${encodeURIComponent(jobId)}?wait=20`, { signal: controller.signal }, { deadline });
+      if (job.status === "failed") throw new Error(job.error?.message ?? i18n.t("compare.analysisFailed"));
+      if (job.status === "completed" && job.reportId) return await fetchJson<Report>(`/api/reports/${encodeURIComponent(job.reportId)}`, { signal: controller.signal }, { deadline });
+      await waitForRetry(250, controller.signal);
+    }
+    throw new Error(i18n.t("compare.analysisTimedOut"));
+  } catch (error) {
+    if (jobId) throw new Error(`${error instanceof Error ? error.message : i18n.t("error.requestFailed")} · ${i18n.t("error.resumeJob", { jobId })}`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    request.signal?.removeEventListener("abort", abort);
+  }
 }
 
 export function fetchRepoHistory(provider: string, owner: string, repo: string) {
@@ -58,7 +90,7 @@ export async function fetchCanonicalReport(provider: string, owner: string, repo
   const params = new URLSearchParams({ provider, owner, repo });
   const seo = await fetchJson<SeoReportSnapshot>(`/api/seo/report?${params.toString()}`);
   return {
-    id: seo.publicPath,
+    id: seo.reportId ?? "",
     repository: { owner: seo.owner, name: seo.repo, htmlUrl: seo.htmlUrl, provider: "github" },
     refName: seo.refName,
     commitSha: seo.commitSha,
@@ -68,6 +100,7 @@ export async function fetchCanonicalReport(provider: string, owner: string, repo
     tokeiVersion: seo.tokeiVersion,
     analysisKey: seo.analysisKey,
     analysisOptions: seo.analysisOptions,
+    countingPolicy: seo.countingPolicy,
     snapshotUrl: seo.snapshotUrl,
     languages: seo.languages,
     total: seo.total,
@@ -76,6 +109,8 @@ export async function fetchCanonicalReport(provider: string, owner: string, repo
 
 // Raw shape of GET /api/seo/report (see backend/src/seo.rs SeoReport).
 type SeoReportSnapshot = {
+  reportId?: string;
+  countingPolicy?: Report["countingPolicy"];
   provider: string;
   owner: string;
   repo: string;
@@ -95,14 +130,58 @@ type SeoReportSnapshot = {
   languages: Report["languages"];
 };
 
-export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const code = apiErrorCode(body);
-    throw new ApiRequestError(apiErrorMessage(body, response.statusText), response.status, code);
+export async function fetchJson<T>(path: string, init: RequestInit = {}, options: { onRetry?: (waitMs: number) => void; deadline?: number } = {}): Promise<T> {
+  const deadline = options.deadline ?? Date.now() + 300_000;
+  const isGet = !init.method || init.method === "GET";
+  for (let attempt = 0; ; attempt += 1) {
+    init.signal?.throwIfAborted();
+    if (Date.now() >= deadline) throw new DOMException("Request timed out", "TimeoutError");
+    const controller = new AbortController();
+    const abort = () => controller.abort(init.signal?.reason);
+    init.signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(() => controller.abort(new DOMException("Request timed out", "TimeoutError")), Math.min(30_000, deadline - Date.now()));
+    let failure: unknown;
+    try {
+      const response = await fetch(`${API_BASE}${path}`, { ...init, signal: controller.signal });
+      const body = await response.json().catch((error) => { if (controller.signal.aborted) throw error; return null; });
+      if (response.ok && body !== null) return body as T;
+      const error = new ApiRequestError(apiErrorMessage(body, response.statusText || i18n.t("error.requestFailed")), response.status, apiErrorCode(body));
+      error.retryAfterMs = retryAfterMs(response.headers.get("retry-after"));
+      error.requestAccepted = body?.requestAccepted;
+      if (error.retryAfterMs !== undefined) error.message += ` ${i18n.t("error.retryAfter", { seconds: Math.ceil(error.retryAfterMs / 1000) })}`;
+      throw error;
+    } catch (error) {
+      failure = error;
+    } finally {
+      clearTimeout(timer);
+      init.signal?.removeEventListener("abort", abort);
+    }
+    init.signal?.throwIfAborted();
+    const canRetry = failure instanceof ApiRequestError
+      ? [429, 500, 502, 503, 504].includes(failure.status) && (isGet || failure.requestAccepted === false)
+      : isGet && (failure instanceof TypeError || (failure instanceof DOMException && failure.name === "TimeoutError"));
+    const waitMs = failure instanceof ApiRequestError && failure.retryAfterMs !== undefined
+      ? failure.retryAfterMs : 500 * 2 ** attempt + Math.random() * 250;
+    if (!canRetry || attempt >= 3 || !Number.isFinite(waitMs) || Date.now() + waitMs >= deadline) throw failure;
+    options.onRetry?.(waitMs);
+    await waitForRetry(waitMs, init.signal);
   }
-  return body as T;
+}
+
+export function retryAfterMs(value: string | null): number | undefined {
+  if (value === null) return undefined;
+  if (/^\d+$/.test(value.trim())) return Number(value) * 1000;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : undefined;
+}
+
+function waitForRetry(ms: number, signal?: AbortSignal | null) {
+  signal?.throwIfAborted();
+  return new Promise<void>((resolve, reject) => {
+    const abort = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); reject(signal?.reason); };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }
 
 function apiErrorCode(body: unknown) {

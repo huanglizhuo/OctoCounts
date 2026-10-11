@@ -335,6 +335,52 @@ fn analyze_fixture(archive: bytes::Bytes, options: AnalysisOptions) -> Report {
     .expect("fixture analysis failed")
 }
 
+#[test]
+fn repository_declarations_filter_the_real_counting_pipeline() {
+    let archive = tarball(&[
+        (".gitattributes", text("*.rs linguist-generated\nexternal.js linguist-vendored\n")),
+        ("generated.rs", text("fn generated() {}\n")),
+        ("src/.gitattributes", text("keep.rs -linguist-generated\n")),
+        ("src/keep.rs", text("fn keep() {}\n")),
+        ("external.js", text("const x = 1;\n")),
+        ("docs/.gitattributes", text("*.rs -linguist-generated\n")),
+        ("docs/guide.rs", text("fn guide() {}\n")),
+    ]);
+    let baseline = analyze_fixture(archive.clone(), AnalysisOptions::canonical());
+    assert_eq!((baseline.total.files, baseline.total.code), (3, 3));
+    let options = AnalysisOptions { respect_gitattributes: true, ..AnalysisOptions::canonical() };
+    let filtered = analyze_fixture(archive.clone(), options.clone());
+    assert_eq!((filtered.total.files, filtered.total.code), (1, 1));
+    let policy = filtered.counting_policy.as_ref().unwrap();
+    assert_eq!(policy.repository_attributes.excluded_files, 2);
+    assert!(!policy.include_docs);
+    assert!(policy.ignored_dirs.iter().any(|name| name == "docs"));
+    assert_ne!(filtered.id, baseline.id);
+    assert_eq!(filtered.id, analyze_fixture(archive.clone(), options).id);
+    let source_only = analyze_fixture(archive, AnalysisOptions {
+        profile: AnalysisProfile::SourceOnly,
+        include_docs: true, include_tests: true, include_generated: true,
+        respect_gitattributes: true, ..Default::default()
+    });
+    let policy = source_only.counting_policy.unwrap();
+    assert!(!policy.include_docs && !policy.include_tests && !policy.include_generated);
+    assert_eq!(source_only.total.code, 1);
+}
+
+#[test]
+fn oversized_repository_declarations_do_not_silently_disappear() {
+    let archive = tarball(&[
+        (".gitattributes", vec![b'\n'; super::MAX_SINGLE_FILE_BYTES as usize + 1]),
+        ("src/lib.rs", text("pub fn keep() {}\n")),
+    ]);
+    assert_eq!(analyze_fixture(archive.clone(), AnalysisOptions::canonical()).total.code, 1);
+    let error = analyze_blocking(fixture_input(
+        Box::new(std::io::Cursor::new(archive)),
+        AnalysisOptions { respect_gitattributes: true, ..AnalysisOptions::canonical() },
+    )).unwrap_err();
+    assert!(error.to_string().contains("repository attribute declarations are too large"));
+}
+
 /// Only the counting surface is snapshotted. `generated_at`, `duration_ms` and
 /// the id are either clocks or derived from inputs the harness controls, so
 /// pinning them would only produce flakes.

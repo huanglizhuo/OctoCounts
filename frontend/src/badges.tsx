@@ -171,13 +171,17 @@ function looksLikeCommit(ref: string) {
 
 export type EmbedProvider = "github";
 
-export function buildEmbedUrl(provider: EmbedProvider, owner: string, repo: string) {
+export function buildEmbedUrl(provider: EmbedProvider, owner: string, repo: string, reportId?: string) {
   const ownerPath = owner.split("/").map(encodeURIComponent).join("/");
-  return `${window.location.origin}/embed/${provider}/${ownerPath}/${encodeURIComponent(repo)}`;
+  return `${window.location.origin}/embed/${provider}/${ownerPath}/${encodeURIComponent(repo)}${reportId ? `?reportId=${encodeURIComponent(reportId)}` : ""}`;
 }
 
 export function buildEmbedSnippet(embedUrl: string, width = 400, height = 160) {
   return `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" loading="lazy"></iframe>`;
+}
+
+export function buildReportBadgeUrl(reportId: string) {
+  return `${BADGE_API_BASE}/api/reports/${encodeURIComponent(reportId)}/badge.svg`;
 }
 
 export function buildBadgeUrl(owner: string, repo: string, ref: string, type: (typeof badgeTypes)[number], language: string) {

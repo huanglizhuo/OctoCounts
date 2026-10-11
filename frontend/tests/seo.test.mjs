@@ -241,7 +241,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   );
   assert.match(
     runner,
-    /\) : \(\s*<>\s*<ReportActions[\s\S]*?\/>\s*<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
+    /\) : \(\s*<>\s*<ReportActions[\s\S]*?\/>\s*<Summary stats=\{report\.total\} \/>\s*<CountingPolicyCard report=\{report\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
     "full branch renders ReportActions before Summary and Charts",
   );
   // The homepage embeds no full tool forms anymore (T9): compare and diff are
@@ -2369,4 +2369,61 @@ test("AI_MARKDOWN_UA=0 rolls the UA-derived markdown switch off without touching
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("fixed report HTML and markdown read the saved ID, including small filtered reports", async (t) => {
+  const options = { ignoredDirs: ["examples"], ignoredLanguages: ["JSON"], profile: "default", includeDocs: false, includeTests: false, includeGenerated: false, respectGitattributes: true };
+  const report = {
+    id: "saved-filtered", repository: { owner: "octo-org", name: "octo-repo", provider: "github", htmlUrl: "https://github.com/octo-org/octo-repo" },
+    commitSha: "a".repeat(40), refName: "main", generatedAt: "2026-10-11T01:02:03Z", durationMs: 12, cached: true,
+    tokeiVersion: "tokei-14.0.0", analysisKey: "attribute-key", analysisOptions: options,
+    countingPolicy: { version: "attributes-v1", includeDocs: false, includeTests: false, includeGenerated: false, ignoredDirs: ["examples"], ignoredLanguages: ["json"], repositoryAttributes: { status: "applied", excludedFiles: 2, generatedFiles: 1, vendoredFiles: 1 } },
+    total: { code: 17, lines: 20, comments: 2, blanks: 1, files: 1 }, languages: [{ name: "Rust", stats: { code: 17, lines: 20, comments: 2, blanks: 1, files: 1 }, children: [] }],
+  };
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    calls.push(String(url));
+    if (String(url).includes("/api/reports/saved-filtered")) return Response.json(report);
+    return Response.json([]);
+  });
+  const path = `/github/octo-org/octo-repo/commit/${report.commitSha}?reportId=saved-filtered`;
+  const response = await onRequest(await renderedContext(path));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  const html = await response.text();
+  assert.match(html, /<meta name="robots" content="noindex,follow"/);
+  assert.doesNotMatch(html, /api\.test\/og\/github/);
+  const summary = JSON.parse(html.match(/id="octocounts-report-summary">([^<]*)<\/script>/)[1]);
+  assert.equal(summary.reportId, report.id);
+  assert.equal(summary.totals.code, 17);
+  assert.deepEqual(summary.countingPolicy, report.countingPolicy);
+  const md = await onRequest(await renderedContext(path + "&format=md"));
+  assert.equal(md.status, 200);
+  assert.match(await md.text(), /17 code lines/);
+  assert.ok(calls.every((url) => !url.includes("/api/seo/report") && !url.includes("/api/analyze")));
+});
+
+test("an expired fixed ID is explicitly unavailable, without analysis or public caching", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => String(url).includes("/api/reports/") ? new Response("missing", { status: 404 }) : Response.json([]));
+  for (const suffix of ["", "&format=md"]) {
+    const response = await onRequest(await renderedContext("/github/example/repo?reportId=expired" + suffix));
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+    assert.match(await response.text(), /saved result is no longer available/);
+  }
+});
+
+test("custom counting links without saved IDs never render canonical cache counts", async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (url) => { calls.push(String(url)); return Response.json(RELATED_REPORT_FIXTURE); });
+  const path = `/github/octo-org/octo-repo?analysis=${encodeURIComponent(JSON.stringify(REPRODUCIBLE_OPTIONS))}`;
+  for (const suffix of ["", "&format=md"]) {
+    const response = await onRequest(await renderedContext(path + suffix));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+    const body = await response.text();
+    assert.match(body, /requested counting options/);
+    assert.doesNotMatch(body, /octocounts-report-summary|api\.test\/og\/github/);
+  }
+  assert.deepEqual(calls, []);
 });

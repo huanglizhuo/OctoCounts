@@ -67,6 +67,18 @@ pub async fn badge_default(
     .await
 }
 
+pub async fn badge_report(
+    State(state): State<AppState>,
+    Path(report_id): Path<String>,
+    Query(params): Query<BadgeParams>,
+) -> Response {
+    match state.coordinator.store().report(&report_id).await {
+        Ok(Some(report)) => svg_response(render_for_params(&report, &params), "public, max-age=3600"),
+        Ok(None) => (StatusCode::NOT_FOUND, [(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "no-store")], render_error_for_params(&params)).into_response(),
+        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, [(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "no-store")], render_error_for_params(&params)).into_response(),
+    }
+}
+
 pub async fn badge_branch(
     State(state): State<AppState>,
     connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,

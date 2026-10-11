@@ -9,7 +9,7 @@ FROM debian:bookworm-slim
 # The OG renderer embeds DejaVu Sans Mono (see backend/assets/fonts), so the
 # runtime image no longer needs fonts-dejavu-core or fontconfig.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/octocount-service /usr/local/bin/octocount-service

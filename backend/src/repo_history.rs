@@ -1182,6 +1182,7 @@ mod tests {
             tokei_version: "1.0".to_string(),
             analysis_key: String::new(),
             analysis_options: Default::default(),
+            counting_policy: None,
             languages: pairs
                 .iter()
                 .map(|(name, code)| LanguageReport {

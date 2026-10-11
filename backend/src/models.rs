@@ -55,6 +55,8 @@ pub enum JobStatus {
 pub struct ApiErrorBody {
     pub code: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_accepted: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +74,8 @@ pub struct Report {
     pub analysis_key: String,
     #[serde(default)]
     pub analysis_options: AnalysisOptions,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub counting_policy: Option<CountingPolicy>,
     pub languages: Vec<LanguageReport>,
     pub total: LanguageStats,
 }
@@ -114,6 +118,9 @@ pub struct AnalysisOptions {
     pub include_tests: bool,
     #[serde(default = "default_true")]
     pub include_generated: bool,
+    // False must stay absent: canonical SQL and legacy cache keys pin the JSON.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub respect_gitattributes: bool,
 }
 
 impl AnalysisOptions {
@@ -150,8 +157,43 @@ impl AnalysisOptions {
             include_docs: false,
             include_tests: false,
             include_generated: false,
+            respect_gitattributes: false,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CountingPolicy {
+    pub version: String,
+    pub include_docs: bool,
+    pub include_tests: bool,
+    pub include_generated: bool,
+    pub ignored_dirs: Vec<String>,
+    pub ignored_languages: Vec<String>,
+    pub repository_attributes: RepositoryAttributes,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryAttributes {
+    pub status: AttributeStatus,
+    pub generated_files: usize,
+    pub vendored_files: usize,
+    pub excluded_files: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeStatus {
+    #[default]
+    Off,
+    NotFound,
+    Applied,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]

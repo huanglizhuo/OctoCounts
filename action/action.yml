@@ -28,6 +28,10 @@ inputs:
     description: Whether to create or update a pull request comment.
     required: false
     default: "true"
+  respect-gitattributes:
+    description: Apply repository linguist-generated and linguist-vendored declarations to both refs.
+    required: false
+    default: "false"
 
 runs:
   using: node20

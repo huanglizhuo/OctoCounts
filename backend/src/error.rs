@@ -22,6 +22,7 @@ impl ApiError {
             body: ApiErrorBody {
                 code: code.to_string(),
                 message: message.into(),
+                request_accepted: None,
             },
             retry_after: None,
         }
@@ -48,12 +49,14 @@ impl ApiError {
     /// The service's own rate limit, as opposed to a relayed upstream one.
     /// `retry_after` is the exact wait the limiter computed.
     pub(crate) fn rate_limited(retry_after: u64) -> Self {
-        Self::new(
+        let mut error = Self::new(
             StatusCode::TOO_MANY_REQUESTS,
             "rate_limited",
             "too many requests; please retry later",
         )
-        .with_retry_after(retry_after)
+        .with_retry_after(retry_after);
+        error.body.request_accepted = Some(false);
+        error
     }
 
     pub(crate) fn body(&self) -> &ApiErrorBody {

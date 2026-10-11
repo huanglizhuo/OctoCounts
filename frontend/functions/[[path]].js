@@ -27,8 +27,8 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-11" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-11" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-07" },
@@ -119,7 +119,7 @@ export async function onRequest(context) {
   }
 
   const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
-  if (legacyReport) {
+  if (legacyReport && !url.searchParams.has("reportId")) {
     return Response.redirect(new URL(legacyReport, url.origin), 308);
   }
 
@@ -330,6 +330,14 @@ function parseGitHubRoute(parts) {
 }
 
 async function reportResponse(context, route, options = {}) {
+  const requestUrl = new URL(context.request.url);
+  // The SEO cache has its own counting options; custom links need a saved ID
+  // before it can safely supply their counts to HTML or social previews.
+  if (requestUrl.searchParams.has("analysis") && !requestUrl.searchParams.has("reportId")) {
+    const message = "Open this page with JavaScript enabled to analyze the requested counting options. Share the saved result for matching HTML and markdown counts.";
+    if (options.markdown) return markdownResponse(message, "private, no-store", options);
+    return htmlResponse(injectHeadAndNoscript(await indexHtml(context), { ...reportUnavailableMeta(route), description: message, robots: "noindex,follow", bodyContent: `<p>${escapeHtml(message)}</p>` }), "private, no-store");
+  }
   // A 404 from the report API means the repository genuinely has no cached
   // report: serve the noindex fallback WITH HTTP 404. It used to answer 200,
   // which made every un-analyzed /github/* URL a soft 404 — crawlers saw a
@@ -346,6 +354,12 @@ async function reportResponse(context, route, options = {}) {
   const relatedPromise = fetchRelatedReports(context, route);
   const result = await fetchSeoReport(context, route);
   if (result.state === "missing") {
+    if (requestUrl.searchParams.has("reportId")) {
+      const message = "This saved result is no longer available. Open the repository report to request a new analysis.";
+      if (options.markdown) return markdownResponse(message, "private, no-store", { ...options, status: 404 });
+      const meta = reportUnavailableMeta(route);
+      return htmlResponse(injectHeadAndNoscript(await indexHtml(context), { ...meta, robots: "noindex,follow", title: `${route.owner}/${route.repo}: saved result unavailable | OctoCounts`, description: message, bodyContent: `<p>${escapeHtml(message)}</p>` }), "private, no-store", { status: 404 });
+    }
     if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
   }
@@ -354,7 +368,6 @@ async function reportResponse(context, route, options = {}) {
   }
 
   const report = await result.response.json();
-  const requestUrl = new URL(context.request.url);
   // A renamed repository still answers here: the API resolves the requested
   // slug through its recorded redirect chain and returns the row's payload
   // with `canonicalSlug` ("react/react" for a /github/facebook/react request)
@@ -401,7 +414,7 @@ async function reportResponse(context, route, options = {}) {
   // body is still the working SPA shell, and the interactive app continues to
   // serve the analysis itself — only the indexable report page retires.
   const reportFiles = report.total?.files;
-  if (typeof reportFiles === "number" && reportFiles < MIN_INDEXABLE_REPORT_FILES) {
+  if (!report.isSnapshot && typeof reportFiles === "number" && reportFiles < MIN_INDEXABLE_REPORT_FILES) {
     if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
   }
@@ -423,7 +436,7 @@ async function reportResponse(context, route, options = {}) {
   // HTML a day longer than its own data source left stale counts in SERP
   // titles for up to a day after a big push. SWR keeps origin load low.
   if (options.markdown) {
-    return markdownResponse(reportMarkdown(report, relatedReports), "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
   // Conditional GET for crawlers: the report corpus is tens of thousands of
   // URLs and Googlebot/Bingbot both send If-Modified-Since. generatedAt is
@@ -432,6 +445,9 @@ async function reportResponse(context, route, options = {}) {
   // crawler no body transfer (crawl-budget efficiency per Google's crawling
   // docs; freshness signals per every 2026 GEO study).
   const lastModified = httpDate(report.generatedAt);
+  if (report.isSnapshot) {
+    return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "private, no-store", {});
+  }
   const cacheControl = "public, s-maxage=300, stale-while-revalidate=600";
   if (lastModified && notModifiedSince(context.request, lastModified)) {
     return new Response(null, {
@@ -1599,16 +1615,40 @@ function envScratchMap(env) {
 /// - "unavailable": 5xx, network error, or timeout — transient backend trouble
 async function fetchSeoReport(context, target) {
   try {
-    const response = await fetch(seoReportUrl(context, target), {
+    const reportId = new URL(context.request.url).searchParams.get("reportId");
+    const response = await fetch(reportId ? `${apiBase(context)}/api/reports/${encodeURIComponent(reportId)}` : seoReportUrl(context, target), {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
     });
-    if (response.ok) return { state: "ok", response };
+    if (response.ok) {
+      if (!reportId) return { state: "ok", response };
+      const stored = await response.json();
+      if (stored.id !== reportId || stored.repository?.provider !== "github" || !stored.commitSha || !Array.isArray(stored.languages) || !stored.total) return { state: "unavailable" };
+      return { state: "ok", response: Response.json(snapshotSeoReport(stored)) };
+    }
     if (response.status === 404) return { state: "missing" };
     return { state: "unavailable" };
   } catch {
     return { state: "unavailable" };
   }
+}
+
+function snapshotSeoReport(report) {
+  const { owner, name: repo, htmlUrl } = report.repository;
+  const repoFullName = `${owner}/${repo}`;
+  const publicPath = `/github/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commit/${encodeURIComponent(report.commitSha)}`;
+  const params = new URLSearchParams({ reportId: report.id });
+  if (report.analysisOptions) params.set("analysis", JSON.stringify(report.analysisOptions));
+  const canonicalUrl = `https://octocounts.com${publicPath}?${params}`;
+  const top = report.languages[0];
+  return {
+    ...report, isSnapshot: true, reportId: report.id, provider: "github", owner, repo, repoFullName, htmlUrl, canonicalSlug: repoFullName,
+    publicPath, canonicalUrl, snapshotUrl: canonicalUrl,
+    title: `${repoFullName}: ${formatNumber(report.total.code)} lines of code | OctoCounts`,
+    description: `${repoFullName} contains ${formatNumber(report.total.code)} code lines across ${formatNumber(report.total.files)} files and ${report.languages.length} languages at commit ${report.commitSha.slice(0, 12)}.`,
+    citation: `${repoFullName}: ${formatNumber(report.total.code)} code lines at commit ${report.commitSha.slice(0, 12)}, counted with ${report.tokeiVersion} on ${report.generatedAt.slice(0, 10)}. Saved result ${report.id}.`,
+    topLanguage: top ? { name: top.name, code: top.stats.code, percent: report.total.code ? top.stats.code / report.total.code * 100 : 0 } : null,
+  };
 }
 
 /// 503 + no-store: ask crawlers to retry later. The body is the plain SPA
@@ -2256,12 +2296,12 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // per-repo chart image already exists at this URL. AI answer engines weigh
   // multi-modal pages more heavily, and the alt text doubles as another
   // self-contained citable summary next to the one in #octocounts-citation.
-  const ogImageUrl = `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
+  const ogImageUrl = report.isSnapshot ? "https://octocounts.com/og-image.jpg" : `${apiBaseUrl}/og/${encodeURIComponent(report.provider)}/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
   // The OG card sits right under the h1 and is the page's LCP element (a
   // ~39 KB cross-origin PNG, ~1s cold). fetchpriority plus a head preload
   // starts the cross-origin fetch with the first bytes of the document
   // instead of after HTML/CSS parsing discovers the <img>.
-  const ogImageHtml = `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" fetchpriority="high" />`;
+  const ogImageHtml = report.isSnapshot ? "" : `<img src="${escapeAttr(ogImageUrl)}" width="1200" height="630" alt="${escapeAttr(report.citation)}" fetchpriority="high" />`;
   // The h1 is the repository (owner/repo): the page's subject and the value
   // the client-side hero renders on /github/ routes — semantically consistent
   // pre- and post-hydration, and never a second "OctoCounts" h1.
@@ -2284,11 +2324,11 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     title: report.title,
     description: report.description,
     canonical: report.canonicalUrl,
-    robots: "index,follow,max-image-preview:large,max-snippet:-1",
+    robots: report.isSnapshot ? "noindex,follow" : "index,follow,max-image-preview:large,max-snippet:-1",
     ogImage: ogImageUrl,
-    ogImageAlt: report.citation,
+    ogImageAlt: report.isSnapshot ? "OctoCounts" : report.citation,
     jsonLd: reportJsonLd(report),
-    mdAlternate: `${report.canonicalUrl}.md`,
+    mdAlternate: report.isSnapshot ? `${report.canonicalUrl}&format=md` : `${report.canonicalUrl}.md`,
     extraHead: `<link rel="preload" as="image" href="${escapeAttr(ogImageUrl)}" fetchpriority="high" />
 <script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
     bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
@@ -2413,6 +2453,8 @@ function reportSummaryJson(report) {
     durationMs: report.durationMs,
     analysisKey: report.analysisKey,
     analysisOptions: report.analysisOptions,
+    reportId: report.reportId,
+    countingPolicy: report.countingPolicy,
     snapshotUrl: report.snapshotUrl,
     totals: report.total,
     topLanguage: report.topLanguage,

@@ -324,6 +324,7 @@ fn report(
         tokei_version: "tokei-14.0.0".to_string(),
         analysis_key: "tokei-14.0.0:default".to_string(),
         analysis_options: AnalysisOptions::default(),
+        counting_policy: None,
         languages: vec![language("Rust", 1, 100)],
         total: stats(1, 100, 14, 9),
     }
@@ -371,6 +372,24 @@ async fn seo_recent_matches_golden() {
     let (status, body) = harness.get("/api/seo/recent?page=1&limit=24").await;
     assert_eq!(status, StatusCode::OK);
     assert_golden("seo_recent.json", &body);
+    harness.drop_schema().await;
+}
+
+#[tokio::test]
+async fn saved_badges_read_exact_counts_and_never_start_missing_analyses() {
+    let Some(harness) = harness().await else { return; };
+    let (status, body) = harness.get(&format!("/api/reports/{MODERN_REPORT_ID}/badge.svg?type=files")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("16,346"));
+    let response = harness.router.clone().oneshot(Request::builder()
+        .uri("/api/reports/expired/badge.svg")
+        .header("origin", "https://octocounts.com")
+        .body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
+    assert_eq!(response.headers().get("access-control-expose-headers").unwrap(), "retry-after");
+    let jobs: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM jobs").fetch_one(&harness.pool).await.unwrap();
+    assert_eq!(jobs, 0);
     harness.drop_schema().await;
 }
 

@@ -13,11 +13,11 @@ import { downloadDataUrl, formatNumber, formatRelativeTime, logLines, normalized
 import { isHostDegraded, useGithubStatus } from "../githubStatus";
 import { usePrerenderedHome } from "../prerenderContext";
 import type { AppStatus, Report } from "../types";
-import type { GrowthScene } from "../growth/types";
 import { Charts } from "./Charts";
 import { ReportActions } from "./ReportActions";
 import { StarBadge } from "./shared";
 import { Summary } from "./Summary";
+import { CountingPolicyCard } from "./CountingPolicy";
 
 // Deterministic replacement for the runner head's timestamp while the
 // prerendered home has not hydrated yet: an explicit-UTC Intl format renders
@@ -49,7 +49,6 @@ const ShareSection = React.lazy(() => import("./Share").then((m) => ({ default: 
 const ShareTickerCard = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareTickerCard })));
 const SimilarRepos = React.lazy(() => import("./SimilarRepos").then((m) => ({ default: m.SimilarRepos })));
 const Insights = React.lazy(() => import("./Insights").then((m) => ({ default: m.Insights })));
-const TrustDetails = React.lazy(() => import("./TrustDetails").then((m) => ({ default: m.TrustDetails })));
 
 // The share-card chunk is lazy, so "mounted" is no longer two frames after
 // setState — the chunk may still be downloading when the export click lands.
@@ -67,7 +66,7 @@ function waitForMountedCard(ref: React.RefObject<HTMLDivElement | null>, budgetM
   });
 }
 
-export function Runner({ command, status, report, error, errorCode, onReset, onRerun, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; onReset: () => void; onRerun: () => void; variant?: "demo" | "full" }) {
+export function Runner({ command, status, report, error, errorCode, waitingMessage, onReset, onRerun, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; waitingMessage?: string | null; onReset: () => void; onRerun: () => void; variant?: "demo" | "full" }) {
   const { t, i18n } = useTranslation();
   // Offscreen-but-laid-out mount of the share card, created only while a PNG
   // export is in flight. html-to-image needs a real layout; the visible
@@ -147,48 +146,32 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
     };
   }, []);
 
-  // The growth section reports its scene up once built; while it exists the
-  // sticky-bar PNG export produces the growth finale card (same image as the
-  // growth section's Export PNG) instead of the legacy ticker card.
-  const growthSceneRef = useRef<GrowthScene | null>(null);
-
   const exportPng = async () => {
     if (!report || isExporting) return;
     setIsExporting(true);
     setExportError(null);
-    const growthScene = growthSceneRef.current;
-    setExportMount(!growthScene);
+    setExportMount(true);
     try {
-      if (growthScene) {
-        const { exportGrowthPng } = await import("../growth/exportGif");
-        const [owner = "repo", repo = owner] = growthScene.repoFullName.split("/");
-        const { blob, filename } = await exportGrowthPng(growthScene, owner, repo);
-        const url = URL.createObjectURL(blob);
-        downloadDataUrl(url, filename);
-        window.setTimeout(() => URL.revokeObjectURL(url), 5000);
-        trackEvent(AnalyticsEvents.growthPngExported, { provider: normalizedProvider(report) });
-      } else {
-        // The offscreen card lives in the lazy Share chunk; wait for it to
-        // actually commit, then one more frame guarantees a layout pass
-        // before anything reads geometry.
-        const node = await waitForMountedCard(exportCardRef, 5000);
-        if (!node) throw new Error("share card not mounted");
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        // Fonts must be resolved before capture or the PNG rasterizes fallback
-        // glyphs. (The card embeds no raster images — its star mark is inline
-        // SVG — so there is nothing further to decode.)
-        await document.fonts.ready;
-        const { toPng } = await import("html-to-image");
-        const dataUrl = await toPng(node, {
-          cacheBust: true,
-          pixelRatio: 2,
-          width: 1200,
-          height: 630,
-          backgroundColor: "#050a06",
-        });
-        downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
-        trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
-      }
+      // The offscreen card lives in the lazy Share chunk; wait for it to
+      // actually commit, then one more frame guarantees a layout pass
+      // before anything reads geometry.
+      const node = await waitForMountedCard(exportCardRef, 5000);
+      if (!node) throw new Error("share card not mounted");
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      // Fonts must be resolved before capture or the PNG rasterizes fallback
+      // glyphs. (The card embeds no raster images — its star mark is inline
+      // SVG — so there is nothing further to decode.)
+      await document.fonts.ready;
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: 2,
+        width: 1200,
+        height: 630,
+        backgroundColor: "#050a06",
+      });
+      downloadDataUrl(dataUrl, `octocount-${report.repository.owner}-${report.repository.name}-${report.commitSha.slice(0, 12)}.png`);
+      trackEvent(AnalyticsEvents.pngExported, { provider: normalizedProvider(report) });
     } catch {
       setExportError(t("runner.exportPngFailed"));
     } finally {
@@ -283,6 +266,7 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
       <div className={`progress ${status === "queued" || status === "running" ? "indet" : ""}`}><i style={{ transform: `scaleX(${progressValue(status) / 100})` }} /></div>
       <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
       {!report ? <RunnerLog status={status} report={report} error={error} elapsedSec={elapsedSec} /> : null}
+      {waitingMessage && isWorking ? <p className="retry-wait" role="status">{waitingMessage}</p> : null}
       {status === "failed" ? <ErrorState code={errorCode} message={error} onRetry={onRerun} /> : null}
       {report ? (
         isDemo ? (
@@ -302,13 +286,14 @@ export function Runner({ command, status, report, error, errorCode, onReset, onR
               placement="report_actions"
             />
             <Summary stats={report.total} />
+            <CountingPolicyCard report={report} />
             <Charts report={report} variant="full" />
             {/* Growth animation right under the charts: lazy so the growth
                 chunk (renderer + player + GIF exporter) splits out of the
                 entry bundle; null fallback — a shared boundary would flash
                 siblings back to a fallback when this chunk resolves. */}
             <Suspense fallback={null}>
-              <GrowthSection report={report} stars={stars} onScene={(scene) => { growthSceneRef.current = scene; }} />
+              <GrowthSection report={report} stars={stars} />
             </Suspense>
             {/* Summary, Charts and the action bar stay eager: they are the
                 content the visitor is waiting for. Everything below is a
@@ -375,9 +360,6 @@ function TechnicalDetails({
         <code>$ {command}</code>
       </div>
       {runLog}
-      <Suspense fallback={null}>
-        <TrustDetails report={report} stars={stars} />
-      </Suspense>
       <p className="methodology-note">
         {t("runner.methodology")} <a href="/docs/methodology">{t("runner.methodologyLink")}</a>
       </p>

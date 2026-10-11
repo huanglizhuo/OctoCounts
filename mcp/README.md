@@ -51,3 +51,9 @@ The server speaks MCP over stdio with `Content-Length` framed JSON-RPC messages.
 ## License
 
 MIT
+
+## Reliable analyses and repository declarations
+
+Both tools accept optional boolean `respect_gitattributes` (default false). Enabling it excludes repository-declared generated and vendored files under the canonical profile. Compare output includes `counting_policy_compatibility`: same, different or unknown, and explains that deltas are net size changes. Report links pin saved IDs and commit SHAs.
+
+Analysis requests use bounded safe retries, long-polling and a five-minute total deadline. Errors retain job IDs and recovery URLs. Stdio clients may send `notifications/cancelled` with the original `requestId`; HTTP requests cancel their waits when disconnected. Cancellation stops client waiting; accepted backend jobs can still finish and be recovered. Saved records can expire from the cache.

@@ -228,6 +228,7 @@ impl AnalysisCoordinator {
             .set_job_failed(
                 job_id,
                 ApiErrorBody {
+                    request_accepted: None,
                     code: code.to_string(),
                     message: message.to_string(),
                 },

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { analyzeAndWait, reportUrl, repositoryOptions } from "./api.js";
+
 const args = parseArgs(process.argv.slice(2));
 
 if (args.help || args.h || (!args._[0] && !args.sample)) {
@@ -7,36 +9,25 @@ if (args.help || args.h || (!args._[0] && !args.sample)) {
   process.exit(args.help || args.h ? 0 : 1);
 }
 
+if (args["respect-gitattributes"] !== undefined && ![true, "true", "false"].includes(args["respect-gitattributes"])) {
+  console.error("--respect-gitattributes must be true or false");
+  process.exit(1);
+}
+
 const report = args.sample
   ? sampleReport()
-  : await analyzeAndWait({
-      apiBase: trimTrailingSlash(args["api-base"] || process.env.OCTOCOUNTS_API_BASE || "https://api.octocounts.com"),
+  : await analyzeAndWait(trimTrailingSlash(args["api-base"] || process.env.OCTOCOUNTS_API_BASE || "https://api.octocounts.com"), {
+      source: "cli",
+      forceRefresh: false,
+      options: repositoryOptions(args["respect-gitattributes"] === undefined ? undefined : args["respect-gitattributes"] === true || args["respect-gitattributes"] === "true"),
       repoUrl: normalizeRepoInput(args._[0]),
       refName: args.ref || "",
-    });
+    }).catch((error) => { console.error(error.message); process.exit(1); });
 
 if (args.json) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   printReport(report);
-}
-
-async function analyzeAndWait({ apiBase, repoUrl, refName }) {
-  const result = await postJson(apiBase, "/api/analyze", { repoUrl, refName, forceRefresh: false, source: "cli" });
-  if (result.kind === "cached") return result.report;
-  if (!result.jobId) throw new Error(`Unexpected analyze response: ${JSON.stringify(result)}`);
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    const job = await getJson(apiBase, `/api/jobs/${encodeURIComponent(result.jobId)}`);
-    if (job.status === "completed" && job.reportId) {
-      return getJson(apiBase, `/api/reports/${encodeURIComponent(job.reportId)}`);
-    }
-    if (job.status === "failed") {
-      throw new Error(job.error?.message ?? "OctoCounts analysis failed");
-    }
-    await sleep(2500);
-  }
-  throw new Error(`Timed out waiting for OctoCounts job ${result.jobId}`);
 }
 
 function printReport(report) {
@@ -53,31 +44,9 @@ function printReport(report) {
     console.log(`${pad(language.name, 18)} ${padLeft(formatNumber(language.stats.files), 8)} ${padLeft(formatNumber(language.stats.code), 12)} ${padLeft(formatNumber(language.stats.lines), 12)} ${padLeft(formatNumber(language.stats.comments), 10)}`);
   }
   console.log("");
+  console.log(`Counting policy: ${report.countingPolicy ? JSON.stringify(report.countingPolicy) : "historical policy not recorded"}`);
   console.log(url);
   console.log("Install the browser extension: https://octocounts.com/");
-}
-
-async function postJson(apiBase, path, body) {
-  const response = await fetch(`${apiBase}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return readJsonResponse(response);
-}
-
-async function getJson(apiBase, path) {
-  const response = await fetch(`${apiBase}${path}`);
-  return readJsonResponse(response);
-}
-
-async function readJsonResponse(response) {
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(json?.message ?? (text || `${response.status} ${response.statusText}`));
-  }
-  return json;
 }
 
 function normalizeRepoInput(input) {
@@ -85,21 +54,6 @@ function normalizeRepoInput(input) {
   if (/^https:\/\/github\.com\/[^/]+\/[^/]+/.test(value)) return value;
   if (/^[^/]+\/[^/]+$/.test(value)) return `https://github.com/${value}`;
   throw new Error(`Expected owner/repo or https://github.com/owner/repo, got: ${value}`);
-}
-
-function reportUrl(report) {
-  const base = `https://octocounts.com/github/${encodeURIComponent(report.repository.owner)}/${encodeURIComponent(report.repository.name)}`;
-  const ref = String(report.refName || report.commitSha || "").trim();
-  if (!ref) return base;
-  return `${base}/${looksLikeCommit(ref) ? "commit" : "tree"}/${encodeRefPath(ref)}`;
-}
-
-function encodeRefPath(ref) {
-  return ref.trim().split("/").map(encodeURIComponent).join("/");
-}
-
-function looksLikeCommit(ref) {
-  return /^[a-f0-9]{7,40}$/i.test(ref.trim());
 }
 
 function parseArgs(argv) {
@@ -113,6 +67,8 @@ function parseArgs(argv) {
     const [key, inlineValue] = arg.slice(2).split("=", 2);
     if (inlineValue !== undefined) {
       parsed[key] = inlineValue;
+    } else if (["respect-gitattributes", "json", "sample", "help"].includes(key)) {
+      parsed[key] = true;
     } else if (argv[index + 1] && !argv[index + 1].startsWith("--")) {
       parsed[key] = argv[index + 1];
       index += 1;
@@ -141,10 +97,6 @@ function trimTrailingSlash(value) {
   return String(value).replace(/\/+$/, "");
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function sampleReport() {
   return {
     commitSha: "0123456789abcdef",
@@ -164,6 +116,7 @@ function printHelp() {
 
 Options:
   --ref <ref>        Branch, tag, or commit SHA
+  --respect-gitattributes  Apply repository generated/vendored declarations
   --json             Print raw report JSON
   --api-base <url>   OctoCounts API base URL
   --sample           Print a local sample report without network calls

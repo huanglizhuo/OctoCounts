@@ -83,7 +83,10 @@ const server = http.createServer((request, response) => {
       return;
     }
 
-    void handleRequest(message).then((responseMessage) => {
+    const controller = new AbortController();
+    response.on("close", () => { if (!response.writableEnded) controller.abort(new DOMException("MCP client disconnected", "AbortError")); });
+    void handleRequest(message, { signal: controller.signal }).then((responseMessage) => {
+      if (response.destroyed) return;
       if (responseMessage) {
         sendJson(response, 200, responseMessage);
       } else {
@@ -91,7 +94,7 @@ const server = http.createServer((request, response) => {
         response.writeHead(202);
         response.end();
       }
-    });
+    }).finally(() => controller.abort());
   });
 });
 

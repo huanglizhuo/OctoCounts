@@ -316,6 +316,7 @@ mod tests {
             tokei_version: "tokei-test".to_string(),
             analysis_key: "tokei-test:default".to_string(),
             analysis_options: AnalysisOptions::default(),
+            counting_policy: None,
             languages: vec![LanguageReport {
                 name: "Rust".to_string(),
                 stats: LanguageStats {

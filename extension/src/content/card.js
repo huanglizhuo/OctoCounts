@@ -7,20 +7,6 @@ import { getAuthState } from '../shared/github-auth.js';
 import { buildStarHistoryHTML } from './star-chart.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
-const MAX_RETRIES = 4;
-// Retrying cannot change any of these answers, so the four retries below only
-// spend ~15s (1s + 2s + 4s + 8s) producing the same failure a fifth time.
-//
-// `not_found` is deliberately NOT here even though it sounds terminal: the API
-// returns it for the archive download 404ing as well as for a missing
-// repository, and the card only ever runs on a page GitHub has already rendered
-// as a public repo — so on this surface a 404 is far more likely transient than
-// a repository that does not exist. The backend retries 5xx and 429 but never a
-// 404, so the client retry is the only one that case gets.
-const NON_RETRYABLE = new Set([
-  'too_large', 'private_repo', 'forbidden', 'auth_error',
-  'ref_not_found', 'invalid_url',
-]);
 const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
 
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
@@ -32,7 +18,8 @@ let _pollTimer = null;
 let _pollStart = null;
 let _disabled = false;
 let _analyzing = false;
-let _retryCount = 0;
+let _pollOperation = 0;
+let _deadlineTimer = null;
 let _generation = 0;
 
 // Remove a card host, running any theme-listener cleanup registered on it.
@@ -629,6 +616,8 @@ async function saveError(error, owner, repo) {
 }
 
 function stopPolling() {
+  _pollOperation++;
+  if (_deadlineTimer) { clearTimeout(_deadlineTimer); _deadlineTimer = null; }
   if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
   _pollStart = null;
 }
@@ -639,81 +628,58 @@ function pollingInterval(elapsedMs) {
   return 5_000;
 }
 
-async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onError, onStatus, _retryEntry = false }) {
-  if (!_retryEntry) _retryCount = 0;
+async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onError, onStatus }) {
   stopPolling();
-
-  async function handleError(error) {
-    if (!NON_RETRYABLE.has(error?.code) && _retryCount < MAX_RETRIES) {
-      _retryCount++;
-      const delay = Math.min(1000 * (2 ** (_retryCount - 1)), 8000);
-      _pollTimer = setTimeout(
-        () => startAnalysis({ owner, repo, ref, forceRefresh: false, onCompleted, onError, _retryEntry: true }),
-        delay,
-      );
-      return;
-    }
-    onError(error);
-  }
+  const operation = _pollOperation;
+  _pollStart = Date.now();
+  let jobId;
+  const handleError = (error) => {
+    if (operation !== _pollOperation) return;
+    stopPolling();
+    const detail = [error.detail || error.message || '', jobId ? `Job ${jobId}: GET /api/jobs/${encodeURIComponent(jobId)}` : '', error.retryAfterMs !== undefined ? `Retry after ${Math.ceil(error.retryAfterMs / 1000)} seconds.` : ''].filter(Boolean).join('\n');
+    onError({ ...error, detail });
+  };
+  _deadlineTimer = setTimeout(() => handleError({ code: 'timeout', message: t('card.error.timedOut') }), POLL_TIMEOUT_MS);
 
   try {
     const res = await chrome.runtime.sendMessage({ type: 'ANALYZE', owner, repo, ref, forceRefresh });
-
-    if (res?.error) {
-      await handleError(res.error);
-      return;
-    }
-
-    if (res.type === 'CACHED') {
+    if (operation !== _pollOperation) return;
+    if (res?.error) { handleError(res.error); return; }
+    if (res?.type === 'CACHED') {
+      stopPolling();
       onCompleted(res.report, res.cachedAt);
       return;
     }
-
-    const { jobId } = res;
-    _pollStart = Date.now();
+    if (res?.type !== 'JOB' || !res.jobId) { handleError({ code: 'unknown', message: t('card.error.title') }); return; }
+    jobId = res.jobId;
     onStatus?.('queued');
 
     const pollUntilDone = async () => {
-      const elapsed = Date.now() - _pollStart;
-      if (elapsed > POLL_TIMEOUT_MS) {
-        await handleError({ code: 'timeout', message: t('card.error.timedOut') });
-        return;
-      }
-
+      if (operation !== _pollOperation) return;
       let poll;
       try {
         poll = await chrome.runtime.sendMessage({ type: 'POLL', jobId, owner, repo, ref });
       } catch (_) {
-        _pollTimer = setTimeout(pollUntilDone, pollingInterval(elapsed));
+        if (operation === _pollOperation) _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
         return;
       }
-
-      if (!poll || poll.error) {
-        await handleError(poll?.error || { code: 'unknown', message: t('card.error.title') });
-        return;
-      }
-
+      if (operation !== _pollOperation) return;
+      if (!poll || poll.error) { handleError(poll?.error || { code: 'unknown', message: t('card.error.title') }); return; }
       if (poll.type === 'PENDING') {
         onStatus?.('running');
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
-        return;
-      }
-
-      if (poll.type === 'FAILED') {
-        await handleError(poll.error || { code: 'unknown', message: t('card.error.title') });
-        return;
-      }
-
-      if (poll.type === 'COMPLETED') {
+      } else if (poll.type === 'FAILED') {
+        handleError(poll.error || { code: 'unknown', message: t('card.error.title') });
+      } else if (poll.type === 'COMPLETED') {
         stopPolling();
         onCompleted(poll.report, null);
+      } else {
+        handleError({ code: 'unknown', message: t('card.error.title') });
       }
     };
-
     _pollTimer = setTimeout(pollUntilDone, pollingInterval(0));
-
   } catch (err) {
-    await handleError({ code: 'unknown', message: err.message || t('card.error.title') });
+    handleError({ code: 'unknown', message: err.message || t('card.error.title') });
   }
 }
 

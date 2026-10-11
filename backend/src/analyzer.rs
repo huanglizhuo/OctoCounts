@@ -20,7 +20,8 @@ use tokei::{Config, Language, LanguageType, Languages, Report as TokeiReport};
 use tokio::time::timeout;
 
 use crate::models::{
-    AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, RepoRef, Report, Repository,
+    AnalysisOptions, AnalysisProfile, CountingPolicy, LanguageReport, LanguageStats, RepoRef, Report,
+    Repository,
 };
 
 /// The counting engine this binary actually links, as reported to clients and
@@ -121,7 +122,12 @@ fn analyze_blocking_with_limit(
     let oversized = Arc::new(AtomicBool::new(false));
     let limited = LimitedReader::new(archive, max_archive_bytes, Arc::clone(&oversized));
 
-    extract_archive(limited, &extract_root, &ignored_dirs).map_err(|error| {
+    extract_archive(
+        limited,
+        &extract_root,
+        &ignored_dirs,
+        options.respect_gitattributes,
+    ).map_err(|error| {
         if oversized.load(Ordering::Relaxed) {
             AnalysisError::ArchiveTooLarge
         } else {
@@ -129,15 +135,42 @@ fn analyze_blocking_with_limit(
         }
     })?;
 
+    let repository_attributes = crate::attributes::filter(&extract_root, &options)?;
+    let source_only = matches!(options.profile, AnalysisProfile::SourceOnly);
+    let counting_policy = CountingPolicy {
+        version: if options.respect_gitattributes {
+            "attributes-v1"
+        } else {
+            "directories-v1"
+        }
+        .into(),
+        include_docs: options.include_docs && !source_only,
+        include_tests: options.include_tests && !source_only,
+        include_generated: options.include_generated && !source_only,
+        ignored_dirs: ignored_dirs.clone(),
+        ignored_languages: options.ignored_languages
+            .iter()
+            .map(|value| value.to_lowercase())
+            .collect(),
+        repository_attributes,
+    };
     let languages = run_tokei(&extract_root, &ignored_dirs);
     let (language_reports, total) = normalize_languages(&languages, &options);
     let duration_ms = started.elapsed().as_millis();
-    let id = report_id(
+    let base_id = report_id(
         &repo_ref.owner,
         &repo_ref.repo,
         &repo_ref.commit_sha,
         &analysis_key,
     );
+    // Pin the measured payload too: a recount may invalidate an old handle,
+    // but must never make that handle show different counts.
+    let measured = serde_json::to_vec(&(&language_reports, &total, &counting_policy))
+        .context("failed to encode measured statistics")?;
+    let id: String = Sha256::digest([base_id.as_bytes(), &measured].concat())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
 
     let report = Report {
         id,
@@ -156,6 +189,7 @@ fn analyze_blocking_with_limit(
         tokei_version: TOKEI_VERSION.to_string(),
         analysis_key,
         analysis_options: options,
+        counting_policy: Some(counting_policy),
         languages: language_reports,
         total,
     };
@@ -215,6 +249,7 @@ fn extract_archive<R: Read>(
     source: R,
     destination: &Path,
     ignored_dirs: &[String],
+    respect_gitattributes: bool,
 ) -> anyhow::Result<()> {
     let decoder = GzDecoder::new(source);
     let mut archive = Archive::new(decoder);
@@ -249,6 +284,11 @@ fn extract_archive<R: Read>(
 
         let size = entry.header().size()?;
         if size > MAX_SINGLE_FILE_BYTES {
+            if respect_gitattributes
+                && stripped.file_name().is_some_and(|name| name == ".gitattributes")
+            {
+                return Err(anyhow!("repository attribute declarations are too large"));
+            }
             continue;
         }
         extracted_bytes = extracted_bytes.saturating_add(size);
@@ -451,6 +491,9 @@ pub fn analysis_key(options: &AnalysisOptions) -> String {
     hasher.update(TOKEI_VERSION.as_bytes());
     hasher.update(b":");
     hasher.update(canonical.as_bytes());
+    if options.respect_gitattributes {
+        hasher.update(b":attributes-v1");
+    }
     let digest: String = hasher
         .finalize()
         .iter()

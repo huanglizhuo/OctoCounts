@@ -366,3 +366,9 @@ In production today the frontend is hosted on Cloudflare Pages and the API is
 reached through a Cloudflare Tunnel back to the VPS backend (see the private
 `sloc-infra` repo), so this section only applies to self-hosted single-machine
 `docker compose` deployments.
+
+## Repository declaration filtering runtime
+
+The backend requires Git when `respectGitattributes` is enabled; the runtime Docker image includes it. Install Git on hosts that run the Rust binary directly. Git attributes are evaluated in an isolated temporary repository, with a 30-second deadline and an 8 MiB cumulative declaration limit. The option stays off by default and does not change existing cache keys when off.
+
+Saved report IDs pin measured counts but remain subject to report cache retention and replacement. Expired IDs return unavailable rather than triggering a recount. See `frontend/public/docs/api.md` for Retry-After handling, safe POST retries, long-polling and recovery using job IDs.

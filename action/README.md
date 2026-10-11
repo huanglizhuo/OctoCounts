@@ -38,3 +38,9 @@ Local smoke test:
 ```bash
 node action/src/index.js --sample-comment
 ```
+
+## Counting policy and request reliability
+
+Set `respect-gitattributes: true` to exclude repository-declared generated and vendored files. Base and head use the same canonical options; the PR comment states whether the effective policies match and links both saved results. Deltas describe net counted size, not Git added/deleted lines.
+
+Each analysis has a five-minute total deadline with bounded safe retries and long-polling. Failures retain the job ID for recovery. GitHub comment writes have a 30-second request timeout and are never automatically replayed. Saved report IDs remain subject to cache retention.

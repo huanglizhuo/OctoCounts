@@ -1,10 +1,12 @@
+import { reportUrl, policyCompatibility } from "./api.js";
+
 export const COMMENT_MARKER = "<!-- octocounts-sloc-diff -->";
 
 export function buildComment({ repo, baseRef, headRef, baseReport, headReport }) {
   const baseTotal = baseReport.total;
   const headTotal = headReport.total;
   const rows = languageDiffRows(baseReport, headReport).slice(0, 12);
-  const reportUrl = `https://octocounts.com/github/${encodeURIComponent(headReport.repository.owner)}/${encodeURIComponent(headReport.repository.name)}/commit/${encodeURIComponent(headReport.commitSha)}`;
+
 
   return `${COMMENT_MARKER}
 ## OctoCounts SLOC diff
@@ -21,7 +23,10 @@ export function buildComment({ repo, baseRef, headRef, baseReport, headReport })
 
 ${rows.length ? languageTable(rows) : "_No per-language changes detected._"}
 
-[Open OctoCounts report](${reportUrl})
+Counting policy: ${policyCompatibility(baseReport, headReport)}. Repository declarations, when enabled, apply independently at each commit.
+These are net size changes, not Git diff additions and deletions.
+
+[Base report](${reportUrl(baseReport)}) · [Head report](${reportUrl(headReport)})
 `;
 }
 

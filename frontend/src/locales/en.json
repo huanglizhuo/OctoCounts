@@ -129,7 +129,12 @@
     "copied": "copied",
     "copyFailed": "Copy failed. Select the link and copy it manually.",
     "copyFailedShort": "Copy failed",
-    "manualContentAria": "Content for manual copy"
+    "manualContentAria": "Content for manual copy",
+    "shareMode": "Share behavior",
+    "snapshot": "Fixed result",
+    "live": "Follow this ref",
+    "snapshotNote": "The report, badge and embed use this saved result. If the record is removed, the link becomes unavailable.",
+    "liveNote": "Uses the public default counting policy and follows this ref; custom filters are not applied."
   },
   "similarRepos": {
     "ariaLabel": "Similar repositories",
@@ -195,7 +200,9 @@
     "profiles": {
       "default": "default",
       "source-only": "source only"
-    }
+    },
+    "respectGitattributes": "Use repository declarations (.gitattributes)",
+    "attributesHelp": "Applies linguist-generated and linguist-vendored. Enabling this turns off “include generated code”; you can turn it back on."
   },
   "charts": {
     "languageShare": "Languages",
@@ -334,7 +341,10 @@
     "analysisFailed": "Analysis failed while counting the repository.",
     "requestFailed": "Request failed",
     "failedCode": "failed",
-    "retry": "retry"
+    "retry": "retry",
+    "retryAfter": "Retry after {{seconds}} seconds.",
+    "resumeJob": "Job {{jobId}} can be queried again through /api/jobs/{{jobId}}.",
+    "snapshotUnavailable": "This saved result is no longer available. Run a new analysis to create another report."
   },
   "errorHelp": {
     "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.",
@@ -443,7 +453,8 @@
     "label": "share:",
     "native": "share",
     "reportText": "{{repo}} has {{code}} lines of code — SLOC report by OctoCounts",
-    "compareText": "{{left}} vs {{right}} — source lines of code compared by OctoCounts"
+    "compareText": "{{left}} vs {{right}} — source lines of code compared by OctoCounts",
+    "liveReportText": "View the live SLOC report for {{repo}} at {{ref}} on OctoCounts."
   },
   "shareButtons": {
     "postX": "Post on X",
@@ -473,7 +484,27 @@
     "analysisFailed": "Analysis failed. Wait a few minutes and try again.",
     "analysisTimedOut": "The comparison is taking too long. Wait a few minutes and try again.",
     "swapAria": "Swap repositories",
-    "noSharedLanguages": "The two reports share no languages, so there is no per-language delta to show."
+    "noSharedLanguages": "The two reports share no languages, so there is no per-language delta to show.",
+    "snapshotUnavailable": "One or both saved results are unavailable. Run the comparison to create new reports.",
+    "percentChange": "Change %",
+    "newValue": "New",
+    "alignPolicy": "Reanalyze both with one policy",
+    "repositoryDeclarations": "Analysis settings match only when verified above; each repository’s own declarations apply separately.",
+    "policy": {
+      "same": "Counting policy and engine versions match",
+      "different": "Counting policies differ — review the differences",
+      "unknown": "Historical policy is incomplete; comparability cannot be verified"
+    },
+    "policyFields": {
+      "counter": "Counting engine",
+      "version": "Filter version",
+      "includeDocs": "Include docs",
+      "includeTests": "Include tests",
+      "includeGenerated": "Include generated",
+      "ignoredDirs": "Excluded directories",
+      "ignoredLanguages": "Excluded languages",
+      "respectGitattributes": "Repository declarations"
+    }
   },
   "curatedCompare": {
     "unavailable": "This comparison is temporarily unavailable. Please try again in a moment, or run a fresh comparison with the tool below.",
@@ -498,7 +529,8 @@
     "base": "base ref",
     "head": "head ref",
     "run": "Diff",
-    "resultPending": "Run a diff to create a result link."
+    "resultPending": "Run a diff to create a result link.",
+    "netChange": "These figures are net changes in repository size, not Git diff additions and deletions."
   },
   "growth": {
     "reportsLabel": "Reports",
@@ -724,5 +756,37 @@
     "permissions": "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. It does not request GitHub account access, needs no API token, works on public repositories only, and collects no personal data. Results are cached locally and by repository and ref so repeat visits load instantly.",
     "scopeTitle": "Supported repositories",
     "scope": "Public GitHub repositories. Private repositories and source-code uploads are not supported; to count private code, run tokei locally."
+  },
+  "countingPolicy": {
+    "title": "Counting policy",
+    "details": "View all rules",
+    "unknown": "Not recorded",
+    "legacy": "This historical report does not record its full counting policy.",
+    "definition": "Total lines = code + comments + blanks. Code lines follow Tokei classification.",
+    "engineDefaults": "File discovery follows the recorded Tokei version’s default hidden-file and ignore-file behavior.",
+    "directoryMatching": "Directory exclusions match an exact, case-sensitive path component. Generated-directory filtering does not identify every generated file.",
+    "docs": {
+      "included": "Docs included",
+      "excluded": "Doc directories excluded"
+    },
+    "tests": {
+      "included": "Tests included",
+      "excluded": "Test directories excluded"
+    },
+    "generated": {
+      "included": "Generated code included",
+      "excluded": "Generated directories excluded"
+    },
+    "attributes": {
+      "off": "Repository declarations are disabled.",
+      "not_found": "Enabled; no .gitattributes declarations were found in the analyzed files.",
+      "applied": "Repository declarations excluded {{count}} files: {{generated}} generated, {{vendored}} vendored. Overlapping files count once; these are file exclusions, not excluded SLOC."
+    },
+    "attributeSummary": {
+      "off": "Declarations off",
+      "not_found": "No declarations found",
+      "applied": "Repository declarations applied"
+    },
+    "exclusionSummary": "{{dirs}} excluded directory names · {{languages}} ignored languages"
   }
 }

@@ -13,6 +13,22 @@ export type AnalysisOptions = {
   includeDocs: boolean;
   includeTests: boolean;
   includeGenerated: boolean;
+  respectGitattributes?: boolean;
+};
+
+export type CountingPolicy = {
+  version: string;
+  includeDocs: boolean;
+  includeTests: boolean;
+  includeGenerated: boolean;
+  ignoredDirs: string[];
+  ignoredLanguages: string[];
+  repositoryAttributes: {
+    status: "off" | "not_found" | "applied";
+    generatedFiles: number;
+    vendoredFiles: number;
+    excludedFiles: number;
+  };
 };
 
 export type Stats = {
@@ -43,6 +59,7 @@ export type Report = {
   tokeiVersion: string;
   analysisKey: string;
   analysisOptions: AnalysisOptions;
+  countingPolicy?: CountingPolicy | null;
   snapshotUrl?: string;
   languages: LanguageReport[];
   total: Stats;

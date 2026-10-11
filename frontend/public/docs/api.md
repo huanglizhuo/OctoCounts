@@ -2,7 +2,7 @@
 
 OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.
 
-Updated September 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 11, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 > OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.
 
@@ -47,6 +47,32 @@ GET https://api.octocounts.com/api/reports/:reportId
 ```
 
 Reports include repository metadata, pinned commit SHA, tokei version, analysis key, active analysis options, language rows, and totals for files, lines, code, comments, and blanks.
+
+## How should API and CI clients handle failures?
+
+Use GET /api/jobs/:jobId?wait=20 to long-poll. The server caps wait at 25 seconds and responds on a status change; terminal jobs return immediately. Allow at least 30 seconds per request and a bounded total deadline. OctoCounts CLI, Action and MCP clients use a five-minute total deadline, including retries and polling.
+
+Inspect both the HTTP status and JSON code. 429 and upstream 503 responses include Retry-After, in seconds or HTTP-date format. Read-only GET requests may retry 429, 500, 502, 503 and 504 with a bounded backoff; permanent 4xx errors should fail immediately. The bundled clients allow three retries. A POST may be retried only when the response explicitly contains requestAccepted: false. Never replay an analyze POST after an ambiguous network failure, or automatically replay a GitHub comment write.
+
+Keep jobId after submission. If polling fails or times out, resume with GET /api/jobs/:jobId rather than submitting again; a completed job supplies reportId. A 404 means that saved record is unavailable. Default analyze limits are 5 requests/minute per IP with burst 10; forceRefresh has an additional 2/minute limit with burst 2. Limits are configurable and apply per backend instance, not globally across instances.
+
+
+## How do I keep shared counts consistent?
+
+Fixed report links add ?reportId=:reportId to a commit URL. GET /api/reports/:reportId and GET /api/reports/:reportId/badge.svg read that saved result; the badge also accepts type and lang. An iframe at /embed/github/:owner/:repo?reportId=:reportId reads the same result. Compare links use leftReportId and rightReportId; diff links use baseReportId and headReportId. Both include analysis options and resolved commit SHAs.
+
+Saved IDs bind measured counts and counting policy. Storage is a cache with retention and size limits: a saved record can expire or be replaced, so fixed links are not a permanent archive. Missing fixed links, badges and embeds show unavailable instead of starting a new analysis. Save the JSON or exported text if long-term archival matters.
+
+Live ref links, live badges and live embeds use the canonical public options: default profile, docs/tests/generated directory exclusions, empty custom ignores and repository declarations off. They follow the selected ref and may update at different times because of caching. Share uses fixed results by default; choose live mode explicitly. A comparison is marked unknown if either report lacks countingPolicy; matching options alone do not prove that an old report used the same rules.
+
+
+## How do I opt into repository-declared filtering?
+
+Set options.respectGitattributes to true and options.includeGenerated to false to exclude files declared linguist-generated in .gitattributes. Files declared linguist-vendored are excluded whenever this mode is enabled. IncludeGenerated: true keeps generated declarations; source-only still excludes them. Off is the default and keeps existing cache keys and counting behavior.
+
+Specify all inclusion toggles when constructing options: omitting options entirely uses canonical exclusions; an explicitly empty options object retains the existing include-all toggle defaults. Git evaluates nested declarations, macros, quoted paths, unset and unspecified overrides. Only set or true activates exclusion. Directory exclusions run first and cannot be restored by declarations. This mode reads repository declarations only and does not implement the full GitHub Linguist classifier.
+
+New reports include countingPolicy with effective rules and repositoryAttributes.status (off, not_found or applied), plus generatedFiles, vendoredFiles and excludedFiles. These are files removed by declaration filtering after extraction, not source-line totals; overlapping generated/vendored exclusions count once in excludedFiles. Old reports may omit countingPolicy and must be displayed as unknown. Filtering failures fail the analysis rather than silently using other rules.
 
 ## What public stats are available?
 

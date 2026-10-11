@@ -2,6 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import { buildComment, COMMENT_MARKER } from "./comment.js";
+import { analyzeAndWait, readJsonResponse, repositoryOptions } from "./api.js";
 
 if (process.argv.includes("--sample-comment")) {
   console.log(buildComment(samplePayload()));
@@ -25,10 +26,13 @@ if (!owner || !name) {
   fail(`Invalid repo input: ${repo}`);
 }
 
+const respectAttributes = input("respect-gitattributes");
+if (!["", "true", "false"].includes(respectAttributes)) fail("respect-gitattributes must be true or false");
+
 const repoUrl = `https://github.com/${owner}/${name}`;
 const [baseReport, headReport] = await Promise.all([
-  analyzeAndWait({ apiBase, repoUrl, refName: baseRef }),
-  analyzeAndWait({ apiBase, repoUrl, refName: headRef }),
+  analyzeAndWait(apiBase, { repoUrl, refName: baseRef, forceRefresh: false, source: "github_action", options: repositoryOptions(respectAttributes === "true") }),
+  analyzeAndWait(apiBase, { repoUrl, refName: headRef, forceRefresh: false, source: "github_action", options: repositoryOptions(respectAttributes === "true") }),
 ]);
 
 const body = buildComment({ repo, baseRef, headRef, baseReport, headReport });
@@ -39,24 +43,6 @@ if (shouldComment) {
   const issueNumber = event?.pull_request?.number;
   if (!issueNumber) fail("No pull_request number found for comment upsert.");
   await upsertComment({ token, owner, repo: name, issueNumber, body });
-}
-
-async function analyzeAndWait({ apiBase, repoUrl, refName }) {
-  const result = await postJson(apiBase, "/api/analyze", { repoUrl, refName, forceRefresh: false, source: "github_action" });
-  if (result.kind === "cached") return result.report;
-  if (!result.jobId) throw new Error(`Unexpected analyze response: ${JSON.stringify(result)}`);
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    const job = await getJson(apiBase, `/api/jobs/${encodeURIComponent(result.jobId)}`);
-    if (job.status === "completed" && job.reportId) {
-      return getJson(apiBase, `/api/reports/${encodeURIComponent(job.reportId)}`);
-    }
-    if (job.status === "failed") {
-      throw new Error(job.error?.message ?? "OctoCounts analysis failed");
-    }
-    await sleep(2500);
-  }
-  throw new Error(`Timed out waiting for OctoCounts job ${result.jobId}`);
 }
 
 async function upsertComment({ token, owner, repo, issueNumber, body }) {
@@ -77,23 +63,10 @@ async function upsertComment({ token, owner, repo, issueNumber, body }) {
   console.log(`Created OctoCounts comment ${created.id}`);
 }
 
-async function postJson(apiBase, path, body) {
-  const response = await fetch(`${apiBase}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return readJsonResponse(response);
-}
-
-async function getJson(apiBase, path) {
-  const response = await fetch(`${apiBase}${path}`);
-  return readJsonResponse(response);
-}
-
 async function githubJson(token, path, options = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     method: options.method || "GET",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       accept: "application/vnd.github+json",
       authorization: `Bearer ${token}`,
@@ -103,15 +76,6 @@ async function githubJson(token, path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   return readJsonResponse(response);
-}
-
-async function readJsonResponse(response) {
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(json?.message ?? (text || `${response.status} ${response.statusText}`));
-  }
-  return json;
 }
 
 async function readGitHubEvent() {
@@ -130,10 +94,6 @@ function envRepo(event) {
 
 function trimTrailingSlash(value) {
   return String(value).replace(/\/+$/, "");
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function fail(message) {

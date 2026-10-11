@@ -135,6 +135,8 @@ export function languageColor(name: string): string {
 export function textReport(report: Report) {
   const lines = [
     `${report.repository.owner}/${report.repository.name} ${report.commitSha.slice(0, 12)}`,
+    `${policySummary(report)} · ${report.tokeiVersion} · ${report.analysisKey || "unknown"}`,
+    ...(report.countingPolicy ? [`${i18n.t("countingPolicy.title")}: ${JSON.stringify(report.countingPolicy)}`] : []),
     `${i18n.t("textReport.language").padEnd(14)} ${i18n.t("textReport.files").padStart(6)} ${i18n.t("textReport.lines").padStart(10)} ${i18n.t("textReport.code").padStart(10)} ${i18n.t("textReport.comments").padStart(10)} ${i18n.t("textReport.blanks").padStart(10)}`,
   ];
   for (const row of report.languages) {
@@ -147,6 +149,20 @@ export function textReport(report: Report) {
     `${totalLabel.padEnd(14)} ${String(report.total.files).padStart(6)} ${String(report.total.lines).padStart(10)} ${String(report.total.code).padStart(10)} ${String(report.total.comments).padStart(10)} ${String(report.total.blanks).padStart(10)}`
   );
   return lines.join("\n");
+}
+
+export function policySummary(report: Report) {
+  const policy = report.countingPolicy;
+  if (!policy) return i18n.t("countingPolicy.legacy");
+  return [
+    i18n.t(`analysisOptions.profiles.${report.analysisOptions.profile}`),
+    ...(["docs", "tests", "generated"] as const).map((kind) => {
+      const included = kind === "docs" ? policy.includeDocs : kind === "tests" ? policy.includeTests : policy.includeGenerated;
+      return i18n.t(`countingPolicy.${kind}.${included ? "included" : "excluded"}`);
+    }),
+    i18n.t(`countingPolicy.attributeSummary.${policy.repositoryAttributes.status}`),
+    i18n.t("countingPolicy.exclusionSummary", { dirs: policy.ignoredDirs.length, languages: new Set(policy.ignoredLanguages.map((language) => language.toLowerCase())).size }),
+  ].join(" · ");
 }
 
 export function commandText(repoUrl: string, refName: string, forceRefresh: boolean) {

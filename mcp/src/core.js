@@ -1,8 +1,10 @@
+import { analyzeAndWait, reportUrl, repositoryOptions, policyCompatibility } from "./api.js";
+
 const apiBase = trimTrailingSlash(process.env.OCTOCOUNTS_API_BASE || "https://api.octocounts.com");
 
 const SERVER_INFO = { name: "octocounts-mcp", version: "0.2.0" };
 
-async function dispatch(message) {
+async function dispatch(message, signal) {
   if (message.method === "initialize") {
     return {
       protocolVersion: "2024-11-05",
@@ -18,18 +20,20 @@ async function dispatch(message) {
   if (message.method === "tools/call") {
     const { name, arguments: args = {} } = message.params || {};
     if (name === "analyze_repo") {
-      const report = await analyzeAndWait({
+      const report = await analyzeAndWait(apiBase, {
+        options: repositoryOptions(args.respect_gitattributes), forceRefresh: false, source: "mcp",
         repoUrl: normalizeRepoInput(args.repo_url),
         refName: args.ref ?? "",
-      });
+      }, { signal });
       return toolResult(summarizeReport(report), { report, report_url: reportUrl(report) });
     }
     if (name === "compare_repos") {
       const [left, right] = await Promise.all([
-        analyzeAndWait({ repoUrl: normalizeRepoInput(args.left_repo_url), refName: args.left_ref ?? "" }),
-        analyzeAndWait({ repoUrl: normalizeRepoInput(args.right_repo_url), refName: args.right_ref ?? "" }),
+        analyzeAndWait(apiBase, { repoUrl: normalizeRepoInput(args.left_repo_url), refName: args.left_ref ?? "", forceRefresh: false, source: "mcp", options: repositoryOptions(args.respect_gitattributes) }, { signal }),
+        analyzeAndWait(apiBase, { repoUrl: normalizeRepoInput(args.right_repo_url), refName: args.right_ref ?? "", forceRefresh: false, source: "mcp", options: repositoryOptions(args.respect_gitattributes) }, { signal }),
       ]);
       return toolResult(summarizeComparison(left, right), {
+        counting_policy_compatibility: policyCompatibility(left, right),
         left_report: left,
         right_report: right,
         left_report_url: reportUrl(left),
@@ -47,17 +51,15 @@ async function dispatch(message) {
 }
 
 // Returns a JSON-RPC response object for requests, or null for notifications.
-async function handleRequest(message) {
+async function handleRequest(message, { signal } = {}) {
+  if (!message || typeof message !== "object" || Array.isArray(message) || typeof message.method !== "string") {
+    return { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } };
+  }
   if (message.id === undefined) {
-    try {
-      await dispatch(message);
-    } catch {
-      // Notifications carry no reply channel; drop processing errors.
-    }
     return null;
   }
   try {
-    const result = await dispatch(message);
+    const result = await dispatch(message, signal);
     return { jsonrpc: "2.0", id: message.id, result };
   } catch (error) {
     return {
@@ -66,6 +68,7 @@ async function handleRequest(message) {
       error: {
         code: -32000,
         message: error instanceof Error ? error.message : String(error),
+        ...(error.status !== undefined || error.jobId ? { data: { status: error.status, code: error.code, retryAfterMs: error.retryAfterMs, jobId: error.jobId } } : {}),
       },
     };
   }
@@ -80,6 +83,7 @@ function toolDefinitions() {
         type: "object",
         properties: {
           repo_url: { type: "string", description: "GitHub URL or owner/repo." },
+          respect_gitattributes: { type: "boolean", description: "Apply generated/vendored repository declarations. Defaults off; keeps the existing public default profile." },
           ref: { type: "string", description: "Optional branch, tag, or commit SHA." },
         },
         required: ["repo_url"],
@@ -91,6 +95,7 @@ function toolDefinitions() {
       inputSchema: {
         type: "object",
         properties: {
+          respect_gitattributes: { type: "boolean", description: "Apply the same declaration-filter setting to both repositories. Defaults off." },
           left_repo_url: { type: "string", description: "Left GitHub URL or owner/repo." },
           right_repo_url: { type: "string", description: "Right GitHub URL or owner/repo." },
           left_ref: { type: "string", description: "Optional left branch, tag, or commit SHA." },
@@ -102,30 +107,13 @@ function toolDefinitions() {
   ];
 }
 
-async function analyzeAndWait({ repoUrl, refName }) {
-  const result = await postJson("/api/analyze", { repoUrl, refName, forceRefresh: false, source: "mcp" });
-  if (result.kind === "cached") return result.report;
-  if (!result.jobId) throw new Error(`Unexpected analyze response: ${JSON.stringify(result)}`);
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    const job = await getJson(`/api/jobs/${encodeURIComponent(result.jobId)}`);
-    if (job.status === "completed" && job.reportId) {
-      return getJson(`/api/reports/${encodeURIComponent(job.reportId)}`);
-    }
-    if (job.status === "failed") {
-      throw new Error(job.error?.message ?? "OctoCounts analysis failed");
-    }
-    await sleep(2500);
-  }
-  throw new Error(`Timed out waiting for OctoCounts job ${result.jobId}`);
-}
-
 function summarizeReport(report) {
   const top = [...report.languages].sort((a, b) => b.stats.code - a.stats.code).slice(0, 5);
   return [
     `${report.repository.owner}/${report.repository.name} @ ${report.commitSha.slice(0, 12)}`,
     `${formatNumber(report.total.code)} code lines, ${formatNumber(report.total.lines)} total lines, ${formatNumber(report.total.files)} files.`,
     `Top languages: ${top.map((language) => `${language.name} ${formatNumber(language.stats.code)}`).join(", ")}.`,
+    `Counting policy: ${report.countingPolicy ? JSON.stringify(report.countingPolicy) : "historical policy not recorded"}`,
     `Report: ${reportUrl(report)}`,
   ].join("\n");
 }
@@ -136,6 +124,7 @@ function summarizeComparison(left, right) {
     `${left.repository.owner}/${left.repository.name} -> ${right.repository.owner}/${right.repository.name}`,
     `Code lines: ${formatNumber(left.total.code)} -> ${formatNumber(right.total.code)} (${formatSigned(delta)}).`,
     `Files: ${formatNumber(left.total.files)} -> ${formatNumber(right.total.files)} (${formatSigned(right.total.files - left.total.files)}).`,
+    `Counting policy compatibility: ${policyCompatibility(left, right)}. Repository declarations apply separately.`,
     `Left: ${reportUrl(left)}`,
     `Right: ${reportUrl(right)}`,
   ].join("\n");
@@ -148,49 +137,11 @@ function toolResult(text, structuredContent) {
   };
 }
 
-async function postJson(path, body) {
-  const response = await fetch(`${apiBase}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return readJsonResponse(response);
-}
-
-async function getJson(path) {
-  const response = await fetch(`${apiBase}${path}`);
-  return readJsonResponse(response);
-}
-
-async function readJsonResponse(response) {
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(json?.message ?? (text || `${response.status} ${response.statusText}`));
-  }
-  return json;
-}
-
 function normalizeRepoInput(input) {
   const value = String(input || "").trim();
   if (/^https:\/\/github\.com\/[^/]+\/[^/]+/.test(value)) return value;
   if (/^[^/]+\/[^/]+$/.test(value)) return `https://github.com/${value}`;
   throw new Error(`Expected owner/repo or https://github.com/owner/repo, got: ${value}`);
-}
-
-function reportUrl(report) {
-  const base = `https://octocounts.com/github/${encodeURIComponent(report.repository.owner)}/${encodeURIComponent(report.repository.name)}`;
-  const ref = String(report.refName || report.commitSha || "").trim();
-  if (!ref) return base;
-  return `${base}/${looksLikeCommit(ref) ? "commit" : "tree"}/${encodeRefPath(ref)}`;
-}
-
-function encodeRefPath(ref) {
-  return ref.trim().split("/").map(encodeURIComponent).join("/");
-}
-
-function looksLikeCommit(ref) {
-  return /^[a-f0-9]{7,40}$/i.test(ref.trim());
 }
 
 function formatNumber(value) {
@@ -204,10 +155,6 @@ function formatSigned(value) {
 
 function trimTrailingSlash(value) {
   return String(value).replace(/\/+$/, "");
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export {

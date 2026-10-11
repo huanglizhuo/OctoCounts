@@ -28,3 +28,9 @@ Options:
 ## License
 
 MIT
+
+## Reliable requests and repository declarations
+
+Use `--respect-gitattributes` to exclude repository-declared generated and vendored files under the canonical profile. The flag is off by default. Output includes the effective counting policy, or unknown for legacy records. Report links pin the saved result ID and commit.
+
+Requests allow three safe transient retries and a five-minute total deadline. Analyze POSTs are retried only when the server explicitly rejected them before submission. If a job times out, the error retains its job ID and recovery URL. Saved report links are subject to cache retention.
