@@ -1,9 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-10-12T09:08:19.039Z
+# GitHub Trending daily snapshot generated 2026-10-13T09:22:38.477Z
 morluto/rea
-boykopovar/AnyPS5
-storytold/artcraft
-cathrynlavery/diagram-design
 bilawalsidhu/gods-eye-view
-pytorch/pytorch
+mksglu/context-mode
+storytold/artcraft
+open-webui/open-webui
+cathrynlavery/diagram-design
 lyogavin/airllm
-chrislgarry/Apollo-11
+microsoft/BitNet
+Alishahryar1/free-claude-code
