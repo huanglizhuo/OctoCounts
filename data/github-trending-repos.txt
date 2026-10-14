@@ -1,10 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-10-13T09:22:38.477Z
+# GitHub Trending daily snapshot generated 2026-10-14T07:34:15.780Z
 morluto/rea
 bilawalsidhu/gods-eye-view
+debpalash/VoiceStudio
 mksglu/context-mode
-storytold/artcraft
-open-webui/open-webui
 cathrynlavery/diagram-design
+vercel-labs/skills
 lyogavin/airllm
-microsoft/BitNet
-Alishahryar1/free-claude-code
+storytold/artcraft
+xtool-org/xtool
