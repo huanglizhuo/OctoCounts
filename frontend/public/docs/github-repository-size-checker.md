@@ -1,6 +1,6 @@
 # GitHub repo size checker: check before cloning
 
-Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API `size` field (a one-line `curl`, no clone), a shallow clone (`git clone --depth 1`), GitHub's git-sizer tool on a full clone, a local line counter such as [tokei](https://github.com/XAMPPRocky/tokei) or [cloc](https://github.com/AlDanial/cloc) on a checkout, and a no-clone SLOC report from [OctoCounts](https://octocounts.com/). They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.
 
@@ -113,6 +113,7 @@ On October 7, 2026, the GitHub REST API reported torvalds/linux with a size fiel
 
 - [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)
 - [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github)
+- [How many lines of code? The largest codebases, counted](https://octocounts.com/docs/largest-codebases)
 - [tokei online: run tokei on GitHub repositories](https://octocounts.com/docs/tokei-online)
 - [OctoCounts vs tokei](https://octocounts.com/docs/octocounts-vs-tokei)
 - [OctoCounts vs scc](https://octocounts.com/docs/octocounts-vs-scc)

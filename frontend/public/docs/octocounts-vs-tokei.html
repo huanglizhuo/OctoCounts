@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OctoCounts vs tokei: web vs CLI SLOC counting | OctoCounts</title>
-    <meta name="description" content="OctoCounts vs tokei compared: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos with commit-pinned, shareable reports." />
+    <meta name="description" content="OctoCounts vs tokei: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos, pinned to commits." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/docs/octocounts-vs-tokei" />
     <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/octocounts-vs-tokei.md" />
@@ -50,9 +50,9 @@
       "@context": "https://schema.org",
       "@type": "TechArticle",
       "headline": "OctoCounts vs tokei: web vs CLI SLOC counting",
-      "description": "OctoCounts vs tokei compared: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos with commit-pinned, shareable reports.",
+      "description": "OctoCounts vs tokei: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos, pinned to commits.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-07",
+      "dateModified": "2026-10-15",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -146,7 +146,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / vs tokei</nav>
     <main>
-      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs tokei</h1>
       <p class="answer">tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a> — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. <a href="/">OctoCounts</a> is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.</p>
       <p class="note">This is not a matchup of rival engines — OctoCounts runs tokei under the hood. The comparison below is about workflow: where the code lives, how the result is pinned, and what you can do with the numbers afterward.</p>

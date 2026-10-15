@@ -7,7 +7,7 @@ AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Go
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-07
+Last-Updated: 2026-10-15
 Full Context: https://octocounts.com/llms-full.txt
 Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/facebook/react.md
 
@@ -76,6 +76,10 @@ GET /badge/:owner/:repo/commit/:sha
 - Tool comparison: https://octocounts.com/docs/octocounts-vs-cloc
 - tokei online (run tokei on GitHub repos without installing): https://octocounts.com/docs/tokei-online
 - How to count lines of code in a GitHub repository: https://octocounts.com/docs/count-lines-of-code-github
+- Count lines of code without cloning: https://octocounts.com/docs/count-lines-without-cloning
+- Can the GitHub API count lines of code?: https://octocounts.com/docs/github-api-count-lines
+- tokei vs cloc vs scc (three open-source counters compared): https://octocounts.com/docs/tokei-vs-cloc-vs-scc
+- Largest codebases by lines of code (linux, Firefox, LLVM, and friends, pinned to commits): https://octocounts.com/docs/largest-codebases
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
 - Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research

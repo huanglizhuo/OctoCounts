@@ -1,6 +1,6 @@
 # OctoCounts vs cloc, scc, and tokei
 
-Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while [cloc](https://github.com/AlDanial/cloc), [tokei](https://github.com/XAMPPRocky/tokei), and [scc](https://github.com/boyter/scc) are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.
 
@@ -50,6 +50,21 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 - **Strengths:** very fast, additional metrics beyond raw line counts.
 - **Trade-off:** additional metrics may not match OctoCounts/tokei figures exactly.
 
+## Is there a cloc alternative that needs no install and no clone?
+
+For public GitHub repositories, OctoCounts is that alternative — it produces cloc-style code/comment/blank breakdowns from a URL. If you already think in cloc commands, the habits map directly:
+
+| cloc habit | OctoCounts equivalent |
+|---|---|
+| `cloc .` in a checkout | Paste the repository URL into the [web app](/) — no checkout step at all |
+| `cloc --exclude-dir=node_modules` | Dependency and build folders (`node_modules`, `target`, `dist`, `vendor`, …) are skipped by default; custom ignores are part of the analysis options |
+| `cloc --include-lang=Rust` | The per-language table is always shown; [badges](/badges) take `?lang=Rust` for a single-language count |
+| `cloc --json` | Export a report as JSON, or fetch it via the [API](/docs/api) |
+| `cloc --vcs=git` | Nothing to configure — counting runs from the source archive at a pinned commit |
+| Pasting cloc output into a PR or issue | Every report has a stable URL, a PNG card, and a copyable citation — the [methodology page](/docs/methodology) shows the citation format |
+
+What cloc still does better: private repositories, offline environments, `--diff` between two local trees, and its unmatched language database. For other tool-to-tool trade-offs, see the dedicated [tokei vs cloc vs scc comparison](/docs/tokei-vs-cloc-vs-scc).
+
 ## Which one should I use?
 
 | Scenario | Recommended tool |
@@ -85,6 +100,7 @@ Use OctoCounts when you want a quick, shareable report without installing anythi
 
 ## Related reading
 
+- [tokei vs cloc vs scc: the three open-source counters compared](/docs/tokei-vs-cloc-vs-scc)
 - [Best SLOC counter tools compared (including sloccount and GitHub's language bar)](/docs/best-sloc-counter-tools)
 - [GitHub SLOC counter guide](/docs/github-sloc-counter)
 - [OctoCounts counting methodology](/docs/methodology)

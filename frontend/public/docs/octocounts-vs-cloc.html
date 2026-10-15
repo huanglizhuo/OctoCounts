@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs cloc, scc, and tokei",
       "description": "Compare OctoCounts with cloc, scc, and tokei for counting source lines of code in public GitHub repositories, local workflows, CI, and sharing.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-10-07",
+      "dateModified": "2026-10-15",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -145,7 +145,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / vs cloc, scc, tokei</nav>
     <main>
-      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs cloc, scc, and tokei</h1>
       <p class="answer">OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while <a href="https://github.com/AlDanial/cloc">cloc</a>, <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and <a href="https://github.com/boyter/scc">scc</a> are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.</p>
       <p class="note">OctoCounts is not a replacement for every SLOC workflow. This page explains how it differs from popular local line counters so you can choose the right tool for the job.</p>
@@ -198,6 +198,23 @@
         <li><strong>Trade-off:</strong> additional metrics may not match OctoCounts/tokei figures exactly.</li>
       </ul>
 
+      <h2>Is there a cloc alternative that needs no install and no clone?</h2>
+      <p>For public GitHub repositories, OctoCounts is that alternative &mdash; it produces cloc-style code/comment/blank breakdowns from a URL. If you already think in cloc commands, the habits map directly:</p>
+      <table>
+        <thead>
+          <tr><th>cloc habit</th><th>OctoCounts equivalent</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>cloc .</code> in a checkout</td><td>Paste the repository URL into the <a href="/">web app</a> &mdash; no checkout step at all</td></tr>
+          <tr><td><code>cloc --exclude-dir=node_modules</code></td><td>Dependency and build folders (<code>node_modules</code>, <code>target</code>, <code>dist</code>, <code>vendor</code>, &hellip;) are skipped by default; custom ignores are part of the analysis options</td></tr>
+          <tr><td><code>cloc --include-lang=Rust</code></td><td>The per-language table is always shown; <a href="/badges">badges</a> take <code>?lang=Rust</code> for a single-language count</td></tr>
+          <tr><td><code>cloc --json</code></td><td>Export a report as JSON, or fetch it via the <a href="/docs/api">API</a></td></tr>
+          <tr><td><code>cloc --vcs=git</code></td><td>Nothing to configure &mdash; counting runs from the source archive at a pinned commit</td></tr>
+          <tr><td>Pasting cloc output into a PR or issue</td><td>Every report has a stable URL, a PNG card, and a copyable citation &mdash; the <a href="/docs/methodology">methodology page</a> shows the citation format</td></tr>
+        </tbody>
+      </table>
+      <p>What cloc still does better: private repositories, offline environments, <code>--diff</code> between two local trees, and its unmatched language database. For other tool-to-tool trade-offs, see the dedicated <a href="/docs/tokei-vs-cloc-vs-scc">tokei vs cloc vs scc comparison</a>.</p>
+
       <h2>Which one should I use?</h2>
       <table>
         <thead>
@@ -233,6 +250,7 @@
 
       <h2>Related reading</h2>
       <ul>
+        <li><a href="/docs/tokei-vs-cloc-vs-scc">tokei vs cloc vs scc: the three open-source counters compared</a></li>
         <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared (including sloccount and GitHub's language bar)</a></li>
         <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
         <li><a href="/docs/methodology">OctoCounts counting methodology</a></li>

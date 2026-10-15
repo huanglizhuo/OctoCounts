@@ -1,6 +1,6 @@
 # How to count lines of code in a GitHub repository
 
-Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.
 
@@ -68,6 +68,8 @@ No. OctoCounts analyzes public github.com repositories only, does not request Gi
 
 - [OctoCounts home: count any public GitHub repository](https://octocounts.com/)
 - [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)
+- [Count lines of code without cloning](https://octocounts.com/docs/count-lines-without-cloning)
+- [Can the GitHub API count lines of code?](https://octocounts.com/docs/github-api-count-lines)
 - [tokei online: run tokei on GitHub repositories](https://octocounts.com/docs/tokei-online)
 - [OctoCounts vs cloc, scc, and tokei](https://octocounts.com/docs/octocounts-vs-cloc)
 - [Counting methodology](https://octocounts.com/docs/methodology)

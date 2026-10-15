@@ -1,6 +1,6 @@
 # OctoCounts vs scc
 
-Updated October 7, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 [scc](https://github.com/boyter/scc) is a free, open-source command-line counter written in Go: point it at a directory on your machine and it reports files, lines, and comments per language, plus extras no web counter produces — cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-code detection. [OctoCounts](https://octocounts.com/) is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and returns a report pinned to an exact commit SHA with sharing, badges, and an API. The short version: scc for deep local analysis of code you already have; OctoCounts for a no-install, shareable count of a public GitHub repository.
 

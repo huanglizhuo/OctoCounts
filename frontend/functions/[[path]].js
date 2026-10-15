@@ -19,26 +19,30 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
-  { loc: "https://octocounts.com/stats", lastmod: "2026-09-05" },
+  { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-09-05" },
   { loc: "https://octocounts.com/trending", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-11" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-11" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/research", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/about", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-09-30" },
@@ -260,7 +264,7 @@ function isAiRetrievalBot(userAgent) {
   return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
 }
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc", "count-lines-without-cloning", "github-api-count-lines", "tokei-vs-cloc-vs-scc", "largest-codebases"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -637,6 +641,7 @@ function listPageFallback(kind) {
       <li><a href="/recent">Recently analyzed repositories</a></li>
       <li><a href="/popular">Popular SLOC reports</a></li>
       <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
+      ${kind === "monoliths" ? '<li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>' : ""}
       <li><a href="/trending">Trending GitHub repositories today</a></li>
       <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
     </ul></nav>`;
@@ -863,6 +868,7 @@ OctoCounts counts lines of code without cloning: it downloads a repository's sou
 - [Recently analyzed repositories](https://octocounts.com/recent)
 - [Popular SLOC reports](https://octocounts.com/popular)
 - [Hall of Monoliths: largest repositories by lines of code](https://octocounts.com/hall-of-monoliths)
+- [How many lines of code? The largest codebases, counted](https://octocounts.com/docs/largest-codebases)
 - [How OctoCounts counts lines of code](https://octocounts.com/docs/methodology)
 `;
 }
@@ -917,6 +923,7 @@ async function statsPageResponse(context, options = {}) {
       <li><a href="/recent">Recently analyzed repositories</a></li>
       <li><a href="/popular">Popular SLOC reports</a></li>
       <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
+      <li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>
       <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
     </ul></nav>`;
 

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tokei vs cloc vs scc: Which Line Counter? | OctoCounts</title>
+    <meta name="description" content="tokei vs cloc vs scc compared: implementation language, speed profile, output formats, extras like complexity and diff mode, and which to pick for your tree." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/tokei-vs-cloc-vs-scc" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/tokei-vs-cloc-vs-scc.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="tokei vs cloc vs scc: Which Line Counter? | OctoCounts" />
+    <meta property="og:description" content="A side-by-side comparison of the three most popular open-source line counters: tokei, cloc, and scc — languages, speed, output, extras, and picking between them." />
+    <meta property="og:url" content="https://octocounts.com/docs/tokei-vs-cloc-vs-scc" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="tokei vs cloc vs scc: Which Line Counter? | OctoCounts" />
+    <meta name="twitter:description" content="The three most popular open-source SLOC counters, compared side by side." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "tokei vs cloc vs scc: which line counter?",
+      "description": "tokei vs cloc vs scc compared: implementation language, speed profile, output formats, extras like complexity and diff mode, and which to pick for your tree.",
+      "datePublished": "2026-10-15",
+      "dateModified": "2026-10-15",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/tokei-vs-cloc-vs-scc",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "tokei vs cloc vs scc", "item": "https://octocounts.com/docs/tokei-vs-cloc-vs-scc" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the difference between tokei, cloc, and scc?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "All three are open-source command-line counters that split a local source tree into code, comment, and blank lines. tokei is written in Rust and is built for fast counting with compact output; cloc is the oldest, written in Perl, with the widest language database and a diff mode for comparing two states of a tree; scc is written in Go and adds cyclical complexity estimates, COCOMO effort projections, and license detection on top of the counts. They differ most in extras and output formats, not in the basic job."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which is faster: tokei, cloc, or scc?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "On very large trees the Rust and Go implementations (tokei, scc) are dramatically faster than the Perl-based cloc, which matches the speed claims in each project's own documentation; between tokei and scc the difference is usually small and depends on the tree and hardware. Absolute numbers vary too much with disk, CPU, and file mix to quote a single winner — run two of them on the same checkout if the difference matters to you."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do tokei, cloc, and scc give the same numbers?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Rarely, exactly. Each tool ships its own language database, its own comment-syntax rules per language, and its own defaults for skipping directories, so totals can differ by a few percent even on the same checkout — and scc's headline figures add complexity-based extras on top. The fix is to cite the tool and version with the number: '32.36M code lines by tokei at commit 4056b3c9d3c9' is reproducible; a bare '32 million' is not."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I run tokei without installing it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes — OctoCounts runs tokei server-side on public GitHub repositories: paste a URL and get the same counts the CLI would produce, pinned to an exact commit, with shareable report pages, README badges, and a JSON API. For private repositories, install the CLI; the tokei-online guide explains when each route fits."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which line counter should you use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Pick tokei for fast, clean counting of local checkouts and CI; pick cloc when you need its unmatched language coverage or to diff line counts between two releases with --diff; pick scc when you also want complexity estimates, COCOMO effort projections, or license detection; and use a no-install web counter like OctoCounts when the repository is public and you want a shareable, commit-pinned report instead of a local run."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": ["https://github.com/huanglizhuo", "https://github.com/huanglizhuo/OctoCounts", "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj", "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim", "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/", "https://www.npmjs.com/package/octocounts"],
+      "knowsAbout": ["tokei", "cloc", "scc", "source lines of code", "code metrics"]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / tokei vs cloc vs scc</nav>
+    <main>
+      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>tokei vs cloc vs scc: which line counter?</h1>
+      <p class="answer"><a href="https://github.com/XAMPPRocky/tokei">tokei</a>, <a href="https://github.com/AlDanial/cloc">cloc</a>, and <a href="https://github.com/boyter/scc">scc</a> are the three most popular open-source line counters, and all three split a local source tree into code, comment, and blank lines. The differences: <strong>tokei</strong> (Rust) is built for fast counting with compact output; <strong>cloc</strong> (Perl) is the oldest and has the widest language database plus a diff mode; <strong>scc</strong> (Go) adds cyclical complexity estimates, COCOMO effort projections, and license detection on top of the counts.</p>
+
+      <h2>What is the difference between tokei, cloc, and scc?</h2>
+      <table>
+        <thead>
+          <tr><th></th><th>tokei</th><th>cloc</th><th>scc</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Written in</strong></td><td>Rust</td><td>Perl</td><td>Go</td></tr>
+          <tr><td><strong>Counts</strong></td><td>code, comments, blanks per language</td><td>code, comments, blanks per language</td><td>code, comments, blanks per language</td></tr>
+          <tr><td><strong>Extras</strong></td><td>compact terminal output, JSON via serde, configuration file</td><td>widest language coverage, <code>--diff</code> between two trees, many export formats (CSV, JSON, markdown, &hellip;)</td><td>cyclical complexity, COCOMO effort/cost estimates, license detection, byte estimates</td></tr>
+          <tr><td><strong>Speed profile</strong></td><td>fast on large trees (Rust)</td><td>slowest of the three on very large trees (Perl), fine on typical repos</td><td>fast on large trees (Go)</td></tr>
+          <tr><td><strong>Typical install</strong></td><td><code>cargo install tokei</code>, brew, package managers</td><td>cpan/brew/apt packaging of the Perl script</td><td><code>go install</code>, brew, release binaries</td></tr>
+          <tr><td><strong>Private repos</strong></td><td>Yes (local checkout)</td><td>Yes (local checkout)</td><td>Yes (local checkout)</td></tr>
+          <tr><td><strong>Shareable web reports</strong></td><td>No</td><td>No</td><td>No</td></tr>
+        </tbody>
+      </table>
+      <p>All three run on Linux, macOS, and Windows, and all three read a local checkout &mdash; none of them talks to a hosted repository by URL.</p>
+
+      <h2>tokei</h2>
+      <p><a href="https://github.com/XAMPPRocky/tokei">tokei</a> is the counter to reach for when the job is "count this tree, fast, without ceremony." Output is a compact per-language table; <code>--output json</code> emits machine-readable totals via serde, and a <code>tokei.toml</code> can carry a shared configuration. It supports 200+ languages and is the engine OctoCounts runs server-side &mdash; the <a href="/docs/octocounts-vs-tokei">OctoCounts vs tokei page</a> covers the split of labor between the CLI and the web service.</p>
+
+      <h2>cloc</h2>
+      <p><a href="https://github.com/AlDanial/cloc">cloc</a> has been counting trees since the mid-2000s and carries the widest language database of the three &mdash; the usual pick when a tree contains less common languages. Its signature extra is <code>cloc --diff</code>, which counts what changed between two directories, archives, or git revisions &mdash; useful for release reports. Trade-off: being Perl, it is the slowest of the three on very large trees, though fine on typical repositories.</p>
+
+      <h2>scc</h2>
+      <p><a href="https://github.com/boyter/scc">scc</a> counts like the other two but reports more: per-file cyclical complexity, COCOMO effort and cost projections, license detection, and byte estimates, across a wide range of output formats. If your report needs "how big <em>and</em> how tangled," scc produces both in one pass. The extras come with a caveat: complexity-based figures are estimates by construction and won't match tokei/cloc line totals used as a baseline &mdash; the <a href="/docs/octocounts-vs-scc">OctoCounts vs scc page</a> has details.</p>
+
+      <h2>Which is faster: tokei, cloc, or scc?</h2>
+      <p>On very large trees, the Rust and Go implementations are dramatically faster than Perl-based cloc &mdash; that much is consistent with each project's own published claims. Between tokei and scc, the gap is usually small and flips with the file mix and hardware. Absolute numbers vary too much to crown one winner here: if the difference matters for your CI budget, run two of them on the same checkout and keep the faster. (For reference points measured over a network, OctoCounts' <a href="/research">pilot study</a> published per-request timings of archive-based tokei analysis on react and vite.)</p>
+
+      <h2>Do tokei, cloc, and scc give the same numbers?</h2>
+      <p>Rarely, exactly. Each tool ships its own language database, its own comment-syntax rules, and its own defaults for skipping directories, so totals can differ by a few percent on the same checkout. That is normal and is exactly why a citation should name the tool and version: &ldquo;32,360,324 code lines by tokei at commit <code>4056b3c9d3c9</code>&rdquo; is reproducible; a bare &ldquo;32 million&rdquo; is not. The <a href="/docs/glossary">SLOC glossary</a> defines the categories the three tools share.</p>
+
+      <h2>Can I run tokei without installing it?</h2>
+      <p>Yes &mdash; <a href="/">OctoCounts</a> runs tokei server-side on public GitHub repositories: paste a URL and get the same counts the CLI would produce, pinned to an exact commit, with shareable report pages, README badges, and a JSON API. For private repositories, install the CLI; the <a href="/docs/tokei-online">tokei online guide</a> explains when each route fits.</p>
+
+      <h2>Which line counter should you use?</h2>
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th>Pick</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Fast, clean counting of a local checkout or CI step</td><td>tokei</td></tr>
+          <tr><td>Rare languages, or diffing two trees with <code>--diff</code></td><td>cloc</td></tr>
+          <tr><td>Counts plus complexity, COCOMO, or license detection</td><td>scc</td></tr>
+          <tr><td>Public GitHub repo, no install, shareable commit-pinned report</td><td><a href="/">OctoCounts</a> (runs tokei server-side)</td></tr>
+          <tr><td>Private or sensitive code</td><td>tokei, cloc, or scc locally</td></tr>
+        </tbody>
+      </table>
+
+      <p class="note"><strong>Bottom line:</strong> for local counting the three tools overlap far more than they differ &mdash; pick by extras (scc), language coverage and diffing (cloc), or Rust speed and clean output (tokei). When the tree is a public GitHub repository and the goal is a number you can share and cite, running tokei online through <a href="/">OctoCounts</a> skips the install and pins the result to a commit.</p>
+
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc, scc, and tokei</a></li>
+        <li><a href="/docs/octocounts-vs-tokei">OctoCounts vs tokei</a></li>
+        <li><a href="/docs/octocounts-vs-scc">OctoCounts vs scc</a></li>
+        <li><a href="/docs/tokei-online">tokei online: run tokei without installing</a></li>
+        <li><a href="/docs/best-sloc-counter-tools">Best SLOC counter tools compared</a></li>
+      </ul></nav>
+    </main>
+  </body>
+</html>

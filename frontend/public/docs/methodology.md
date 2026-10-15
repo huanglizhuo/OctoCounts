@@ -1,6 +1,6 @@
 # OctoCounts Methodology
 
-Updated October 11, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.
 
@@ -21,7 +21,7 @@ SLOC, or source lines of code, is a measure of software size counted as the numb
 5. **Count:** [tokei](https://github.com/XAMPPRocky/tokei) detects languages and counts files, total lines, code lines, comments, and blank lines.
 6. **Cache:** The report is stored by repository, commit SHA, tokei version, and analysis options.
 
-OctoCounts currently runs [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (pinned in the backend's `Cargo.lock`, checked 2026-08-29). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.
+OctoCounts currently runs [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (pinned in the backend's `Cargo.lock`, checked 2026-10-15). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.
 
 ## Cache Key
 

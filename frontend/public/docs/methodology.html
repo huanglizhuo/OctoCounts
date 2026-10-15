@@ -51,7 +51,7 @@
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
       "datePublished": "2026-07-06",
-      "dateModified": "2026-10-11",
+      "dateModified": "2026-10-15",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -136,7 +136,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Methodology</nav>
     <main>
-      <p class="meta">Updated October 11, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts Methodology</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.</p>
       <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
@@ -153,7 +153,7 @@
         <li><strong>Count:</strong> <a href="https://github.com/XAMPPRocky/tokei">tokei</a> detects languages and counts files, total lines, code lines, comments, and blank lines.</li>
         <li><strong>Cache:</strong> The report is stored by repository, commit SHA, tokei version, and analysis options.</li>
       </ol>
-      <p>OctoCounts currently runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 14.0.0 (pinned in the backend's <code>Cargo.lock</code>, checked 2026-08-29). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.</p>
+      <p>OctoCounts currently runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 14.0.0 (pinned in the backend's <code>Cargo.lock</code>, checked 2026-10-15). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.</p>
 
       <h2>Cache Key</h2>
       <p>Reports are cached by repository provider, owner, repository name, commit SHA, tokei version, and active analysis options. Repeated requests for the same commit and options return the cached report instead of downloading and counting again.</p>

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHub repo size checker: check before cloning | OctoCounts</title>
-    <meta name="description" content="Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports — with real numbers for linux, firefox, and kubernetes." />
+    <meta name="description" content="Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports, with real numbers." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/docs/github-repository-size-checker" />
     <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/github-repository-size-checker.md" />
@@ -50,9 +50,9 @@
       "@context": "https://schema.org",
       "@type": "TechArticle",
       "headline": "GitHub repo size checker: check a repository before cloning",
-      "description": "Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports — with real numbers for linux, firefox, and kubernetes.",
+      "description": "Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports, with real numbers.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-07",
+      "dateModified": "2026-10-15",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -146,7 +146,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / repository size checker</nav>
     <main>
-      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub repo size checker: check before cloning</h1>
       <p class="answer">There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API <code>size</code> field (a one-line <code>curl</code>, no clone), a shallow clone (<code>git clone --depth 1</code>), GitHub's git-sizer tool on a full clone, a local line counter such as <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> on a checkout, and a no-clone SLOC report from <a href="/">OctoCounts</a>. They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.</p>
       <p class="note">Every number on this page was checked on October 7, 2026. SLOC figures come from OctoCounts reports that name their exact commit SHA and tokei version; byte figures come from GitHub's REST API <code>size</code> field, which GitHub documents as calculated hourly.</p>
@@ -241,6 +241,7 @@ git -C kubernetes count-objects -vH   # size-pack: how much history you actually
       <ul>
         <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
         <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository</a></li>
+        <li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>
         <li><a href="/docs/tokei-online">tokei online: run tokei on GitHub repositories</a></li>
         <li><a href="/docs/octocounts-vs-tokei">OctoCounts vs tokei</a></li>
         <li><a href="/docs/octocounts-vs-scc">OctoCounts vs scc</a></li>
