@@ -10,7 +10,7 @@ tokei is an open-source source-line counter maintained at [github.com/XAMPPRocky
 
 ## How do I run tokei online without installing it?
 
-Paste a public GitHub repository URL (for example `https://github.com/facebook/react`) into the [OctoCounts web app](https://octocounts.com/). OctoCounts downloads the repository's source archive — pinned to an exact commit SHA, so the count is reproducible — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by commit, so re-viewing a report is instant. Try it with [facebook/react](https://octocounts.com/github/facebook/react) or [torvalds/linux](https://octocounts.com/github/torvalds/linux).
+Paste a public GitHub repository URL (for example `https://github.com/react/react`) into the [OctoCounts web app](https://octocounts.com/). OctoCounts downloads the repository's source archive — pinned to an exact commit SHA, so the count is reproducible — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by commit, so re-viewing a report is instant. Try it with [react/react](https://octocounts.com/github/react/react) or [torvalds/linux](https://octocounts.com/github/torvalds/linux).
 
 ## Is OctoCounts really running tokei?
 

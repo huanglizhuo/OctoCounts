@@ -52,7 +52,7 @@
       "headline": "Can the GitHub API count lines of code?",
       "description": "The GitHub REST and GraphQL APIs have no line-count endpoint — languages returns bytes. Three routes that do return lines: OctoCounts API, badges, and reports.",
       "datePublished": "2026-10-15",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-16",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -154,7 +154,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / GitHub API line counts</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>Can the GitHub API count lines of code?</h1>
       <p class="answer">No &mdash; neither the GitHub REST API nor the GraphQL API has an endpoint that returns line counts. The closest signal, <code>GET /repos/{owner}/{repo}/languages</code>, returns <strong>bytes</strong> per language, and the GraphQL <code>Repository.diskUsage</code> field returns kilobytes. For actual line counts over an API, use the <a href="/docs/api">OctoCounts API</a>: it downloads a public repository's source archive, counts it with tokei, and returns files, code lines, comment lines, blank lines, and per-language totals as JSON, pinned to a commit SHA.</p>
 
@@ -165,7 +165,7 @@
       <p>The OctoCounts API does it in three calls, with no token:</p>
       <pre><code>curl -s -X POST https://api.octocounts.com/api/analyze \
   -H "Content-Type: application/json" \
-  -d '{"repoUrl": "https://github.com/facebook/react"}'
+  -d '{"repoUrl": "https://github.com/react/react"}'
 # =&gt; {"jobId": "..."}
 
 curl -s "https://api.octocounts.com/api/jobs/:jobId?wait=20"
@@ -197,7 +197,7 @@ print(report["totals"])  # {"files": ..., "lines": ..., "code": ..., ...}</code>
       <pre><code>https://api.octocounts.com/badge/:owner/:repo                 # total code lines
 https://api.octocounts.com/badge/:owner/:repo?type=lines      # all lines
 https://api.octocounts.com/badge/:owner/:repo?lang=Rust       # one language</code></pre>
-      <p>And every report page renders as plain markdown by appending <code>.md</code>, so an agent or script can read the counts as text: <code>https://octocounts.com/github/facebook/react.md</code>. The <a href="/">web app</a> itself needs nothing but a pasted URL.</p>
+      <p>And every report page renders as plain markdown by appending <code>.md</code>, so an agent or script can read the counts as text: <code>https://octocounts.com/github/react/react.md</code>. The <a href="/">web app</a> itself needs nothing but a pasted URL.</p>
 
       <h2>How do I count lines of code at a specific commit via API?</h2>
       <p>Set <code>refName</code> to the branch, tag, or commit SHA in the analyze request. The analysis resolves and pins the exact commit, the report records that SHA beside the tokei version it was counted with, and the commit-pinned report page lives at <code>/github/:owner/:repo/commit/:sha</code>. Re-analyzing the same commit with the same options returns identical numbers &mdash; that is what makes an OctoCounts report citable, per the <a href="/docs/methodology">counting methodology</a>.</p>

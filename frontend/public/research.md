@@ -10,7 +10,7 @@ The question matters because SLOC comparisons are only valid when both sides wer
 
 ## Method
 
-The pilot sampled two public GitHub repositories already present in the OctoCounts corpus — [facebook/react](https://octocounts.com/github/facebook/react) and [vitejs/vite](https://octocounts.com/github/vitejs/vite) — and counted each one under four configurations: the site default (docs, tests, and generated files all included), `exclude-tests`, `exclude-docs`, and `exclude-generated`. That is 2 repositories × 4 configurations = 8 counted runs, all recorded on 2026-09-08.
+The pilot sampled two public GitHub repositories already present in the OctoCounts corpus — [react/react](https://octocounts.com/github/react/react) (counted under its former `facebook/react` path; the repository has since moved organizations) and [vitejs/vite](https://octocounts.com/github/vitejs/vite) — and counted each one under four configurations: the site default (docs, tests, and generated files all included), `exclude-tests`, `exclude-docs`, and `exclude-generated`. That is 2 repositories × 4 configurations = 8 counted runs, all recorded on 2026-09-08.
 
 Two design choices make the deltas pure configuration effects rather than drift:
 
@@ -21,7 +21,7 @@ Two design choices make the deltas pure configuration effects rather than drift:
 
 | Code lines | default | exclude-tests | exclude-docs | exclude-generated |
 | --- | ---: | ---: | ---: | ---: |
-| facebook/react @ `9b7a0d4029ee` | 696,459 | 364,248 (−47.7%) | 696,459 (0) | 696,459 (0) |
+| react/react @ `9b7a0d4029ee` | 696,459 | 364,248 (−47.7%) | 696,459 (0) | 696,459 (0) |
 | vitejs/vite @ `e6f6b3e31192` | 112,297 | 82,439 (−26.6%) | 110,808 (−1.3%) | 112,297 (0) |
 
 1. **Test exclusion is the dominant filter in both samples.** It removes 26–48% of code lines. Any SLOC comparison that mixes test-inclusive and test-exclusive counts is not a valid comparison.
@@ -47,6 +47,6 @@ The complete pilot dataset is published as newline-delimited JSON, one recorded 
 ## Related reading
 
 - [OctoCounts counting methodology](https://octocounts.com/docs/methodology)
-- [facebook/react SLOC report](https://octocounts.com/github/facebook/react) and [vitejs/vite SLOC report](https://octocounts.com/github/vitejs/vite)
+- [react/react SLOC report](https://octocounts.com/github/react/react) and [vitejs/vite SLOC report](https://octocounts.com/github/vitejs/vite)
 - [Compare two repositories side by side](https://octocounts.com/compare)
 - [OctoCounts public growth stats](https://octocounts.com/stats)

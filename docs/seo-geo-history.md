@@ -1,6 +1,6 @@
 # OctoCounts SEO/GEO 历史与状态(合并档案)
 
-> 本文档合并并取代了四份历史文档:`docs/research/GEO-optimization-report.md`(2026-08-28 诊断)、`GEO-ANALYSIS.md`(2026-09-16 快照)、`SEO-GEO-optimize-plan.md`(2026-09-08 计划,第 1–3 轮)与根目录的 `SEO-INDEX-GEO-PLAN-2026-09-19.md`(第 4 轮,已移至本目录)。当前活跃文档:**[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)(第 4 轮方案)、[seo-index-runbook.md](seo-index-runbook.md)(部署手册)、[seo-geo-measurement.md](seo-geo-measurement.md)(SG-10 测量)、[ai-crawling-policy.md](ai-crawling-policy.md)(爬虫策略)**。
+> 本文档合并并取代了四份历史文档:`docs/research/GEO-optimization-report.md`(2026-08-28 诊断)、`GEO-ANALYSIS.md`(2026-09-16 快照)、`SEO-GEO-optimize-plan.md`(2026-09-08 计划,第 1–3 轮)与根目录的 `SEO-INDEX-GEO-PLAN-2026-09-19.md`(第 4 轮,已移至本目录)。当前活跃文档:**[seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md)(第 5 轮事故修复)、[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)(第 4 轮方案)、[seo-index-runbook.md](seo-index-runbook.md)(部署手册)、[seo-geo-measurement.md](seo-geo-measurement.md)(SG-10 测量)、[ai-crawling-policy.md](ai-crawling-policy.md)(爬虫策略)**。
 
 ## 1. 四轮时间线
 
@@ -9,6 +9,7 @@
 | 诊断 | 2026-08-28/29 | 三个 GEO skill 综合诊断 + 8 专项 agent 复核(技术 SEO、Schema、内容、sitemap、性能、SXO、外链、GEO) | 完成,问题流入第 1–3 轮 |
 | 第 1–3 轮 | 2026-09-08 计划,09-16/17 部署 | SG-01…SG-10 任务(见 §2) | 完成(遗留见 §4) |
 | 第 4 轮 | 2026-09-19 | sitemap 拆分、llms 移出 XML sitemap、FAQ 可引用性、IndexNow 验证/推送 | 完成,方案见 [seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md) |
+| 第 5 轮 | 2026-10-16 | GitHub 改名事故修复:7 个 compare 页 503(注册表旧名 + 改名自愈)、9 个 404(sitemap 门控同口径)、sitemap index lastmod | 完成,方案见 [seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md) |
 
 ## 2. 第 1–3 轮(SG-01…SG-10)做了什么
 

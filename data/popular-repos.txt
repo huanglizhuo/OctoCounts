@@ -1,7 +1,7 @@
 # Curated high-interest public GitHub repositories for OctoCounts report seeding.
 # Format: owner/repo [ref]
 # Blank lines and comments are ignored.
-facebook/react
+react/react
 vercel/next.js
 vitejs/vite
 microsoft/vscode
@@ -37,7 +37,7 @@ eslint/eslint
 prettier/prettier
 pnpm/pnpm
 yarnpkg/berry
-facebook/react-native
+react/react-native
 flutter/flutter
 godotengine/godot
 bevyengine/bevy
@@ -71,7 +71,7 @@ jestjs/jest
 vitest-dev/vitest
 cypress-io/cypress
 microsoft/playwright
-prisma/prisma
+prisma/orm
 typeorm/typeorm
 drizzle-team/drizzle-orm
 biomejs/biome
@@ -170,7 +170,7 @@ scylladb/scylladb
 cockroachdb/cockroach
 yugabyte/yugabyte-db
 moby/moby
-containers/podman
+podman-container-tools/podman
 helm/helm
 kubernetes-sigs/kustomize
 argoproj/argo-cd

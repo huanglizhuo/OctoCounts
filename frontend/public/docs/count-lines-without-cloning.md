@@ -10,7 +10,7 @@ A git clone downloads the full history: every revision of every file that ever e
 
 ## How do I count lines without cloning?
 
-1. Open the [OctoCounts web app](https://octocounts.com/) and paste the repository URL — for example `https://github.com/facebook/react`.
+1. Open the [OctoCounts web app](https://octocounts.com/) and paste the repository URL — for example `https://github.com/react/react`.
 2. Optionally pick a branch, tag, or commit SHA. The analysis pins to the exact commit it resolves.
 3. OctoCounts downloads the source archive for that ref, runs tokei, and shows files, total lines, code, comments, blanks, and per-language rows.
 4. Share the report URL, export text/JSON/PNG, or add a [live badge](https://octocounts.com/badges) to your README.

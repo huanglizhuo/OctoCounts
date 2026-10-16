@@ -17,7 +17,7 @@ const BOOT_SCRIPT_HASH = "'sha256-gJFnkD2yqbv265Nlf3VSDL44MNt3DDcIc1ENS7V0cRY='"
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/compare", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/compare", lastmod: "2026-10-16" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
@@ -34,16 +34,16 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-16" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-16" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-16" },
+  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-16" },
   { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/research", lastmod: "2026-10-07" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-10-16" },
   { loc: "https://octocounts.com/about", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
@@ -55,7 +55,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const COMPARE_CONTENT_LASTMOD = "2026-09-17";
+const COMPARE_CONTENT_LASTMOD = "2026-10-16";
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -1412,9 +1412,19 @@ async function curatedCompareResponse(context, entry, options = {}) {
   const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
   // Same integrity guard as report pages: a compare page's title, description,
   // and table all derive from these two payloads, so a mis-keyed cache tier
-  // would publish one repository's numbers under another's name. Fail closed.
+  // would publish one repository's numbers under another's name. Fail closed —
+  // unless the mismatch is a GitHub rename the store itself confirms. The
+  // report routes 308 through the recorded redirect chain, but a curated
+  // /compare/<slug> route is fixed, so its payloads would otherwise trip this
+  // guard forever (facebook/react → react/react served 503s on every page
+  // whose registry side still spelled the old name). resolveRenamedCompareEntry
+  // accepts a canonical name only when the store's redirect endpoint — a
+  // different query path than the report lookup — states it for the requested
+  // spelling; anything else keeps failing closed below.
   if (!reportMatchesRoute(left, entry.left) || !reportMatchesRoute(right, entry.right)) {
-    return compareUnavailableResponse(context, entry, options);
+    const healedEntry = await resolveRenamedCompareEntry(context, entry, left, right);
+    if (!healedEntry) return compareUnavailableResponse(context, entry, options);
+    entry = healedEntry;
   }
   const model = await buildCompareViewModel(entry, left, right);
   // Record the good render for stale-while-error before answering. Each
@@ -1595,6 +1605,66 @@ const compareExistenceCache = new Map();
 /// Test hook: the existence cache would otherwise leak between test cases.
 export function __resetCompareExistenceCacheForTests() {
   compareExistenceCache.clear();
+  compareRedirectCache.clear();
+}
+
+// Rename confirmations per registry spelling ("owner/repo" lowercased →
+// canonical slug or null). Renames only ever grow, so a confirmed answer is
+// cached for a long TTL; a failed lookup is cached briefly so one broken page
+// does not spend extra subrequests on every hit.
+const COMPARE_REDIRECT_TTL_MS = 24 * 3_600_000;
+const COMPARE_REDIRECT_MISS_TTL_MS = 600_000;
+const compareRedirectCache = new Map();
+
+/// Ask the store's redirect endpoint where a registry spelling lives now.
+/// Returns the canonical "owner/repo" slug, or null when no redirect is
+/// recorded (the answer is cached for the short miss TTL) or the lookup fails
+/// transiently (not cached; the next pass retries).
+async function redirectConfirmedSlug(context, target) {
+  const key = `${target.owner}/${target.repo}`.toLowerCase();
+  const cached = compareRedirectCache.get(key);
+  if (cached) {
+    const ttl = cached.slug ? COMPARE_REDIRECT_TTL_MS : COMPARE_REDIRECT_MISS_TTL_MS;
+    if (Date.now() - cached.checkedAt < ttl) return cached.slug;
+  }
+  try {
+    const params = new URLSearchParams({ provider: "github", owner: target.owner, repo: target.repo });
+    const response = await fetch(`${apiBase(context)}/api/seo/redirect?${params.toString()}`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    let slug = null;
+    if (response.ok) {
+      const payload = await response.json().catch(() => null);
+      slug = typeof payload?.redirectSlug === "string" && payload.redirectSlug.includes("/")
+        ? payload.redirectSlug
+        : null;
+    }
+    compareRedirectCache.set(key, { slug, checkedAt: Date.now() });
+    return slug;
+  } catch {
+    return null;
+  }
+}
+
+/// Replace registry sides whose report payload answered under a different
+/// name with the redirect-confirmed canonical spelling. Returns the healed
+/// entry, or null when any mismatched side stays unexplained — a mismatch is
+/// also the signature of a mis-keyed cache tier, so an unconfirmed canonical
+/// name never stands in for the registry spelling.
+async function resolveRenamedCompareEntry(context, entry, left, right) {
+  const healed = { ...entry };
+  for (const [key, target, report] of [["left", entry.left, left], ["right", entry.right, right]]) {
+    if (reportMatchesRoute(report, target)) continue;
+    const slug = await redirectConfirmedSlug(context, target);
+    if (!slug) return null;
+    const slash = slug.indexOf("/");
+    const owner = slug.slice(0, slash);
+    const repo = slug.slice(slash + 1);
+    if (!owner || !repo) return null;
+    healed[key] = { ...target, owner, repo };
+  }
+  return healed;
 }
 
 /// Per-request-env scratch caches, keyed per env the way indexHtmlCache is so
@@ -2108,18 +2178,46 @@ function sitemapEntryMeasuredAnything(entry) {
   return totals.length === 0 || totals.some((value) => value > 0);
 }
 
+/// Greatest W3C date among entry lastmods, or null when none carries one.
+/// All lastmod values on this site are YYYY-MM-DD, so lexicographic order is
+/// chronological order.
+function maxLastmod(entries) {
+  let max = null;
+  for (const entry of entries) {
+    if (typeof entry?.lastmod === "string" && entry.lastmod > (max ?? "")) max = entry.lastmod;
+  }
+  return max;
+}
+
 async function sitemapIndexResponse(context) {
   // Only the report-page count is unknown up front (compare is a single file
   // and the static list is compiled in), so skip the compare-existence scan
   // here: the index is the hottest sitemap request crawlers make.
   const dynamicEntries = await fetchReportSitemapEntries(context);
   const reportPages = Math.max(1, Math.ceil(dynamicEntries.length / REPORTS_SITEMAP_PAGE_SIZE));
+  // Each child states its own freshest lastmod so crawlers can skip children
+  // whose pages have not changed since the last crawl (GSC flags a lastmod-less
+  // index; the audit's Low backlog listed it).
+  const snapshot = await trendingSnapshot(context);
+  const staticLastmod = maxLastmod(
+    STATIC_SITEMAP_ENTRIES.map((entry) =>
+      entry.loc.endsWith("/trending") && snapshot.date ? { lastmod: snapshot.date } : entry
+    )
+  );
+  const pageSize = REPORTS_SITEMAP_PAGE_SIZE;
   const children = [
-    "https://octocounts.com/sitemap-static.xml",
-    "https://octocounts.com/sitemap-compare.xml",
-    ...Array.from({ length: reportPages }, (_, i) => `https://octocounts.com/sitemap-reports-${i + 1}.xml`),
+    { loc: "https://octocounts.com/sitemap-static.xml", lastmod: staticLastmod },
+    { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([{ lastmod: COMPARE_CONTENT_LASTMOD }]) },
+    ...Array.from({ length: reportPages }, (_, i) => ({
+      loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
+      lastmod: maxLastmod(dynamicEntries.slice(i * pageSize, (i + 1) * pageSize)),
+    })),
   ];
-  const sitemaps = children.map((loc) => `  <sitemap>\n    <loc>${escapeXml(loc)}</loc>\n  </sitemap>`).join("\n");
+  const sitemaps = children
+    .map(
+      (child) => `  <sitemap>\n    <loc>${escapeXml(child.loc)}</loc>\n${child.lastmod ? `    <lastmod>${escapeXml(child.lastmod)}</lastmod>\n` : ""}  </sitemap>`
+    )
+    .join("\n");
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemaps}\n</sitemapindex>\n`,
     { headers: sitemapCacheHeaders() }

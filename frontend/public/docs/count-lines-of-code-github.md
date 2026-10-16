@@ -1,12 +1,12 @@
 # How to count lines of code in a GitHub repository
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.
 
 ## How do I count lines of code in a GitHub repository without cloning it?
 
-Paste the repository URL into the [OctoCounts web app](https://octocounts.com/) — for example `https://github.com/facebook/react`. OctoCounts downloads the source archive pinned to an exact commit SHA, runs [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at [octocounts.com/github/facebook/react](https://octocounts.com/github/facebook/react). Results export as text, JSON, or a PNG card, and feed [README badges](https://octocounts.com/badges).
+Paste the repository URL into the [OctoCounts web app](https://octocounts.com/) — for example `https://github.com/react/react`. OctoCounts downloads the source archive pinned to an exact commit SHA, runs [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at [octocounts.com/github/react/react](https://octocounts.com/github/react/react). Results export as text, JSON, or a PNG card, and feed [README badges](https://octocounts.com/badges).
 
 ## How do I count lines of code directly on github.com?
 

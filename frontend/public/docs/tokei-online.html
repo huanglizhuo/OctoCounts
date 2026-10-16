@@ -52,7 +52,7 @@
       "headline": "tokei online: run tokei on GitHub repositories",
       "description": "Run tokei online with no install: OctoCounts runs tokei server-side on public GitHub repos, returning files, code, comments, and blanks per language.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-16",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -146,7 +146,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / tokei online</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>tokei online: run tokei on GitHub repositories</h1>
       <p class="answer">tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.</p>
 
@@ -154,7 +154,7 @@
       <p>tokei is an open-source source-line counter maintained at <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a>. It counts files, code lines, comment lines, and blank lines per programming language, and it is widely used because it is fast and recognizes hundreds of languages. It normally runs as a command-line tool on a checkout of code that already exists on your machine. OctoCounts uses tokei as its counting engine, so the numbers you get from the web app are tokei's numbers, produced by the same engine the CLI uses.</p>
 
       <h2>How do I run tokei online without installing it?</h2>
-      <p>Paste a public GitHub repository URL (for example <code>https://github.com/facebook/react</code>) into the <a href="/">OctoCounts web app</a>. OctoCounts downloads the repository's source archive — pinned to an exact commit SHA, so the count is reproducible — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by commit, so re-viewing a report is instant. Try it with <a href="/github/facebook/react">facebook/react</a> or <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
+      <p>Paste a public GitHub repository URL (for example <code>https://github.com/react/react</code>) into the <a href="/">OctoCounts web app</a>. OctoCounts downloads the repository's source archive — pinned to an exact commit SHA, so the count is reproducible — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by commit, so re-viewing a report is instant. Try it with <a href="/github/react/react">react/react</a> or <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
 
       <h2>Is OctoCounts really running tokei?</h2>
       <p>Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the <a href="/docs/methodology">counting methodology page</a>. That means an OctoCounts report and a local tokei run on the same commit at the same version produce matching numbers, which is what makes the online results citable in a pull request, README, or report.</p>

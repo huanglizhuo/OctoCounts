@@ -52,7 +52,7 @@
       "headline": "Count lines of code without cloning a repository",
       "description": "Count a GitHub repository's lines of code without cloning: archive-based counting in the browser, the sidebar extension, markdown reports, badges, and the API.",
       "datePublished": "2026-10-15",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-16",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -146,7 +146,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Count without cloning</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>Count lines of code without cloning the repository</h1>
       <p class="answer">You can count a GitHub repository's lines of code without cloning it: paste the URL into the <a href="/">OctoCounts web app</a> and it downloads the source archive of the requested ref &mdash; not the git history &mdash; counts it with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals in seconds. The <a href="/extension">browser extension</a>, report pages, <code>.md</code> twins, <a href="/badges">badges</a>, and <a href="/docs/api">API</a> all answer from the same archive-based pipeline, so no step ever requires a local clone.</p>
 
@@ -155,7 +155,7 @@
 
       <h2>How do I count lines without cloning?</h2>
       <ol>
-        <li>Open the <a href="/">OctoCounts web app</a> and paste the repository URL &mdash; for example <code>https://github.com/facebook/react</code>.</li>
+        <li>Open the <a href="/">OctoCounts web app</a> and paste the repository URL &mdash; for example <code>https://github.com/react/react</code>.</li>
         <li>Optionally pick a branch, tag, or commit SHA. The analysis pins to the exact commit it resolves.</li>
         <li>OctoCounts downloads the source archive for that ref, runs tokei, and shows files, total lines, code, comments, blanks, and per-language rows.</li>
         <li>Share the report URL, export text/JSON/PNG, or add a <a href="/badges">live badge</a> to your README.</li>

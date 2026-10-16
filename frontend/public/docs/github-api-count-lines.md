@@ -15,7 +15,7 @@ The OctoCounts API does it in three calls, with no token:
 ```sh
 curl -s -X POST https://api.octocounts.com/api/analyze \
   -H "Content-Type: application/json" \
-  -d '{"repoUrl": "https://github.com/facebook/react"}'
+  -d '{"repoUrl": "https://github.com/react/react"}'
 # => {"jobId": "..."}
 
 curl -s "https://api.octocounts.com/api/jobs/:jobId?wait=20"
@@ -59,7 +59,7 @@ https://api.octocounts.com/badge/:owner/:repo?type=lines      # all lines
 https://api.octocounts.com/badge/:owner/:repo?lang=Rust       # one language
 ```
 
-And every report page renders as plain markdown by appending `.md`, so an agent or script can read the counts as text: `https://octocounts.com/github/facebook/react.md`. The [web app](https://octocounts.com/) itself needs nothing but a pasted URL.
+And every report page renders as plain markdown by appending `.md`, so an agent or script can read the counts as text: `https://octocounts.com/github/react/react.md`. The [web app](https://octocounts.com/) itself needs nothing but a pasted URL.
 
 ## How do I count lines of code at a specific commit via API?
 

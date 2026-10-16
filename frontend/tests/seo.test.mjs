@@ -618,6 +618,16 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
     // The index carries no page URLs itself.
     assert.doesNotMatch(indexXml, /<urlset/);
 
+    // Each child states its own freshest lastmod so crawlers can skip
+    // unchanged children (the audit's sitemap-index backlog item).
+    const edge = await readFile(new URL("functions/[[path]].js", ROOT), "utf8");
+    const staticDates = [...edge.matchAll(/\{ loc: "https:\/\/octocounts\.com\/[^"]*", lastmod: "(\d{4}-\d{2}-\d{2})" \}/g)].map((match) => match[1]);
+    const expectedStaticMax = staticDates.reduce((a, b) => (b > a ? b : a));
+    assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-static\\.xml</loc>\\s*<lastmod>${expectedStaticMax}</lastmod>`));
+    const compareLastmod = edge.match(/COMPARE_CONTENT_LASTMOD = "(\d{4}-\d{2}-\d{2})"/)[1];
+    assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-compare\\.xml</loc>\\s*<lastmod>${compareLastmod}</lastmod>`));
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
+
     for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
       const xml = await (await onRequest(await renderedContext(path, {
         source: "https://github.com/trending",
@@ -775,8 +785,8 @@ function languageRow(name, code) {
 }
 
 const CURATED_FIXTURES = {
-  "facebook/react": comparisonReport({
-    owner: "facebook",
+  "react/react": comparisonReport({
+    owner: "react",
     repo: "react",
     files: 4821,
     lines: 210301,
@@ -859,7 +869,7 @@ test("report page hydration never adopts an SSR summary for a different reposito
 
 test("curated comparison SSR renders balanced citable content", async () => {
   const cases = [
-    ["react-vs-vue", "React vs Vue", "facebook/react", "vuejs/core"],
+    ["react-vs-vue", "React vs Vue", "react/react", "vuejs/core"],
     ["vite-vs-webpack", "Vite vs webpack", "vitejs/vite", "webpack/webpack"],
   ];
   for (const [slug, name, leftName, rightName] of cases) {
@@ -1004,7 +1014,7 @@ test("curated comparison view model and markdown twin carry identical facts", as
 });
 
 test("curated comparison serves a noindex fallback when a report is missing", async () => {
-  const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
+  const restore = stubReportFetch({ "react/react": CURATED_FIXTURES["react/react"] });
   let response;
   let html;
   try {
@@ -1036,7 +1046,7 @@ test("curated comparison answers 503 + no-store when a report fetch fails transi
   globalThis.fetch = async (url) => {
     const request = new URL(url);
     const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
-    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    if (key === "react/react") return Response.json(CURATED_FIXTURES["react/react"]);
     return new Response("backend exploded", { status: 503 });
   };
   let response;
@@ -1074,7 +1084,7 @@ test("curated comparison answers 503 + no-store when a report fetch throws", asy
   globalThis.fetch = async (url) => {
     const request = new URL(url);
     const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
-    if (key === "facebook/react") return Response.json(CURATED_FIXTURES["facebook/react"]);
+    if (key === "react/react") return Response.json(CURATED_FIXTURES["react/react"]);
     throw new Error("network unreachable");
   };
   let response;
@@ -1134,15 +1144,15 @@ test("report page answers 503 + no-store when the report API is unreachable", as
 
 test("report page carries a semantic timestamp and answers conditional GETs", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["react/react"]);
   try {
-    const context = await renderedContext("/github/facebook/react");
+    const context = await renderedContext("/github/react/react");
     // Stale conditional request: full 200 with a machine-readable freshness
     // trail — Last-Modified from the report's own generatedAt, plus <time>
     // around the visible date so agents parse it without regexes.
     const fresh = await onRequest({
       ...context,
-      request: new Request("https://octocounts.com/github/facebook/react", {
+      request: new Request("https://octocounts.com/github/react/react", {
         headers: { "if-modified-since": "Wed, 01 Jan 2026 00:00:00 GMT" },
       }),
     });
@@ -1153,7 +1163,7 @@ test("report page carries a semantic timestamp and answers conditional GETs", as
     // Same-second-or-newer conditional request: 304 with no body.
     const notModified = await onRequest({
       ...context,
-      request: new Request("https://octocounts.com/github/facebook/react", {
+      request: new Request("https://octocounts.com/github/react/react", {
         headers: { "if-modified-since": "Mon, 20 Jul 2026 00:00:00 GMT" },
       }),
     });
@@ -1184,7 +1194,7 @@ test("report page answers 503 + no-store when the payload belongs to a different
   // repo A's URL with repo B's cached payload. The page must fail closed
   // instead of SSRing (and edge-caching) B's numbers under A's URL.
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["react/react"]);
   let response;
   let html;
   let otherHtml;
@@ -1206,17 +1216,17 @@ test("report page answers 503 + no-store when the payload belongs to a different
 
 test("a differently-cased report URL still canonicalizes instead of tripping the integrity guard", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["facebook/react"]);
+  globalThis.fetch = async () => Response.json(CURATED_FIXTURES["react/react"]);
   let response;
   try {
-    response = await onRequest(await renderedContext("/github/Facebook/React"));
+    response = await onRequest(await renderedContext("/github/React/React"));
   } finally {
     globalThis.fetch = originalFetch;
   }
   // Same repository, different casing is a canonicalization case, not
   // contamination: the guard must pass and the existing 308 must fire.
   assert.equal(response.status, 308);
-  assert.equal(response.headers.get("location"), "https://octocounts.com/github/facebook/react");
+  assert.equal(response.headers.get("location"), "https://octocounts.com/github/react/react");
 });
 
 test("a renamed repository report 308s to the canonical slug the API returns", async () => {
@@ -1226,7 +1236,7 @@ test("a renamed repository report 308s to the canonical slug the API returns", a
   // guard, which would otherwise reject the foreign repoFullName — keeping the
   // .md twin's suffix and the query string intact.
   const canonical = {
-    ...CURATED_FIXTURES["facebook/react"],
+    ...CURATED_FIXTURES["react/react"],
     owner: "react",
     repo: "react",
     repoFullName: "react/react",
@@ -1251,11 +1261,11 @@ test("a renamed repository report 308s to the canonical slug the API returns", a
 });
 
 test("a report without canonicalSlug renders 200 in place (no redirect regression)", async () => {
-  const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
+  const restore = stubReportFetch({ "react/react": CURATED_FIXTURES["react/react"] });
   let response;
   let html;
   try {
-    response = await onRequest(await renderedContext("/github/facebook/react"));
+    response = await onRequest(await renderedContext("/github/react/react"));
     html = await response.text();
   } finally {
     restore();
@@ -1263,14 +1273,14 @@ test("a report without canonicalSlug renders 200 in place (no redirect regressio
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
-  assert.match(html, /<h1>facebook\/react<\/h1>/);
+  assert.match(html, /<h1>react\/react<\/h1>/);
 });
 
 test("curated comparison answers 503 + no-store when a payload belongs to a different repository", async () => {
   const restore = stubReportFetch({
-    "facebook/react": CURATED_FIXTURES["facebook/react"],
-    // vuejs/core's slot answered with facebook/react's payload.
-    "vuejs/core": CURATED_FIXTURES["facebook/react"],
+    "react/react": CURATED_FIXTURES["react/react"],
+    // vuejs/core's slot answered with react/react's payload.
+    "vuejs/core": CURATED_FIXTURES["react/react"],
   });
   let response;
   let html;
@@ -1286,6 +1296,90 @@ test("curated comparison answers 503 + no-store when a payload belongs to a diff
   assert.match(html, /This comparison is temporarily unavailable/);
   assert.doesNotMatch(html, /Counted at commit aaaaaa111111/);
   assert.doesNotMatch(html, /<table>/);
+});
+
+test("a renamed compare side renders from the redirect-confirmed canonical name", async () => {
+  // GitHub renames outlive any registry snapshot: when the store answers a
+  // registry spelling with its canonical successor's payload, the page heals
+  // to the canonical names instead of 503ing forever (the live facebook/react
+  // → react/react move stranded every compare page whose registry side still
+  // spelled the old name).
+  __resetCompareExistenceCacheForTests();
+  const renamed = {
+    ...CURATED_FIXTURES["react/react"],
+    owner: "react-labs",
+    repo: "react",
+    repoFullName: "react-labs/react",
+    htmlUrl: "https://github.com/react-labs/react",
+    publicPath: "/github/react-labs/react",
+    canonicalUrl: "https://octocounts.com/github/react-labs/react",
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/redirect") {
+      return Response.json({ redirectSlug: "react-labs/react" });
+    }
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "react/react") return Response.json(renamed);
+    return Response.json(CURATED_FIXTURES["vuejs/core"]);
+  };
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
+  assert.ok(html.includes('<th><a href="/github/react-labs/react">react-labs/react</a></th>'), "table header uses the canonical name");
+  assert.ok(
+    html.includes('href="/compare?left=https%3A%2F%2Fgithub.com%2Freact-labs%2Freact'),
+    "interactive comparison link uses the canonical name"
+  );
+  assert.ok(html.includes("aaaaaa111111"), "the renamed payload's own numbers render");
+});
+
+test("a compare payload with a foreign repository name still fails closed without a redirect record", async () => {
+  // Contamination and rename look identical to the integrity guard; only the
+  // store's redirect endpoint can tell them apart. With no redirect recorded
+  // for the requested spelling, the foreign payload must never render.
+  __resetCompareExistenceCacheForTests();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/redirect") {
+      return new Response("no redirect is recorded for this repository", { status: 404 });
+    }
+    const key = `${request.searchParams.get("owner")}/${request.searchParams.get("repo")}`;
+    if (key === "react/react") {
+      return Response.json({
+        ...CURATED_FIXTURES["react/react"],
+        owner: "fake-owner",
+        repo: "fake",
+        repoFullName: "fake-owner/fake",
+        htmlUrl: "https://github.com/fake-owner/fake",
+        publicPath: "/github/fake-owner/fake",
+      });
+    }
+    return Response.json(CURATED_FIXTURES["vuejs/core"]);
+  };
+  let response;
+  let html;
+  try {
+    response = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    html = await response.text();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.match(html, /This comparison is temporarily unavailable/);
+  assert.doesNotMatch(html, /fake-owner/);
 });
 
 test("sitemap drops curated comparisons whose reports are missing but keeps them when the backend fails", async () => {
@@ -1973,9 +2067,9 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
       assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
       const md = await response.text();
       assert.match(md, /^# React vs Vue: source lines of code compared\n/, path);
-      assert.ok(md.includes("| Metric | [facebook/react](https://octocounts.com/github/facebook/react) | [vuejs/core](https://octocounts.com/github/vuejs/core) |"), path);
+      assert.ok(md.includes("| Metric | [react/react](https://octocounts.com/github/react/react) | [vuejs/core](https://octocounts.com/github/vuejs/core) |"), path);
       assert.match(md, /\| Code lines \| 152,488 \| 89,302 \|/, path);
-      assert.ok(md.includes(CURATED_FIXTURES["facebook/react"].commitSha.slice(0, 12)), path);
+      assert.ok(md.includes(CURATED_FIXTURES["react/react"].commitSha.slice(0, 12)), path);
       assert.ok(md.includes(CURATED_FIXTURES["vuejs/core"].commitSha.slice(0, 12)), path);
       assert.match(md, /\[counting methodology\]\(https:\/\/octocounts\.com\/docs\/methodology\)/, path);
       assert.match(md, /code size is not code quality/i, path);
@@ -1995,7 +2089,7 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
 });
 
 test("curated comparison markdown keeps the short-cache answer when a report is missing", async () => {
-  const restore = stubReportFetch({ "facebook/react": CURATED_FIXTURES["facebook/react"] });
+  const restore = stubReportFetch({ "react/react": CURATED_FIXTURES["react/react"] });
   try {
     const response = await onRequest(await renderedContext("/compare/react-vs-vue.md"));
     // Missing reports now answer 404 (matching report pages) while still
@@ -2329,11 +2423,11 @@ test("editorial compare pages carry scoped, sourced explanations in every format
     const md = await mdResponse.text();
     for (const [source, label] of [[html, "HTML"], [md, "markdown"]]) {
       assert.ok(source.includes("About this comparison"), `${label} editorial heading`);
-      assert.ok(source.includes("facebook/react is a monorepo"), `${label} scope statement`);
+      assert.ok(source.includes("react/react is a monorepo"), `${label} scope statement`);
       assert.ok(source.includes("predominantly TypeScript"), `${label} data-supported insight`);
       assert.ok(source.includes("Neither number predicts the size, performance, or quality"), `${label} caution`);
-      assert.ok(source.includes("https://github.com/facebook/react"), `${label} source link`);
-      assert.ok(source.includes("Statements verified 2026-09-08"), `${label} verification date`);
+      assert.ok(source.includes("https://github.com/react/react"), `${label} source link`);
+      assert.ok(source.includes("Statements verified 2026-10-16"), `${label} verification date`);
     }
     // The client view model carries the same editorial (SG-01 parity).
     const model = JSON.parse(html.match(/<script type="application\/json" id="octocounts-compare-data">([^<]*)<\/script>/)[1]);

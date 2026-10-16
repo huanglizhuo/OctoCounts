@@ -7,7 +7,7 @@ export const sourceRepoUrl = "https://github.com/huanglizhuo/OctoCounts";
 
 // Homepage demo seed repository. Regenerate src/initialReport.json and the
 // pinned ref with scripts/refresh-demo-seed.mjs (repo root).
-export const defaultRepoUrl = "https://github.com/facebook/react";
+export const defaultRepoUrl = "https://github.com/react/react";
 export const defaultRefName = "v19.3.0";
 export const extensionInfo = {
   name: "OctoCounts – GitHub SLOC & Code Statistics",

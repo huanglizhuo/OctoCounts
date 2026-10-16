@@ -14,7 +14,7 @@
 export const COMPARE_EDITORIAL = {
   "react-vs-vue": {
     scope:
-      "facebook/react is a monorepo: the counted archive includes the React packages plus fixtures, documentation site content, and test infrastructure, not just the react package that ships to apps. vuejs/core is the Vue core repository — the runtime, compiler, and reactivity packages — with its own tests and docs. Both counts therefore measure framework source trees, not applications built with them, and the two archives were counted on the dates shown in the methodology line above.",
+      "react/react is a monorepo: the counted archive includes the React packages plus fixtures, documentation site content, and test infrastructure, not just the react package that ships to apps. vuejs/core is the Vue core repository — the runtime, compiler, and reactivity packages — with its own tests and docs. Both counts therefore measure framework source trees, not applications built with them, and the two archives were counted on the dates shown in the methodology line above.",
     insights: [
       "In the counted archives, the language mix differs in kind, not just degree: Vue core is predominantly TypeScript, while React's counted code is majority JavaScript with a substantial TypeScript share — a direct consequence of each project's chosen implementation language, visible in the per-language table of each report.",
       "Both repositories carry a large test and fixture footprint relative to their runtime code, so a meaningful share of each count exists to keep the framework correct rather than to ship to production.",
@@ -22,10 +22,10 @@ export const COMPARE_EDITORIAL = {
     caution:
       "Neither number predicts the size, performance, or quality of an app built with the framework: a bundled application includes a compiled subset of the framework, application code, and dependencies. Use these counts to gauge how much framework source exists to read and maintain.",
     sources: [
-      { label: "facebook/react repository structure (packages/ monorepo)", url: "https://github.com/facebook/react" },
+      { label: "react/react repository structure (packages/ monorepo)", url: "https://github.com/react/react" },
       { label: "vuejs/core repository", url: "https://github.com/vuejs/core" },
     ],
-    verifiedAt: "2026-09-08",
+    verifiedAt: "2026-10-16",
   },
   "vite-vs-webpack": {
     scope:
@@ -89,7 +89,7 @@ export const COMPARE_EDITORIAL = {
   },
   "angular-vs-react": {
     scope:
-      "angular/angular counts the Angular framework monorepo: the core framework packages, compiler, and tooling, along with documentation and test suites. facebook/react counts the React monorepo: the React packages plus fixtures, documentation site content, and test infrastructure. Both counts therefore measure framework source trees, counted on the dates shown in the methodology line; Angular's CLI and wider tooling ecosystem live in separate repositories.",
+      "angular/angular counts the Angular framework monorepo: the core framework packages, compiler, and tooling, along with documentation and test suites. react/react counts the React monorepo: the React packages plus fixtures, documentation site content, and test infrastructure. Both counts therefore measure framework source trees, counted on the dates shown in the methodology line; Angular's CLI and wider tooling ecosystem live in separate repositories.",
     insights: [
       "Both frameworks present themselves in TypeScript in their current source, as the per-language tables show: Angular's counted code is overwhelmingly TypeScript, while React's tree is majority JavaScript with a substantial TypeScript share — a reflection of how and when each codebase adopted TypeScript rather than of the API surface.",
       "Each repository carries a large test and fixture footprint relative to its shipped packages, so a meaningful share of both counts exists to keep the framework correct rather than to ship to applications.",
@@ -98,13 +98,13 @@ export const COMPARE_EDITORIAL = {
       "Neither number predicts the size, performance, or quality of an app built with the framework: a bundled application contains a compiled subset of the framework, application code, and dependencies. Use these counts to gauge the reading and maintenance surface of each framework source tree.",
     sources: [
       { label: "angular/angular repository (framework monorepo)", url: "https://github.com/angular/angular" },
-      { label: "facebook/react repository structure (packages/ monorepo)", url: "https://github.com/facebook/react" },
+      { label: "react/react repository structure (packages/ monorepo)", url: "https://github.com/react/react" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "svelte-vs-react": {
     scope:
-      "sveltejs/svelte counts the Svelte monorepo: the compiler, runtime packages, tests, and documentation, while facebook/react counts the React monorepo — the React packages plus fixtures, documentation site content, and test infrastructure. Both counts therefore measure framework source trees, not applications built with them, and both archives were counted on the dates shown in the methodology line above.",
+      "sveltejs/svelte counts the Svelte monorepo: the compiler, runtime packages, tests, and documentation, while react/react counts the React monorepo — the React packages plus fixtures, documentation site content, and test infrastructure. Both counts therefore measure framework source trees, not applications built with them, and both archives were counted on the dates shown in the methodology line above.",
     insights: [
       "Svelte's repository is organized around a compiler that does at build time much of the work other frameworks do at runtime, so the counted tree reads as a compiler project with runtime packages attached; React's counted tree reads as a runtime library with surrounding fixtures and docs — a structural difference visible in each report's file layout rather than in the totals alone.",
       "Both trees carry a large share of documentation and test material, so part of each count exists to explain and protect the framework rather than to ship to apps.",
@@ -113,9 +113,9 @@ export const COMPARE_EDITORIAL = {
       "The counts say nothing about the size of what ships to a browser: Svelte moves work into build output and React ships a runtime subset, so neither repository's line count tracks bundle size, runtime behavior, or app performance.",
     sources: [
       { label: "sveltejs/svelte repository (compiler and packages)", url: "https://github.com/sveltejs/svelte" },
-      { label: "facebook/react repository structure (packages/ monorepo)", url: "https://github.com/facebook/react" },
+      { label: "react/react repository structure (packages/ monorepo)", url: "https://github.com/react/react" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "nextjs-vs-react-router": {
     scope:
@@ -209,7 +209,7 @@ export const COMPARE_EDITORIAL = {
   },
   "react-native-vs-flutter": {
     scope:
-      "facebook/react-native counts the React Native repository: the framework's JavaScript layer, native modules and components across several native languages, plus docs and test infrastructure. flutter/flutter counts the Flutter SDK repository — the framework and tools written in Dart — but not the Dart engine, which lives in the separate flutter/engine repository. The two counts therefore cover different layers of each stack, as the language tables above make visible.",
+      "react/react-native counts the React Native repository: the framework's JavaScript layer, native modules and components across several native languages, plus docs and test infrastructure. flutter/flutter counts the Flutter SDK repository — the framework and tools written in Dart — but not the Dart engine, which lives in the separate flutter/engine repository. The two counts therefore cover different layers of each stack, as the language tables above make visible.",
     insights: [
       "The per-language tables show the architectural difference directly: React Native's counted code is spread across JavaScript/TypeScript and several native languages because the repository ships its native glue itself, while flutter/flutter is predominantly Dart, with the engine's C++ counted in a different repository.",
       "Neither repository counts the engine its apps ultimately run on — React Native relies on an external JavaScript engine, and Flutter's engine sits outside the counted tree — so both totals understate what ships inside a finished app by the same kind of margin.",
@@ -217,10 +217,10 @@ export const COMPARE_EDITORIAL = {
     caution:
       "Repository size is not app install size: a finished app includes an engine build, framework code, and assets that these repositories account for differently. Compare the counts as source-tree sizes, not as what ships to a device.",
     sources: [
-      { label: "facebook/react-native repository", url: "https://github.com/facebook/react-native" },
+      { label: "react/react-native repository", url: "https://github.com/react/react-native" },
       { label: "flutter/flutter repository (SDK framework and tools)", url: "https://github.com/flutter/flutter" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "mongodb-vs-postgres": {
     scope:
@@ -524,7 +524,7 @@ export const COMPARE_EDITORIAL = {
   },
   "solidjs-vs-react": {
     scope:
-      "solidjs/solid counts the Solid repository: the reactive runtime, the JSX transform/compiler packages, and supporting packages in a monorepo, with tests and documentation. facebook/react counts the React monorepo: the React packages plus fixtures, documentation site content, and test infrastructure. Both counts measure framework source trees, not applications built with them, and both were counted on the dates shown above.",
+      "solidjs/solid counts the Solid repository: the reactive runtime, the JSX transform/compiler packages, and supporting packages in a monorepo, with tests and documentation. react/react counts the React monorepo: the React packages plus fixtures, documentation site content, and test infrastructure. Both counts measure framework source trees, not applications built with them, and both were counted on the dates shown above.",
     insights: [
       "Both repositories are written predominantly in TypeScript, as the per-language tables show; the contrast in these totals is scope rather than language — React's monorepo includes fixtures, docs-site content, and broad test infrastructure, while Solid's tree is concentrated on the core runtime and compiler packages.",
       "The two runtimes are organized around different update models — Solid around fine-grained reactive primitives, React around a scheduler-driven runtime — an architectural difference the counts themselves cannot express, so the totals are best read as maintenance surface.",
@@ -533,9 +533,9 @@ export const COMPARE_EDITORIAL = {
       "Repository size does not predict the bundle size shipped to a browser or runtime behavior; a compiled application contains only the parts of the framework it actually uses.",
     sources: [
       { label: "solidjs/solid repository", url: "https://github.com/solidjs/solid" },
-      { label: "facebook/react repository structure (packages/ monorepo)", url: "https://github.com/facebook/react" },
+      { label: "react/react repository structure (packages/ monorepo)", url: "https://github.com/react/react" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "redux-vs-zustand": {
     scope:
@@ -599,7 +599,7 @@ export const COMPARE_EDITORIAL = {
   },
   "prisma-vs-typeorm": {
     scope:
-      "prisma/prisma counts the Prisma monorepo: the query-engine and schema-engine code written in Rust, the TypeScript client and CLI packages, plus tests and documentation. typeorm/typeorm counts the TypeORM repository — the ORM source, largely a TypeScript codebase, with its own tests and docs. Both are ORMs for the Node.js/TypeScript ecosystem, but their repositories partition the work differently, and the counts were taken on the dates shown above.",
+      "prisma/orm counts the Prisma monorepo: the query-engine and schema-engine code written in Rust, the TypeScript client and CLI packages, plus tests and documentation. typeorm/typeorm counts the TypeORM repository — the ORM source, largely a TypeScript codebase, with its own tests and docs. Both are ORMs for the Node.js/TypeScript ecosystem, but their repositories partition the work differently, and the counts were taken on the dates shown above.",
     insights: [
       "The per-language tables make the structural difference visible: Prisma's counted tree mixes a Rust engine core with TypeScript client code, while TypeORM's counted tree is overwhelmingly TypeScript, so the two totals are not the same kind of artifact.",
       "Both counts include test suites and documentation material alongside the code that ships, so each total measures the project's full maintenance surface rather than the runtime ORM alone.",
@@ -607,14 +607,14 @@ export const COMPARE_EDITORIAL = {
     caution:
       "Neither count includes the code an application actually loads in full: ORM usage involves generated clients, runtime drivers, and dependencies that live outside these repositories, so the totals cannot be read as application-side footprint.",
     sources: [
-      { label: "prisma/prisma repository (monorepo with Rust engines and TypeScript client)", url: "https://github.com/prisma/prisma" },
+      { label: "prisma/orm repository (monorepo with Rust engines and TypeScript client)", url: "https://github.com/prisma/orm" },
       { label: "typeorm/typeorm repository", url: "https://github.com/typeorm/typeorm" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "prisma-vs-drizzle": {
     scope:
-      "prisma/prisma counts the Prisma monorepo: the schema language and client tooling, the query engine, and their integration surfaces. drizzle-team/drizzle-orm counts the Drizzle ORM repository — the TypeScript query-builder library and its dialect support. Prisma ships a standalone query engine binary as part of its architecture, while Drizzle is a library that works through database drivers, so the two counts cover somewhat different layers of an ORM stack.",
+      "prisma/orm counts the Prisma monorepo: the schema language and client tooling, the query engine, and their integration surfaces. drizzle-team/drizzle-orm counts the Drizzle ORM repository — the TypeScript query-builder library and its dialect support. Prisma ships a standalone query engine binary as part of its architecture, while Drizzle is a library that works through database drivers, so the two counts cover somewhat different layers of an ORM stack.",
     insights: [
       "The per-language tables reflect the architectural split: Prisma's counted tree includes a substantial Rust component for its query engine alongside TypeScript tooling, while Drizzle's counted code is essentially all TypeScript — an engine-vs-driver design difference made visible by language mix rather than totals.",
       "Because Prisma's repository includes engine and tooling packages and Drizzle's is the ORM library itself, the totals measure different spans of the database-access stack; the counts are most useful read as maintenance surface of each project's own code.",
@@ -622,10 +622,10 @@ export const COMPARE_EDITORIAL = {
     caution:
       "Repository size does not indicate query speed or developer ergonomics: query execution happens against the database, and the developer experience lives in the API surface, neither of which is measured by source lines.",
     sources: [
-      { label: "prisma/prisma repository structure (client and engine monorepo)", url: "https://github.com/prisma/prisma" },
+      { label: "prisma/orm repository structure (client and engine monorepo)", url: "https://github.com/prisma/orm" },
       { label: "drizzle-team/drizzle-orm repository", url: "https://github.com/drizzle-team/drizzle-orm" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "biome-vs-prettier": {
     scope:
@@ -1469,7 +1469,7 @@ export const COMPARE_EDITORIAL = {
   },
   "docker-vs-podman": {
     scope:
-      "moby/moby counts the Moby project repository — the upstream open-source components from which the Docker Engine is assembled — rather than the Docker CLI or Desktop products, which live in other repositories. containers/podman counts the Podman repository: the daemonless container engine and its accompanying tooling. Both are container-engine source trees written largely in Go, counted on the dates shown above.",
+      "moby/moby counts the Moby project repository — the upstream open-source components from which the Docker Engine is assembled — rather than the Docker CLI or Desktop products, which live in other repositories. podman-container-tools/podman counts the Podman repository: the daemonless container engine and its accompanying tooling. Both are container-engine source trees written largely in Go, counted on the dates shown above.",
     insights: [
       "Both repositories are predominantly Go, and the per-language tables show that on both sides; this page compares two Go codebases in the same product category of container engines.",
       "Podman's repository includes additional command-line and companion components alongside the engine, while Moby's repository is the engine upstream from which Docker's commercial products are built — so each total is organized around a different release boundary.",
@@ -1478,9 +1478,9 @@ export const COMPARE_EDITORIAL = {
       "The left count is Moby, Docker's upstream project, not the Docker product most users install; Docker Desktop and the Docker CLI ship from other repositories, so neither total here is a complete picture of either vendor's product surface.",
     sources: [
       { label: "moby/moby repository (upstream components of the Docker Engine)", url: "https://github.com/moby/moby" },
-      { label: "containers/podman repository", url: "https://github.com/containers/podman" },
+      { label: "podman-container-tools/podman repository", url: "https://github.com/podman-container-tools/podman" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-16",
   },
   "helm-vs-kustomize": {
     scope:

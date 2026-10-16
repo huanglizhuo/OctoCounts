@@ -2289,13 +2289,20 @@ impl Store {
     }
 
     /// Which of the requested provider/owner/repo pairs have at least one
-    /// cached report, in an unspecified order.
+    /// cached, canonical-profile report, in an unspecified order.
     ///
     /// One query answering the Pages Function's compare-sitemap existence
     /// check, which used to fan out to one HTTPS report fetch per repository
     /// (about 200 subrequests against a Cloudflare Workers budget of 50 on the
     /// free plan). The VALUES join keeps it a single round trip over the
     /// `reports` columns only.
+    ///
+    /// The predicates deliberately match `latest_report_card` (canonical
+    /// options, sampler eligibility): this endpoint gates which compare pairs
+    /// enter the sitemap, and a pair whose only rows are include-all analyses
+    /// or stale sampler samples would send crawlers to /compare/<slug> pages
+    /// that answer 404 — the sitemap must never promise a page the report
+    /// lookup cannot serve.
     pub async fn repos_with_reports(
         &self,
         wanted: &[(RepositoryProvider, String, String)],
@@ -2319,8 +2326,12 @@ impl Store {
         sql.push_str(
             ") SELECT DISTINCT w.provider, w.owner, w.repo \
              FROM wanted w \
-             JOIN reports r ON r.provider = w.provider AND r.owner = w.owner AND r.repo = w.repo",
+             JOIN reports r ON r.provider = w.provider AND r.owner = w.owner AND r.repo = w.repo \
+             WHERE ",
         );
+        sql.push_str(canonical_options_sql!("r"));
+        sql.push_str(" AND ");
+        sql.push_str(latest_eligible!("r"));
 
         let mut query = sqlx::query(&sql);
         for (provider, owner, repo) in wanted {
@@ -6206,6 +6217,75 @@ mod tests {
                 .unwrap_or_else(|| panic!("case variant {asked_owner}/{asked_repo} must resolve"));
             assert_eq!(card.repo, "Rust", "the row's own casing wins");
         }
+        store.drop_schema().await;
+    }
+
+    /// The compare-sitemap existence gate must answer on the same terms the
+    /// report lookup serves: only canonical-options rows count. A repository
+    /// whose only report is an include-all (web default) analysis stays out of
+    /// the sitemap instead of sending crawlers to a /compare page that 404s.
+    #[tokio::test]
+    async fn repos_with_reports_requires_a_canonical_profile_report() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let now = Utc::now();
+
+        store
+            .save_report(
+                &options_report(
+                    "indexable-canonical",
+                    &owner,
+                    "canonical-repo",
+                    "sha-canonical",
+                    10_000,
+                    now,
+                    AnalysisOptions::canonical(),
+                ),
+                AnalysisSource::Seed,
+            )
+            .await
+            .unwrap();
+        store
+            .save_report(
+                &options_report(
+                    "indexable-include-all",
+                    &owner,
+                    "include-all-repo",
+                    "sha-include-all",
+                    20_000,
+                    now,
+                    include_all_options(),
+                ),
+                AnalysisSource::Web,
+            )
+            .await
+            .unwrap();
+
+        let wanted = vec![
+            (
+                RepositoryProvider::GitHub,
+                owner.clone(),
+                "canonical-repo".to_string(),
+            ),
+            (
+                RepositoryProvider::GitHub,
+                owner.clone(),
+                "include-all-repo".to_string(),
+            ),
+            (
+                RepositoryProvider::GitHub,
+                owner.clone(),
+                "never-analyzed".to_string(),
+            ),
+        ];
+        let found = store.repos_with_reports(&wanted).await.unwrap();
+        let found_keys: Vec<String> = found
+            .iter()
+            .map(|(_, found_owner, found_repo)| format!("{found_owner}/{found_repo}"))
+            .collect();
+        assert_eq!(found_keys, vec![format!("{owner}/canonical-repo")]);
         store.drop_schema().await;
     }
 
