@@ -103,7 +103,7 @@ encode/httpx
 astral-sh/uv
 python-poetry/poetry
 actix/actix-web
-rwf2/rocket
+rwf2/Rocket
 tokio-rs/tokio
 async-rs/async-std
 yewstack/yew

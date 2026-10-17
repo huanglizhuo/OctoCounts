@@ -66,7 +66,7 @@ export const COMPARE_REGISTRY = [
   { slug: "requests-vs-httpx", name: "Requests vs HTTPX", left: { owner: "psf", repo: "requests" }, right: { owner: "encode", repo: "httpx" } },
   { slug: "uv-vs-poetry", name: "uv vs Poetry", left: { owner: "astral-sh", repo: "uv" }, right: { owner: "python-poetry", repo: "poetry" } },
   { slug: "axum-vs-actix-web", name: "Axum vs Actix Web", left: { owner: "tokio-rs", repo: "axum" }, right: { owner: "actix", repo: "actix-web" } },
-  { slug: "rocket-vs-axum", name: "Rocket vs Axum", left: { owner: "rwf2", repo: "rocket" }, right: { owner: "tokio-rs", repo: "axum" } },
+  { slug: "rocket-vs-axum", name: "Rocket vs Axum", left: { owner: "rwf2", repo: "Rocket" }, right: { owner: "tokio-rs", repo: "axum" } },
   { slug: "tokio-vs-async-std", name: "Tokio vs async-std", left: { owner: "tokio-rs", repo: "tokio" }, right: { owner: "async-rs", repo: "async-std" } },
   { slug: "yew-vs-leptos", name: "Yew vs Leptos", left: { owner: "yewstack", repo: "yew" }, right: { owner: "leptos-rs", repo: "leptos" } },
   { slug: "ripgrep-vs-fd", name: "ripgrep vs fd", left: { owner: "BurntSushi", repo: "ripgrep" }, right: { owner: "sharkdp", repo: "fd" } },

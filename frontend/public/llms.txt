@@ -147,7 +147,7 @@ GET /badge/:owner/:repo/commit/:sha
 - Requests vs HTTPX (psf/requests vs encode/httpx): https://octocounts.com/compare/requests-vs-httpx
 - uv vs Poetry (astral-sh/uv vs python-poetry/poetry): https://octocounts.com/compare/uv-vs-poetry
 - Axum vs Actix Web (tokio-rs/axum vs actix/actix-web): https://octocounts.com/compare/axum-vs-actix-web
-- Rocket vs Axum (rwf2/rocket vs tokio-rs/axum): https://octocounts.com/compare/rocket-vs-axum
+- Rocket vs Axum (rwf2/Rocket vs tokio-rs/axum): https://octocounts.com/compare/rocket-vs-axum
 - Tokio vs async-std (tokio-rs/tokio vs async-rs/async-std): https://octocounts.com/compare/tokio-vs-async-std
 - Yew vs Leptos (yewstack/yew vs leptos-rs/leptos): https://octocounts.com/compare/yew-vs-leptos
 - ripgrep vs fd (BurntSushi/ripgrep vs sharkdp/fd): https://octocounts.com/compare/ripgrep-vs-fd

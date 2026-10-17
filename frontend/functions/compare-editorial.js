@@ -884,7 +884,7 @@ export const COMPARE_EDITORIAL = {
   },
   "rocket-vs-axum": {
     scope:
-      "rwf2/rocket counts the Rocket repository: a Rust web framework with its core, its procedural-macro codegen, documentation, and examples. tokio-rs/axum counts the Axum repository: a Rust web framework maintained by the Tokio team, built to compose with the Tower service ecosystem, with its own modules, examples, and tests. Both are framework source trees within the Rust async ecosystem, counted on the dates above.",
+      "rwf2/Rocket counts the Rocket repository: a Rust web framework with its core, its procedural-macro codegen, documentation, and examples. tokio-rs/axum counts the Axum repository: a Rust web framework maintained by the Tokio team, built to compose with the Tower service ecosystem, with its own modules, examples, and tests. Both are framework source trees within the Rust async ecosystem, counted on the dates above.",
     insights: [
       "Both repositories are written in Rust, as the per-language tables confirm, so the counted difference is in structure rather than language: Rocket's tree centers on a batteries-included framework with its own codegen macros, while Axum's tree concentrates on routing and handlers composed from the shared Tower/Hyper layers.",
       "Each repository includes examples and documentation that exist to teach the framework's patterns rather than to ship as library code, a share of the totals that the language tables alone do not separate.",
@@ -892,10 +892,10 @@ export const COMPARE_EDITORIAL = {
     caution:
       "A framework repository's size does not indicate request throughput, latency, or suitability for an application; those depend on the versioned crate and how it is used, not on the source tree's line count.",
     sources: [
-      { label: "rwf2/rocket repository", url: "https://github.com/rwf2/rocket" },
+      { label: "rwf2/Rocket repository", url: "https://github.com/rwf2/Rocket" },
       { label: "tokio-rs/axum repository", url: "https://github.com/tokio-rs/axum" },
     ],
-    verifiedAt: "2026-09-16",
+    verifiedAt: "2026-10-17",
   },
   "tokio-vs-async-std": {
     scope:
