@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "verifiedAt": "2026-09-08",
+  "verifiedAt": "2026-10-18",
   "product": "OctoCounts",
   "facts": {
     "publicRepositoryProviders": {
@@ -40,7 +40,7 @@
     },
     "refSupport": {
       "value": "branch, tag, or commit SHA; the analysis is pinned to an exact commit SHA",
-      "claim": "OctoCounts resolves the requested branch, tag, or commit and pins the analysis to an exact commit SHA.",
+      "claim": "OctoCounts resolves each requested ref to an exact commit SHA; branches and tags can move, so live report counts may change.",
       "sources": [
         "frontend/functions/[[path]].js reportLeadText",
         "frontend/public/docs/methodology.html"
@@ -89,7 +89,7 @@
     },
     "cacheKey": {
       "value": "repository + commit SHA + tokei version + analysis options",
-      "claim": "Results are cached by commit SHA, tokei version, and analysis options, so counting the same revision again reproduces the same numbers.",
+      "claim": "Results are reproducible for the same commit SHA, engine version, and effective counting rules.",
       "sources": [
         "frontend/public/docs/methodology.html",
         "frontend/functions/[[path]].js reportLeadText"

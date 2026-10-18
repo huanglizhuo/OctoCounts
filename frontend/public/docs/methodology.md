@@ -1,6 +1,6 @@
 # OctoCounts Methodology
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 18, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.
 
@@ -108,3 +108,7 @@ Archive downloads fetch the source tree for one ref without transferring full gi
 ### Are OctoCounts reports exact?
 
 OctoCounts reports are exact for the downloaded source archive and selected analysis options. They are not a measure of git history, generated artifacts excluded by settings, private code, or files unavailable in the public archive.
+
+## Other languages
+
+[简体中文](https://octocounts.com/zh/docs/methodology)

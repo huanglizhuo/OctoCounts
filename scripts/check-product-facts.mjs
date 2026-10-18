@@ -47,6 +47,8 @@ const copyFiles = [
   path.join(FRONTEND, "src", "locales", "en.json"),
   path.join(FRONTEND, "src", "locales", "zh.json"),
   path.join(FRONTEND, "src", "constants.ts"),
+  path.join(FRONTEND, "src", "homeFaq.ts"),
+  path.join(FRONTEND, "functions", "compare-editorial.js"),
   ...publicFiles,
 ];
 
@@ -65,6 +67,7 @@ for (const file of copyFiles) {
 // Performance claims: no comparative or multiplier performance statements
 // without a published reproducible experiment (facts.performanceClaims).
 const forbidden = [
+  { pattern: /same URL and ref always produce the same count|regardless of branch movement|相同的链接和引用总是产生相同的计数|不受分支移动影响/i, reason: "reproducibility requires the same commit, engine and effective counting rules; live refs may move" },
   { pattern: /gitlab/i, reason: "all GitLab support and copy was removed from the public product on 2026-09-08; re-adding any mention needs an explicit product decision" },
   { pattern: /10[-–]50\s?x/i, reason: "unsupported size/speed multiplier (see product-facts.json performanceClaims)" },
   { pattern: /significantly faster/i, reason: "comparative performance claim without a published experiment (see product-facts.json performanceClaims)" },

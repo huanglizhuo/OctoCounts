@@ -25,7 +25,7 @@
          ~20.7 KiB preload was pure dead critical-path weight; the face itself
          stays declared in styles.css for any future 800 mono text. -->
     <link rel="preload" as="font" href="/fonts/jetbrains-mono-700-latin.woff2" type="font/woff2" crossorigin />
-    <script>{let t=null;try{t=localStorage.getItem("octocounts.theme")}catch{}document.documentElement.dataset.scheme="matrix"===t||"paper"===t?t:matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper"}try{const p=new URLSearchParams(location.search),l=p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l&&l!=="en")document.documentElement.lang=l}catch{}</script>
+    <script>{let t=null;try{t=localStorage.getItem("octocounts.theme")}catch{}document.documentElement.dataset.scheme="matrix"===t||"paper"===t?t:matchMedia("(prefers-color-scheme: dark)").matches?"matrix":"paper"}try{const p=new URLSearchParams(location.search),l=location.pathname==="/zh"?"zh":location.pathname==="/"?"en":p.get("lng")||localStorage.getItem("i18nextLng")||navigator.language.split("-")[0];if(l)document.documentElement.lang=l}catch{}</script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="4f3a87a4-fd4c-4dc5-8959-8fcf93e858c7"></script>
     <!-- Open Graph -->
     <meta property="og:type" content="website" />

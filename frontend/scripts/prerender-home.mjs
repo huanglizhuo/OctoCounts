@@ -8,7 +8,7 @@
 //
 // dist/index.html is NOT modified — every other route keeps the plain SPA
 // shell with an empty #root, and the Pages Function (functions/[[path]].js)
-// serves the prerendered asset only for "/" (/?lng=zh picks the zh variant).
+// serves the prerendered assets at "/" and "/zh".
 //
 // Marker contract between this script, the function, and src/main.tsx:
 //   <div id="root" data-oc-prerender="home" data-oc-locale="en|zh">…</div>
@@ -89,8 +89,7 @@ const escapeAttr = (value) => String(value).replace(/&/g, "&amp;").replace(/"/g,
 
 // The zh variant carries a coherent zh head: <html lang>, title/description,
 // and the OG/Twitter mirror swap to the zh locale strings read from source.
-// Canonical stays https://octocounts.com/ — the zh view is a URL-param variant
-// of the one canonical homepage, not a separate page.
+// Each language has its own canonical URL and reciprocal language links.
 const zhLocale = JSON.parse(await readFile(path.join(root, "src", "locales", "zh.json"), "utf8"));
 function zhHead(html) {
   const title = escapeAttr(zhLocale.app.title);
@@ -98,6 +97,9 @@ function zhHead(html) {
   const replaceMeta = (prefix) => new RegExp(`${prefix} content="[^"]*" />`);
   return html
     .replace('<html lang="en">', '<html lang="zh">')
+    .replace('<link rel="canonical" href="https://octocounts.com/"', '<link rel="canonical" href="https://octocounts.com/zh"')
+    .replace('<meta property="og:url" content="https://octocounts.com/"', '<meta property="og:url" content="https://octocounts.com/zh"')
+    .replace('<link rel="help" href="https://octocounts.com/docs/github-sloc-counter"', '<link rel="help" href="https://octocounts.com/zh/docs/github-sloc-counter"')
     .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
     .replace(replaceMeta('<meta name="description"'), `<meta name="description" content="${description}" />`)
     .replace(replaceMeta('<meta property="og:title"'), `<meta property="og:title" content="${title}" />`)
@@ -108,6 +110,7 @@ function zhHead(html) {
 }
 
 for (const locale of ["en", "zh"]) {
+  window.location.pathname = locale === "zh" ? "/zh" : "/";
   const body = await renderHome(locale);
   if (!body.includes('id="hero-title"') || !body.includes('id="repo-url"')) {
     console.error(`prerender-home: ${locale} render looks wrong (no hero title / repo input in output)`);
@@ -128,7 +131,20 @@ for (const locale of ["en", "zh"]) {
     process.exit(1);
   }
   const stamped = `<div id="root" data-oc-prerender="home" data-oc-locale="${locale}">${body}</div>`;
-  const page = (locale === "zh" ? zhHead(stripped) : stripped).replace(rootMarker, stamped);
+  const canonical = `https://octocounts.com${window.location.pathname}`;
+  const languageHead = `
+    <link rel="alternate" hreflang="en" href="https://octocounts.com/" />
+    <link rel="alternate" hreflang="zh-Hans" href="https://octocounts.com/zh" />
+    <link rel="alternate" hreflang="x-default" href="https://octocounts.com/" />
+    <script type="application/ld+json" id="octocounts-home-page">${JSON.stringify({
+      "@context": "https://schema.org", "@type": "WebPage", "@id": `${canonical}#webpage`,
+      url: canonical, inLanguage: locale === "zh" ? "zh-Hans" : "en",
+      name: locale === "zh" ? zhLocale.app.title : "OctoCounts – GitHub SLOC Counter",
+      isPartOf: { "@id": "https://octocounts.com/#website" },
+      about: { "@id": "https://octocounts.com/#app" },
+    }).replace(/</g, "\\u003c")}</script>`;
+  const page = (locale === "zh" ? zhHead(stripped) : stripped)
+    .replace("</head>", `${languageHead}\n</head>`).replace(rootMarker, stamped);
   const outFile = path.join(root, "dist", locale === "zh" ? "home-zh.html" : "home.html");
   await writeFile(outFile, page);
   console.log(`prerender-home: wrote ${path.relative(root, outFile)} (${page.length} bytes, locale ${locale})`);

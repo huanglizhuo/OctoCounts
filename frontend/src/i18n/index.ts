@@ -16,6 +16,8 @@ export const ready = new Promise<void>((resolve) => {
     {
       resources: { en: { translation: en } },
       fallbackLng: "en",
+      lng: typeof window !== "undefined" && window.location.pathname === "/zh" ? "zh"
+        : typeof window !== "undefined" && window.location.pathname === "/" ? "en" : undefined,
       supportedLngs: ["en", "zh"],
       interpolation: { escapeValue: false },
       detection: {

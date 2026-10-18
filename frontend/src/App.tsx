@@ -738,10 +738,10 @@ export function App() {
               <h2>{t("footer.docsCol")}</h2>
               <ul>
                 <li><a href="/docs/api">{t("footer.apiDocs")}</a></li>
-                <li><a href="/docs/github-sloc-counter">{t("footer.slocGuide")}</a></li>
+                <li><a href={i18n.language === "zh" ? "/zh/docs/github-sloc-counter" : "/docs/github-sloc-counter"}>{t("footer.slocGuide")}</a></li>
                 <li><a href="/docs/faq">{t("footer.faq")}</a></li>
                 <li><a href="/docs/github-language-bar-alternative">{t("footer.languageBar")}</a></li>
-                <li><a href="/docs/methodology">{t("footer.methodology")}</a></li>
+                <li><a href={i18n.language === "zh" ? "/zh/docs/methodology" : "/docs/methodology"}>{t("footer.methodology")}</a></li>
               </ul>
             </div>
             <div className="footer-col">
@@ -992,7 +992,7 @@ function syncPageMetadata({
     applyPageMetadata({
       title: defaultTitle,
       description: defaultDescription,
-      canonical: `${window.location.origin}/`,
+      canonical: `${window.location.origin}${path === "/zh" ? "/zh" : "/"}`,
       extraRobots: ",max-video-preview:-1",
     });
     return;
@@ -1035,6 +1035,9 @@ function applyPageMetadata({ title, description, canonical, extraRobots }: { tit
   const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? "", snapshot]);
   if (fingerprint === lastMetaFingerprint) return;
   lastMetaFingerprint = fingerprint;
+  if (!["/", "/zh"].includes(new URL(canonical).pathname)) {
+    document.querySelectorAll('link[hreflang], #octocounts-home-page').forEach((node) => node.remove());
+  }
   document.title = title;
   const robots = snapshot ? "noindex,follow" : `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
   const image = `${window.location.origin}/og-image.jpg`;

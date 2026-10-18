@@ -18,6 +18,13 @@ type MenuId = "explore" | "tools" | "install" | "site";
 export function Topbar() {
   const { t, i18n } = useTranslation();
   const path = window.location.pathname;
+  const isHome = path === "/" || path === "/zh";
+  const homePath = i18n.language === "zh" ? "/zh" : "/";
+  const languageControls = (["en", "zh"] as const).map((language) => isHome ? (
+    <a key={language} className="lang-btn" href={language === "zh" ? "/zh" : "/"} hrefLang={language === "zh" ? "zh-Hans" : "en"} aria-current={i18n.language === language ? "true" : undefined}>{language === "zh" ? "中文" : "EN"}</a>
+  ) : (
+    <button key={language} type="button" className="lang-btn" aria-current={i18n.language === language ? "true" : undefined} onClick={() => i18n.changeLanguage(language)}>{language === "zh" ? "中文" : "EN"}</button>
+  ));
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const menuRefs = useRef<Record<MenuId, HTMLDetailsElement | null>>({ explore: null, tools: null, install: null, site: null });
   const isActive = (href: string) => path === href;
@@ -65,12 +72,12 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label={t("topbar.brandName")}>
+      <a className="brand" href={homePath} aria-label={t("topbar.brandName")}>
         <div className="logo"><img src="/octocounts-logo-96.webp" alt="" width="96" height="96" /></div>
         <span className="brand-name">{t("topbar.brandName")}</span>
       </a>
       <nav className="topbar-nav" aria-label={t("topbar.navigation")}>
-        <a href="/" aria-current={path === "/" ? "page" : undefined}>{t("topbar.analyze")}</a>
+        <a href={homePath} aria-current={isHome ? "page" : undefined}>{t("topbar.analyze")}</a>
         {menu("explore", t("topbar.explore"), publicReportLinks.map((item) => (
           <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
         )))}
@@ -86,10 +93,7 @@ export function Topbar() {
         </>)}
       </nav>
       <div className="topbar-controls" role="group" aria-label={t("languageSwitcher.label")}>
-        {/* aria-current="true" (not "page"): these are buttons marking the
-            active item in a set, and styles.css keys the highlight off it. */}
-        <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
-        <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "true" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
+        {languageControls}
         <ThemeSwitch />
         <a className="github-link icon-link" href={sourceRepoUrl} target="_blank" rel="noreferrer" aria-label={t("topbar.githubAria")}>GitHub</a>
       </div>
@@ -102,7 +106,7 @@ export function Topbar() {
         <span className="visually-hidden">{t("topbar.menu")}</span>
       </>, <>
         <div className="site-menu-group">
-          <a href="/" aria-current={path === "/" ? "page" : undefined}>{t("topbar.analyze")}</a>
+          <a href={homePath} aria-current={isHome ? "page" : undefined}>{t("topbar.analyze")}</a>
           {publicReportLinks.map((item) => (
             <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
           ))}
@@ -117,8 +121,7 @@ export function Topbar() {
           <StoreLink store="firefox" placement="topbar">{t("topbar.firefox")}</StoreLink>
         </div>
         <div className="site-menu-group site-menu-preferences">
-          <button type="button" className="lang-btn" aria-current={i18n.language === "en" ? "true" : undefined} onClick={() => i18n.changeLanguage("en")}>EN</button>
-          <button type="button" className="lang-btn" aria-current={i18n.language === "zh" ? "true" : undefined} onClick={() => i18n.changeLanguage("zh")}>中文</button>
+          {languageControls}
           <ThemeSwitch />
           <a href={sourceRepoUrl} target="_blank" rel="noreferrer">GitHub</a>
         </div>

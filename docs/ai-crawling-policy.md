@@ -1,5 +1,6 @@
 # OctoCounts crawler & AI-access policy (SG-08)
 
+- Updated: 2026-10-18. Canonical-format behavior revised.
 - Created: 2026-09-08. Verified against provider documentation listed below on
   the same date; re-verify before changing any rule.
 - This document describes repository configuration. Production behavior also
@@ -10,16 +11,16 @@
 
 | Crawler (UA token) | Operator | Purpose per provider docs | robots.txt rule | What we actually serve |
 |---|---|---|---|---|
-| Googlebot, Bingbot, and other search engine crawlers | Search engines | Search indexing | `User-agent: *` Allow | HTML only. Deliberately NOT markdown: serving search crawlers different content than users would be cloaking. |
-| OAI-SearchBot | OpenAI | Search/indexing for ChatGPT search results | Allow | Markdown twin (retrieval bot) or HTML |
-| ChatGPT-User | OpenAI | Fetches pages a user asks ChatGPT about | Allow | Markdown twin or HTML |
+| Googlebot, Bingbot, and other search engine crawlers | Search engines | Search indexing | `User-agent: *` Allow | HTML, identical to browser responses. |
+| OAI-SearchBot | OpenAI | Search/indexing for ChatGPT search results | Allow | HTML |
+| ChatGPT-User | OpenAI | Fetches pages a user asks ChatGPT about | Allow | HTML |
 | GPTBot | OpenAI | **Training** corpus crawl | Allow (`ai-train=yes` signal) | HTML. Training permission is a separate decision from search visibility — governed by this row, not by OAI-SearchBot's. |
-| PerplexityBot / Perplexity-User | Perplexity | Search indexing / user-initiated fetch | Allow | Markdown twin or HTML |
-| ClaudeBot / Claude-User | Anthropic | Indexing / user-initiated fetch | Allow | Markdown twin or HTML |
+| PerplexityBot / Perplexity-User | Perplexity | Search indexing / user-initiated fetch | Allow | HTML |
+| ClaudeBot / Claude-User | Anthropic | Indexing / user-initiated fetch | Allow | HTML |
 | Google-Extended | Google | Gemini grounding & training (does not control Google Search indexing) | Allow | HTML |
 | CCBot | Common Crawl | Open corpus building (training pipelines downstream) | Allow | HTML |
 | Bytespider | ByteDance | Training corpus crawl (TikTok/Douyin AI) | Allow | HTML |
-| Applebot | Apple | Apple Intelligence / Siri grounding | Allow | Markdown twin or HTML |
+| Applebot | Apple | Apple Intelligence / Siri grounding | Allow | HTML |
 
 Key distinction this matrix exists to keep straight (SG-08 finding): **GPTBot
 is a training crawler. Allowing or blocking it does not change ChatGPT's
@@ -33,14 +34,11 @@ ChatGPT-User.** The earlier robots.txt comment conflated the two.
   (server-rendered bodies), so HTML alone is sufficient for any client.
 - Explicit markdown twins exist for every SSR page: append `.md` or add
   `?format=md`. These are cacheable, distinct URLs.
-- For retrieval-time AI crawlers only, the edge function ALSO serves the
-  markdown twin on the HTML URL when the user agent matches
-  `AI_RETRIEVAL_BOT_UA` in `frontend/functions/[[path]].js`. Those responses
-  are `private, no-store` + `Vary: User-Agent`, so the variant can never
-  enter the shared zone cache (the zone cache keys on URL alone).
-- Rollback: set `AI_MARKDOWN_UA=0` in the Cloudflare Pages environment to
-  disable the UA-derived switch while keeping explicit `.md` URLs. Suggested
-  rollout: verify in a Pages preview deployment first, then production.
+- Canonical URLs return HTML to every user agent. As of 2026-10-18, the
+  UA-derived switch and `AI_MARKDOWN_UA` setting have been removed: search
+  crawlers must not receive the explicit Markdown twins' `noindex` header
+  on the canonical URL. Explicit `.md` / `?format=md` responses retain
+  `X-Robots-Tag: noindex, follow` to avoid duplicate indexed URLs.
 - Accept-header negotiation is intentionally NOT implemented; adding it later
   requires defining its cache key and Vary first.
 
@@ -57,8 +55,8 @@ ChatGPT-User.** The earlier robots.txt comment conflated the two.
 `frontend/tests/seo.test.mjs` asserts the HTML body, the client view model,
 and the markdown twin of report and comparison pages carry identical repo
 names, numbers, dates, commits, and FAQ answers, and that interleaved
-requests never leak markdown into the HTML cache entry (`private, no-store` +
-`Vary: User-Agent`).
+requests return HTML on canonical URLs for every user agent, while explicit
+Markdown URLs remain available with the same facts and fixed citations.
 
 ## 5. Production verification still required (cannot be done from the repo)
 
@@ -75,3 +73,16 @@ References (checked 2026-09-08): OpenAI crawler documentation
 (openai.com/bots: GPTBot training-only, OAI-SearchBot search,
 ChatGPT-User user-initiated), Google "AI features and your website",
 Cloudflare cache-key documentation.
+
+
+## Independent Chinese pages
+
+The Chinese homepage is `/zh`; `/?lng=zh` permanently redirects there. The
+Chinese guides are `/zh/docs/github-sloc-counter` and `/zh/docs/methodology`.
+These three pages have self-referencing canonicals and reciprocal `en`,
+`zh-Hans`, and `x-default` HTML links to their English counterparts. Browser
+language preferences do not change the homepage language selected by its URL.
+The sitemap lists both languages. Chinese guide Markdown twins are explicit
+`.md` / `?format=md` representations with `noindex, follow`, just like English.
+Only translated pages are listed as language alternates; there is no fallback
+from a missing Chinese page to an indexable English shell.

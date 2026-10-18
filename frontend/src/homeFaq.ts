@@ -105,7 +105,7 @@ export function faqPageJsonLd(language: string | undefined) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "@id": "https://octocounts.com/#faq",
+    "@id": language?.toLowerCase().startsWith("zh") ? "https://octocounts.com/zh#faq" : "https://octocounts.com/#faq",
     mainEntity: faqForLanguage(language).map((item) => ({
       "@type": "Question",
       name: item.question,

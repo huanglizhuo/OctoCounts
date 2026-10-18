@@ -1,6 +1,6 @@
 # GitHub SLOC Counter Guide
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 18, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.
 
@@ -129,3 +129,7 @@ Cite tool, options, commit, and date, then link the report: for example, "torval
 ### What is the difference between code lines and total lines?
 
 Total lines are code lines plus comment lines plus blank lines. "SLOC" usually means the code-line figure — executable or meaningful source lines after language parsing. OctoCounts reports all three categories side by side, per language and in the totals row, so any of the three definitions can be quoted from the same report.
+
+## Other languages
+
+[简体中文](https://octocounts.com/zh/docs/github-sloc-counter)

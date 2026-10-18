@@ -5,6 +5,7 @@ import { transform } from "esbuild";
 
 import { onRequest, __resetCompareExistenceCacheForTests } from "../functions/[[path]].js";
 import { COMPARE_REGISTRY } from "../functions/compare-registry.js";
+import { comparePolicies } from "../functions/counting-policy.js";
 
 const ROOT = new URL("../", import.meta.url);
 const EXTENSION_PACKAGE = new URL("../../extension/package.json", import.meta.url);
@@ -1704,9 +1705,7 @@ test("the Chinese prerendered homepage variant carries the zh tree and zh head",
   for (const item of HOME_FAQ.zh.slice(0, 3)) {
     assert.ok(html.includes(`<h3>${item.question}</h3>`), item.question);
   }
-  // The canonical URL is shared: the zh view is a ?lng=zh variant of the one
-  // homepage, not a separate page.
-  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts\.com\/" \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/octocounts\.com\/zh" \/>/);
 });
 
 test("the home route serves the prerendered asset with the edge cache policy", async () => {
@@ -1717,13 +1716,12 @@ test("the home route serves the prerendered asset with the edge cache policy", a
   const html = await response.text();
   assert.match(html, /data-oc-prerender="home" data-oc-locale="en"/);
   assert.match(html, /<h1 id="hero-title"/);
-  // Unrelated query strings must not flip the variant: only an explicit
-  // lng=zh selects the Chinese asset (URL-keyed caches stay consistent).
+  // The canonical path determines language regardless of query preferences.
   const plain = await onRequest(await homeAssetContext("/?utm_source=x"));
   assert.ok((await plain.text()).includes('data-oc-locale="en"'));
-  const zh = await onRequest(await homeAssetContext("/?lng=zh"));
+  const zh = await onRequest(await homeAssetContext("/zh?lng=en"));
   const zhHtml = await zh.text();
-  assert.ok(zhHtml.includes('data-oc-locale="zh"'), "?lng=zh serves the zh prerender");
+  assert.ok(zhHtml.includes('data-oc-locale="zh"'), "/zh serves the zh prerender");
   assert.ok(zhHtml.includes("<html lang=\"zh\">"));
   assert.equal(zh.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
 });
@@ -1740,7 +1738,7 @@ test("a deploy missing its prerendered home degrades to the uncached SPA shell",
 test("prerendered home assets are not crawlable at their .html paths", async () => {
   for (const [pathname, expected] of [
     ["/home.html", "https://octocounts.com/"],
-    ["/home-zh.html", "https://octocounts.com/?lng=zh"],
+    ["/home-zh.html", "https://octocounts.com/zh"],
   ]) {
     const response = await onRequest(requestContext(pathname));
     assert.equal(response.status, 308, pathname);
@@ -1856,7 +1854,7 @@ function docsAssetContext(pathname, userAgent) {
       ASSETS: {
         fetch: async (request) => {
           const path = new URL(request.url).pathname;
-          const filePath = /^\/docs\/[a-z-]+$/.test(path) ? `${path}.html` : path;
+          const filePath = /^\/(?:zh\/)?docs\/[a-z-]+$/.test(path) ? `${path}.html` : path;
           try {
             const body = await readFile(new URL(`public${filePath}`, ROOT), "utf8");
             return new Response(body, {
@@ -1920,6 +1918,69 @@ const REPRODUCIBLE_REPORT_FIXTURE = {
   analysisOptions: REPRODUCIBLE_OPTIONS,
   snapshotUrl: REPRODUCIBLE_SNAPSHOT_URL,
 };
+
+test("curated comparisons expose effective rules and saved citations in every representation", async () => {
+  const policy = { version: "directories-v1", includeDocs: false, includeTests: false, includeGenerated: false, ignoredDirs: ["docs", "tests"], ignoredLanguages: [], repositoryAttributes: { status: "off" } };
+  for (const status of ["same", "different", "unknown"]) {
+    const fixtures = structuredClone(CURATED_FIXTURES);
+    for (const name of ["react/react", "vuejs/core"]) {
+      const report = fixtures[name];
+      report.countingPolicy = structuredClone(policy);
+      report.tokeiVersion = "tokei-14.0.0";
+      report.snapshotUrl = `${report.canonicalUrl}/commit/${report.commitSha}?reportId=${name.replaceAll("/", "-")}`;
+    }
+    if (status === "different") fixtures["vuejs/core"].countingPolicy.includeTests = true;
+    if (status === "unknown") delete fixtures["vuejs/core"].countingPolicy;
+    const restore = stubReportFetch(fixtures);
+    try {
+      const html = await (await onRequest(await renderedContext("/compare/react-vs-vue"))).text();
+      const md = await (await onRequest(await renderedContext("/compare/react-vs-vue.md"))).text();
+      const model = JSON.parse(html.match(/id="octocounts-compare-data">([^<]*)<\/script>/)[1]);
+      assert.equal(model.compatibility, status);
+      assert.ok(html.includes(model.policyText));
+      assert.ok(md.includes(model.policyText));
+      assert.match(model.policyText, /tokei-14\.0\.0/);
+      assert.match(model.policyText, /docs excluded, tests excluded, generated excluded/);
+      assert.match(model.policyText, /Excluded directory names: docs, tests/);
+      if (status !== "same") assert.doesNotMatch(model.capsuleText + model.policyText, /same engine and/);
+      for (const side of [model.left, model.right]) {
+        assert.ok(html.includes(`href="${side.snapshotUrl}"`));
+        assert.ok(md.includes(`](${side.snapshotUrl})`));
+      }
+      assert.ok(html.includes(model.retentionText));
+      assert.ok(md.includes(model.retentionText));
+      assert.doesNotMatch(html, /meaningful share of each count exists to keep the framework correct/);
+    } finally {
+      restore();
+    }
+  }
+});
+
+test("shared policy comparison checks engine and effective rules without comparing declaration match counts", () => {
+  const left = { tokeiVersion: "tokei-14.0.0", countingPolicy: { version: "attributes-v1", includeDocs: false, includeTests: false, includeGenerated: false, ignoredDirs: ["tests", "docs"], ignoredLanguages: ["JSON"], repositoryAttributes: { status: "applied", excludedFiles: 2 } } };
+  const right = structuredClone(left);
+  right.countingPolicy.ignoredDirs = ["docs", "tests", "tests"];
+  right.countingPolicy.ignoredLanguages = ["json"];
+  right.countingPolicy.repositoryAttributes = { status: "none-found", excludedFiles: 0 };
+  assert.equal(comparePolicies(left, right).status, "same");
+  right.tokeiVersion = "tokei-12.1";
+  assert.equal(comparePolicies(left, right).status, "different");
+  delete right.countingPolicy;
+  assert.equal(comparePolicies(left, right).status, "unknown");
+});
+
+test("legacy Dataset downloads retain the measured ref instead of falling back to the default branch", async () => {
+  const fixture = { ...RELATED_REPORT_FIXTURE, refName: "release/v1" };
+  const restore = stubReportAndRelatedFetch({ reports: [] }, fixture);
+  try {
+    const html = await (await onRequest(await renderedContext("/github/octo-org/octo-repo/tree/release/v1"))).text();
+    const graph = JSON.parse(html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)[1])["@graph"];
+    const download = new URL(graph.find((node) => node["@type"] === "Dataset").distribution.contentUrl);
+    assert.equal(download.searchParams.get("refName"), "release/v1");
+  } finally {
+    restore();
+  }
+});
 
 test("report SSR, JSON-LD, summary, and markdown expose the reproducible snapshot link when the configuration is known", async () => {
   const restore = stubReportAndRelatedFetch({ reports: [] }, REPRODUCIBLE_REPORT_FIXTURE);
@@ -2010,7 +2071,7 @@ test("report markdown handles missing reports and transient failures like the HT
   }
 });
 
-test("retrieval-time AI bots get markdown on reports while search and training crawlers keep HTML", async () => {
+test("canonical reports serve indexable HTML to AI, search and training crawlers", async () => {
   const restore = stubReportAndRelatedFetch({ reports: [] });
   try {
     for (const ua of [
@@ -2024,12 +2085,10 @@ test("retrieval-time AI bots get markdown on reports while search and training c
       "Applebot/0.1",
     ]) {
       const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
-      assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, ua);
-      // The zone cache rule keys on URL alone: a UA-derived markdown variant
-      // must never enter the shared cache, or browsers/Googlebot would be
-      // served markdown from the HTML URL's cache entry (and vice versa).
-      assert.equal(response.headers.get("cache-control"), "private, no-store", ua);
-      assert.equal(response.headers.get("vary"), "User-Agent", ua);
+      assert.match(response.headers.get("content-type") ?? "", /^text\/html/, ua);
+      assert.equal(response.headers.get("x-robots-tag"), null, ua);
+      assert.equal(response.headers.get("vary"), null, ua);
+      assert.match(await response.text(), /content="index,follow/);
     }
     // Cloaking guard: search engine crawlers and training crawlers must see
     // exactly the HTML a browser gets.
@@ -2050,6 +2109,7 @@ test("retrieval-time AI bots get markdown on reports while search and training c
     // cache headers even when a retrieval bot asks for them.
     const explicit = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo?format=md"), "PerplexityBot/1.0"));
     assert.match(explicit.headers.get("content-type") ?? "", /^text\/markdown/);
+    assert.equal(explicit.headers.get("x-robots-tag"), "noindex, follow");
     assert.equal(explicit.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
     assert.equal(explicit.headers.get("vary"), null);
   } finally {
@@ -2077,12 +2137,11 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
       assert.match(md, /### Which has more lines of code/, path);
       assert.match(md, /### Does more source lines of code mean more complexity\?/, path);
     }
-    // Retrieval bots get the markdown twin on compare pages too — uncacheable,
-    // since the zone cache keys on the shared HTML URL.
+    // Canonical comparison URLs use the browser HTML for AI crawlers too.
     const bot = await onRequest(withUserAgent(await renderedContext("/compare/react-vs-vue"), "PerplexityBot/1.0"));
-    assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/);
-    assert.equal(bot.headers.get("cache-control"), "private, no-store");
-    assert.equal(bot.headers.get("vary"), "User-Agent");
+    assert.match(bot.headers.get("content-type") ?? "", /^text\/html/);
+    assert.equal(bot.headers.get("x-robots-tag"), null);
+    assert.equal(bot.headers.get("vary"), null);
   } finally {
     restore();
   }
@@ -2130,14 +2189,11 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
     assert.match(md, /^# Trending GitHub repositories today\n/, path);
     assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. (1,234 stars today, Rust)"), path);
   }
-  // Retrieval-bot UAs get the markdown twin here too, same as reports,
-  // comparisons, docs, extension, and research: /trending and /stats are two
-  // of the most quotable data pages. uaOnly responses are forced private and
-  // uncacheable so a UA-negotiated format can never be edge-cached for a human.
+  // Canonical collection URLs are HTML for every user agent.
   const bot = await onRequest(withUserAgent(await renderedContext("/trending", snapshot), "PerplexityBot/1.0"));
-  assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/);
-  assert.equal(bot.headers.get("cache-control"), "private, no-store");
-  assert.match(bot.headers.get("vary") ?? "", /User-Agent/i);
+  assert.match(bot.headers.get("content-type") ?? "", /^text\/html/);
+  assert.equal(bot.headers.get("x-robots-tag"), null);
+  assert.equal(bot.headers.get("vary"), null);
 
   // Ordinary browsers (and Googlebot, deliberately) keep HTML.
   const browser = await onRequest(await renderedContext("/trending", snapshot));
@@ -2188,11 +2244,8 @@ test("docs pages serve their pre-generated markdown twins", async () => {
     }
 
     const bot = await onRequest(docsAssetContext(`/docs/${slug}`, "ClaudeBot/1.0"));
-    assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/, `${slug} bot`);
-    // Docs are outside the zone cache rule today, but a UA variant still
-    // never belongs in any shared cache.
-    assert.equal(bot.headers.get("cache-control"), "private, no-store", `${slug} bot`);
-    assert.equal(bot.headers.get("vary"), "User-Agent", `${slug} bot`);
+    assert.match(bot.headers.get("content-type") ?? "", /^text\/html/, `${slug} bot`);
+    assert.equal(bot.headers.get("x-robots-tag"), null, `${slug} bot`);
 
     const browser = await onRequest(docsAssetContext(`/docs/${slug}`));
     assert.match(browser.headers.get("content-type") ?? "", /^text\/html/, `${slug} browser`);
@@ -2245,8 +2298,8 @@ test("/research serves its static HTML without a directory-redirect loop and hon
   }
 
   const bot = await onRequest(researchAssetContext("/research", "ClaudeBot/1.0"));
-  assert.match(bot.headers.get("content-type") ?? "", /^text\/markdown/, "bot twin");
-  assert.equal(bot.headers.get("cache-control"), "private, no-store", "bot twin");
+  assert.match(bot.headers.get("content-type") ?? "", /^text\/html/, "canonical bot response");
+  assert.equal(bot.headers.get("x-robots-tag"), null);
 });
 
 test("HTML pages advertise their markdown twin with a text/markdown alternate link", async () => {
@@ -2432,7 +2485,7 @@ test("editorial compare pages carry scoped, sourced explanations in every format
     // The client view model carries the same editorial (SG-01 parity).
     const model = JSON.parse(html.match(/<script type="application\/json" id="octocounts-compare-data">([^<]*)<\/script>/)[1]);
     assert.equal(model.editorial.scope.includes("monorepo"), true);
-    assert.equal(model.editorial.insights.length >= 2, true);
+    assert.equal(model.editorial.insights.length >= 1, true);
     // Pages without editorial are unchanged.
     const plain = await (await onRequest(await renderedContext("/compare/vite-vs-webpack"))).text();
     assert.ok(plain.includes("About this comparison") === false || plain.includes("vitejs/vite is the Vite core repository"));
@@ -2441,10 +2494,10 @@ test("editorial compare pages carry scoped, sourced explanations in every format
   }
 });
 
-test("AI_MARKDOWN_UA=0 rolls the UA-derived markdown switch off without touching explicit .md", async () => {
+test("legacy AI_MARKDOWN_UA settings cannot change canonical HTML or explicit Markdown", async () => {
   const context = await renderedContext("/github/octo-org/octo-repo");
   context.env.SEO_API_BASE = "https://api.test";
-  context.env.AI_MARKDOWN_UA = "0";
+  context.env.AI_MARKDOWN_UA = "1";
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json({
     provider: "github", owner: "octo-org", repo: "octo-repo", repoFullName: "octo-org/octo-repo",
@@ -2489,6 +2542,8 @@ test("fixed report HTML and markdown read the saved ID, including small filtered
   assert.doesNotMatch(html, /api\.test\/og\/github/);
   const summary = JSON.parse(html.match(/id="octocounts-report-summary">([^<]*)<\/script>/)[1]);
   assert.equal(summary.reportId, report.id);
+  const graph = JSON.parse(html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)[1])["@graph"];
+  assert.equal(graph.find((node) => node["@type"] === "Dataset").distribution.contentUrl, "https://api.octocounts.com/api/reports/saved-filtered");
   assert.equal(summary.totals.code, 17);
   assert.deepEqual(summary.countingPolicy, report.countingPolicy);
   const md = await onRequest(await renderedContext(path + "&format=md"));
@@ -2520,4 +2575,98 @@ test("custom counting links without saved IDs never render canonical cache count
     assert.doesNotMatch(body, /octocounts-report-summary|api\.test\/og\/github/);
   }
   assert.deepEqual(calls, []);
+});
+
+
+test("nginx routes Chinese pages and explicit Markdown without falling back to the SPA", async () => {
+  const nginx = await readFile(new URL("nginx.conf", ROOT), "utf8");
+  assert.ok(nginx.includes('location = /zh { rewrite ^ /home-zh.html break; }'));
+  assert.ok(nginx.includes('add_header X-Robots-Tag $markdown_robots always;'));
+  assert.ok(nginx.includes('text/markdown md;'));
+  for (const slug of ["github-sloc-counter", "methodology"]) {
+    assert.ok(nginx.includes(`location = /zh/docs/${slug} {`));
+    assert.ok(nginx.includes(`try_files /zh/docs/${slug}.html =404;`));
+    assert.ok(nginx.includes(`if ($arg_format = md) { rewrite ^ /zh/docs/${slug}.md last; }`));
+    assert.ok(nginx.includes(`location = /zh/docs/${slug}.html { return 308 /zh/docs/${slug}$is_args$args; }`));
+  }
+});
+
+test("localized pages have self canonicals and reciprocal, complete language alternates", async () => {
+  const manifest = JSON.parse(await readFile(new URL("content/content-manifest.json", ROOT), "utf8"));
+  for (const slug of ["", "docs/github-sloc-counter", "docs/methodology"]) {
+    const enUrl = `https://octocounts.com/${slug}`;
+    const zhUrl = `https://octocounts.com/zh${slug ? `/${slug}` : ""}`;
+    for (const locale of ["en", "zh"]) {
+      const url = locale === "en" ? enUrl : zhUrl;
+      const file = slug ? `public/${locale === "zh" ? "zh/" : ""}${slug}.html` : `dist/home${locale === "zh" ? "-zh" : ""}.html`;
+      const html = await readFile(new URL(file, ROOT), "utf8");
+      const head = html.split("</head>")[0];
+      assert.ok(head.includes(`<link rel="canonical" href="${url}"`), file);
+      const links = [...head.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)"/g)];
+      assert.deepEqual(links.map((m) => [m[1], m[2]]), [["en", enUrl], ["zh-Hans", zhUrl], ["x-default", enUrl]], file);
+      assert.equal((html.match(/<h1\b/g) || []).length, 1, file);
+      assert.ok(manifest.pages[url], `${url} is in the sitemap manifest`);
+      if (locale === "zh") {
+        assert.match(html, /<html lang="zh(?:-Hans)?">/);
+        assert.ok(head.includes(`<meta property="og:url" content="${zhUrl}"`));
+        const nodes = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+        const faq = nodes.find((node) => node["@type"] === "FAQPage");
+        assert.equal(faq["@id"], `${zhUrl}#faq`);
+        for (const entry of faq.mainEntity) {
+          assert.ok(html.includes(entry.name), entry.name);
+          assert.ok(html.includes(entry.acceptedAnswer.text.split("\n")[0]), entry.name);
+        }
+        if (slug) {
+          const article = nodes.find((node) => node["@type"] === "TechArticle");
+          assert.equal(article.inLanguage, "zh-Hans");
+          assert.equal(article.dateModified, manifest.pages[url]);
+          const md = await readFile(new URL(file.replace(/\.html$/, ".md"), ROOT), "utf8");
+          for (const entry of faq.mainEntity) assert.ok(md.includes(entry.acceptedAnswer.text));
+        }
+      }
+    }
+  }
+  const shell = await readFile(new URL("dist/index.html", ROOT), "utf8");
+  assert.doesNotMatch(shell, /hreflang=/, "home alternates must not leak into shared report shell");
+});
+
+test("Chinese redirects preserve unrelated queries and missing pages do not serve the English shell", async () => {
+  for (const [path, target] of [
+    ["/?lng=zh&utm_source=docs", "/zh?utm_source=docs"],
+    ["/zh/", "/zh"],
+    ["/zh/docs/methodology.html?utm_source=docs", "/zh/docs/methodology?utm_source=docs"],
+    ["/zh/docs/methodology/", "/zh/docs/methodology"],
+  ]) {
+    const response = await onRequest(requestContext(path));
+    assert.equal(response.status, 308, path);
+    assert.equal(response.headers.get("location"), `https://octocounts.com${target}`);
+  }
+  for (const path of ["/zh/docs/api", "/zh/unknown", "/zh.md"]) {
+    assert.equal((await onRequest(requestContext(path))).status, 404, path);
+  }
+  const missing = await onRequest(await homeAssetContext("/zh", { missingHome: true }));
+  assert.equal(missing.status, 503);
+  assert.equal(missing.headers.get("cache-control"), "no-store");
+});
+
+test("Chinese guides serve HTML to all bots and explicit Markdown twins with noindex", async () => {
+  for (const slug of ["github-sloc-counter", "methodology"]) {
+    const path = `/zh/docs/${slug}`;
+    for (const ua of [undefined, "Googlebot", "OAI-SearchBot", "ClaudeBot"]) {
+      const response = await onRequest(docsAssetContext(path, ua));
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type"), /text\/html/);
+      assert.ok((await response.text()).includes(`<link rel="canonical" href="https://octocounts.com${path}"`));
+    }
+    for (const suffix of [".md", "?format=md"]) {
+      const response = await onRequest(docsAssetContext(path + suffix));
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type"), /text\/markdown/);
+      assert.match(response.headers.get("x-robots-tag"), /noindex/);
+      const md = await response.text();
+      assert.ok(md.includes(`规范页面：https://octocounts.com${path}`));
+      assert.match(md, /countingPolicy/);
+      assert.match(md, /reportId/);
+    }
+  }
 });

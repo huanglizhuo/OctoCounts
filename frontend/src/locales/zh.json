@@ -262,7 +262,7 @@
       {
         "num": "01",
         "title": "解析",
-        "text": "OctoCounts 验证公开 GitHub 链接，并通过 GitHub API 将请求的分支、标签或提交 SHA 解析为固定的提交哈希。固定到提交意味着分析是确定性的，相同的链接和引用总是产生相同的计数，且缓存键稳定，不受分支移动影响。",
+        "text": "OctoCounts 验证公开 GitHub 链接，并通过 GitHub API 将请求的分支、标签或提交 SHA 解析为固定的提交哈希。相同提交 SHA、引擎版本和有效计数规则下的结果可复现。分支或标签可能指向新的提交，因此实时报告会变化。",
         "code": "GET <1>/repos/:owner/:repo</1>"
       },
       {
@@ -494,6 +494,7 @@
     }
   },
   "curatedCompare": {
+    "savedReport": "{{repo}} 固定报告",
     "unavailable": "该对比页暂时不可用。请稍后再试，或使用下方工具重新发起对比。",
     "missing": "两个仓库的缓存报告尚未就绪。请先用下方工具分别分析，稍后再回到本页。",
     "resultsAria": "对比结果",

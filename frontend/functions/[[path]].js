@@ -1,3 +1,4 @@
+import { comparePolicies } from "./counting-policy.js";
 import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
 // The editorial corpus (~150 KB) is only read on curated /compare/* routes,
@@ -11,12 +12,15 @@ function loadCompareEditorial() {
 }
 
 const API_BASE = "https://api.octocounts.com";
-const BOOT_SCRIPT_HASH = "'sha256-gJFnkD2yqbv265Nlf3VSDL44MNt3DDcIc1ENS7V0cRY='";
+const BOOT_SCRIPT_HASH = "'sha256-2mUsir+xXgBNxPOKDMVv/T0CDFNTPTwA4NyqXmyIU4Y='";
 // Per-URL content lastmod, mirroring frontend/content/content-manifest.json
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-10-18" },
+  { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-10-18" },
+  { loc: "https://octocounts.com/zh", lastmod: "2026-10-18" },
+  { loc: "https://octocounts.com/", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-10-16" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
@@ -26,9 +30,9 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-11" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-15" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-15" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-07" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-15" },
@@ -55,7 +59,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const COMPARE_CONTENT_LASTMOD = "2026-10-16";
+const COMPARE_CONTENT_LASTMOD = "2026-10-18";
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -87,20 +91,18 @@ export async function onRequest(context) {
   // ?format=md is the explicit opt-in for any client (browsers included); the
   // .md suffix is the linkable form. Neither depends on the user agent.
   const markdownRequested = routePath !== url.pathname || url.searchParams.get("format") === "md";
-  // Retrieval-time AI crawlers (search/answer grounding for a waiting user,
-  // not training) get the markdown twin without asking: it is cheaper to
-  // parse and safer to quote than SSR HTML. Search engine crawlers
-  // (Googlebot, Bingbot, ...) are deliberately excluded — serving them
-  // different content than users would be cloaking — and pure training
-  // crawlers (GPTBot, CCBot, anthropic-ai) keep receiving HTML.
-  // Rollback switch (SG-08): set AI_MARKDOWN_UA=0 in the Pages environment to
-  // stop serving markdown by user agent while keeping explicit .md/?format=md
-  // URLs working. Defaults on; see docs/ai-crawling-policy.md.
-  const aiMarkdown = context.env.AI_MARKDOWN_UA !== "0" && isAiRetrievalBot(context.request.headers.get("user-agent"));
+  // Canonical URLs serve the same indexable HTML to every user agent.
 
   const legacyQueryReport = legacyQueryReportPath(url);
   if (legacyQueryReport) {
     return Response.redirect(new URL(legacyQueryReport, url.origin), 308);
+  }
+
+  if (url.pathname === "/" && url.searchParams.get("lng") === "zh") {
+    const target = new URL(url);
+    target.pathname = "/zh";
+    target.searchParams.delete("lng");
+    return Response.redirect(target, 308);
   }
 
   // Static HTML assets are canonically served extensionless — same defect
@@ -110,14 +112,14 @@ export async function onRequest(context) {
   // platform error document, not a canonical page. The prerendered home
   // assets are internal deployment files: /home and /home-zh have no
   // extensionless page of their own, so they redirect to the real canonical
-  // URLs (the zh variant via its explicit ?lng=zh selector).
+  // URLs (the Chinese homepage lives at /zh).
   if (url.pathname.endsWith(".html") && url.pathname !== "/404.html") {
     const target = new URL(url);
     const stripped = url.pathname.slice(0, -5);
     if (stripped === "/home") target.pathname = "/";
     else if (stripped === "/home-zh") {
-      target.pathname = "/";
-      target.searchParams.set("lng", "zh");
+      target.pathname = "/zh";
+      target.searchParams.delete("lng");
     } else target.pathname = stripped === "/index" ? "/" : stripped;
     return Response.redirect(target, 308);
   }
@@ -155,7 +157,7 @@ export async function onRequest(context) {
 
   if (parts[0] === "github" && parts.length >= 3) {
     const route = parseGitHubRoute(parts);
-    return reportResponse(context, route, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
+    return reportResponse(context, route, { markdown: markdownRequested });
   }
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
@@ -167,11 +169,11 @@ export async function onRequest(context) {
   }
 
   if (routePath === "/trending") {
-    return trendingPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
+    return trendingPageResponse(context, { markdown: markdownRequested });
   }
 
   if (routePath === "/stats") {
-    return statsPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
+    return statsPageResponse(context, { markdown: markdownRequested });
   }
 
   if (url.pathname === "/hall-of-monoliths") {
@@ -180,7 +182,7 @@ export async function onRequest(context) {
 
   if (parts[0] === "compare" && parts.length === 2) {
     const curated = findCuratedComparison(parts[1].toLowerCase());
-    if (curated) return curatedCompareResponse(context, curated, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
+    if (curated) return curatedCompareResponse(context, curated, { markdown: markdownRequested });
     // Unknown comparison slugs are not curated content; they fall through to
     // static asset handling, which answers 404 in production.
   }
@@ -194,7 +196,7 @@ export async function onRequest(context) {
   }
 
   if (routePath === "/extension") {
-    return extensionPageResponse(context, { markdown: markdownRequested || aiMarkdown, uaOnly: aiMarkdown && !markdownRequested });
+    return extensionPageResponse(context, { markdown: markdownRequested });
   }
 
   // Standalone growth replay: /growth/:owner/:repo. The animation itself is
@@ -214,22 +216,30 @@ export async function onRequest(context) {
 
   // The three docs articles are static HTML; their markdown twins are
   // pre-generated files in public/docs/. Served through the function (rather
-  // than relying on the bare .md asset) so ?format=md and retrieval-bot
+  // than relying on the bare .md asset) so ?format=md and explicit
   // requests get a guaranteed text/markdown type and the /docs/* cache policy.
-  if (parts[0] === "docs" && parts.length === 2 && DOC_MARKDOWN_PAGES.has(parts[1]) && (markdownRequested || aiMarkdown)) {
-    return docsMarkdownResponse(context, parts[1], { uaOnly: aiMarkdown && !markdownRequested });
+  if (parts[0] === "docs" && parts.length === 2 && DOC_MARKDOWN_PAGES.has(parts[1]) && markdownRequested) {
+    return docsMarkdownResponse(context, parts[1]);
   }
 
   // /research is a static article pair (public/research.html plus its
   // pre-generated research.md), served through the function — like the docs
-  // articles — so ?format=md and retrieval-bot requests get a guaranteed
+  // articles — so ?format=md and explicit markdown requests get a guaranteed
   // text/markdown type instead of relying on the bare .md asset.
-  if (parts[0] === "research" && parts.length === 1 && (markdownRequested || aiMarkdown)) {
-    return researchMarkdownResponse(context, { uaOnly: aiMarkdown && !markdownRequested });
+  if (parts[0] === "research" && parts.length === 1 && markdownRequested) {
+    return researchMarkdownResponse(context);
   }
 
-  if (url.pathname === "/") {
+  if (url.pathname === "/" || url.pathname === "/zh") {
     return homePageResponse(context);
+  }
+
+  if (parts[0] === "zh") {
+    if (parts.length !== 3 || parts[1] !== "docs" || !["github-sloc-counter", "methodology"].includes(parts[2])) {
+      return new Response("Not found", { status: 404 });
+    }
+    if (markdownRequested) return docsMarkdownResponse(context, parts[2], { locale: "zh" });
+    return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
   }
 
   // Bare .md assets with no function route of their own (public/about.md).
@@ -255,20 +265,11 @@ const LEGACY_REPORT_REDIRECTS = {
   "github/huanglizhuo/octocount": "/github/huanglizhuo/OctoCounts",
 };
 
-// See the user-agent split note in onRequest. Substring match on the bot
-// token so versioned agents ("PerplexityBot/1.0", "Applebot/0.1") match;
-// nothing here collides with Googlebot/Bingbot or with GPTBot/CCBot.
-const AI_RETRIEVAL_BOT_UA = /OAI-SearchBot|ChatGPT-User|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Google-Extended|Applebot/i;
-
-function isAiRetrievalBot(userAgent) {
-  return Boolean(userAgent) && AI_RETRIEVAL_BOT_UA.test(userAgent);
-}
-
 const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc", "count-lines-without-cloning", "github-api-count-lines", "tokei-vs-cloc-vs-scc", "largest-codebases"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
-  url.pathname = `/docs/${slug}.md`;
+  url.pathname = `${options.locale === "zh" ? "/zh" : ""}/docs/${slug}.md`;
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
@@ -1348,19 +1349,22 @@ Extension source code: [${content.sourceUrl}](${content.sourceUrl}).
 /// the same), and the marker #root[data-oc-prerender="home"] tells
 /// src/main.tsx to hydrate instead of re-mounting.
 ///
-/// `?lng=zh` is the one explicit, URL-visible language signal — the same
-/// param the boot script and i18next's querystring detector already honor —
-/// so the variant choice is a pure function of the URL and the edge cache
-/// (keyed by URL) can never mix variants.
+/// The locale is pinned by the canonical path, independent of browser preferences.
 async function homePageResponse(context) {
   const url = new URL(context.request.url);
-  const assetPath = url.searchParams.get("lng") === "zh" ? "/home-zh.html" : "/home.html";
+  const assetPath = url.pathname === "/zh" ? "/home-zh.html" : "/home.html";
   const assetUrl = new URL(url);
   assetUrl.pathname = assetPath;
   assetUrl.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(assetUrl.toString(), { method: "GET" }));
   if (asset.ok) {
     return htmlResponse(await asset.text(), "public, s-maxage=300, stale-while-revalidate=600");
+  }
+  if (url.pathname === "/zh") {
+    return new Response("中文页面暂时不可用，请稍后重试。", {
+      status: 503,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "retry-after": "60" },
+    });
   }
   // Degraded path (a deploy somehow missing its prerendered assets): the
   // plain SPA shell still works once JS runs, but it is NOT the good page —
@@ -1463,9 +1467,11 @@ async function buildCompareViewModel(entry, left, right) {
     ["Blank lines", left.total.blanks, right.total.blanks],
     ["Languages counted", left.languages.length, right.languages.length],
   ];
+  const compatibility = comparePolicies(left, right).status;
   const side = (report, date) => ({
     repoFullName: report.repoFullName,
     publicPath: report.publicPath,
+    snapshotUrl: report.snapshotUrl,
     canonicalUrl: report.canonicalUrl,
     htmlUrl: report.htmlUrl,
     refName: report.refName,
@@ -1499,10 +1505,13 @@ async function buildCompareViewModel(entry, left, right) {
     // and as the first paragraph of the markdown twin. It names only real
     // repository names and defers every number to the methodology line, so
     // the three renderers stay consistent without restating figures here.
-    capsuleText: `The ${entry.name} comparison on OctoCounts shows side-by-side source line counts for ${left.repoFullName} and ${right.repoFullName}, counted with the same engine and analysis options on the dates shown in the methodology line: files, total lines, code lines, comment lines, blank lines, and per-language totals, pinned to the exact commits listed below.`,
+    capsuleText: `The ${entry.name} comparison on OctoCounts shows side-by-side source line counts for ${left.repoFullName} and ${right.repoFullName}, counted under the rules and on the dates stated below: files, total lines, code lines, comment lines, blank lines, and per-language totals, pinned to the exact commits listed below.`,
     summaryText: compareSummaryText(left, right, leftDate, rightDate),
     languageMixText: compareLanguageMixText(left, right),
     methodologyText: compareMethodologyText(left, right, leftDate, rightDate),
+    compatibility,
+    policyText: `${compatibility === "same" ? "Both reports use the same engine and effective counting rules. Repository declarations, when enabled, are specific to each repository." : compatibility === "different" ? "These reports use different engines or counting rules; do not interpret their ratio as a like-for-like comparison." : "Counting rules are unknown for at least one report; comparability cannot be verified."} ${reportPolicyText(left)} ${reportPolicyText(right)}`,
+    retentionText: "Saved reports remain subject to cache cleanup and replacement. Export their JSON for durable citation; live report URLs can change.",
     disclaimerText: "Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.",
     editorial: (await loadCompareEditorial())[entry.slug] ?? null,
     faq: compareFaq(entry, left, right, leftDate, rightDate),
@@ -1560,6 +1569,8 @@ ${table}
 ${model.languageMixText}
 
 ${methodology}
+
+${model.policyText}
 ${model.editorial ? `## About this comparison
 
 ${model.editorial.scope}
@@ -1574,6 +1585,10 @@ Sources: ${model.editorial.sources.map((source) => `[${source.label}](${source.u
 
 - [${model.left.repoFullName} SLOC report](https://octocounts.com${model.left.publicPath})
 - [${model.right.repoFullName} SLOC report](https://octocounts.com${model.right.publicPath})
+${[model.left, model.right].filter((side) => side.snapshotUrl).map((side) => `- [${side.repoFullName} saved report](${side.snapshotUrl})`).join("\n")}
+
+${model.retentionText}
+
 - [Compare ${model.left.repoFullName} and ${model.right.repoFullName} interactively](https://octocounts.com${model.interactiveHref})
 
 ${model.disclaimerText}
@@ -1891,11 +1906,12 @@ function injectCuratedCompare(index, model) {
         .map((source) => `<a href="${escapeAttr(source.url)}" rel="noreferrer">${escapeHtml(source.label)}</a>`)
         .join(" · ")}. Statements verified ${escapeHtml(model.editorial.verifiedAt)}.</p></section>`
     : "";
-  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.capsuleText)}</p><p>${escapeHtml(model.definitionText)}</p><p id="octocounts-compare-summary">${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}${editorialHtml}<p>Evidence and next steps:</p><ul>
+  const bodyContent = `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.capsuleText)}</p><p>${escapeHtml(model.definitionText)}</p><p id="octocounts-compare-summary">${escapeHtml(model.summaryText)}</p>${table}<p>${escapeHtml(model.languageMixText)}</p>${methodology}<p>${escapeHtml(model.policyText)}</p>${editorialHtml}<p>Evidence and next steps:</p><ul>
     <li><a href="${escapeAttr(model.left.publicPath)}">${escapeHtml(model.left.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.right.publicPath)}">${escapeHtml(model.right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.interactiveHref)}">Compare ${escapeHtml(model.left.repoFullName)} and ${escapeHtml(model.right.repoFullName)} interactively</a></li>
-  </ul><p>${escapeHtml(model.disclaimerText)}</p>${compareFaqHtml(model.faq)}${internalLinks}</section>`;
+    ${[model.left, model.right].filter((side) => side.snapshotUrl).map((side) => `<li><a href="${escapeAttr(side.snapshotUrl)}">${escapeHtml(side.repoFullName)} saved report</a></li>`).join("")}
+  </ul><p>${escapeHtml(model.retentionText)}</p><p>${escapeHtml(model.disclaimerText)}</p>${compareFaqHtml(model.faq)}${internalLinks}</section>`;
 
   return injectHeadAndNoscript(index, {
     title: model.title,
@@ -1951,6 +1967,14 @@ function compareLanguageMixText(left, right) {
 
 function topLanguages(report, count) {
   return [...report.languages].sort((a, b) => b.stats.code - a.stats.code).slice(0, count);
+}
+
+function reportPolicyText(report) {
+  const policy = report.countingPolicy;
+  if (!policy) return `${report.repoFullName}: counting rules unknown; engine ${report.tokeiVersion || "unknown"}.`;
+  const toggles = [["docs", policy.includeDocs], ["tests", policy.includeTests], ["generated", policy.includeGenerated]]
+    .map(([name, included]) => `${name} ${included ? "included" : "excluded"}`).join(", ");
+  return `${report.repoFullName}: ${report.tokeiVersion || "unknown engine"}, policy ${policy.version}; ${toggles}. Excluded directory names: ${policy.ignoredDirs.join(", ") || "none"}. Ignored languages: ${policy.ignoredLanguages.join(", ") || "none"}. Repository declarations: ${policy.repositoryAttributes.status}. Exclusions are rule-based; they do not prove that every test, document or generated file was removed.`;
 }
 
 function compareMethodologyText(left, right, leftDate, rightDate) {
@@ -2041,7 +2065,7 @@ function compareJsonLd(model) {
           url: "https://octocounts.com/",
           sameAs: ORGANIZATION_SAME_AS,
         },
-        isBasedOn: [model.left.canonicalUrl, model.right.canonicalUrl],
+        isBasedOn: [model.left.snapshotUrl || model.left.canonicalUrl, model.right.snapshotUrl || model.right.canonicalUrl],
       },
       {
         "@type": "BreadcrumbList",
@@ -2608,7 +2632,9 @@ function reportJsonLd(report) {
         distribution: {
           "@type": "DataDownload",
           encodingFormat: "application/json",
-          contentUrl: `https://api.octocounts.com/api/seo/report?provider=${encodeURIComponent(report.provider)}&owner=${encodeURIComponent(report.owner)}&repo=${encodeURIComponent(report.repo)}`,
+          contentUrl: report.reportId
+            ? `https://api.octocounts.com/api/reports/${encodeURIComponent(report.reportId)}`
+            : `https://api.octocounts.com/api/seo/report?${new URLSearchParams({ provider: report.provider, owner: report.owner, repo: report.repo, ...(report.refName ? { refName: report.refName } : {}) })}`,
         },
       },
       {
@@ -2774,13 +2800,6 @@ function htmlResponse(html, cacheControl, options) {
 /// Markdown twins share the cache policy of their HTML page and the lockdown
 /// header set; the body may be a string or a stream (static .md asset).
 ///
-/// uaOnly (the response is markdown only because of the retrieval-bot user
-/// agent, not an explicit ?format=md/.md URL): the zone cache rule in front of
-/// this function keys purely on URL, so a UA-derived markdown body cached
-/// under the HTML URL would be served to browsers and Googlebot (and vice
-/// versa). Force private, no-store + Vary: User-Agent so the variant never
-/// enters any shared cache. Explicit markdown URLs keep the shared headers —
-/// their distinct URL cannot pollute the HTML entry.
 function markdownResponse(markdown, cacheControl, options = {}) {
   return new Response(markdown, {
     // status is set only by the missing-report markdown fallback (404).
@@ -2792,8 +2811,7 @@ function markdownResponse(markdown, cacheControl, options = {}) {
       // crawlable (follow). Covers report/compare/trending/stats/extension
       // twins and the docs/research .md assets served through this function.
       "x-robots-tag": "noindex, follow",
-      "cache-control": options.uaOnly ? "private, no-store" : cacheControl,
-      ...(options.uaOnly ? { vary: "User-Agent" } : {}),
+      "cache-control": cacheControl,
       ...securityHeaders(),
     },
   });

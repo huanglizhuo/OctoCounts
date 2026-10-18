@@ -288,6 +288,7 @@ export function ComparePage() {
 type CuratedCompareSide = {
   repoFullName: string;
   publicPath: string;
+  snapshotUrl?: string;
   refName: string;
   commitSha: string;
   generatedAt: string;
@@ -307,6 +308,8 @@ type CuratedCompareModel = {
   summaryText?: string;
   languageMixText?: string;
   methodologyText?: string;
+  policyText?: string;
+  retentionText?: string;
   disclaimerText?: string;
   faq?: Array<{ question: string; answer: string }>;
   relatedLinks?: Array<{ href: string; label: string }>;
@@ -388,6 +391,7 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
         </tbody>
       </table>
       {model.languageMixText ? <p>{model.languageMixText}</p> : null}
+      {model.policyText ? <p>{model.policyText}</p> : null}
       {model.editorial ? (
         <section aria-label={t("curatedCompare.aboutAria")}>
           <h2>{t("curatedCompare.aboutTitle")}</h2>
@@ -425,6 +429,8 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
           </a>
         </li>
       </ul>
+      {[model.left, model.right].filter((side) => side.snapshotUrl).map((side) => <p key={side.repoFullName}><a href={side.snapshotUrl}>{t("curatedCompare.savedReport", { repo: side.repoFullName })}</a></p>)}
+      {model.retentionText ? <p>{model.retentionText}</p> : null}
       {model.disclaimerText ? <p>{model.disclaimerText}</p> : null}
       {model.faq?.length ? (
         <div className="how">

@@ -2894,6 +2894,10 @@ footer a:focus-visible {
 }
 
 .lang-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   background: none;
   border: none;
   color: var(--fg-mute);

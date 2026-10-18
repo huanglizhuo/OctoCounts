@@ -29,6 +29,9 @@
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=3600
 
+/zh/docs/*
+  Cache-Control: public, max-age=3600
+
 /docs/*
   Cache-Control: public, max-age=3600
 

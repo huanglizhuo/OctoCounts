@@ -281,7 +281,7 @@
       {
         "num": "01",
         "title": "Resolve",
-        "text": "OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Pinning to a commit means the analysis is deterministic: the same URL and ref always produce the same count, and the cache key is stable regardless of branch movement.",
+        "text": "OctoCounts validates the public GitHub URL and resolves the requested branch, tag, or commit SHA to a pinned commit hash via the GitHub API. Counts are reproducible for the same commit SHA, engine version, and effective counting rules. A branch or tag can move to a new commit, so its live report can change.",
         "code": "GET <1>/repos/:owner/:repo</1>"
       },
       {
@@ -507,6 +507,7 @@
     }
   },
   "curatedCompare": {
+    "savedReport": "{{repo}} saved report",
     "unavailable": "This comparison is temporarily unavailable. Please try again in a moment, or run a fresh comparison with the tool below.",
     "missing": "A cached OctoCounts report is not available for both repositories yet. Run the analyses with the tool below, then revisit this page.",
     "resultsAria": "Comparison results",

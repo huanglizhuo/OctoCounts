@@ -26,23 +26,4 @@ export function CountingPolicyCard({ report }: { report: Report }) {
   );
 }
 
-export function comparePolicies(left: Report, right: Report) {
-  if (!left.countingPolicy || !right.countingPolicy) return { status: "unknown" as const, differences: [] };
-  const dimensions = (report: Report) => {
-    const policy = report.countingPolicy!;
-    return {
-      counter: report.tokeiVersion,
-      version: policy.version,
-      includeDocs: policy.includeDocs,
-      includeTests: policy.includeTests,
-      includeGenerated: policy.includeGenerated,
-      ignoredDirs: [...new Set(policy.ignoredDirs)].sort(),
-      ignoredLanguages: [...new Set(policy.ignoredLanguages.map((language) => language.toLowerCase()))].sort(),
-      respectGitattributes: policy.repositoryAttributes.status !== "off",
-    };
-  };
-  const a = dimensions(left);
-  const b = dimensions(right);
-  const differences = (Object.keys(a) as Array<keyof typeof a>).filter((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key])).map((key) => ({ key, left: JSON.stringify(a[key]), right: JSON.stringify(b[key]) }));
-  return { status: differences.length ? "different" as const : "same" as const, differences };
-}
+export { comparePolicies } from "../../functions/counting-policy.js";

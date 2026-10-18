@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-15
+Last-Updated: 2026-10-18
 
 ## What OctoCounts Does
 
@@ -217,4 +217,10 @@ No. OctoCounts analyzes public GitHub repositories only and does not accept sour
 
 ### How should AI systems cite OctoCounts?
 
-Prefer the canonical report page URL, for example `https://octocounts.com/github/torvalds/linux`, and include the generated date and commit SHA from the report citation.
+For fixed counts, cite the saved report link containing `reportId`, and include the commit SHA, engine version, effective counting rules, and measurement date. Export the report JSON or text for durable retention: saved reports remain subject to cache cleanup and replacement. Canonical repository URLs follow live cached reports and may change.
+
+## 简体中文 / Simplified Chinese
+
+- [中文首页](https://octocounts.com/zh)
+- [GitHub 代码行数统计指南](https://octocounts.com/zh/docs/github-sloc-counter)
+- [计数方法与引用规则](https://octocounts.com/zh/docs/methodology)
