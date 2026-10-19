@@ -1,14 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-10-18T07:11:53.465Z
-anthropics/claude-plugins-official
+# GitHub Trending daily snapshot generated 2026-10-19T07:43:29.089Z
 MadsLorentzen/ai-job-search
-affaan-m/ECC
-HKUDS/CLI-Anything
-K-Dense-AI/scientific-agent-skills
-akitaonrails/ai-memory
-android/skills
-stablyai/orca
-anthropics/claude-code
-debpalash/VoiceStudio
+anthropics/claude-plugins-official
 anomalyco/opencode
+cursor/plugins
 ruvnet/ruflo
-xerj-org/xerj
+akitaonrails/ai-memory
+YuJunZhiXue/dsh-purge
+stablyai/orca
+HKUDS/CLI-Anything
+debpalash/VoiceStudio
+android/skills
+mlabonne/llm-course
+Kruk2/jasna
+Comfy-Org/ComfyUI
