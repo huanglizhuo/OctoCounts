@@ -4,7 +4,7 @@
 // see exportGrowthPng. The sticky-bar PNG export still captures an offscreen
 // ShareTickerCard below the fold in Runner.tsx.) The primary copy-URL action
 // and the compare/diff/citation/badges links live in the ReportActions bar.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Clipboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "../analytics";
@@ -22,14 +22,22 @@ import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
 // ShareTickerCard for the sticky-bar PNG export.)
 export function ShareSection({ report, stars }: { report: Report; stars: number | null }) {
   const { t } = useTranslation();
+  useEffect(() => {
+    if (window.location.hash === "#readme-badge") document.getElementById("readme-badge")?.focus();
+  }, []);
   const isGitHub = normalizedProvider(report) === "github";
   const copied = useCopied();
   const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
   const [manualCopyValue, setManualCopyValue] = useState<string | null>(null);
   const [shareMode, setShareMode] = useState<"snapshot" | "live">("snapshot");
+  const [badgeMode, setBadgeMode] = useState<"snapshot" | "live">("live");
   const liveUrl = new URL(buildPublicReportUrl(report.repository.owner, report.repository.name, report.refName));
   liveUrl.searchParams.set("analysis", JSON.stringify(canonicalAnalysisOptions));
   const shareUrl = shareMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl.href;
+  const badgeUrl = badgeMode === "snapshot"
+    ? report.id ? buildReportBadgeUrl(report.id) : ""
+    : buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "");
+  const badgeMarkdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${badgeMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl.href})` : "";
   const runCopy = async (action: () => Promise<boolean>, fallbackValue?: string) => {
     const ok = await action();
     setCopyFeedback(ok ? "copied" : "failed");
@@ -37,13 +45,9 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
   };
 
   const copyBadge = async () => {
-    const url = shareUrl;
-    const badgeUrl = isGitHub
-      ? shareMode === "snapshot" && report.id ? buildReportBadgeUrl(report.id) : buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "")
-      : "";
-    if (!badgeUrl) return false;
-    const ok = await copyText(`[![OctoCounts](${badgeUrl})](${url})`);
-    if (ok) { copied.showCopied("badge"); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_utility" }); }
+    if (!isGitHub || !badgeMarkdown) return false;
+    const ok = await copyText(badgeMarkdown);
+    if (ok) { copied.showCopied(badgeMarkdown); trackEvent(AnalyticsEvents.badgeMarkdownCopied, { provider: "github", placement: "report_utility" }); }
     return ok;
   };
 
@@ -63,7 +67,32 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
         <span>{t("reportCta.subtitle")}</span>
       </div>
       <div className="share-showcase-body">
-        <label className="share-mode"><span>{t("reportCta.shareMode")}</span><select value={shareMode} onChange={(event) => setShareMode(event.target.value as "snapshot" | "live")}><option value="snapshot">{t("reportCta.snapshot")}</option><option value="live">{t("reportCta.live")}</option></select><small>{t(shareMode === "snapshot" ? "reportCta.snapshotNote" : "reportCta.liveNote")}</small></label>
+        {isGitHub ? (
+          <section id="readme-badge" className="report-badge" tabIndex={-1} aria-label={t("reportActions.addBadge")}>
+            <h3>{t("reportActions.addBadge")}</h3>
+            <label className="share-mode">
+              <span>{t("reportCta.badgeMode")}</span>
+              <select aria-label={t("reportCta.badgeMode")} value={badgeMode} onChange={(event) => {
+                setBadgeMode(event.target.value as "snapshot" | "live");
+                setCopyFeedback(null);
+                setManualCopyValue(null);
+              }}>
+                <option value="live">{t("reportCta.badgeLive")}</option>
+                <option value="snapshot" disabled={!report.id}>{t("reportCta.snapshot")}</option>
+              </select>
+              <small>{t(badgeMode === "snapshot" ? "reportCta.badgeSnapshotNote" : "reportCta.badgeLiveNote")}</small>
+            </label>
+            {badgeUrl ? <img src={badgeUrl} alt={t("badgeBuilder.previewAlt")} width="180" height="20" loading="lazy" /> : null}
+            <div className="badge-builder-output">
+              <code tabIndex={0} aria-label={t("badgeBuilder.markdownAria")}>{badgeMarkdown}</code>
+              <button className="copybtn" type="button" disabled={!badgeMarkdown} onClick={() => void runCopy(copyBadge, badgeMarkdown)}>
+                <Clipboard size={14} />
+                {copied.copiedKey === badgeMarkdown ? t("reportCta.copied") : t("badgeBuilder.copyMarkdown")}
+              </button>
+            </div>
+          </section>
+        ) : null}
+        <label className="share-mode"><span>{t("reportCta.shareMode")}</span><select aria-label={t("reportCta.shareMode")} value={shareMode} onChange={(event) => setShareMode(event.target.value as "snapshot" | "live")}><option value="snapshot">{t("reportCta.snapshot")}</option><option value="live">{t("reportCta.live")}</option></select><small>{t(shareMode === "snapshot" ? "reportCta.snapshotNote" : "reportCta.liveNote")}</small></label>
         <div className="share-showcase-actions">
           <ShareButtons
             url={shareUrl}
@@ -71,12 +100,6 @@ export function ShareSection({ report, stars }: { report: Report; stars: number 
             placement="report"
           />
           <div className="row-flex">
-            {isGitHub ? (
-              <button className="copybtn" type="button" disabled={shareMode === "snapshot" && !report.id} onClick={() => void runCopy(copyBadge)}>
-                <Clipboard size={14} />
-                {copied.copiedKey === "badge" ? t("reportCta.copied") : t("reportCta.copyBadge")}
-              </button>
-            ) : null}
             <button className="copybtn" type="button" disabled={shareMode === "snapshot" && !report.id} onClick={() => void runCopy(copyEmbed)}>
               <Clipboard size={14} />
               {copied.copiedKey === "embed" ? t("reportCta.copied") : t("reportCta.copyEmbed")}

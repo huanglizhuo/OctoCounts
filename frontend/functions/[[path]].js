@@ -1,3 +1,4 @@
+import { reportJsonLd } from "./report-schema.js";
 import { comparePolicies } from "./counting-policy.js";
 import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
@@ -2593,81 +2594,6 @@ function reportSummaryJson(report) {
   };
 }
 
-function reportJsonLd(report) {
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Dataset",
-        "@id": `${report.canonicalUrl}#dataset`,
-        name: `${report.repoFullName} source line count`,
-        description: report.description,
-        url: report.canonicalUrl,
-        dateModified: isoMilliseconds(report.generatedAt),
-        // The backend's stable configuration digest; absent on reports stored
-        // before option tracking, matching analysisKey in the JSON payload.
-        ...(report.analysisKey ? { identifier: report.analysisKey } : {}),
-        // No datePublished: the SEO report payload carries only generatedAt
-        // (the latest regeneration), not the report's first-creation time,
-        // and inventing one would be worse than omitting the field.
-        // Speakable targets the h1 and the citation sentence, which together
-        // are the self-contained answer an engine would read aloud or quote.
-        speakable: {
-          "@type": "SpeakableSpecification",
-          cssSelector: ["#root h1", "#octocounts-citation"],
-        },
-        measurementTechnique: "tokei via OctoCounts",
-        variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
-        // Creator stays inline (a standalone Dataset node needs name/url for
-        // validators that never see the homepage) but carries the homepage
-        // Organization's canonical @id and sameAs so the two merge (H4).
-        creator: {
-          "@type": "Organization",
-          "@id": ORGANIZATION_ID,
-          name: "OctoCounts",
-          url: "https://octocounts.com/",
-          sameAs: ORGANIZATION_SAME_AS,
-        },
-        isBasedOn: report.htmlUrl,
-        distribution: {
-          "@type": "DataDownload",
-          encodingFormat: "application/json",
-          contentUrl: report.reportId
-            ? `https://api.octocounts.com/api/reports/${encodeURIComponent(report.reportId)}`
-            : `https://api.octocounts.com/api/seo/report?${new URLSearchParams({ provider: report.provider, owner: report.owner, repo: report.repo, ...(report.refName ? { refName: report.refName } : {}) })}`,
-        },
-      },
-      {
-        "@type": "SoftwareSourceCode",
-        "@id": `${report.canonicalUrl}#source`,
-        name: report.repoFullName,
-        codeRepository: report.htmlUrl,
-        url: report.htmlUrl,
-        programmingLanguage: report.languages.map((language) => language.name),
-        version: report.commitSha,
-        dateModified: isoMilliseconds(report.generatedAt),
-      },
-      {
-        "@type": "BreadcrumbList",
-        "@id": `${report.canonicalUrl}#breadcrumbs`,
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "OctoCounts", item: "https://octocounts.com/" },
-          { "@type": "ListItem", position: 2, name: "GitHub reports", item: "https://octocounts.com/recent" },
-          { "@type": "ListItem", position: 3, name: report.repoFullName, item: report.canonicalUrl },
-        ],
-      },
-      {
-        "@type": "FAQPage",
-        "@id": `${report.canonicalUrl}#faq`,
-        mainEntity: reportFaq(report).map((item) => ({
-          "@type": "Question",
-          name: item.question,
-          acceptedAnswer: { "@type": "Answer", text: item.answer },
-        })),
-      },
-    ],
-  };
-}
 
 function injectFallback(index, route) {
   const fullName = `${route.owner}/${route.repo}`;

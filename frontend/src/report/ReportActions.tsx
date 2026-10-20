@@ -1,9 +1,4 @@
-// The report's primary action bar: copy link, export (text/JSON copies plus
-// the real PNG download), re-analyze, and a "more" menu with the
-// compare/diff/citation/badges entries. Rendered once under the runner head
-// and reused (compact) inside the sticky bar, so there is exactly one copy of
-// the URL-building and clipboard logic. Copy-failure feedback keeps the
-// manual-copy textarea fallback next to the actions that produced it.
+// The report and sticky bars share clipboard handling, including its fallback.
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, Clipboard, Download, FileJson, Link2, MoreHorizontal, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -58,43 +53,41 @@ export function ReportActions({
       <button
         type="button"
         className="copybtn report-action-copy"
-        onClick={() => {
-          runCopy("url", snapshotUrl);
-          trackEvent(AnalyticsEvents.reportUrlCopied, { provider, placement });
-        }}
+        onClick={() => runCopy("url", snapshotUrl, () => trackEvent(AnalyticsEvents.reportUrlCopied, { provider, placement }))}
       >
         <Link2 size={14} aria-hidden="true" />
         {copied.copiedKey === "url" ? t("reportCta.copied") : t("reportActions.copyLink")}
       </button>
-      <ActionMenu label={t("reportActions.export")} icon={<Download size={14} aria-hidden="true" />}>
-        <button type="button" className="copybtn" onClick={() => runCopy("text", textReport(report), () => trackEvent("report_text_copied", { provider }))}>
-          <Clipboard size={14} aria-hidden="true" />
-          {copied.copiedKey === "text" ? t("reportCta.copied") : t("reportActions.exportText")}
-        </button>
-        <button type="button" className="copybtn" onClick={() => runCopy("json", JSON.stringify(report, null, 2), () => trackEvent("report_json_copied", { provider }))}>
-          <FileJson size={14} aria-hidden="true" />
-          {copied.copiedKey === "json" ? t("reportCta.copied") : t("reportActions.exportJson")}
-        </button>
-        <button type="button" className="copybtn" disabled={isExporting} onClick={onExportPng}>
-          <Download size={14} aria-hidden="true" />
-          {isExporting ? t("reportActions.exporting") : t("reportActions.exportPng")}
-        </button>
-      </ActionMenu>
-      <button type="button" className="copybtn report-action-rerun" onClick={onRerun} title={report.cached ? t("runner.cacheHit") : t("runner.freshRun")}>
-        <RotateCcw size={14} aria-hidden="true" />
-        {t("reportActions.rerun")}
-      </button>
       {compact ? null : (
-        <ActionMenu label={t("reportActions.more")} icon={<MoreHorizontal size={14} aria-hidden="true" />}>
-          <a className="copybtn" href={targets.compareHref}>{t("reportTools.compare")}</a>
-          <a className="copybtn" href={targets.diffHref}>{t("reportTools.diff")}</a>
-          <button type="button" className="copybtn" onClick={() => runCopy("citation", targets.citation, () => trackEvent("report_citation_copied", { provider }))}>
-            <Clipboard size={14} aria-hidden="true" />
-            {copied.copiedKey === "citation" ? t("reportCta.copied") : t("reportTools.copyCitation")}
-          </button>
-          <a className="copybtn" href={targets.badgesHref}>{t("reportTools.badges")}</a>
-          <button type="button" className="copybtn" onClick={onReset}>{t("reportActions.clear")}</button>
-        </ActionMenu>
+        <>
+          <a className="copybtn report-action-badge" href="#readme-badge"><Clipboard size={14} aria-hidden="true" />{t("reportActions.addBadge")}</a>
+          <ActionMenu label={t("reportActions.more")} icon={<MoreHorizontal size={14} aria-hidden="true" />}>
+            <button type="button" className="copybtn" onClick={() => runCopy("text", textReport(report), () => trackEvent("report_text_copied", { provider }))}>
+              <Clipboard size={14} aria-hidden="true" />
+              {copied.copiedKey === "text" ? t("reportCta.copied") : t("reportActions.exportText")}
+            </button>
+            <button type="button" className="copybtn" onClick={() => runCopy("json", JSON.stringify(report, null, 2), () => trackEvent("report_json_copied", { provider }))}>
+              <FileJson size={14} aria-hidden="true" />
+              {copied.copiedKey === "json" ? t("reportCta.copied") : t("reportActions.exportJson")}
+            </button>
+            <button type="button" className="copybtn" disabled={isExporting} onClick={onExportPng}>
+              <Download size={14} aria-hidden="true" />
+              {isExporting ? t("reportActions.exporting") : t("reportActions.exportPng")}
+            </button>
+            <button type="button" className="copybtn report-action-rerun" onClick={onRerun} title={report.cached ? t("runner.cacheHit") : t("runner.freshRun")}>
+              <RotateCcw size={14} aria-hidden="true" />
+              {t("reportActions.rerun")}
+            </button>
+            <a className="copybtn" href={targets.compareHref}>{t("reportTools.compare")}</a>
+            <a className="copybtn" href={targets.diffHref}>{t("reportTools.diff")}</a>
+            <button type="button" className="copybtn" onClick={() => runCopy("citation", targets.citation, () => trackEvent("report_citation_copied", { provider }))}>
+              <Clipboard size={14} aria-hidden="true" />
+              {copied.copiedKey === "citation" ? t("reportCta.copied") : t("reportTools.copyCitation")}
+            </button>
+            <a className="copybtn" href={targets.badgesHref}>{t("reportTools.badges")}</a>
+            <button type="button" className="copybtn" onClick={onReset}>{t("reportActions.clear")}</button>
+          </ActionMenu>
+        </>
       )}
       {compact ? null : (
         <>

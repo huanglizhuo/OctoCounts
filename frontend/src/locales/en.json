@@ -36,7 +36,8 @@
     "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
     "reportSubtitle": "SLOC report",
     "reportSubtitleRef": "SLOC report · {{ref}}",
-    "trustLine": "Open source · Powered by tokei · 200+ languages"
+    "trustLine": "Open source · Powered by tokei · 200+ languages",
+    "editReport": "Analyze another repo / change settings"
   },
   "samples": {
     "label": "sample",
@@ -108,7 +109,8 @@
     "rerun": "Re-analyze",
     "more": "More",
     "clear": "Clear input",
-    "githubAria": "Open {{repo}} on GitHub"
+    "githubAria": "Open {{repo}} on GitHub",
+    "addBadge": "Add README badge"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -130,11 +132,15 @@
     "copyFailed": "Copy failed. Select the link and copy it manually.",
     "copyFailedShort": "Copy failed",
     "manualContentAria": "Content for manual copy",
-    "shareMode": "Share behavior",
+    "shareMode": "Report & embed behavior",
     "snapshot": "Fixed result",
     "live": "Follow this ref",
-    "snapshotNote": "The report, badge and embed use this saved result. If the record is removed, the link becomes unavailable.",
-    "liveNote": "Uses the public default counting policy and follows this ref; custom filters are not applied."
+    "snapshotNote": "The report and embed use this saved result. If the record is removed, the link becomes unavailable.",
+    "liveNote": "Uses the public default counting policy and follows this ref; custom filters are not applied.",
+    "badgeMode": "Badge behavior",
+    "badgeLive": "Follow this ref (for README)",
+    "badgeLiveNote": "Uses the default counting rules, without your custom filters. Branch badges update as new results are cached; tags and commits stay pinned.",
+    "badgeSnapshotNote": "Keeps this saved result and its counting rules. It does not update; removing the saved record makes the badge unavailable."
   },
   "similarRepos": {
     "ariaLabel": "Similar repositories",
@@ -145,8 +151,8 @@
   },
   "summary": {
     "files": "Files",
-    "lines": "Lines",
-    "code": "Code",
+    "lines": "Total lines",
+    "code": "Code lines",
     "comments": "Comments",
     "blanks": "Blanks"
   },
@@ -763,7 +769,7 @@
     "details": "View all rules",
     "unknown": "Not recorded",
     "legacy": "This historical report does not record its full counting policy.",
-    "definition": "Total lines = code + comments + blanks. Code lines follow Tokei classification.",
+    "definition": "Total lines = code + comments + blanks.",
     "engineDefaults": "File discovery follows the recorded Tokei version’s default hidden-file and ignore-file behavior.",
     "directoryMatching": "Directory exclusions match an exact, case-sensitive path component. Generated-directory filtering does not identify every generated file.",
     "docs": {
@@ -788,6 +794,8 @@
       "not_found": "No declarations found",
       "applied": "Repository declarations applied"
     },
-    "exclusionSummary": "{{dirs}} excluded directory names · {{languages}} ignored languages"
+    "exclusionSummary": "{{dirs}} excluded directory names · {{languages}} ignored languages",
+    "edit": "Change rules",
+    "classification": "Code lines follow Tokei classification and can include JSON and other text formats unless excluded. The source-only profile excludes additional non-source languages."
   }
 }

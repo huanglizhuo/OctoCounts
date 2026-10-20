@@ -66,7 +66,7 @@ function waitForMountedCard(ref: React.RefObject<HTMLDivElement | null>, budgetM
   });
 }
 
-export function Runner({ command, status, report, error, errorCode, waitingMessage, onReset, onRerun, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; waitingMessage?: string | null; onReset: () => void; onRerun: () => void; variant?: "demo" | "full" }) {
+export function Runner({ command, status, report, error, errorCode, waitingMessage, onReset, onRerun, onEditOptions, variant = "full" }: { command: string; status: AppStatus; report: Report | null; error: string | null; errorCode?: string; waitingMessage?: string | null; onReset: () => void; onRerun: () => void; onEditOptions?: () => void; variant?: "demo" | "full" }) {
   const { t, i18n } = useTranslation();
   // Offscreen-but-laid-out mount of the share card, created only while a PNG
   // export is in flight. html-to-image needs a real layout; the visible
@@ -235,7 +235,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
         <div className="left">
           {report ? (
             <>
-              <strong className="runner-repo">{report.repository.owner}/{report.repository.name}</strong>
+              <strong className="runner-repo">{report.repository.owner}/<wbr />{report.repository.name}</strong>
               {/* Source repository, moved up from the old bottom action row. */}
               <a className="runner-github-link" href={report.repository.htmlUrl} target="_blank" rel="noreferrer" aria-label={t("reportActions.githubAria", { repo: `${report.repository.owner}/${report.repository.name}` })}>
                 <ExternalLink size={15} aria-hidden="true" />
@@ -276,6 +276,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
           </>
         ) : (
           <>
+            <Summary stats={report.total} />
             <ReportActions
               report={report}
               onRerun={onRerun}
@@ -285,10 +286,12 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
               exportError={exportError}
               placement="report_actions"
             />
-            <Summary stats={report.total} />
-            <CountingPolicyCard report={report} />
+            <CountingPolicyCard report={report} onEditOptions={onEditOptions} />
             <Charts report={report} variant="full" />
-            {/* Growth animation right under the charts: lazy so the growth
+            <Suspense fallback={null}>
+              <ShareSection key={report.id} report={report} stars={stars} />
+            </Suspense>
+            {/* Growth animation after the report sharing tools: lazy so the growth
                 chunk (renderer + player + GIF exporter) splits out of the
                 entry bundle; null fallback — a shared boundary would flash
                 siblings back to a fallback when this chunk resolves. */}
@@ -300,9 +303,6 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
                 below-fold extra in its own Suspense boundary (null fallback —
                 a shared boundary would flash siblings back to the fallback
                 whenever a later chunk resolved). */}
-            <Suspense fallback={null}>
-              <ShareSection report={report} stars={stars} />
-            </Suspense>
             <Suspense fallback={null}>
               <SimilarRepos report={report} />
             </Suspense>

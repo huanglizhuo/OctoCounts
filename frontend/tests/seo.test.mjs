@@ -176,10 +176,24 @@ test("documentation canonical, Open Graph, and JSON-LD URLs agree", async () => 
   }
 });
 
-test("built homepage schema uses the packaged extension version", async () => {
+test("homepage schema describes the web app and extension separately", async () => {
   const extensionPackage = JSON.parse(await readFile(EXTENSION_PACKAGE, "utf8"));
   const html = await readFile(new URL("dist/index.html", ROOT), "utf8");
-  assert.match(html, new RegExp(`"softwareVersion"\\s*:\\s*"${extensionPackage.version.replaceAll(".", "\\.")}"`));
+  const nodes = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
+  const app = nodes.find((node) => node["@type"] === "WebApplication");
+  const extension = nodes.find((node) => node["@id"] === "https://octocounts.com/#extension");
+  const website = nodes.find((node) => node["@type"] === "WebSite");
+  const author = nodes.find((node) => node["@type"] === "Person");
+  assert.equal(extension.softwareVersion, extensionPackage.version);
+  assert.equal(extension.operatingSystem, "Any");
+  assert.match(extension.browserRequirements, /Chrome, Edge, or Firefox/);
+  assert.equal(extension.downloadUrl.length, 3);
+  assert.equal(extension.screenshot, "https://octocounts.com/octocounts-light-card-480.webp");
+  for (const key of ["softwareVersion", "downloadUrl", "screenshot", "datePublished"]) assert.equal(app[key], undefined, key);
+  assert.equal(app.offers.price, "0");
+  assert.equal(website.potentialAction, undefined, "repository analysis is not site search");
+  assert.equal(website.dateModified, undefined, "no hardcoded site-wide freshness claim");
+  assert.equal(author.image, undefined, "a promotional card is not an author portrait");
   assert.doesNotMatch(html, /__EXTENSION_VERSION__/);
 });
 
@@ -231,9 +245,7 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   // Charts render eagerly (no DeferredContent) by design: they're the primary
   // above-the-fold content once a report loads, not a below-the-fold extra.
   // The report stack lives in src/report/Runner.tsx since the restructure:
-  // both variants render Summary directly above Charts (the data contract),
-  // and the full branch puts the ReportActions bar (copy link / export /
-  // re-analyze) ahead of the summary so core actions sit at the top.
+  // the full report leads with its numbers before actions and policy.
   const runner = await readFile(new URL("src/report/Runner.tsx", ROOT), "utf8");
   assert.match(
     runner,
@@ -242,8 +254,8 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   );
   assert.match(
     runner,
-    /\) : \(\s*<>\s*<ReportActions[\s\S]*?\/>\s*<Summary stats=\{report\.total\} \/>\s*<CountingPolicyCard report=\{report\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
-    "full branch renders ReportActions before Summary and Charts",
+    /\) : \(\s*<>\s*<Summary stats=\{report\.total\} \/>\s*<ReportActions[\s\S]*?\/>\s*<CountingPolicyCard report=\{report\} onEditOptions=\{onEditOptions\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
+    "full branch renders Summary before ReportActions and Charts",
   );
   // The homepage embeds no full tool forms anymore (T9): compare and diff are
   // whole-click cards into their own pages, and nothing lazy-loads them here.
@@ -427,11 +439,18 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.match(html, /Repository size insights/);
     assert.match(html, /"@type":"Dataset"/);
     assert.match(html, /"@type":"BreadcrumbList"/);
-    assert.match(html, /"@type":"FAQPage"/);
-    // The citation sentence is the speakable, quotable core of the page.
+    assert.doesNotMatch(html, /"@type":"FAQPage"/);
+    // SSR prose may include an FAQ, but it is absent from the interactive report.
     assert.match(html, /<p id="octocounts-citation">Counted at commit abcdef123456\.<\/p>/);
-    assert.match(html, /"speakable":\{"@type":"SpeakableSpecification","cssSelector":\["#root h1","#octocounts-citation"\]\}/);
-    assert.match(html, /"name":"How many lines of code does octo-org\/octo-repo have\?"/);
+    const graph = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])["@graph"];
+    const dataset = graph.find((node) => node["@type"] === "Dataset");
+    const source = graph.find((node) => node["@type"] === "SoftwareSourceCode");
+    assert.equal(dataset.speakable, undefined);
+    assert.deepEqual(Object.fromEntries(dataset.variableMeasured.map(({ name, value }) => [name, value])), { ...report.total, languages: report.languages.length });
+    assert.equal(source.dateModified, undefined, "analysis time is not source modification time");
+    assert.equal(source.version, report.commitSha);
+    assert.equal(source.url, `${report.htmlUrl}/tree/${report.commitSha}`);
+    assert.deepEqual(dataset.isBasedOn, { "@id": source["@id"] });
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts – GitHub SLOC Counter<\/h1>/);
     assert.match(html, /\/compare\/rust-vs-go/);

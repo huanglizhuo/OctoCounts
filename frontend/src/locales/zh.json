@@ -36,7 +36,8 @@
     "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
     "reportSubtitle": "SLOC 报告",
     "reportSubtitleRef": "SLOC 报告 · {{ref}}",
-    "trustLine": "开源 · 由 tokei 驱动 · 支持 200+ 种语言"
+    "trustLine": "开源 · 由 tokei 驱动 · 支持 200+ 种语言",
+    "editReport": "分析其他仓库 / 修改设置"
   },
   "samples": {
     "label": "示例",
@@ -96,7 +97,8 @@
     "rerun": "重新分析",
     "more": "更多",
     "clear": "清空输入",
-    "githubAria": "在 GitHub 打开 {{repo}}"
+    "githubAria": "在 GitHub 打开 {{repo}}",
+    "addBadge": "添加 README 徽章"
   },
   "shareCard": {
     "title": "OctoCounts // SLOC",
@@ -118,11 +120,15 @@
     "copyFailed": "复制失败。请选中链接后手动复制。",
     "copyFailedShort": "复制失败",
     "manualContentAria": "用于手动复制的内容",
-    "shareMode": "分享方式",
+    "shareMode": "报告与嵌入的更新方式",
     "snapshot": "固定结果",
     "live": "跟随该版本更新",
-    "snapshotNote": "报告、徽章和嵌入卡片使用同一份已保存结果；记录清理后链接会明确失效。",
-    "liveNote": "使用公开默认统计口径，跟随指定版本更新；不应用自定义过滤。"
+    "snapshotNote": "报告和嵌入引用这份已保存结果；若记录被移除，链接将无法访问。",
+    "liveNote": "使用公开默认统计口径，跟随指定版本更新；不应用自定义过滤。",
+    "badgeMode": "徽章更新方式",
+    "badgeLive": "跟随此版本（适合 README）",
+    "badgeLiveNote": "使用默认统计规则，不包含你的自定义过滤。分支徽章随新结果缓存而更新；标签和提交保持固定。",
+    "badgeSnapshotNote": "固定为这份结果及其统计规则，不随分支更新；若记录被移除，徽章将无法访问。"
   },
   "similarRepos": {
     "ariaLabel": "相似仓库",
@@ -133,8 +139,8 @@
   },
   "summary": {
     "files": "文件",
-    "lines": "行数",
-    "code": "代码",
+    "lines": "总行数",
+    "code": "代码行",
     "comments": "注释",
     "blanks": "空行"
   },
@@ -761,7 +767,7 @@
     "details": "查看完整规则",
     "unknown": "未记录",
     "legacy": "这份历史报告未记录完整统计口径。",
-    "definition": "总行数 = 代码行 + 注释行 + 空行。代码行按 Tokei 实际分类统计。",
+    "definition": "总行数 = 代码行 + 注释行 + 空行。",
     "engineDefaults": "文件发现遵循所记录 Tokei 版本的默认隐藏文件和忽略文件处理行为。",
     "directoryMatching": "目录排除按路径组成部分精确匹配，区分大小写。生成目录过滤不能识别全部生成代码。",
     "docs": {
@@ -786,6 +792,8 @@
       "not_found": "未发现仓库声明",
       "applied": "已应用仓库声明"
     },
-    "exclusionSummary": "排除 {{dirs}} 个目录名称 · 忽略 {{languages}} 种语言"
+    "exclusionSummary": "排除 {{dirs}} 个目录名称 · 忽略 {{languages}} 种语言",
+    "edit": "修改规则",
+    "classification": "代码行按 Tokei 分类统计；未排除时，JSON 等文本格式也可能计入代码行。「仅源码」预设会额外排除非源码语言。"
   }
 }

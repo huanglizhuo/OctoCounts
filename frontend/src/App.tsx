@@ -23,6 +23,7 @@ import { Runner } from "./report/Runner";
 import { GrowthLoadingBars } from "./growth/GrowthSkeleton";
 import { usePrerenderedHome, useExtensionPromo } from "./prerenderContext";
 import { faqForLanguage, faqJsonLdScript } from "./homeFaq";
+import { reportJsonLd } from "../functions/report-schema.js";
 import "./styles.css";
 import initialReportData from "./initialReport.json";
 import {
@@ -248,8 +249,8 @@ export function App() {
   // A visitor who lands directly on a specific report from search sees the
   // full marketing hero (tagline, subtitle, definition, install buttons,
   // sample chips) before any repository data — on mobile that pushed the
-  // actual report over a screen down. Collapse the hero to title + search
-  // box on report routes; the homepage keeps the full pitch for first-time
+  // actual report over a screen down. Collapse the search form on report
+  // routes; the homepage keeps the full pitch for first-time
   // visitors who have nothing else to look at yet.
   const isReportRoute = routePath.startsWith("/github/");
   // Report deep links name the repository in the URL, so the h1 is that
@@ -461,6 +462,71 @@ export function App() {
   // happened (any run nulls `report` before its own result lands).
   const demoActive = !isReportRoute && report === seedReport;
 
+  const reportSearchRef = useRef<HTMLDetailsElement>(null);
+  const analysisOptionsRef = useRef<HTMLDivElement>(null);
+  const editAnalysisOptions = () => {
+    if (reportSearchRef.current) reportSearchRef.current.open = true;
+    const panel = analysisOptionsRef.current?.querySelector("details");
+    if (panel) panel.open = true;
+    analysisOptionsRef.current?.querySelector("select")?.focus();
+  };
+  const analysisForm = (
+    <>
+      <form className="input-row" onSubmit={submit}>
+        <span className="prompt">$</span>
+        <input
+          id="repo-url"
+          name="repoUrl"
+          value={repoUrl}
+          onChange={(event) => {
+            const next = event.target.value;
+            setRepoUrl(next);
+            setAmbiguousRef(hasAmbiguousRefPath(next));
+            // Only a fresh homepage form may derive a ref from the URL.
+            // A hand-entered value — including an intentional blank — is
+            // a stronger choice than any pasted tree path. A plain
+            // repository URL leaves the ref blank: the backend resolves
+            // the actual default branch (which may not be `main`).
+            if (!refIsExplicit.current) {
+              const urlRef = refFromRepoUrl(next);
+              if (urlRef) {
+                refIsExplicit.current = true;
+                setRefName(urlRef);
+              } else if (hasAmbiguousRefPath(next)) {
+                // An ambiguous /tree/:ref/path URL asks the backend for
+                // the repository default branch instead of guessing.
+                refIsExplicit.current = true;
+                setRefName("");
+              }
+            }
+          }}
+          placeholder={t("hero.placeholderUrl")}
+          aria-label={t("hero.ariaUrl")}
+        />
+        <label className="ref">
+          {t("hero.refLabel")}
+          <input id="repo-ref" name="refName" value={refName} onChange={(event) => { refIsExplicit.current = true; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
+        </label>
+        {/* Disabled for the entire run (not just the POST): a second
+            click during queued/running would silently abort and restart
+            the job. Cancel is the explicit escape hatch instead. */}
+        <button className="btn" disabled={runActive}>
+          {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+          {t("hero.analyze")}
+        </button>
+        {runActive ? (
+          <button type="button" className="copybtn" onClick={() => reset()}>
+            {t("runner.cancel")}
+          </button>
+        ) : null}
+      </form>
+      <div ref={analysisOptionsRef}>
+        <AnalysisOptionsPanel key={optionsPanelKey} options={analysisOptions} setOptions={setAnalysisOptions} />
+      </div>
+      {ambiguousRef ? <p className="input-hint" role="status">{t("hero.ambiguousRef")}</p> : null}
+    </>
+  );
+
   return (
     <>
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
@@ -471,7 +537,7 @@ export function App() {
             {isReportRoute ? (
               reportRouteRepo ? (
                 <>
-                  <h1 id="hero-title" className="title title-compact">{reportRouteRepo.owner}/{reportRouteRepo.repo}</h1>
+                  <h1 id="hero-title" className="title title-compact">{reportRouteRepo.owner}/<wbr />{reportRouteRepo.repo}</h1>
                   <p className="report-route-sub">
                     {reportRoute?.refName ? t("hero.reportSubtitleRef", { ref: reportRoute.refName }) : t("hero.reportSubtitle")}
                   </p>
@@ -504,56 +570,12 @@ export function App() {
                 <a href="https://www.githubstatus.com" target="_blank" rel="noreferrer">{t("githubStatus.link")}</a>
               </p>
             ) : null}
-            <form className="input-row" onSubmit={submit}>
-              <span className="prompt">$</span>
-              <input
-                id="repo-url"
-                name="repoUrl"
-                value={repoUrl}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setRepoUrl(next);
-                  setAmbiguousRef(hasAmbiguousRefPath(next));
-                  // Only a fresh homepage form may derive a ref from the URL.
-                  // A hand-entered value — including an intentional blank — is
-                  // a stronger choice than any pasted tree path. A plain
-                  // repository URL leaves the ref blank: the backend resolves
-                  // the actual default branch (which may not be `main`).
-                  if (!refIsExplicit.current) {
-                    const urlRef = refFromRepoUrl(next);
-                    if (urlRef) {
-                      refIsExplicit.current = true;
-                      setRefName(urlRef);
-                    } else if (hasAmbiguousRefPath(next)) {
-                      // An ambiguous /tree/:ref/path URL asks the backend for
-                      // the repository default branch instead of guessing.
-                      refIsExplicit.current = true;
-                      setRefName("");
-                    }
-                  }
-                }}
-                placeholder={t("hero.placeholderUrl")}
-                aria-label={t("hero.ariaUrl")}
-              />
-              <label className="ref">
-                {t("hero.refLabel")}
-                <input id="repo-ref" name="refName" value={refName} onChange={(event) => { refIsExplicit.current = true; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
-              </label>
-              {/* Disabled for the entire run (not just the POST): a second
-                  click during queued/running would silently abort and restart
-                  the job. Cancel is the explicit escape hatch instead. */}
-              <button className="btn" disabled={runActive}>
-                {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-                {t("hero.analyze")}
-              </button>
-              {runActive ? (
-                <button type="button" className="copybtn" onClick={() => reset()}>
-                  {t("runner.cancel")}
-                </button>
-              ) : null}
-            </form>
-            <AnalysisOptionsPanel key={optionsPanelKey} options={analysisOptions} setOptions={setAnalysisOptions} />
-            {ambiguousRef ? <p className="input-hint" role="status">{t("hero.ambiguousRef")}</p> : null}
+            {isReportRoute ? (
+              <details className="report-search" ref={reportSearchRef} open={!report || undefined}>
+                <summary>{t("hero.editReport")}</summary>
+                {analysisForm}
+              </details>
+            ) : analysisForm}
             {!isReportRoute && (
               <>
                 <div className="quick-rows samples-row" role="group" aria-label={t("hero.ariaSamples")}>
@@ -618,7 +640,7 @@ export function App() {
             seed); the moment a visitor starts a real analysis Runner drops the
             demo trim and renders the full report. */}
         <section>
-          <div className="section-h">
+          <div className={`section-h${report && !demoActive ? " visually-hidden" : ""}`}>
             <h2>{demoActive ? t("runner.exampleReport") : t("runner.title")}</h2>
             {demoActive ? null : <span className="sub">{t("runner.status." + status)}</span>}
           </div>
@@ -633,6 +655,7 @@ export function App() {
             waitingMessage={waitingMessage}
             errorCode={errorCode}
             onReset={reset}
+            onEditOptions={editAnalysisOptions}
             onRerun={() => void runAnalysis(true)}
             variant={isReportRoute ? "full" : "demo"}
           />
@@ -1013,9 +1036,31 @@ function syncPageMetadata({
       : window.location.origin + "/";
 
   applyPageMetadata({ title, description, canonical, extraRobots: ",max-video-preview:-1" });
+  // Replace shell/previous-report markup even when the title and totals are unchanged.
+  document.head.querySelectorAll('script[type="application/ld+json"]').forEach((node) => node.remove());
+  if (report) {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify(reportJsonLd({
+      ...report,
+      reportId: report.id,
+      provider: normalizedProvider(report),
+      owner: report.repository.owner,
+      repo: report.repository.name,
+      repoFullName: `${report.repository.owner}/${report.repository.name}`,
+      htmlUrl: report.repository.htmlUrl,
+      canonicalUrl: canonical,
+      description,
+    })).replace(/</g, "\\u003c");
+    document.head.appendChild(script);
+  }
 }
 
 function buildCanonicalReportUrl(report: Report, ref: string) {
+  if (new URLSearchParams(window.location.search).has("reportId")) {
+    const params = new URLSearchParams({ reportId: report.id, analysis: JSON.stringify(report.analysisOptions) });
+    return `${buildPublicReportUrl(report.repository.owner, report.repository.name, report.commitSha)}?${params}`;
+  }
   return buildPublicReportUrl(report.repository.owner, report.repository.name, ref);
 }
 

@@ -471,16 +471,46 @@ section {
   min-width: 0;
 }
 
-/* Report routes skip the marketing pitch and go straight to a search box —
-   a visitor arriving from search already knows what the page is. */
+/* Report routes lead with their result; the analysis form is a disclosure. */
 .hero-compact {
   padding-block: var(--space-2) 0;
 }
 
-.hero-left h1.title-compact {
+.hero.hero-compact h1.title-compact {
   font-size: 1.1rem;
   font-weight: 700;
   margin: 0 0 var(--space-2);
+}
+
+.report-search > summary {
+  color: var(--fg-dim);
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 12px;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.report-search > summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-search > summary::before {
+  content: "▸";
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+.report-search[open] > summary::before {
+  content: "▾";
+}
+
+.hero-compact + section .runner-head .runner-repo {
+  display: none;
+}
+
+.hero-compact + section .runner-head .left {
+  order: 1;
 }
 
 .subtitle {
@@ -853,6 +883,40 @@ body.embed-mode {
   cursor: pointer;
   padding: 8px 0;
   min-height: 44px;
+}
+
+.counting-policy {
+  margin: 0;
+  border-inline: 0;
+  font-size: var(--text-sm);
+}
+
+.counting-policy-controls {
+  position: relative;
+}
+
+.counting-policy-controls summary {
+  padding-right: 130px;
+}
+
+.counting-policy-controls > button {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.report-badge {
+  flex-basis: 100%;
+  min-width: 0;
+  scroll-margin-top: 100px;
+}
+
+.report-badge h3 {
+  margin-top: 0;
+}
+
+.report-badge .badge-builder-output {
+  margin-top: var(--space-3);
 }
 
 .compare-policy.different,
@@ -2201,9 +2265,7 @@ table.report tr.totals td.lang {
   color: var(--accent);
 }
 
-/* The report action bar (copy link / export / re-analyze / more). Rendered
-   under the runner head in the report flow and again (compact) inside the
-   sticky bar — one component, one set of callbacks. */
+/* Core actions follow the result; secondary tools live in More. */
 .report-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2266,18 +2328,10 @@ table.report tr.totals td.lang {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-/* Sticky variant: same buttons, no feedback/manual-copy block; on narrow
-   screens only the copy action stays (the full bar is one "top" tap away). */
+/* Sticky variant keeps the copy action compact. */
 .report-actions.compact {
   padding: 0;
   gap: 8px;
-}
-
-@media (max-width: 720px) {
-  .report-actions.compact .actions-menu,
-  .report-actions.compact .report-action-rerun {
-    display: none;
-  }
 }
 
 /* Offscreen-but-laid-out mount of the share card used as the PNG capture
