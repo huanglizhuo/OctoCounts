@@ -1,15 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-10-19T07:43:29.089Z
+# GitHub Trending daily snapshot generated 2026-10-20T07:29:27.353Z
 MadsLorentzen/ai-job-search
-anthropics/claude-plugins-official
 anomalyco/opencode
-cursor/plugins
-ruvnet/ruflo
 akitaonrails/ai-memory
-YuJunZhiXue/dsh-purge
-stablyai/orca
-HKUDS/CLI-Anything
-debpalash/VoiceStudio
-android/skills
-mlabonne/llm-course
-Kruk2/jasna
 Comfy-Org/ComfyUI
+ruvnet/ruflo
+stablyai/orca
+headroomlabs-ai/headroom
+withmarbleapp/os-taxonomy
+Kruk2/jasna
+HKUDS/CLI-Anything
+anthropics/claude-code
+shiyu-coder/Kronos
