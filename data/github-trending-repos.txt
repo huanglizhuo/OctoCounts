@@ -1,13 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-10-20T07:29:27.353Z
+# GitHub Trending daily snapshot generated 2026-10-21T07:34:36.557Z
 MadsLorentzen/ai-job-search
-anomalyco/opencode
-akitaonrails/ai-memory
+cloudflare/security-audit-skill
+stablyai/orca
+DietrichGebert/ponytail
 Comfy-Org/ComfyUI
 ruvnet/ruflo
-stablyai/orca
+Graphify-Labs/graphify
+anomalyco/opencode
+msitarzewski/agency-agents
 headroomlabs-ai/headroom
-withmarbleapp/os-taxonomy
-Kruk2/jasna
-HKUDS/CLI-Anything
-anthropics/claude-code
+anthropics/knowledge-work-plugins
+wshobson/agents
 shiyu-coder/Kronos
+vllm-project/vllm
