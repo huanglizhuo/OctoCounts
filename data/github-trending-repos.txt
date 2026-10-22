@@ -1,15 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-10-21T07:34:36.557Z
-MadsLorentzen/ai-job-search
+# GitHub Trending daily snapshot generated 2026-10-22T07:31:03.708Z
 cloudflare/security-audit-skill
+vllm-project/vllm
 stablyai/orca
+headroomlabs-ai/headroom
 DietrichGebert/ponytail
 Comfy-Org/ComfyUI
-ruvnet/ruflo
-Graphify-Labs/graphify
-anomalyco/opencode
-msitarzewski/agency-agents
-headroomlabs-ai/headroom
-anthropics/knowledge-work-plugins
-wshobson/agents
+supabase/supabase
+twentyhq/twenty
 shiyu-coder/Kronos
-vllm-project/vllm
+strelov1/freehire
+akitaonrails/ai-memory
+Graphify-Labs/graphify
