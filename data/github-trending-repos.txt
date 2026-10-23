@@ -1,13 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-10-22T07:31:03.708Z
-cloudflare/security-audit-skill
-vllm-project/vllm
-stablyai/orca
-headroomlabs-ai/headroom
+# GitHub Trending daily snapshot generated 2026-10-23T07:27:43.532Z
+php/php-src
+anthropics/knowledge-work-plugins
 DietrichGebert/ponytail
-Comfy-Org/ComfyUI
-supabase/supabase
-twentyhq/twenty
-shiyu-coder/Kronos
-strelov1/freehire
-akitaonrails/ai-memory
+cloudflare/security-audit-skill
 Graphify-Labs/graphify
+supabase/supabase
+fastapi/fastapi
+luongnv89/claude-howto
+Meloong-Git/PCL
