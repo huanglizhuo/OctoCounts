@@ -1,10 +1,9 @@
-# GitHub Trending daily snapshot generated 2026-10-23T07:27:43.532Z
+# GitHub Trending daily snapshot generated 2026-10-24T07:15:27.473Z
+cloudflare/security-audit-skill
 php/php-src
 anthropics/knowledge-work-plugins
-DietrichGebert/ponytail
-cloudflare/security-audit-skill
-Graphify-Labs/graphify
-supabase/supabase
-fastapi/fastapi
-luongnv89/claude-howto
-Meloong-Git/PCL
+NVIDIA/OpenShell
+Renhuai123/ziwei-doushu
+SnailSploit/Claude-Red
+OpenBMB/VoxCPM
+nodejs/node
