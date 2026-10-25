@@ -4,7 +4,10 @@ use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use tokio::sync::mpsc;
 
-use crate::{models::Report, seo};
+use crate::{
+    models::{AnalysisOptions, Report, RepositoryProvider},
+    seo,
+};
 
 pub const DEFAULT_HOST: &str = "octocounts.com";
 pub const DEFAULT_ENDPOINT: &str = "https://api.indexnow.org/indexnow";
@@ -102,8 +105,14 @@ impl IndexNowService {
         Some(Self { config, sender })
     }
 
-    /// Queue the canonical report URL for submission. Never blocks the caller.
+    /// Queue a report already confirmed as the store's latest public row.
     pub fn submit_report(&self, report: &Report) {
+        if report.repository.provider != RepositoryProvider::GitHub
+            || report.analysis_options != AnalysisOptions::canonical()
+            || report.total.files < seo::MIN_INDEXABLE_REPORT_FILES
+        {
+            return;
+        }
         let url = format!("https://{}{}", self.config.host, seo::public_path(report));
         self.submit(url);
     }
@@ -315,7 +324,7 @@ mod tests {
             cached: false,
             tokei_version: "tokei-test".to_string(),
             analysis_key: "tokei-test:default".to_string(),
-            analysis_options: AnalysisOptions::default(),
+            analysis_options: AnalysisOptions::canonical(),
             counting_policy: None,
             languages: vec![LanguageReport {
                 name: "Rust".to_string(),
@@ -329,7 +338,7 @@ mod tests {
                 children: Vec::new(),
             }],
             total: LanguageStats {
-                files: 1,
+                files: 5,
                 lines: 110,
                 code: 100,
                 comments: 7,
@@ -459,6 +468,23 @@ mod tests {
             payload["urlList"],
             serde_json::json!(["https://octocounts.com/github/octo/count"])
         );
+    }
+
+    #[tokio::test]
+    async fn submit_report_skips_nonindexable_reports() {
+        let (endpoint, requests) = start_mock(|_| StatusCode::OK).await;
+        let service = IndexNowService::start(test_config(endpoint)).unwrap();
+        let mut report = test_report();
+        report.total.files = 4;
+        service.submit_report(&report);
+        report.total.files = 5;
+        report.analysis_options.include_tests = true;
+        service.submit_report(&report);
+        report.analysis_options = AnalysisOptions::canonical();
+        report.repository.provider = RepositoryProvider::GitLab;
+        service.submit_report(&report);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(request_count(&requests), 0);
     }
 
     #[tokio::test]

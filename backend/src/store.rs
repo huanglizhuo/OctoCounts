@@ -5,9 +5,9 @@ use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::models::{
-    AnalysisOptions, AnalysisSource, ApiErrorBody, CountingPolicy, GrowthLanguageStat, GrowthRepositoryStat,
-    GrowthSourceStat, GrowthStats, GrowthTotals, GrowthWindows, JobRecord, JobStatus,
-    LanguageReport, LanguageStats, Report, RepositoryProvider,
+    AnalysisOptions, AnalysisSource, ApiErrorBody, CountingPolicy, GrowthLanguageStat,
+    GrowthRepositoryStat, GrowthSourceStat, GrowthStats, GrowthTotals, GrowthWindows, JobRecord,
+    JobStatus, LanguageReport, LanguageStats, Report, ReportRefKind, RepositoryProvider,
 };
 
 /// The per-row projection shared by every card query. A macro rather than a
@@ -109,8 +109,10 @@ macro_rules! canonical_options_sql {
 /// [`AnalysisOptions::canonical`].
 fn canonical_options_json() -> &'static str {
     static JSON: OnceLock<String> = OnceLock::new();
-    JSON.get_or_init(|| serde_json::to_string(&AnalysisOptions::canonical()).expect("options serialize"))
-        .as_str()
+    JSON.get_or_init(|| {
+        serde_json::to_string(&AnalysisOptions::canonical()).expect("options serialize")
+    })
+    .as_str()
 }
 
 #[derive(Clone)]
@@ -122,7 +124,6 @@ impl Store {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-
 
     pub async fn migrate(&self) -> anyhow::Result<()> {
         sqlx::query(
@@ -401,6 +402,7 @@ impl Store {
         self.migrate_star_history().await?;
         self.migrate_sloc_history().await?;
         self.migrate_repo_redirects().await?;
+        self.migrate_repository_refs().await?;
 
         sqlx::query("DROP INDEX IF EXISTS idx_reports_cache_lookup")
             .execute(&self.pool)
@@ -995,6 +997,56 @@ impl Store {
         Ok(())
     }
 
+    async fn migrate_repository_refs(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS repository_refs (
+                provider TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                ref_name TEXT NOT NULL,
+                commit_sha TEXT NOT NULL,
+                resolved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (provider, owner, repo, ref_name)
+            )
+        "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// A successful provider resolution is an observation, not a new analysis.
+    /// Keep aliases separately so sharing a cached commit never rewrites its report.
+    pub async fn record_repository_ref(
+        &self,
+        reference: &crate::models::RepoRef,
+    ) -> anyhow::Result<()> {
+        // A full immutable SHA resolves itself; history sampling needs no alias rows.
+        if reference
+            .ref_name
+            .eq_ignore_ascii_case(&reference.commit_sha)
+        {
+            return Ok(());
+        }
+        sqlx::query(
+            r#"
+            INSERT INTO repository_refs (provider, owner, repo, ref_name, commit_sha)
+            VALUES ($1, lower($2), lower($3), $4, $5)
+            ON CONFLICT (provider, owner, repo, ref_name) DO UPDATE
+            SET commit_sha = EXCLUDED.commit_sha, resolved_at = NOW()
+        "#,
+        )
+        .bind(provider_to_str(&reference.provider))
+        .bind(&reference.owner)
+        .bind(&reference.repo)
+        .bind(&reference.ref_name)
+        .bind(&reference.commit_sha)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     /// The `repo_redirects` table: one row per known slug a repository has
     /// answered under before its current one. Written by rename-follow
     /// (`follow_repo_rename`) whenever a resolution proves the repository now
@@ -1153,6 +1205,27 @@ impl Store {
         .execute(&mut *tx)
         .await?;
 
+        sqlx::query(
+            r#"
+            INSERT INTO repository_refs (provider, owner, repo, ref_name, commit_sha, resolved_at)
+            SELECT provider, lower($4), lower($5), ref_name, commit_sha, resolved_at
+            FROM repository_refs WHERE provider = $1 AND owner = lower($2) AND repo = lower($3)
+            ON CONFLICT (provider, owner, repo, ref_name) DO UPDATE
+            SET commit_sha = EXCLUDED.commit_sha, resolved_at = EXCLUDED.resolved_at
+            WHERE EXCLUDED.resolved_at > repository_refs.resolved_at
+        "#,
+        )
+        .bind(provider_to_str(&provider))
+        .bind(&old_owner)
+        .bind(&old_repo)
+        .bind(new_owner)
+        .bind(new_repo)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM repository_refs WHERE provider = $1 AND owner = lower($2) AND repo = lower($3)")
+            .bind(provider_to_str(&provider)).bind(&old_owner).bind(&old_repo)
+            .execute(&mut *tx).await?;
+
         // 1. Canonical report rows move; their body's repository identity moves
         // with them so `/api/reports/{id}` cannot keep naming a slug the row is
         // no longer filed under. Identity strings only — every number and the
@@ -1198,7 +1271,9 @@ impl Store {
         .bind(&old_repo)
         .bind(new_owner)
         .bind(new_repo)
-        .bind(crate::seo::repository_html_url(provider, new_owner, new_repo))
+        .bind(crate::seo::repository_html_url(
+            provider, new_owner, new_repo,
+        ))
         .execute(&mut *tx)
         .await?
         .rows_affected();
@@ -1749,7 +1824,14 @@ impl Store {
         provider: RepositoryProvider,
         owner: &str,
         repo: &str,
-    ) -> anyhow::Result<Vec<(NaiveDate, i64, String, Option<std::collections::BTreeMap<String, i64>>)>> {
+    ) -> anyhow::Result<
+        Vec<(
+            NaiveDate,
+            i64,
+            String,
+            Option<std::collections::BTreeMap<String, i64>>,
+        )>,
+    > {
         let rows = sqlx::query(
             r#"
             SELECT snapshot_date, total_lines, commit_sha, languages
@@ -2033,7 +2115,10 @@ impl Store {
         .bind(source_to_str(&source))
         .execute(&self.pool)
         .await?;
-        anyhow::ensure!(saved.rows_affected() == 1, "a report id cannot overwrite measured statistics");
+        anyhow::ensure!(
+            saved.rows_affected() == 1,
+            "a report id cannot overwrite measured statistics"
+        );
         Ok(())
     }
 
@@ -2149,6 +2234,63 @@ impl Store {
         .await?;
 
         row.map(row_to_report_card).transpose()
+    }
+
+    pub async fn report_card_at_ref(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        reference: &str,
+        ref_kind: Option<ReportRefKind>,
+    ) -> anyhow::Result<Option<ReportCard>> {
+        let valid_commit_prefix = (7..=40).contains(&reference.len())
+            && reference.bytes().all(|byte| byte.is_ascii_hexdigit());
+        let commit_prefix = ref_kind != Some(ReportRefKind::Tree) && valid_commit_prefix;
+        let named_ref = ref_kind != Some(ReportRefKind::Commit);
+        // Explicit history requests may use backfill rows; ambiguous short SHAs must not guess.
+        // Tree routes match names only, including hex names; commit routes never match names.
+        let row = sqlx::query(concat!(
+            r#"WITH resolved_ref AS (
+                SELECT commit_sha FROM repository_refs
+                WHERE provider = $1 AND owner = lower($2) AND repo = lower($4) AND ref_name = $5
+            ), matching_reports AS (
+                SELECT * FROM reports
+                WHERE provider = $1
+                  AND lower(owner) = lower($2) AND lower(repo) = lower($4)
+                  AND "#,
+            canonical_options_sql!("reports"),
+            r#"
+                  AND (($7 AND (
+                        commit_sha = (SELECT commit_sha FROM resolved_ref)
+                        OR (NOT EXISTS (SELECT 1 FROM resolved_ref) AND body->>'refName' = $5)
+                      )) OR ($6 AND starts_with(lower(commit_sha), lower($5))))
+            ) "#,
+            card_projection!(),
+            r#"
+            FROM matching_reports r
+            WHERE NOT $6 OR (SELECT count(DISTINCT commit_sha) FROM matching_reports) = 1
+            ORDER BY r.created_at DESC, r.id
+            LIMIT 1
+            "#
+        ))
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(SEO_CARD_LANGUAGES as i64)
+        .bind(repo)
+        .bind(reference)
+        .bind(commit_prefix)
+        .bind(named_ref)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let mut card = row.map(row_to_report_card).transpose()?;
+        if named_ref && (!commit_prefix || ref_kind == Some(ReportRefKind::Tree)) {
+            if let Some(card) = card.as_mut() {
+                card.ref_name = reference.to_string();
+            }
+        }
+        Ok(card)
     }
 
     pub async fn recent_reports(&self, limit: i64, offset: i64) -> anyhow::Result<Vec<ReportCard>> {
@@ -2372,7 +2514,7 @@ impl Store {
     /// across a UTC midnight would silently shift a sitemap date. Reading the same
     /// field the old code read costs one detoast for at most 500 rows and removes
     /// the question entirely.
-    pub async fn sitemap_entries(&self, limit: i64) -> anyhow::Result<Vec<SitemapRow>> {
+    pub async fn sitemap_entries(&self) -> anyhow::Result<Vec<SitemapRow>> {
         let rows = sqlx::query(concat!(
             r#"
             SELECT
@@ -2391,7 +2533,7 @@ impl Store {
                 FROM (
                     SELECT DISTINCT ON (provider, owner, repo) id, created_at
                     FROM reports
-                    WHERE "#,
+                    WHERE provider = 'github' AND "#,
             canonical_options_sql!("reports"),
             r#"
                       AND "#,
@@ -2400,19 +2542,12 @@ impl Store {
                     ORDER BY provider, owner, repo, created_at DESC
                 ) latest
                 ORDER BY created_at DESC
-                LIMIT $1
             ) page
             JOIN reports r ON r.id = page.id
             ORDER BY page.created_at DESC
             "#
         ))
-        // The sitemap honours the limit its handler actually asks for. It used to
-        // go through `distinct_reports`, whose `clamp(0, 500)` meant a handler
-        // requesting 45,000 entries emitted 500 -- an SEO endpoint whose whole job
-        // is to enumerate canonical URLs was publishing about 1% of them. B2 made
-        // the query cheap enough (70ms -> 8ms, no body reads) to afford the full
-        // list; `SITEMAP_MAX_ENTRIES` is the backstop.
-        .bind(limit.clamp(0, SITEMAP_MAX_ENTRIES))
+        // The edge splits this inventory into sitemap files; no global URL cap applies here.
         .fetch_all(&self.pool)
         .await?;
 
@@ -3177,14 +3312,8 @@ const CLEANUP_ADVISORY_LOCK_ID: i64 = 0x0c70_c0a7;
 /// Preserved verbatim so the rewritten queries return the same number of rows.
 ///
 /// Still in force for the paginated SEO lists, which are browsed a page at a
-/// time and have no reason to return more. The sitemap escapes it deliberately;
-/// see [`SITEMAP_MAX_ENTRIES`].
+/// time and have no reason to return more. The sitemap escapes it deliberately.
 const LEGACY_LIST_LIMIT: i64 = 500;
-
-/// Backstop for `sitemap_entries`. The handler asks for 45,000; the sitemap
-/// protocol caps a single file at 50,000 URLs, so this sits between the two and
-/// keeps a runaway request from trying to serialize the entire table.
-const SITEMAP_MAX_ENTRIES: i64 = 45_000;
 
 /// How close to the row cap the planner's estimate may get before cleanup stops
 /// trusting it. `reltuples` drifts between autovacuum runs, so it is only used to
@@ -3494,7 +3623,9 @@ fn row_to_report_card(row: sqlx::postgres::PgRow) -> anyhow::Result<ReportCard> 
         analysis_options: analysis_options
             .map(|json| serde_json::from_str(&json))
             .transpose()?,
-        counting_policy: counting_policy.map(|json| serde_json::from_str(&json)).transpose()?,
+        counting_policy: counting_policy
+            .map(|json| serde_json::from_str(&json))
+            .transpose()?,
         total: serde_json::from_str(&total)?,
         // Maintained by the reports_materialize_stats trigger, so it is only NULL
         // if a row escaped both the trigger and the backfill. The projected slice
@@ -3771,11 +3902,28 @@ mod tests {
 
     #[tokio::test]
     async fn the_same_report_id_cannot_be_overwritten_with_different_counts() {
-        let Some(store) = test_store().await else { return; };
+        let Some(store) = test_store().await else {
+            return;
+        };
         let owner = unique_name("octo");
-        store.save_report(&test_report("fixed-id", &owner, 100), AnalysisSource::Unknown).await.unwrap();
-        assert!(store.save_report(&test_report("fixed-id", &owner, 250), AnalysisSource::Unknown).await.is_err());
-        assert_eq!(store.report("fixed-id").await.unwrap().unwrap().total.code, 100);
+        store
+            .save_report(
+                &test_report("fixed-id", &owner, 100),
+                AnalysisSource::Unknown,
+            )
+            .await
+            .unwrap();
+        assert!(store
+            .save_report(
+                &test_report("fixed-id", &owner, 250),
+                AnalysisSource::Unknown
+            )
+            .await
+            .is_err());
+        assert_eq!(
+            store.report("fixed-id").await.unwrap().unwrap().total.code,
+            100
+        );
         store.drop_schema().await;
     }
 
@@ -4234,13 +4382,11 @@ mod tests {
             .unwrap();
 
         // Not selectable as the repository's public card, by report or list.
-        assert!(
-            store
-                .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
-                .await
-                .unwrap()
-                .is_none()
-        );
+        assert!(store
+            .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
+            .await
+            .unwrap()
+            .is_none());
         assert!(store.recent_reports(10, 0).await.unwrap().is_empty());
 
         // But the row itself is intact and still served by identity: the
@@ -4254,7 +4400,7 @@ mod tests {
     }
 
     /// The golden fixtures pin the endpoint's bytes; this pins the query itself:
-    /// one row per repository, newest first, and the limit is honoured.
+    /// one row per GitHub repository, newest first.
     #[tokio::test]
     async fn sitemap_entries_dedupe_by_repository_and_order_by_recency() {
         let Some(store) = test_store().await else {
@@ -4276,57 +4422,49 @@ mod tests {
             }
         }
 
-        let all = store.sitemap_entries(45_000).await.unwrap();
-        let limited = store.sitemap_entries(2).await.unwrap();
-        let clamped = store.sitemap_entries(i64::MAX).await.unwrap();
+        let all = store.sitemap_entries().await.unwrap();
 
         assert_eq!(all.len(), 3, "one entry per repository, not per report");
         assert_eq!(
             all.iter().map(|row| row.repo.as_str()).collect::<Vec<_>>(),
             ["alpha", "beta", "gamma"],
         );
-        assert_eq!(limited.len(), 2);
-        assert_eq!(limited[0].repo, "alpha");
-        assert_eq!(
-            clamped.len(),
-            3,
-            "an absurd limit is clamped to SITEMAP_MAX_ENTRIES, not rejected"
-        );
         assert_eq!(all[0].provider, RepositoryProvider::GitHub);
         assert_eq!(all[0].lastmod, all[0].lastmod.min(Utc::now().date_naive()));
         store.drop_schema().await;
     }
 
-    /// The cap that used to silence this endpoint. `distinct_reports` clamped
-    /// every list to 500 rows, so the sitemap handler's request for 45,000 URLs
-    /// yielded 500. Three fixture repositories cannot tell 500 from 45,000, so
-    /// this seeds past the old ceiling and demands the rows come back.
+    /// Cross both former inventory caps (500 and 45,000), with one bulk insert.
     #[tokio::test]
-    async fn sitemap_entries_are_not_capped_at_the_legacy_list_limit() {
+    async fn sitemap_entries_are_not_capped_at_45000() {
         let Some(store) = test_store().await else {
             return;
         };
         let owner = unique_name("octo");
-        let legacy_cap = super::LEGACY_LIST_LIMIT;
-        let repositories = legacy_cap + 1;
-        for index in 0..repositories {
-            let mut report = test_report(&format!("report-uncapped-{index}"), &owner, 10);
-            report.repository.name = format!("repo{index:04}");
-            store
-                .save_report(&report, AnalysisSource::Unknown)
-                .await
-                .unwrap();
-        }
+        let report = test_report("report-uncapped", &owner, 10);
+        store
+            .save_report(&report, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        sqlx::query(r#"
+            INSERT INTO reports (id, provider, owner, repo, commit_sha, tokei_version, body, created_at)
+            SELECT 'report-uncapped-' || n, provider, owner, 'repo' || n, commit_sha, tokei_version,
+                jsonb_set(jsonb_set(body, '{id}', to_jsonb('report-uncapped-' || n)),
+                          '{repository,name}', to_jsonb('repo' || n)), created_at
+            FROM reports CROSS JOIN generate_series(1, 45000) AS n WHERE id = $1
+        "#)
+        .bind(&report.id)
+        .execute(&store.pool)
+        .await
+        .unwrap();
 
-        let full = store.sitemap_entries(45_000).await.unwrap();
-        let clamped = store.sitemap_entries(i64::MAX).await.unwrap();
+        let full = store.sitemap_entries().await.unwrap();
 
         assert_eq!(
-            full.len() as i64,
-            repositories,
-            "the sitemap must emit every repository, not the first {legacy_cap}"
+            full.len(),
+            45_001,
+            "the sitemap must emit every repository, not only the newest 45,000"
         );
-        assert_eq!(clamped.len() as i64, repositories);
         store.drop_schema().await;
     }
 
@@ -5388,10 +5526,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            history,
-            vec![(today, 1_200, "sha2".to_string(), None)]
-        );
+        assert_eq!(history, vec![(today, 1_200, "sha2".to_string(), None)]);
         store.drop_schema().await;
     }
 
@@ -5769,7 +5904,14 @@ mod tests {
         // Only the code count matches (lines differ): NOT a mirror, must stay.
         save_related_repo_report(
             &store,
-            &related_repo_report("rel-half-sig", "third-party", "similar", "Rust", 1_000, Some(1_400)),
+            &related_repo_report(
+                "rel-half-sig",
+                "third-party",
+                "similar",
+                "Rust",
+                1_000,
+                Some(1_400),
+            ),
         )
         .await;
         // Two distinct repos sharing a (2_000, 2_010) signature: only one
@@ -5806,7 +5948,9 @@ mod tests {
         let names = related_full_names(&rows);
 
         assert!(
-            !names.iter().any(|name| name.to_lowercase() == format!("{owner}/widget").to_lowercase()),
+            !names
+                .iter()
+                .any(|name| name.to_lowercase() == format!("{owner}/widget").to_lowercase()),
             "the source itself (in any case) must not be recommended: {names:?}"
         );
         assert!(
@@ -6093,11 +6237,14 @@ mod tests {
             .unwrap();
         assert_eq!(card.commit_sha, "sha-indexed");
         assert_eq!(card.total.code, 365_001);
-        assert_eq!(card.analysis_options.as_ref(), Some(&AnalysisOptions::canonical()));
+        assert_eq!(
+            card.analysis_options.as_ref(),
+            Some(&AnalysisOptions::canonical())
+        );
         let recent = store.recent_reports(10, 0).await.unwrap();
         assert_eq!(recent.len(), 1, "one repository, one canonical row");
         assert_eq!(recent[0].total.code, 365_001);
-        let sitemap = store.sitemap_entries(100).await.unwrap();
+        let sitemap = store.sitemap_entries().await.unwrap();
         assert_eq!(sitemap.len(), 1);
         assert_eq!(sitemap[0].total_code, 365_001);
 
@@ -6164,7 +6311,7 @@ mod tests {
             "a legacy-only repository leaves the SEO lists"
         );
         assert!(
-            store.sitemap_entries(100).await.unwrap().is_empty(),
+            store.sitemap_entries().await.unwrap().is_empty(),
             "a legacy-only repository leaves the sitemap"
         );
         // Still served verbatim by identity, as it always was.
@@ -6389,8 +6536,7 @@ mod tests {
         assert_eq!(reloaded.repository.owner, "react");
         assert_eq!(reloaded.repository.name, "react");
         assert_eq!(
-            reloaded.repository.html_url,
-            "https://github.com/react/react",
+            reloaded.repository.html_url, "https://github.com/react/react",
             "the body's identity must follow the row's new key"
         );
 
@@ -6414,13 +6560,11 @@ mod tests {
             "the watch row must already exist under the new key, so this call starts nothing"
         );
         assert!(
-            store
-                .watched_star_repos()
-                .await
-                .unwrap()
-                .iter()
-                .any(|(provider, owner, repo)| *provider == RepositoryProvider::GitHub
-                    && owner == "react" && repo == "react"),
+            store.watched_star_repos().await.unwrap().iter().any(
+                |(provider, owner, repo)| *provider == RepositoryProvider::GitHub
+                    && owner == "react"
+                    && repo == "react"
+            ),
             "the merged watch row is the only one for the repository"
         );
 
@@ -6437,13 +6581,11 @@ mod tests {
             "a custom-options analysis is user data under the slug it was requested with"
         );
         // ...so the old slug no longer publishes a canonical report.
-        assert!(
-            store
-                .latest_report_card(RepositoryProvider::GitHub, &old_owner, "react")
-                .await
-                .unwrap()
-                .is_none()
-        );
+        assert!(store
+            .latest_report_card(RepositoryProvider::GitHub, &old_owner, "react")
+            .await
+            .unwrap()
+            .is_none());
 
         // And the redirect is on record for the API surfaces.
         assert_eq!(
@@ -6490,12 +6632,30 @@ mod tests {
         // Old slug: a canonical report on sha-shared plus an older one, and
         // snapshots written yesterday.
         for (id, sha, code, at) in [
-            ("merge-shared", "sha-shared", 365_001, now - Duration::days(10)),
-            ("merge-old-only", "sha-old-only", 200_000, now - Duration::days(300)),
+            (
+                "merge-shared",
+                "sha-shared",
+                365_001,
+                now - Duration::days(10),
+            ),
+            (
+                "merge-old-only",
+                "sha-old-only",
+                200_000,
+                now - Duration::days(300),
+            ),
         ] {
             store
                 .save_report(
-                    &options_report(id, &old_owner, "react", sha, code, at, AnalysisOptions::canonical()),
+                    &options_report(
+                        id,
+                        &old_owner,
+                        "react",
+                        sha,
+                        code,
+                        at,
+                        AnalysisOptions::canonical(),
+                    ),
                     AnalysisSource::Seed,
                 )
                 .await
@@ -6550,7 +6710,8 @@ mod tests {
             )
             .await
             .unwrap();
-        for (days_ago, lines, sha) in [(30, 312_000, "sha-new-side"), (0, 312_000, "sha-new-head")] {
+        for (days_ago, lines, sha) in [(30, 312_000, "sha-new-side"), (0, 312_000, "sha-new-head")]
+        {
             store
                 .record_sloc_snapshot(
                     RepositoryProvider::GitHub,
@@ -6585,7 +6746,10 @@ mod tests {
             .unwrap();
         assert_eq!(sloc.len(), 3, "both histories' points survive");
         assert_eq!(sloc[0].1, 290_000, "old-slug-only date survives");
-        assert_eq!(sloc[1].1, 312_000, "shared date keeps the later-written sample");
+        assert_eq!(
+            sloc[1].1, 312_000,
+            "shared date keeps the later-written sample"
+        );
         assert_eq!(sloc[2].1, 312_000);
 
         // Reports: the duplicate analysis is gone (the new-key row is the same

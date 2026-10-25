@@ -95,6 +95,14 @@ pub struct Repository {
     pub stars: Option<u64>,
 }
 
+/// Explicit public route semantics; absent query values retain legacy ref auto-detection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReportRefKind {
+    Tree,
+    Commit,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum RepositoryProvider {
     #[serde(rename = "github", alias = "gitHub", alias = "GitHub")]

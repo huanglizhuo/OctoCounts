@@ -8,9 +8,14 @@ use serde::{Deserialize, Serialize};
 use crate::{
     api::AppState,
     error::ApiError,
-    models::{AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, Report, RepositoryProvider},
+    models::{
+        AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, Report, ReportRefKind,
+        RepositoryProvider,
+    },
     store::{provider_from_str, provider_to_str, RelatedReportRow, ReportCard},
 };
+
+pub(crate) const MIN_INDEXABLE_REPORT_FILES: usize = 5;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,8 +23,8 @@ pub struct SeoReportQuery {
     provider: String,
     owner: String,
     repo: String,
-    #[allow(dead_code)]
     ref_name: Option<String>,
+    ref_kind: Option<ReportRefKind>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,9 +166,10 @@ pub async fn related(
     let provider = parse_provider(&query.provider)?;
     // Same resolver as `report`: a pre-rename slug still gets its (re-keyed)
     // repository's interlinks, filed under the current spelling.
-    let Some((card, _canonical_slug)) = resolve_latest_card(&state, provider, &query.owner, &query.repo)
-        .await
-        .map_err(ApiError::internal)?
+    let Some((card, _canonical_slug)) =
+        resolve_report_card(&state, provider, &query.owner, &query.repo, None, None)
+            .await
+            .map_err(ApiError::internal)?
     else {
         return Err(ApiError::not_found(
             "report_not_found",
@@ -177,7 +183,9 @@ pub async fn related(
             provider,
             &card.owner,
             &card.repo,
-            card.languages.first().map(|language| language.name.as_str()),
+            card.languages
+                .first()
+                .map(|language| language.name.as_str()),
             card.total.code as i64,
             // The source's own line total feeds the mirror exclusion: a copy
             // of this repo matches BOTH its code and line counts exactly.
@@ -222,9 +230,17 @@ pub async fn report(
     }
 
     let provider = parse_provider(&query.provider)?;
-    let Some((card, canonical_slug)) = resolve_latest_card(&state, provider, &query.owner, &query.repo)
-        .await
-        .map_err(ApiError::internal)?
+    let reference = query.ref_name.as_deref().filter(|value| !value.is_empty());
+    let Some((card, canonical_slug)) = resolve_report_card(
+        &state,
+        provider,
+        &query.owner,
+        &query.repo,
+        reference,
+        query.ref_kind,
+    )
+    .await
+    .map_err(ApiError::internal)?
     else {
         return Err(ApiError::not_found(
             "report_not_found",
@@ -251,14 +267,24 @@ pub async fn report(
 /// predecessor slug's current key — the pre-rename page must keep answering
 /// (with `canonicalSlug` on the payload) rather than 404, because that page is
 /// what the index and the audience's links still hold.
-async fn resolve_latest_card(
+async fn resolve_report_card(
     state: &AppState,
     provider: RepositoryProvider,
     owner: &str,
     repo: &str,
+    reference: Option<&str>,
+    ref_kind: Option<ReportRefKind>,
 ) -> anyhow::Result<Option<(ReportCard, Option<String>)>> {
     let store = state.coordinator.store();
-    if let Some(card) = store.latest_report_card(provider, owner, repo).await? {
+    let card = match reference {
+        Some(reference) => {
+            store
+                .report_card_at_ref(provider, owner, repo, reference, ref_kind)
+                .await?
+        }
+        None => store.latest_report_card(provider, owner, repo).await?,
+    };
+    if let Some(card) = card {
         let slug = canonical_slug_if_differs(owner, repo, &card);
         return Ok(Some((card, slug)));
     }
@@ -266,10 +292,19 @@ async fn resolve_latest_card(
     let Some((new_owner, new_repo)) = store.redirect_target(provider, owner, repo).await? else {
         return Ok(None);
     };
-    let Some(card) = store
-        .latest_report_card(provider, &new_owner, &new_repo)
-        .await?
-    else {
+    let card = match reference {
+        Some(reference) => {
+            store
+                .report_card_at_ref(provider, &new_owner, &new_repo, reference, ref_kind)
+                .await?
+        }
+        None => {
+            store
+                .latest_report_card(provider, &new_owner, &new_repo)
+                .await?
+        }
+    };
+    let Some(card) = card else {
         return Ok(None);
     };
     let slug = canonical_slug_if_differs(owner, repo, &card);
@@ -451,7 +486,7 @@ pub async fn sitemap(
     let entries: Vec<SitemapEntry> = state
         .coordinator
         .store()
-        .sitemap_entries(45_000)
+        .sitemap_entries()
         .await
         .map_err(ApiError::internal)?
         .into_iter()
@@ -573,10 +608,15 @@ fn seo_report_cache_key(query: &SeoReportQuery) -> String {
     // so `react/React` and `react/react` must not share a cache entry even
     // though they resolve to the same row.
     format!(
-        "{}:{}:{}:{}",
+        "{}:{}:{}:{}:{}",
         query.provider.to_ascii_lowercase(),
         query.owner,
         query.repo,
+        match query.ref_kind {
+            Some(ReportRefKind::Tree) => "tree",
+            Some(ReportRefKind::Commit) => "commit",
+            None => "auto",
+        },
         query.ref_name.as_deref().unwrap_or_default()
     )
 }
@@ -629,11 +669,7 @@ pub(crate) fn cache_headers(cache_control: &'static str) -> HeaderMap {
 /// Deriving from the row's own identity at render time makes every existing
 /// row self-consistent without a migration, and can never disagree with
 /// `publicPath`.
-pub(crate) fn repository_html_url(
-    provider: RepositoryProvider,
-    owner: &str,
-    repo: &str,
-) -> String {
+pub(crate) fn repository_html_url(provider: RepositoryProvider, owner: &str, repo: &str) -> String {
     match provider {
         RepositoryProvider::GitHub => format!("https://github.com/{owner}/{repo}"),
         // GitLab owners are nested group paths, so the separators survive as-is.
@@ -742,7 +778,12 @@ fn configuration_summary(options: Option<&AnalysisOptions>) -> String {
     if matches!(options.profile, AnalysisProfile::SourceOnly) {
         parts.push("profile: source-only".to_string());
     }
-    parts.extend(options.ignored_dirs.iter().map(|dir| format!("ignoring {dir}")));
+    parts.extend(
+        options
+            .ignored_dirs
+            .iter()
+            .map(|dir| format!("ignoring {dir}")),
+    );
     parts.extend(
         options
             .ignored_languages
@@ -759,7 +800,11 @@ fn configuration_summary(options: Option<&AnalysisOptions>) -> String {
 /// The reproducible snapshot URL: repository pinned at the analyzed commit
 /// with the options JSON in `?analysis=`, matching the site's snapshot link
 /// scheme (`/github/{owner}/{repo}/commit/{sha}?analysis=...`).
-fn snapshot_url(canonical_url: &str, commit_sha: &str, options: &AnalysisOptions) -> Option<String> {
+fn snapshot_url(
+    canonical_url: &str,
+    commit_sha: &str,
+    options: &AnalysisOptions,
+) -> Option<String> {
     let options_json = serde_json::to_string(options).ok()?;
     Some(format!(
         "{canonical_url}/commit/{commit_sha}?analysis={}",
@@ -832,9 +877,7 @@ fn format_number(value: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        configuration_summary, repository_html_url, seo_report, snapshot_url, ReportCard,
-    };
+    use super::{configuration_summary, repository_html_url, seo_report, snapshot_url, ReportCard};
     use crate::models::{AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats};
     use chrono::{TimeZone, Utc};
 
@@ -868,9 +911,7 @@ mod tests {
             generated_at: Utc.with_ymd_and_hms(2024, 3, 14, 9, 30, 15).unwrap(),
             duration_ms: 91_234,
             tokei_version: "tokei-14.0.0".to_string(),
-            analysis_key: options
-                .as_ref()
-                .map(|_| "tokei-14.0.0:default".to_string()),
+            analysis_key: options.as_ref().map(|_| "tokei-14.0.0:default".to_string()),
             analysis_options: options,
             total: LanguageStats {
                 files: 16_346,
@@ -915,12 +956,10 @@ mod tests {
             json["snapshotUrl"],
             "https://octocounts.com/github/rust-lang/rust/commit/9f8e7d6c5b4a39281706?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Atrue%2C%22includeTests%22%3Atrue%2C%22includeGenerated%22%3Atrue%7D"
         );
-        assert!(
-            json["citation"]
-                .as_str()
-                .unwrap()
-                .contains("Default configuration.")
-        );
+        assert!(json["citation"]
+            .as_str()
+            .unwrap()
+            .contains("Default configuration."));
     }
 
     /// The unknown-configuration case must omit the fields entirely (the
@@ -959,7 +998,10 @@ mod tests {
             configuration_summary(None),
             " Configuration unknown; this report predates option tracking."
         );
-        assert_eq!(configuration_summary(Some(&default_options())), " Default configuration.");
+        assert_eq!(
+            configuration_summary(Some(&default_options())),
+            " Default configuration."
+        );
     }
 
     #[test]
@@ -968,12 +1010,7 @@ mod tests {
             ignored_dirs: vec!["examples".to_string()],
             ..AnalysisOptions::default()
         };
-        let url = snapshot_url(
-            "https://octocounts.com/github/o/r",
-            "abc123",
-            &options,
-        )
-        .unwrap();
+        let url = snapshot_url("https://octocounts.com/github/o/r", "abc123", &options).unwrap();
         assert!(url.starts_with("https://octocounts.com/github/o/r/commit/abc123?analysis="));
         assert!(url.contains("%22ignoredDirs%22%3A%5B%22examples%22%5D"));
     }

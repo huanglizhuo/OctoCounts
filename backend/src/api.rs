@@ -385,7 +385,7 @@ mod tests {
             .max_connections(1)
             .connect(&database_url)
             .await
-            .ok()?;
+            .expect("TEST_DATABASE_URL is configured but PostgreSQL connection failed");
         let schema = format!("test_schema_{}", Uuid::new_v4().simple());
         sqlx::query(&format!("CREATE SCHEMA {schema}"))
             .execute(&admin)

@@ -1,6 +1,6 @@
 mod analyzer;
-mod attributes;
 mod api;
+mod attributes;
 mod badge;
 mod cache;
 mod config;
@@ -155,7 +155,10 @@ fn build_router(state: AppState) -> Router {
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
         .route("/api/reports/{report_id}", get(api::report))
-        .route("/api/reports/{report_id}/badge.svg", get(badge::badge_report))
+        .route(
+            "/api/reports/{report_id}/badge.svg",
+            get(badge::badge_report),
+        )
         .route("/api/stats", get(api::stats))
         .route("/api/repo-info", get(api::repo_info))
         .route("/api/seo/report", get(seo::report))
@@ -300,7 +303,7 @@ mod tests {
             .max_connections(1)
             .connect(&database_url)
             .await
-            .ok()?;
+            .expect("TEST_DATABASE_URL is configured but PostgreSQL connection failed");
         let schema = format!("test_schema_{}", uuid::Uuid::new_v4().simple());
         sqlx::query(&format!("CREATE SCHEMA {schema}"))
             .execute(&pool)

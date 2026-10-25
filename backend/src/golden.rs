@@ -52,6 +52,7 @@ struct Harness {
     store: Store,
     pool: sqlx::PgPool,
     schema: String,
+    coordinator: AnalysisCoordinator,
 }
 
 impl Harness {
@@ -87,7 +88,7 @@ async fn harness() -> Option<Harness> {
         .max_connections(1)
         .connect(&database_url)
         .await
-        .ok()?;
+        .expect("TEST_DATABASE_URL is configured but PostgreSQL connection failed");
     let schema = format!("golden_{}", uuid::Uuid::new_v4().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&pool)
@@ -121,6 +122,7 @@ async fn harness() -> Option<Harness> {
         github_extension_oauth_client_secret: None,
     };
     Some(Harness {
+        coordinator: state.coordinator.clone(),
         router: crate::build_router(state),
         store,
         pool,
@@ -377,18 +379,41 @@ async fn seo_recent_matches_golden() {
 
 #[tokio::test]
 async fn saved_badges_read_exact_counts_and_never_start_missing_analyses() {
-    let Some(harness) = harness().await else { return; };
-    let (status, body) = harness.get(&format!("/api/reports/{MODERN_REPORT_ID}/badge.svg?type=files")).await;
+    let Some(harness) = harness().await else {
+        return;
+    };
+    let (status, body) = harness
+        .get(&format!(
+            "/api/reports/{MODERN_REPORT_ID}/badge.svg?type=files"
+        ))
+        .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("16,346"));
-    let response = harness.router.clone().oneshot(Request::builder()
-        .uri("/api/reports/expired/badge.svg")
-        .header("origin", "https://octocounts.com")
-        .body(Body::empty()).unwrap()).await.unwrap();
+    let response = harness
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/reports/expired/badge.svg")
+                .header("origin", "https://octocounts.com")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     assert_eq!(response.headers().get("cache-control").unwrap(), "no-store");
-    assert_eq!(response.headers().get("access-control-expose-headers").unwrap(), "retry-after");
-    let jobs: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM jobs").fetch_one(&harness.pool).await.unwrap();
+    assert_eq!(
+        response
+            .headers()
+            .get("access-control-expose-headers")
+            .unwrap(),
+        "retry-after"
+    );
+    let jobs: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM jobs")
+        .fetch_one(&harness.pool)
+        .await
+        .unwrap();
     assert_eq!(jobs, 0);
     harness.drop_schema().await;
 }
@@ -450,6 +475,313 @@ async fn seo_report_matches_golden() {
     harness.drop_schema().await;
 }
 
+#[tokio::test]
+async fn seo_report_honors_refs_commits_and_rejects_ambiguous_prefixes() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    let mut release = report(
+        "report-release",
+        RepositoryProvider::GitHub,
+        "octo",
+        "refs",
+        "abcdef0123456789012345678901234567890123",
+        at(2024, 1, 1, 0),
+    );
+    release.ref_name = "release/v1".to_string();
+    harness
+        .store
+        .save_report(&release, AnalysisSource::SlocBackfill)
+        .await
+        .unwrap();
+    let mut head = release.clone();
+    head.id = "report-head".to_string();
+    head.commit_sha = "fedcba0123456789012345678901234567890123".to_string();
+    head.ref_name = "main".to_string();
+    head.generated_at = at(2024, 2, 1, 0);
+    harness
+        .store
+        .save_report(&head, AnalysisSource::Seed)
+        .await
+        .unwrap();
+    let base = "/api/seo/report?provider=github&owner=octo&repo=refs";
+    for (suffix, expected) in [
+        ("", head.commit_sha.as_str()),
+        ("&refName=main", head.commit_sha.as_str()),
+        ("&refName=release%2Fv1", release.commit_sha.as_str()),
+        ("&refName=abcdef0", release.commit_sha.as_str()),
+        (
+            "&refName=abcdef0123456789012345678901234567890123",
+            release.commit_sha.as_str(),
+        ),
+    ] {
+        let (status, body) = harness.get(&format!("{base}{suffix}")).await;
+        assert_eq!(status, StatusCode::OK, "{suffix}: {body}");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&body).unwrap()["commitSha"],
+            expected
+        );
+    }
+    let (status, _) = harness.get(&format!("{base}&refName=missing")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let mut custom = release.clone();
+    custom.id = "report-custom-ref".to_string();
+    custom.ref_name = "custom-only".to_string();
+    custom.analysis_key = "custom-options".to_string();
+    custom.analysis_options.include_tests = true;
+    harness
+        .store
+        .save_report(&custom, AnalysisSource::Web)
+        .await
+        .unwrap();
+    let (status, _) = harness.get(&format!("{base}&refName=custom-only")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let mut collision = release.clone();
+    collision.id = "report-collision".to_string();
+    collision.commit_sha = "abcdef0123456789012345678901234567890999".to_string();
+    harness
+        .store
+        .save_report(&collision, AnalysisSource::SlocBackfill)
+        .await
+        .unwrap();
+    // Use an uncached prefix after introducing the collision.
+    let (status, _) = harness.get(&format!("{base}&refName=abcdef01")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = harness
+        .get(&format!("{base}&refName=abcdef01&refKind=commit"))
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    harness.drop_schema().await;
+}
+
+#[tokio::test]
+async fn seo_report_distinguishes_hex_named_refs_from_commit_prefixes() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    let mut named = report(
+        "hex-ref-old",
+        RepositoryProvider::GitHub,
+        "octo",
+        "hex-refs",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        at(2024, 1, 1, 0),
+    );
+    named.ref_name = "deadbee".to_string();
+    harness
+        .store
+        .save_report(&named, AnalysisSource::Web)
+        .await
+        .unwrap();
+    named.id = "hex-ref-new".to_string();
+    named.commit_sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string();
+    named.generated_at = at(2024, 2, 1, 0);
+    harness
+        .store
+        .save_report(&named, AnalysisSource::Web)
+        .await
+        .unwrap();
+    let base = "/api/seo/report?provider=github&owner=octo&repo=hex-refs&refName=deadbee";
+    let (status, body) = harness.get(&format!("{base}&refKind=tree")).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&body).unwrap()["commitSha"],
+        named.commit_sha
+    );
+    // A cached tree response must not satisfy a commit route with the same spelling.
+    let (status, _) = harness.get(&format!("{base}&refKind=commit")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let mut commit = named.clone();
+    commit.id = "hex-commit".to_string();
+    commit.ref_name = "main".to_string();
+    commit.commit_sha = "deadbee1111111111111111111111111111111111".to_string();
+    harness
+        .store
+        .save_report(&commit, AnalysisSource::Web)
+        .await
+        .unwrap();
+    let (status, body) = harness.get(&format!("{base}&refKind=commit")).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&body).unwrap()["commitSha"],
+        commit.commit_sha
+    );
+    let (status, _) = harness.get(base).await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "legacy auto mode retains ambiguity checks"
+    );
+    let (status, _) = harness.get(&format!("{base}&refKind=branch")).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    harness.drop_schema().await;
+}
+
+#[tokio::test]
+async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    let options = AnalysisOptions::canonical();
+    let key = crate::analyzer::analysis_key(&options);
+    let mut main = report(
+        "alias-main",
+        RepositoryProvider::GitHub,
+        "octo",
+        "aliases",
+        "1111111111111111111111111111111111111111",
+        at(2024, 1, 1, 0),
+    );
+    main.analysis_key = key.clone();
+    main.analysis_options = options.clone();
+    harness
+        .store
+        .save_report(&main, AnalysisSource::Web)
+        .await
+        .unwrap();
+    let mut reference = crate::models::RepoRef {
+        provider: RepositoryProvider::GitHub,
+        owner: "octo".into(),
+        repo: "aliases".into(),
+        ref_name: "release/v1".into(),
+        commit_sha: main.commit_sha.clone(),
+        html_url: main.repository.html_url.clone(),
+        stars: None,
+        renamed_from: None,
+    };
+    let result = harness
+        .coordinator
+        .submit_resolved(
+            reference.clone(),
+            options.clone(),
+            AnalysisSource::Web,
+            false,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("{}", error.body().message));
+    assert!(matches!(
+        result,
+        crate::models::AnalyzeResponse::Cached { .. }
+    ));
+    let alias = harness
+        .store
+        .report_card_at_ref(
+            reference.provider,
+            "octo",
+            "aliases",
+            "release/v1",
+            Some(crate::models::ReportRefKind::Tree),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(alias.commit_sha, main.commit_sha);
+    assert_eq!(alias.ref_name, "release/v1");
+    let count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM reports WHERE owner = 'octo' AND repo = 'aliases'",
+    )
+    .fetch_one(&harness.pool)
+    .await
+    .unwrap();
+    assert_eq!(count, 1, "an alias does not create another report");
+
+    // Two resolved names join the same pre-existing active commit job.
+    reference.commit_sha = "2222222222222222222222222222222222222222".into();
+    let (job, _) = harness
+        .store
+        .create_or_get_active_job(crate::store::JobKey {
+            provider: reference.provider,
+            owner: "octo",
+            repo: "aliases",
+            commit_sha: &reference.commit_sha,
+            tokei_version: &key,
+            source: AnalysisSource::Web,
+        })
+        .await
+        .unwrap();
+    for name in ["release/v1", "release/v2"] {
+        reference.ref_name = name.into();
+        let result = harness
+            .coordinator
+            .submit_resolved(
+                reference.clone(),
+                options.clone(),
+                AnalysisSource::Web,
+                false,
+            )
+            .await
+            .unwrap_or_else(|error| panic!("{}", error.body().message));
+        assert!(
+            matches!(result, crate::models::AnalyzeResponse::Job { job_id, .. } if job_id == job.id)
+        );
+        assert!(
+            harness
+                .store
+                .report_card_at_ref(
+                    reference.provider,
+                    "octo",
+                    "aliases",
+                    name,
+                    Some(crate::models::ReportRefKind::Tree)
+                )
+                .await
+                .unwrap()
+                .is_none(),
+            "new mapping must not fall back to an old commit while its job runs"
+        );
+    }
+    let mut completed = main.clone();
+    completed.id = "alias-completed".into();
+    completed.commit_sha = reference.commit_sha.clone();
+    harness
+        .store
+        .save_report(&completed, AnalysisSource::Web)
+        .await
+        .unwrap();
+    harness
+        .store
+        .follow_repo_rename(
+            reference.provider,
+            "octo",
+            "aliases",
+            "octo",
+            "renamed-aliases",
+        )
+        .await
+        .unwrap();
+    for name in ["release/v1", "release/v2"] {
+        let (status, body) = harness
+            .get(&format!(
+                "/api/seo/report?provider=github&owner=octo&repo=aliases&refKind=tree&refName={}",
+                urlencoding::encode(name)
+            ))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let payload: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(payload["refName"], name);
+        assert_eq!(payload["commitSha"], completed.commit_sha);
+        assert_eq!(payload["canonicalSlug"], "octo/renamed-aliases");
+    }
+    // Alias bookkeeping failure must not discard a valid cached analysis.
+    sqlx::query("DROP TABLE repository_refs")
+        .execute(&harness.pool)
+        .await
+        .unwrap();
+    reference.repo = "renamed-aliases".into();
+    let result = harness
+        .coordinator
+        .submit_resolved(reference, options, AnalysisSource::Web, false)
+        .await
+        .unwrap_or_else(|error| panic!("{}", error.body().message));
+    assert!(matches!(
+        result,
+        crate::models::AnalyzeResponse::Cached { .. }
+    ));
+    harness.drop_schema().await;
+}
+
 /// A pre-rename slug keeps answering — with the re-keyed row's numbers and a
 /// `canonicalSlug` naming where the repository lives now — instead of 404ing
 /// out from under the indexed page. The exact-match request carries no
@@ -500,7 +832,10 @@ async fn seo_report_answers_a_renamed_slug_with_the_canonical_slug() {
     assert_eq!(value["publicPath"], "/github/react/react");
     // The canonical URL follows the row's key, so the page tells every client
     // — and the index — that the old spelling is not canonical.
-    assert_eq!(value["canonicalUrl"], "https://octocounts.com/github/react/react");
+    assert_eq!(
+        value["canonicalUrl"],
+        "https://octocounts.com/github/react/react"
+    );
 
     // The current slug's own request has nothing to say about redirects.
     let (status, body) = harness
@@ -524,7 +859,11 @@ async fn seo_redirect_endpoint_answers_renames_and_casing_variants() {
     let (status, body) = harness
         .get("/api/seo/redirect?provider=github&owner=rust-lang&repo=rust")
         .await;
-    assert_eq!(status, StatusCode::NOT_FOUND, "an exact stored slug does not redirect: {body}");
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "an exact stored slug does not redirect: {body}"
+    );
 
     let (status, body) = harness
         .get("/api/seo/redirect?provider=github&owner=RUST-LANG&repo=Rust")

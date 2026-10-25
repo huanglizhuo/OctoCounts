@@ -243,13 +243,23 @@ impl AnalysisCoordinator {
     pub async fn submit(&self, request: AnalyzeRequest) -> Result<AnalyzeResponse, ApiError> {
         let options = request.options.clone();
         let source = request.source;
-        let analysis_key = analyzer::analysis_key(&options);
         let repo_ref = self
             .github
             .resolve_ref(&request.repo_url, request.ref_name, request.force_refresh)
             .await
             .map_err(ApiError::from)?;
+        self.submit_resolved(repo_ref, options, source, request.force_refresh)
+            .await
+    }
 
+    pub(crate) async fn submit_resolved(
+        &self,
+        repo_ref: RepoRef,
+        options: crate::models::AnalysisOptions,
+        source: AnalysisSource,
+        force_refresh: bool,
+    ) -> Result<AnalyzeResponse, ApiError> {
+        let analysis_key = analyzer::analysis_key(&options);
         // Rename-follow. The resolution filed the repository under the API's
         // current spelling; when that took a rename hop, everything still
         // stored under the predecessor slug moves to the same key *before* the
@@ -292,7 +302,13 @@ impl AnalysisCoordinator {
             }
         }
 
-        if !request.force_refresh {
+        // Record every resolved alias before the cache/active-job shortcuts.
+        // SEO bookkeeping must not turn an otherwise successful analysis into an error.
+        if let Err(error) = self.store.record_repository_ref(&repo_ref).await {
+            tracing::warn!(%error, "could not record resolved repository ref");
+        }
+
+        if !force_refresh {
             if let Some(report) = self
                 .store
                 .cached_report_for_provider(
@@ -371,11 +387,7 @@ impl AnalysisCoordinator {
                     tracing::warn!(%error, "archive download failed");
                     let api_error = ApiError::from(error);
                     coordinator
-                        .set_job_failed(
-                            job_id,
-                            &api_error.body().code,
-                            &api_error.body().message,
-                        )
+                        .set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
                         .await;
                     return;
                 }
@@ -397,11 +409,7 @@ impl AnalysisCoordinator {
                     tracing::warn!("archive exceeded the size limit while streaming");
                     let api_error = ApiError::from(GitHubError::TooLarge);
                     coordinator
-                        .set_job_failed(
-                            job_id,
-                            &api_error.body().code,
-                            &api_error.body().message,
-                        )
+                        .set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
                         .await;
                 }
                 Err(error) => {
@@ -429,11 +437,23 @@ async fn complete_job(
             .await;
         return;
     }
-    // The report page was newly created or materially updated (save_report
-    // upserts the body); cache hits never reach this path. Submitting is
-    // fire-and-forget and must not affect job completion.
+    // Use the public query's canonical-options/history eligibility before notifying crawlers.
     if let Some(indexnow) = &coordinator.indexnow {
-        indexnow.submit_report(&report);
+        match coordinator
+            .store
+            .latest_report_card(
+                report.repository.provider,
+                &report.repository.owner,
+                &report.repository.name,
+            )
+            .await
+        {
+            Ok(Some(card)) if card.report_id.as_deref() == Some(report.id.as_str()) => {
+                indexnow.submit_report(&report);
+            }
+            Err(error) => tracing::warn!(%error, "could not verify IndexNow report eligibility"),
+            _ => {}
+        }
     }
     coordinator.set_job_completed(job_id, report_id).await;
 }
@@ -484,7 +504,7 @@ mod tests {
             .max_connections(1)
             .connect(&database_url)
             .await
-            .ok()?;
+            .expect("TEST_DATABASE_URL is configured but PostgreSQL connection failed");
         let schema = format!("test_schema_{}", Uuid::new_v4().simple());
         sqlx::query(&format!("CREATE SCHEMA {schema}"))
             .execute(&admin)
