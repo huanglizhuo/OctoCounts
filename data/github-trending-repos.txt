@@ -1,9 +1,11 @@
-# GitHub Trending daily snapshot generated 2026-10-24T07:15:27.473Z
+# GitHub Trending daily snapshot generated 2026-10-25T07:33:17.371Z
 cloudflare/security-audit-skill
-php/php-src
-anthropics/knowledge-work-plugins
 NVIDIA/OpenShell
-Renhuai123/ziwei-doushu
-SnailSploit/Claude-Red
-OpenBMB/VoxCPM
-nodejs/node
+aws/agent-toolkit-for-aws
+Nutlope/hallmark
+luongnv89/claude-howto
+pbakaus/impeccable
+pollen-robotics/microduck
+google-gemini/gemini-cli
+jbiaojerry/ebook-treasure-chest
+makecindy/cindy
