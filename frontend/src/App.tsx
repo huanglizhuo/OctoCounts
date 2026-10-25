@@ -245,7 +245,7 @@ function adoptPreHydrationInput(id: string, current: string): string {
 export function App() {
   const { t, i18n } = useTranslation();
   const ExtensionPromo = useExtensionPromo();
-  const routePath = window.location.pathname;
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
   // A visitor who lands directly on a specific report from search sees the
   // full marketing hero (tagline, subtitle, definition, install buttons,
   // sample chips) before any repository data — on mobile that pushed the
@@ -400,6 +400,7 @@ export function App() {
     if (params.has("reportId")) return;
     const query = params.toString();
     window.history.replaceState(null, "", canonical.pathname + (query ? `?${query}` : ""));
+    setRoutePath(canonical.pathname);
   }, [report]);
 
   const playRecent = (entry: RecentEntry) => {

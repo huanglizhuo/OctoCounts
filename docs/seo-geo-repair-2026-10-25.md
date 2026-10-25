@@ -96,3 +96,9 @@
 - 数据库：启动迁移已创建 `repository_refs`；不需要另行执行手工 SQL。第二节点跨主节点数据库连接延迟约 187ms，启动时回放 121 条既有仓库重定向耗时数分钟；健康检查恢复后再发布前端。
 - 前端：本报告与 SEO/GEO 修改一起推送 `main`，由现有 Cloudflare Pages Git 集成自动部署。部署结果和线上冒烟验证记录在本次交付消息，避免为回填提交 ID 再触发一次构建。
 
+
+### 发布验收补充
+
+- 首次 Cloudflare Pages 发布 `de72646` 成功；生产首页、中英文入口、静态文档 HTML/Markdown、查询参数 Markdown、统计脚本、研究 JSON、sitemap 均返回预期内容，非法报告路径为真实 404；commit HTML/Markdown、canonical 和 Dataset 下载身份一致。
+- GitHub Linux 浏览器 QA 揭示一个本地测试未稳定复现的路由同步时序问题：分析后仅修改 history，布局等待下一次渲染才切换。补充 React 路由状态同步，沿用原有浏览器回归断言后重跑全套；不涉及新的后端变更。
+- curl 模拟 Googlebot、ChatGPT-User、OAI-SearchBot、Claude-SearchBot 的文档请求均为 200；Python-urllib UA 为 403。这仅是请求样本，不代表已验证真实爬虫身份、所有 WAF 策略或搜索收录。未修改生产 WAF 策略。
