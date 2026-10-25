@@ -15,8 +15,8 @@ GitHub shows language percentages in the repository sidebar, but it does not sho
 - Downloading a source archive for a pinned commit instead of cloning full git history.
 - Counting every source file with [tokei](https://github.com/XAMPPRocky/tokei).
 - Reporting files, total lines, code lines, comment lines, blank lines, and per-language totals.
-- Caching reports by commit SHA so repeated analyses are instant.
-- Offering stable report URLs, README badges, PNG cards, JSON export, an API, a CLI, a GitHub Action, and browser extensions.
+- Caching reports by commit SHA, engine version, and options so matching requests can reuse a saved result while it remains cached.
+- Offering shareable report URLs, README badges, PNG cards, JSON export, an API, a CLI, a GitHub Action, and browser extensions.
 
 ## Open source
 

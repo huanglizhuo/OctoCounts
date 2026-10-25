@@ -52,7 +52,7 @@
       "headline": "GitHub repo size checker: check a repository before cloning",
       "description": "Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports, with real numbers.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -93,7 +93,7 @@
           "name": "How can I check a GitHub repository's size before cloning?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "The fastest no-clone check is GitHub's REST API: GET /repos/{owner}/{repo} returns a size field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all."
+            "text": "One no-clone check is GitHub's REST API: GET /repos/{owner}/{repo} returns a size field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all."
           }
         },
         {
@@ -138,15 +138,23 @@
       "@id": "https://github.com/huanglizhuo",
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
-      "sameAs": ["https://github.com/huanglizhuo", "https://github.com/huanglizhuo/OctoCounts", "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj", "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim", "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/", "https://www.npmjs.com/package/octocounts"],
-      "knowsAbout": ["source lines of code", "git", "repository size", "code metrics", "developer tools"]
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "git",
+        "repository size",
+        "code metrics",
+        "developer tools"
+      ]
     }
     </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / repository size checker</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub repo size checker: check before cloning</h1>
       <p class="answer">There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API <code>size</code> field (a one-line <code>curl</code>, no clone), a shallow clone (<code>git clone --depth 1</code>), GitHub's git-sizer tool on a full clone, a local line counter such as <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> on a checkout, and a no-clone SLOC report from <a href="/">OctoCounts</a>. They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.</p>
       <p class="note">Every number on this page was checked on October 7, 2026. SLOC figures come from OctoCounts reports that name their exact commit SHA and tokei version; byte figures come from GitHub's REST API <code>size</code> field, which GitHub documents as calculated hourly.</p>
@@ -223,7 +231,7 @@ git -C kubernetes count-objects -vH   # size-pack: how much history you actually
       <h2>Frequently Asked Questions</h2>
 
       <h3>How can I check a GitHub repository's size before cloning?</h3>
-      <p>The fastest no-clone check is GitHub's REST API: <code>GET /repos/{owner}/{repo}</code> returns a <code>size</code> field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all.</p>
+      <p>One no-clone check is GitHub's REST API: <code>GET /repos/{owner}/{repo}</code> returns a <code>size</code> field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all.</p>
 
       <h3>Does GitHub show a repository's size on the website?</h3>
       <p>No. A GitHub repository page shows the language bar and file listing but not a total size figure. The documented way to get one without cloning is the REST API's <code>size</code> field on the repository endpoint, which reports kilobytes of the repository as stored by GitHub, refreshed hourly. GitHub's own git-sizer tool goes further and reports detailed size metrics, but it needs a complete local clone to analyze.</p>

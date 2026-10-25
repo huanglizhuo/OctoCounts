@@ -1,6 +1,6 @@
 # tokei online: run tokei on GitHub repositories
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.
 
@@ -10,7 +10,7 @@ tokei is an open-source source-line counter maintained at [github.com/XAMPPRocky
 
 ## How do I run tokei online without installing it?
 
-Paste a public GitHub repository URL (for example `https://github.com/react/react`) into the [OctoCounts web app](https://octocounts.com/). OctoCounts downloads the repository's source archive — pinned to an exact commit SHA, so the count is reproducible — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by commit, so re-viewing a report is instant. Try it with [react/react](https://octocounts.com/github/react/react) or [torvalds/linux](https://octocounts.com/github/torvalds/linux).
+Paste a public GitHub repository URL (for example `https://github.com/react/react`) into the [OctoCounts web app](https://octocounts.com/). OctoCounts downloads the repository's source archive — pinned to an exact commit SHA; reproduction also requires the same source tree, engine version, and effective rules — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by repository, commit, engine version, and effective rules, so matching retained entries can be reused. Try it with [react/react](https://octocounts.com/github/react/react) or [torvalds/linux](https://octocounts.com/github/torvalds/linux).
 
 ## Is OctoCounts really running tokei?
 

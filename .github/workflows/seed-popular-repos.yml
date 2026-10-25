@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: "Maximum repositories to seed"
+        description: "Maximum repositories per rotating batch"
         required: false
         default: "50"
       force_refresh:
@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+      - run: node --test scripts/seed-popular-repos.test.mjs
       - name: Seed report inventory
         env:
           LIMIT: ${{ github.event.inputs.limit || '50' }}
@@ -37,6 +38,7 @@ jobs:
           fi
           node scripts/seed-popular-repos.mjs \
             --limit "$LIMIT" \
+            --batch "$((GITHUB_RUN_NUMBER - 1))" \
             --concurrency 2 \
             --delay-ms 750 \
             --max-polls 180 \

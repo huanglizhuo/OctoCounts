@@ -1,6 +1,6 @@
 # OctoCounts crawler & AI-access policy (SG-08)
 
-- Updated: 2026-10-18. Canonical-format behavior revised.
+- Updated: 2026-10-25. Anthropic crawler roles and content-use signals clarified.
 - Created: 2026-09-08. Verified against provider documentation listed below on
   the same date; re-verify before changing any rule.
 - This document describes repository configuration. Production behavior also
@@ -16,7 +16,9 @@
 | ChatGPT-User | OpenAI | Fetches pages a user asks ChatGPT about | Allow | HTML |
 | GPTBot | OpenAI | **Training** corpus crawl | Allow (`ai-train=yes` signal) | HTML. Training permission is a separate decision from search visibility — governed by this row, not by OAI-SearchBot's. |
 | PerplexityBot / Perplexity-User | Perplexity | Search indexing / user-initiated fetch | Allow | HTML |
-| ClaudeBot / Claude-User | Anthropic | Indexing / user-initiated fetch | Allow | HTML |
+| ClaudeBot | Anthropic | Collects content that may contribute to model training | Crawl allowed; `ai-train=no` content-use signal | HTML |
+| Claude-SearchBot | Anthropic | Search indexing | Allow | HTML |
+| Claude-User | Anthropic | User-initiated fetch | Allow | HTML |
 | Google-Extended | Google | Gemini grounding & training (does not control Google Search indexing) | Allow | HTML |
 | CCBot | Common Crawl | Open corpus building (training pipelines downstream) | Allow | HTML |
 | Bytespider | ByteDance | Training corpus crawl (TikTok/Douyin AI) | Allow | HTML |
@@ -26,6 +28,16 @@ Key distinction this matrix exists to keep straight (SG-08 finding): **GPTBot
 is a training crawler. Allowing or blocking it does not change ChatGPT's
 ability to see or cite OctoCounts in search — that is OAI-SearchBot and
 ChatGPT-User.** The earlier robots.txt comment conflated the two.
+
+Crawl permission (`Allow`) and permitted content uses (`Content-Signal`) are
+separate. The existing default remains `search=yes,ai-input=yes,ai-train=no`;
+GPTBot retains its explicit `ai-train=yes` exception. Allowing other training
+crawlers to fetch does not grant a blanket training-use permission. ClaudeBot
+has an explicit `ai-train=no` signal so its role cannot be confused with
+Claude-SearchBot. Content Signals are not standard robots exclusion rules;
+provider enforcement and Cloudflare-managed rules must be checked separately.
+The legacy `anthropic-ai` token is retained for compatibility; the three
+current documented Anthropic tokens are listed individually above.
 
 ## 2. Format negotiation
 
@@ -86,3 +98,13 @@ The sitemap lists both languages. Chinese guide Markdown twins are explicit
 `.md` / `?format=md` representations with `noindex, follow`, just like English.
 Only translated pages are listed as language alternates; there is no fallback
 from a missing Chinese page to an indexable English shell.
+
+
+## Provider role verification (2026-10-25)
+
+Anthropic's [crawler documentation](https://support.anthropic.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)
+separates ClaudeBot (potential training data), Claude-SearchBot (search), and
+Claude-User (user-requested retrieval). These are separate access controls.
+Cloudflare's [managed robots documentation](https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/)
+explains that managed rules can be prepended to repository robots content.
+This source check verifies role descriptions, not production crawler access.

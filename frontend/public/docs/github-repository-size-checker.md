@@ -1,6 +1,6 @@
 # GitHub repo size checker: check before cloning
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API `size` field (a one-line `curl`, no clone), a shallow clone (`git clone --depth 1`), GitHub's git-sizer tool on a full clone, a local line counter such as [tokei](https://github.com/XAMPPRocky/tokei) or [cloc](https://github.com/AlDanial/cloc) on a checkout, and a no-clone SLOC report from [OctoCounts](https://octocounts.com/). They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.
 
@@ -91,7 +91,7 @@ The linux line counts come from the cached OctoCounts report at commit `67f0943b
 
 ### How can I check a GitHub repository's size before cloning?
 
-The fastest no-clone check is GitHub's REST API: `GET /repos/{owner}/{repo}` returns a `size` field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all.
+One no-clone check is GitHub's REST API: `GET /repos/{owner}/{repo}` returns a `size` field in kilobytes, which GitHub documents as calculated hourly. For example, on October 7, 2026 the linux repository reported a size of 6,401,075 KB (about 6.1 GB) and kubernetes/kubernetes reported 1,529,410 KB (about 1.5 GB). For the amount of source code rather than bytes on disk, OctoCounts produces a commit-pinned SLOC report from just the repository URL — no clone at all.
 
 ### Does GitHub show a repository's size on the website?
 

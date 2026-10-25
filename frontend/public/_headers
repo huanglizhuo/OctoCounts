@@ -5,14 +5,15 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
-/octocounts-*-768.webp
-  Cache-Control: public, max-age=31536000, immutable
+# Fixed image filenames can change between releases; allow revalidation.
+/octocounts-*.webp
+  Cache-Control: public, max-age=86400, stale-while-revalidate=86400
 
-/octocounts-*-card.webp
-  Cache-Control: public, max-age=31536000, immutable
+/analytics.js
+  Cache-Control: public, max-age=0, must-revalidate
 
-/octocounts-logo-96.webp
-  Cache-Control: public, max-age=31536000, immutable
+/analytics-runtime.js
+  Cache-Control: public, max-age=0, must-revalidate
 
 # og-image.jpg is replaced in-place on deploys rather than content-addressed,
 # so cache it for a week (not immutable) with SWR to absorb revalidation.

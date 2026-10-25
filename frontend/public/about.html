@@ -53,7 +53,7 @@
       "description": "About OctoCounts, a free source lines of code counter for public GitHub repositories.",
       "url": "https://octocounts.com/about",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-25",
       "mainEntity": {
         "@type": "Organization",
         "@id": "https://octocounts.com/#organization",
@@ -77,23 +77,24 @@
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
       "sameAs": [
-        "https://github.com/huanglizhuo",
-        "https://github.com/huanglizhuo/OctoCounts",
-        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-        "https://www.npmjs.com/package/octocounts"
+        "https://github.com/huanglizhuo"
       ],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools", "Rust", "TypeScript"],
-      "jobTitle": "Software Developer",
-      "image": "https://octocounts.com/og-image.jpg"
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools",
+        "Rust",
+        "TypeScript"
+      ],
+      "jobTitle": "Software Developer"
     }
     </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / About</nav>
     <main>
-      <p class="meta">Updated September 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>About OctoCounts</h1>
       <p class="note">OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code, comments, blanks, and per-language totals without cloning.</p>
 
@@ -107,8 +108,8 @@
         <li>Downloading a source archive for a pinned commit instead of cloning full git history.</li>
         <li>Counting every source file with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>.</li>
         <li>Reporting files, total lines, code lines, comment lines, blank lines, and per-language totals.</li>
-        <li>Caching reports by commit SHA so repeated analyses are instant.</li>
-        <li>Offering stable report URLs, README badges, PNG cards, JSON export, an API, a CLI, a GitHub Action, and browser extensions.</li>
+        <li>Caching reports by commit SHA, engine version, and options so matching requests can reuse a saved result while it remains cached.</li>
+        <li>Offering shareable report URLs, README badges, PNG cards, JSON export, an API, a CLI, a GitHub Action, and browser extensions.</li>
       </ul>
 
       <h2>Open source</h2>

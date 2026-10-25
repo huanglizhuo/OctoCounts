@@ -52,7 +52,7 @@
   "headline": "OctoCounts FAQ",
   "description": "Frequently asked questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and API usage.",
   "datePublished": "2026-08-29",
-  "dateModified": "2026-10-07",
+  "dateModified": "2026-10-25",
   "author": {
     "@type": "Person",
     "@id": "https://github.com/huanglizhuo",
@@ -131,7 +131,7 @@
       "name": "Does OctoCounts support private repositories?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "No. OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally. Download tokei from github.com/XAMPPRocky/tokei, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses."
+        "text": "No. OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally. Download tokei from github.com/XAMPPRocky/tokei, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses."
       }
     },
     {
@@ -139,7 +139,7 @@
       "name": "Is OctoCounts free?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and no rate limit that is publicly documented. Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on GitHub at github.com/huanglizhuo/OctoCounts. OctoCounts intentionally analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. OctoCounts has no advertising and collects no personal data."
+        "text": "Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and default analyze limits of 5 requests/minute per IP (burst 10). Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on GitHub at github.com/huanglizhuo/OctoCounts. OctoCounts intentionally analyzes public repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. OctoCounts has no advertising. The website uses aggregate analytics, and the Chrome extension offers optional GitHub login; see the privacy policy for data handling."
       }
     },
     {
@@ -147,7 +147,7 @@
       "name": "Does OctoCounts have a browser extension?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. OctoCounts has browser extensions for Chrome, Edge, and Firefox, all named OctoCounts – GitHub SLOC & Code Statistics. Install from the Chrome Web Store, Microsoft Edge Add-ons, or Firefox Add-ons to add a compact SLOC card directly to GitHub repository sidebars. The card appears automatically on any public repository page and shows the total line count and analysis status. Clicking the card opens the full panel, which displays files, total lines, code lines, comment lines, and blank lines per language, the same breakdown as the web app. The extension includes a local cache so results load instantly on repeat visits to the same repository and ref. You can configure the auto-analyze setting to fetch counts immediately on page load, or trigger analysis manually. The placement setting controls where the card appears in the GitHub sidebar. No GitHub account or API token is required. The extension source code is publicly available on GitHub."
+        "text": "Yes. OctoCounts has browser extensions for Chrome, Edge, and Firefox, all named OctoCounts – GitHub SLOC & Code Statistics. Install from the Chrome Web Store, Microsoft Edge Add-ons, or Firefox Add-ons to add a compact SLOC card directly to GitHub repository sidebars. The card appears automatically on any public repository page and shows the total line count and analysis status. Clicking the card opens the full panel, which displays files, total lines, code lines, comment lines, and blank lines per language, the same breakdown as the web app. The extension includes a local cache so repeat visits can reuse cached results for the same repository and ref. You can configure the auto-analyze setting to fetch counts immediately on page load, or trigger analysis manually. The placement setting controls where the card appears in the GitHub sidebar. No GitHub account or API token is required. The extension source code is publicly available on GitHub."
       }
     },
     {
@@ -171,7 +171,7 @@
       "name": "How is OctoCounts different from GitHub's language bar?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar is a relative estimate: it infers each language's share from file counts and byte sizes, so a few large generated or vendored files can dominate it, and it never shows absolute line counts. OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency folders like node_modules and vendor excluded by default. The result is a count a reviewer can reproduce: same commit, same exclusions, same totals. OctoCounts also gives every analysis a permanent URL with a citation block, while GitHub's bar has no permalink."
+        "text": "OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar shows each language's share of counted bytes, not file counts or lines. Linguist excludes files it identifies as generated, vendored, or documentation by default, subject to repository overrides. OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency folders like node_modules and vendor excluded by default. The result is a count a reviewer can reproduce: same commit, same engine version, same effective counting rules. OctoCounts also gives every analysis a shareable URL with a citation block, while GitHub's bar has no permalink."
       }
     },
     {
@@ -187,7 +187,7 @@
       "name": "How do I add a SLOC badge to my README?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Use the OctoCounts badge builder to pick a badge type, copy the generated Markdown snippet, and paste it into your README.md. Badges are available for total SLOC, code lines, file count, comment lines, language count, top language, code share, and single-language counts. Each badge renders from the latest cached report for that repository and links back to the permanent report page."
+        "text": "Use the OctoCounts badge builder to pick a badge type, copy the generated Markdown snippet, and paste it into your README.md. Badges are available for total SLOC, code lines, file count, comment lines, language count, top language, code share, and single-language counts. Each badge renders from the latest cached report for that repository and links back to the live report page."
       }
     },
     {
@@ -203,7 +203,7 @@
       "name": "What is a cached report?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "A cached report is a stored SLOC result keyed by repository, commit SHA, tokei version, and analysis options. Re-analyzing the same commit returns the cached result instantly."
+        "text": "A cached report is a stored SLOC result keyed by repository, commit SHA, tokei version, and analysis options. A matching commit, engine version, and effective rules can reuse a saved result while it remains cached."
       }
     },
     {
@@ -235,7 +235,7 @@
       "name": "What happens if a repository is too large?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Very large repositories may exceed the analyzer's archive-size or time limits, in which case the analysis fails with a clear error instead of returning partial numbers. Workarounds: retry later, analyze a smaller branch or tag of the same repository, or run tokei locally where no download limits apply. Reports that succeeded earlier stay cached and keep serving instantly."
+        "text": "Very large repositories may exceed the analyzer's archive-size or time limits, in which case the analysis fails with a clear error instead of returning partial numbers. Workarounds: retry later, analyze a smaller branch or tag of the same repository, or run tokei locally where no download limits apply. Earlier successful reports can remain available while cached, but are subject to retention and size limits."
       }
     },
     {
@@ -264,32 +264,29 @@
     }
   ]
 }</script>
-    <script type="application/ld+json">{
-  "@context": "https://schema.org",
-  "@type": "Person",
-  "@id": "https://github.com/huanglizhuo",
-  "name": "huanglizhuo",
-  "url": "https://github.com/huanglizhuo",
-  "sameAs": [
-    "https://github.com/huanglizhuo",
-    "https://github.com/huanglizhuo/OctoCounts",
-    "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-    "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-    "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-    "https://www.npmjs.com/package/octocounts"
-  ],
-  "knowsAbout": [
-    "source lines of code",
-    "code metrics",
-    "tokei",
-    "developer tools"
-  ]
-}</script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools"
+      ]
+    }
+    </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / FAQ</nav>
     <main>
-      <p class="meta">Updated October 7, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts FAQ</h1>
       <p class="answer">OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning: the requested branch, tag, or commit SHA is resolved to an exact commit and counted with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source Rust line counter. No account is required, private repositories are not supported, and results can be exported as plain text, JSON, or a PNG card.</p>
       <p class="note">Answers to common questions about OctoCounts, source lines of code counting, GitHub support, browser extensions, badges, and the API.</p>
@@ -305,11 +302,11 @@
         <p>Developers use SLOC to estimate project complexity, compare codebases when evaluating dependencies, scope billing and audit work, and communicate repository size to stakeholders who may not read code. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source line counter written in Rust that processes files in parallel. See the <a href="/docs/methodology">methodology</a> for details.</p>
 
         <h3>How do I count lines of code in a GitHub repository?</h3>
-        <p>Open <a href="/">octocounts.com</a>, paste a public GitHub repository URL (for example <code>github.com/torvalds/linux</code>), optionally pick a branch, tag, or commit SHA, and click Analyze. OctoCounts resolves the ref to one pinned commit, downloads the source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns a sortable per-language breakdown with aggregate totals, usually within seconds and without a git clone. Every analysis gets a permanent report URL that can be shared, cited, or revisited later.</p>
+        <p>Open <a href="/">octocounts.com</a>, paste a public GitHub repository URL (for example <code>github.com/torvalds/linux</code>), optionally pick a branch, tag, or commit SHA, and click Analyze. OctoCounts resolves the ref to one pinned commit, downloads the source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns a sortable per-language breakdown with aggregate totals, usually within seconds and without a git clone. Every analysis gets a shareable report URL that can be shared, cited, or revisited later.</p>
 
         <h3>Is OctoCounts free?</h3>
-        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and no rate limit that is publicly documented. Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on <a href="https://github.com/huanglizhuo/OctoCounts">GitHub</a>.</p>
-        <p>OctoCounts intentionally analyzes public repositories only and has no advertising and collects no personal data.</p>
+        <p>Yes. OctoCounts is completely free to use for public GitHub repositories. There is no account required, no API key, no sign-up, and default analyze limits of 5 requests/minute per IP (burst 10). Both the web app and the browser extensions are free with no premium tier. The backend is open source, written in Rust using the Axum framework, and the frontend is written in React with TypeScript. If you prefer, you can self-host the entire stack; the source code is available on <a href="https://github.com/huanglizhuo/OctoCounts">GitHub</a>.</p>
+        <p>OctoCounts intentionally analyzes public repositories only and has no advertising. The website uses aggregate analytics, and the Chrome extension offers optional GitHub login; see the privacy policy for data handling.</p>
       </div>
 
       <div class="faq-section">
@@ -317,7 +314,7 @@
 
         <h3>Does OctoCounts have a browser extension?</h3>
         <p>Yes. OctoCounts has browser extensions for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, and <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a>, all named OctoCounts – GitHub SLOC & Code Statistics. They add a compact SLOC card directly to GitHub repository sidebars, appearing automatically on any public repository page and showing the total line count and analysis status. Clicking the card opens the full panel with files, total lines, code lines, comment lines, and blank lines per language — the same breakdown as the web app.</p>
-        <p>A local cache makes repeat visits to the same repository and ref instant, the auto-analyze setting controls whether counts fetch on page load or on demand, and a placement setting controls where the card appears in the sidebar. No GitHub account or API token is required, and the extension source code is publicly available on GitHub.</p>
+        <p>A local cache lets repeat visits to the same repository and ref reuse saved counts, the auto-analyze setting controls whether counts fetch on page load or on demand, and a placement setting controls where the card appears in the sidebar. No GitHub account or API token is required, and the extension source code is publicly available on GitHub.</p>
 
         <h3>What programming languages does OctoCounts support?</h3>
         <p>OctoCounts uses <a href="https://github.com/XAMPPRocky/tokei">tokei</a> for language detection, which supports over 200 programming languages and file types, including Rust, Python, JavaScript, TypeScript, Go, Java, C, C++, C#, Ruby, Swift, Kotlin, PHP, Scala, Haskell, Elixir, Erlang, Clojure, F#, Lua, R, Julia, Dart, Perl, Shell, Bash, PowerShell, HTML, CSS, SCSS, SQL, GraphQL, Dockerfile, YAML, JSON, TOML, XML, Markdown, and many more.</p>
@@ -328,7 +325,7 @@
         <p>PNG downloads a 1200 &times; 630 image card showing the language breakdown, suitable for sharing on social media, GitHub READMEs, or portfolio pages. All three formats are generated client-side from the analysis data already loaded in your browser, so no additional server request is needed.</p>
 
         <h3>How do I add a SLOC badge to my README?</h3>
-        <p>Use the <a href="/badges">badge builder</a> to pick a badge type, copy the generated Markdown snippet, and paste it into your README.md. Badges are available for total SLOC, code lines, file count, comment lines, language count, top language, code share, and single-language counts. Each badge renders from the latest cached report for that repository and links back to the permanent OctoCounts report page, so readers can click through and verify the underlying numbers themselves.</p>
+        <p>Use the <a href="/badges">badge builder</a> to pick a badge type, copy the generated Markdown snippet, and paste it into your README.md. Badges are available for total SLOC, code lines, file count, comment lines, language count, top language, code share, and single-language counts. Each badge renders from the latest cached report for that repository and links back to the live OctoCounts report page, so readers can click through and verify the underlying numbers themselves.</p>
 
         <h3>Can I compare two repositories?</h3>
         <p>Yes. The <a href="/compare">/compare</a> page compares any two public GitHub repositories, branches, tags, or commits side by side, showing files, total lines, code lines, comments, blanks, and per-language totals for both sides. The <a href="/diff">/diff</a> page compares two refs of the same repository, which is useful for seeing how a refactor or dependency bump changed code size. OctoCounts also publishes curated comparison pages such as <a href="/compare/react-vs-vue">React vs Vue</a> and <a href="/compare/rust-vs-go">Rust vs Go</a> with editorial context.</p>
@@ -341,13 +338,13 @@
         <p>OctoCounts resolves the requested branch, tag, or commit SHA to one pinned commit, downloads that exact ref's GitHub source archive (a compressed tarball, not a full git clone), extracts it, and counts every source file with tokei. Heavy dependency folders such as <code>.git</code>, <code>node_modules</code>, <code>target</code>, <code>dist</code>, and <code>vendor</code> are ignored by default so vendored code does not inflate the count. The full counting rules are documented in the <a href="/docs/methodology">methodology</a>.</p>
 
         <h3>How is OctoCounts different from GitHub's language bar?</h3>
-        <p>OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar is a relative estimate: it infers each language's share from file counts and byte sizes, so a few large generated or vendored files can dominate it, and it never shows absolute line counts. OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency folders like <code>node_modules</code> and <code>vendor</code> excluded by default. The result is a count a reviewer can reproduce: same commit, same exclusions, same totals. OctoCounts also gives every analysis a permanent URL with a citation block, while GitHub's bar has no permalink. See the full <a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a> comparison for a worked example (statements verified 2026).</p>
+        <p>OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar shows each language's share of counted bytes, not file counts or lines. Linguist excludes files it identifies as generated, vendored, or documentation by default, subject to repository overrides. See <a href="https://github.com/github-linguist/linguist/blob/main/docs/how-linguist-works.md">GitHub Linguist’s counting rules</a>. OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency folders like <code>node_modules</code> and <code>vendor</code> excluded by default. The result is a count a reviewer can reproduce: same commit, same engine version, same effective counting rules. OctoCounts also gives every analysis a shareable URL with a citation block, while GitHub's bar has no permalink. See the full <a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a> comparison for a worked example (statements verified 2026).</p>
 
         <h3>How is OctoCounts different from running tokei or cloc locally?</h3>
         <p>OctoCounts downloads a compressed archive instead of doing a full git clone, requires no local installation, caches reports by commit SHA, and provides shareable report URLs, README badges, an API, a CLI, and a GitHub Action. For private repositories or custom analysis, running <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> locally is still the best option. See <a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc and tokei</a>.</p>
 
         <h3>What is a cached report?</h3>
-        <p>A cached report is a stored SLOC result keyed by repository provider, owner, name, commit SHA, tokei version, and analysis options. Re-analyzing the same commit returns the cached result instantly with no re-download and no re-count.</p>
+        <p>A cached report is a stored SLOC result keyed by repository provider, owner, name, commit SHA, tokei version, and analysis options. A matching commit, engine version, and effective rules can reuse a saved result without re-downloading or recounting while that result remains cached.</p>
 
         <h3>How accurate are OctoCounts reports?</h3>
         <p>Reports are exact for the downloaded source archive and selected analysis options. They reflect the public archive at one commit, not the full git history. Generated files, dependency folders, docs, tests, and ignored languages may be included or excluded depending on the analysis options.</p>
@@ -357,7 +354,7 @@
         <h2>Privacy, API, and project</h2>
 
         <h3>Does OctoCounts support private repositories?</h3>
-        <p>No. OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally: download it from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a>, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses.</p>
+        <p>No. OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally: download it from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a>, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses.</p>
 
         <h3>Does OctoCounts store my source code?</h3>
         <p>No. OctoCounts analyzes public repositories and stores only aggregated statistics — file counts and line counts split into code, comment, and blank lines, plus per-language totals — keyed by commit SHA and analysis options. Source files from the downloaded archive are not persisted, no account is required, and there is nothing to upload. See the <a href="/privacy">privacy policy</a> for the full data-handling details.</p>
@@ -369,7 +366,7 @@
         <p>Yes. The <a href="https://github.com/huanglizhuo/OctoCounts/tree/main/action">OctoCounts GitHub Action</a> runs on pull requests and comments how the change affects source lines of code, so reviewers see size deltas next to the diff. The CLI (<code>npx octocounts</code>) works in any terminal or CI script and outputs JSON that pipelines can consume for reporting or custom checks.</p>
 
         <h3>What happens if a repository is too large?</h3>
-        <p>Very large repositories may exceed the analyzer's archive-size or time limits, in which case the analysis fails with a clear error instead of returning partial numbers. Workarounds: retry later, analyze a smaller branch or tag of the same repository, or run tokei locally where no download limits apply. Reports that succeeded earlier stay cached and keep serving instantly.</p>
+        <p>Very large repositories may exceed the analyzer's archive-size or time limits, in which case the analysis fails with a clear error instead of returning partial numbers. Workarounds: retry later, analyze a smaller branch or tag of the same repository, or run tokei locally where no download limits apply. Earlier successful reports can remain available while cached, but are subject to retention and size limits.</p>
 
         <h3>How do I cite an OctoCounts report?</h3>
         <p>Cite the canonical report URL together with the commit SHA and generated date shown on the page, for example: <code>OctoCounts, "torvalds/linux: lines of code", https://octocounts.com/github/torvalds/linux, counted at commit &lt;sha&gt; on &lt;date&gt;</code>. Every report page includes a ready-to-copy recommended citation block, and appending <code>.md</code> to any report URL returns the same content as Markdown for quoting in documentation.</p>

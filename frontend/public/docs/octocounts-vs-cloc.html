@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs cloc, scc, and tokei",
       "description": "Compare OctoCounts with cloc, scc, and tokei for counting source lines of code in public GitHub repositories, local workflows, CI, and sharing.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -131,21 +131,23 @@
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
       "sameAs": [
-        "https://github.com/huanglizhuo",
-        "https://github.com/huanglizhuo/OctoCounts",
-        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-        "https://www.npmjs.com/package/octocounts"
+        "https://github.com/huanglizhuo"
       ],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "cloc", "scc", "developer tools"]
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "cloc",
+        "scc",
+        "developer tools"
+      ]
     }
     </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / vs cloc, scc, tokei</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs cloc, scc, and tokei</h1>
       <p class="answer">OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while <a href="https://github.com/AlDanial/cloc">cloc</a>, <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and <a href="https://github.com/boyter/scc">scc</a> are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.</p>
       <p class="note">OctoCounts is not a replacement for every SLOC workflow. This page explains how it differs from popular local line counters so you can choose the right tool for the job.</p>
@@ -157,7 +159,7 @@
         </thead>
         <tbody>
           <tr><td><strong>OctoCounts</strong></td><td>Web app + extensions + API</td><td>Quick public-repo reports, README badges, comparisons, sharing</td><td>No</td><td>No</td><td>Yes</td></tr>
-          <tr><td><a href="https://github.com/AlDanial/cloc">cloc</a></td><td>Command-line (Perl)</td><td>Local analysis, CI scripts, widest language support</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+          <tr><td><a href="https://github.com/AlDanial/cloc">cloc</a></td><td>Command-line (Perl)</td><td>Local analysis, CI scripts, language coverage</td><td>Yes</td><td>Yes</td><td>No</td></tr>
           <tr><td><a href="https://github.com/XAMPPRocky/tokei">tokei</a></td><td>Command-line (Rust)</td><td>Fast local counting, large repositories</td><td>Yes</td><td>Yes</td><td>No</td></tr>
           <tr><td><a href="https://github.com/boyter/scc">scc</a></td><td>Command-line (Go)</td><td>Local counting with complexity estimates and license detection</td><td>Yes</td><td>Yes</td><td>No</td></tr>
         </tbody>
@@ -169,7 +171,7 @@
         <li><strong>No install:</strong> works in a browser.</li>
         <li><strong>Archive download:</strong> no full git clone, so it is fast for a quick check.</li>
         <li><strong>Commit pinning:</strong> reports are tied to a specific commit SHA, making them reproducible and citable.</li>
-        <li><strong>Sharing:</strong> stable report URLs, README badges, PNG cards, JSON export, and an API.</li>
+        <li><strong>Sharing:</strong> shareable report URLs, README badges, PNG cards, JSON export, and an API.</li>
         <li><strong>Integrations:</strong> browser extensions, CLI, GitHub Action, and MCP server.</li>
         <li><strong>Limitation:</strong> public GitHub repositories only.</li>
       </ul>
@@ -213,7 +215,7 @@
           <tr><td>Pasting cloc output into a PR or issue</td><td>Every report has a stable URL, a PNG card, and a copyable citation &mdash; the <a href="/docs/methodology">methodology page</a> shows the citation format</td></tr>
         </tbody>
       </table>
-      <p>What cloc still does better: private repositories, offline environments, <code>--diff</code> between two local trees, and its unmatched language database. For other tool-to-tool trade-offs, see the dedicated <a href="/docs/tokei-vs-cloc-vs-scc">tokei vs cloc vs scc comparison</a>.</p>
+      <p>What cloc still does better: private repositories, offline environments, <code>--diff</code> between two local trees, and its language database. For other tool-to-tool trade-offs, see the dedicated <a href="/docs/tokei-vs-cloc-vs-scc">tokei vs cloc vs scc comparison</a>.</p>
 
       <h2>Which one should I use?</h2>
       <table>
@@ -227,8 +229,8 @@
           <tr><td>Private repository or sensitive code</td><td>tokei, cloc, or scc locally</td></tr>
           <tr><td>CI pipeline with custom rules</td><td>tokei, cloc, or scc</td></tr>
           <tr><td>Need complexity estimates or license detection</td><td>scc</td></tr>
-          <tr><td>Widest possible language support</td><td>cloc</td></tr>
-          <tr><td>Fastest local counting on large codebases</td><td>tokei or scc</td></tr>
+          <tr><td>Coverage for unusual languages</td><td>cloc</td></tr>
+          <tr><td>Local counting on large codebases</td><td>tokei or scc</td></tr>
         </tbody>
       </table>
 

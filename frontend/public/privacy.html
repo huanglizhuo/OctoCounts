@@ -52,6 +52,8 @@
       <h2>Data Collection</h2>
       <p>OctoCounts does not require accounts and does not assign browser-extension users persistent identifiers. The extension does not collect browsing history. When you request a repository analysis, OctoCounts processes the repository provider, owner, repository name, ref or commit, and generated code statistics needed to provide the report.</p>
 
+      <h2>Optional GitHub Login</h2>
+      <p>Public repository analysis does not require GitHub login. The Chrome extension optionally offers GitHub OAuth login with the <code>public_repo</code> scope. If you choose it, the backend exchanges the authorization code with GitHub; the extension stores the returned GitHub login and access token in local extension storage. The token can be sent to the backend when you explicitly connect it to retrieve repository star history. The backend uses the token for that operation without persisting it. Logging out removes the local login and token; revoke the app in GitHub settings to revoke its GitHub authorization. Edge and Firefox builds do not offer this login flow.</p>
       <h2>Analytics</h2>
       <p>The website uses <a href="https://umami.is/">Umami</a> for aggregate page and interaction analytics. We use this to understand whether the web app, report pages, and install links are working. We do not use this data for personalized advertising.</p>
 
@@ -59,7 +61,7 @@
       <p>OctoCounts may publish aggregate operational statistics such as total reports generated, total public repositories analyzed, total lines counted, source breakdown by product surface (web, extension, CLI, GitHub Action, MCP, API, seed), cache hit rate, and error rate. These statistics are based on report activity and are not a user-level activity feed.</p>
 
       <h2>Repository Host APIs</h2>
-      <p>When you analyze a repository, OctoCounts sends the repository URL to the public GitHub API to resolve the branch, tag, or commit SHA. OctoCounts does not store GitHub credentials and only accesses public repository metadata.</p>
+      <p>When you analyze a repository, OctoCounts sends the repository URL to the public GitHub API to resolve the branch, tag, or commit SHA. Repository analysis only accesses public repository metadata and requires no user credentials. Optional extension sign-in uses the separate token flow described above; the extension stores its login token locally.</p>
 
       <h2>Data Storage</h2>
       <p>SLOC reports are cached by repository owner, name, commit SHA, tokei version, and analysis options. This cache contains public repository metadata and language statistics. Cached public reports can be accessed by anyone who knows the repository URL and commit.</p>
@@ -70,7 +72,7 @@
       <h2>Contact</h2>
       <p>Questions about this policy? Open an issue on <a href="https://github.com/huanglizhuo/OctoCounts/issues">GitHub</a>.</p>
 
-      <p class="updated">Last updated: September 17, 2026</p>
+      <p class="updated">Last updated: October 25, 2026</p>
     </div>
     <script type="application/ld+json">
     {
@@ -79,7 +81,7 @@
       "name": "OctoCounts Privacy Policy",
       "description": "OctoCounts privacy policy: what data is processed, how it is used, and your rights.",
       "url": "https://octocounts.com/privacy",
-      "dateModified": "2026-09-30"
+      "dateModified": "2026-10-25"
     }
     </script>
   </body>

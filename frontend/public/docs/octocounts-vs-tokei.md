@@ -1,6 +1,6 @@
 # OctoCounts vs tokei
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from [github.com/XAMPPRocky/tokei](https://github.com/XAMPPRocky/tokei) — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. [OctoCounts](https://octocounts.com/) is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.
 
@@ -24,8 +24,8 @@ This is not a matchup of rival engines — OctoCounts runs tokei under the hood.
 OctoCounts takes a public GitHub repository URL, resolves the requested branch, tag, or commit, downloads that revision's compressed source archive (not the full git history), and runs tokei on it. The report you get back states the commit SHA and the exact tokei version used, breaks out files, total lines, code, comments, and blanks per language, and lives at a stable URL you can paste into a pull request, README, or issue.
 
 - **No install and no clone:** the archive download happens server-side; your disk never touches the repository.
-- **Commit-pinned citations:** a report URL names the revision it counted, so numbers stay verifiable after the repository moves on.
-- **Reproducibility:** results are cached by repository, commit SHA, tokei version, and analysis options, so re-opening a report reproduces the same numbers.
+- **Commit-pinned citations:** use the saved-report link and export the JSON to retain a particular analysis; live repository and ref URLs can change, and saved reports remain subject to retention.
+- **Reproducibility:** results are cached by repository, commit SHA, tokei version, and effective counting rules. Matching retained entries can be reused; cache expiry or changed rules require another analysis.
 - **Integrations:** browser extensions for Chrome, Edge, and Firefox show a SLOC card in the GitHub sidebar; a CLI, GitHub Action, and MCP server cover automated use.
 - **Limitation:** public GitHub repositories only — no private repositories, no other forges, no source uploads.
 
@@ -41,7 +41,7 @@ OctoCounts takes a public GitHub repository URL, resolves the requested branch, 
 
 ## Do the numbers match?
 
-Yes, when the inputs match. OctoCounts runs tokei on the source archive of one exact commit; run the same tokei version over the same revision locally with the same options — ignored directories, whether docs, tests, or generated files are included — and the counts agree, because it is the same program doing the counting. The [counting methodology page](https://octocounts.com/docs/methodology) documents the pipeline and the default exclusions. This is also why an OctoCounts report can serve as a citation: it names the engine (tokei, with version), the revision (commit SHA), and the options, which is everything a skeptical reader needs to reproduce the number. Production currently runs tokei 14.0.0; every report shows the version that produced it.
+Matching counts require the same actual source tree, tokei version, and effective counting rules, including extraction exclusions and repository attributes. A local checkout at the same commit may differ from an archive: export-ignore can omit paths and export-subst can change file contents. Record the full commit SHA, engine version, options, effective policy, and measurement date; retain the exported JSON and a saved-report link while available. Older reports may lack a complete policy. The filtering pilot measures option effects, not local-versus-server parity. See [Git archive attribute semantics](https://git-scm.com/docs/git-archive).
 
 ## Which one should I use?
 
@@ -67,7 +67,7 @@ No. tokei is distributed as a command-line tool from [github.com/XAMPPRocky/toke
 
 ### Do OctoCounts and local tokei produce the same numbers?
 
-Yes, when the input matches: OctoCounts runs tokei on the repository's source archive at one exact commit, so an OctoCounts report and a local tokei run on the same commit, at the same tokei version, with the same options (ignored directories, docs, tests, generated files) count the same lines. Every OctoCounts report states the tokei version and commit SHA it used, which is what makes the claim checkable rather than promotional.
+Matching counts require the same actual source tree, tokei version, and effective counting rules, including extraction exclusions and repository attributes. A local checkout at the same commit may differ from an archive: export-ignore can omit paths and export-subst can change file contents. Record the full commit SHA, engine version, options, effective policy, and measurement date; retain the exported JSON and a saved-report link while available. Older reports may lack a complete policy. The filtering pilot measures option effects, not local-versus-server parity. See [Git archive attribute semantics](https://git-scm.com/docs/git-archive).
 
 ### Which tokei version does OctoCounts run?
 

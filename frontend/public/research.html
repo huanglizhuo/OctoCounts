@@ -52,19 +52,14 @@
       "headline": "How Filtering Changes SLOC Counts: OctoCounts Pilot Study",
       "description": "OctoCounts counts react/react and vitejs/vite at identical commits under four analysis configurations. Test filtering removes 47.7% of react's code lines and 26.6% of Vite's; docs and generated-file filters barely move.",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-10-16",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
         "name": "huanglizhuo",
         "url": "https://github.com/huanglizhuo",
         "sameAs": [
-          "https://github.com/huanglizhuo",
-          "https://github.com/huanglizhuo/OctoCounts",
-          "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-          "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-          "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-          "https://www.npmjs.com/package/octocounts"
+          "https://github.com/huanglizhuo"
         ]
       },
       "publisher": {
@@ -76,7 +71,11 @@
       "mainEntityOfPage": "https://octocounts.com/research",
       "speakable": {
         "@type": "SpeakableSpecification",
-        "cssSelector": ["h1", "p.note", ".note"]
+        "cssSelector": [
+          "h1",
+          "p.note",
+          ".note"
+        ]
       }
     }
     </script>
@@ -140,13 +139,14 @@
   <body>
     <nav><a href="/">OctoCounts</a> / Research</nav>
     <main>
-      <p class="meta">Updated October 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How Filtering Changes SLOC Counts: OctoCounts Pilot Study</h1>
       <p class="note">This is an OctoCounts original research page. All measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to <a href="/research">octocounts.com/research</a>.</p>
 
+      <p>This article revision clarifies limitations. The pilot measurements remain those collected on September 8, 2026; the dataset has not been rerun.</p>
       <h2>Research question</h2>
       <p>For the same repository at the same commit, how much do OctoCounts' analysis options &mdash; excluding tests, docs, or generated files &mdash; change the reported line counts, and what does that imply for comparing reports?</p>
-      <p>The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. OctoCounts reports always state their configuration, but until this study we had no measured estimate of how large the effect actually is.</p>
+      <p>The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. New reports record known effective counting rules; older reports may lack that metadata. This pilot records its selected options but predates the current effective-policy record, which limits exact reproduction.</p>
 
       <h2>Method</h2>
       <p>The pilot sampled two public GitHub repositories already present in the OctoCounts corpus &mdash; <a href="/github/react/react">react/react</a> (counted under its former <code>facebook/react</code> path; the repository has since moved organizations) and <a href="/github/vitejs/vite">vitejs/vite</a> &mdash; and counted each one under four configurations: the site default (docs, tests, and generated files all included), <code>exclude-tests</code>, <code>exclude-docs</code>, and <code>exclude-generated</code>. That is 2 repositories &times; 4 configurations = 8 counted runs, all recorded on 2026-09-08.</p>
@@ -181,7 +181,7 @@
       </ul>
 
       <h2>Next steps</h2>
-      <p>The measured cost clears the gate for a full study: 10&ndash;20 repositories &times; 4 configurations (&asymp;80 requests) would take roughly 3&ndash;4 minutes of sequential requests at the pilot's per-request cost. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under <code>/research/</code>.</p>
+      <p>A larger study should plan for repository size, queueing, retries, and rate limits rather than extrapolating elapsed time from these eight requests. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under <code>/research/</code>.</p>
 
       <h2>Data</h2>
       <p>The complete pilot dataset is published as newline-delimited JSON, one recorded run per row (8 rows): <a href="/research/pilot-samples.jsonl">pilot-samples.jsonl</a>. Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version (<code>tokei-12.1</code>), and full totals (files, lines, code, comments, blanks). This is original data collected by OctoCounts; if you use it, please cite OctoCounts as the source and link to <a href="/research">octocounts.com/research</a>.</p>

@@ -1,6 +1,6 @@
 # OctoCounts vs cloc, scc, and tokei
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while [cloc](https://github.com/AlDanial/cloc), [tokei](https://github.com/XAMPPRocky/tokei), and [scc](https://github.com/boyter/scc) are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.
 
@@ -11,7 +11,7 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 | Tool | Type | Best for | Install required | Private repos | Shareable URL / badge |
 |---|---|---|---|---|---|
 | **OctoCounts** | Web app + extensions + API | Quick public-repo reports, README badges, comparisons, sharing | No | No | Yes |
-| [cloc](https://github.com/AlDanial/cloc) | Command-line (Perl) | Local analysis, CI scripts, widest language support | Yes | Yes | No |
+| [cloc](https://github.com/AlDanial/cloc) | Command-line (Perl) | Local analysis, CI scripts, language coverage | Yes | Yes | No |
 | [tokei](https://github.com/XAMPPRocky/tokei) | Command-line (Rust) | Fast local counting, large repositories | Yes | Yes | No |
 | [scc](https://github.com/boyter/scc) | Command-line (Go) | Local counting with complexity estimates and license detection | Yes | Yes | No |
 
@@ -22,7 +22,7 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 - **No install:** works in a browser.
 - **Archive download:** no full git clone, so it is fast for a quick check.
 - **Commit pinning:** reports are tied to a specific commit SHA, making them reproducible and citable.
-- **Sharing:** stable report URLs, README badges, PNG cards, JSON export, and an API.
+- **Sharing:** shareable report URLs, README badges, PNG cards, JSON export, and an API.
 - **Integrations:** browser extensions, CLI, GitHub Action, and MCP server.
 - **Limitation:** public GitHub repositories only.
 
@@ -63,7 +63,7 @@ For public GitHub repositories, OctoCounts is that alternative — it produces c
 | `cloc --vcs=git` | Nothing to configure — counting runs from the source archive at a pinned commit |
 | Pasting cloc output into a PR or issue | Every report has a stable URL, a PNG card, and a copyable citation — the [methodology page](/docs/methodology) shows the citation format |
 
-What cloc still does better: private repositories, offline environments, `--diff` between two local trees, and its unmatched language database. For other tool-to-tool trade-offs, see the dedicated [tokei vs cloc vs scc comparison](/docs/tokei-vs-cloc-vs-scc).
+What cloc still does better: private repositories, offline environments, `--diff` between two local trees, and its language database. For other tool-to-tool trade-offs, see the dedicated [tokei vs cloc vs scc comparison](/docs/tokei-vs-cloc-vs-scc).
 
 ## Which one should I use?
 
@@ -75,8 +75,8 @@ What cloc still does better: private repositories, offline environments, `--diff
 | Private repository or sensitive code | tokei, cloc, or scc locally |
 | CI pipeline with custom rules | tokei, cloc, or scc |
 | Need complexity estimates or license detection | scc |
-| Widest possible language support | cloc |
-| Fastest local counting on large codebases | tokei or scc |
+| Coverage for unusual languages | cloc |
+| Local counting on large codebases | tokei or scc |
 
 **Bottom line:** OctoCounts is the right choice when you want a fast, shareable, no-install SLOC report for a public GitHub repository. For private code, offline environments, or highly customized analysis, run tokei, cloc, or scc locally.
 

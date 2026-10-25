@@ -52,7 +52,7 @@
       "headline": "How to count lines of code in a GitHub repository",
       "description": "Four ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension, git commands, and cloc or tokei — commands included.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-10-16",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -149,7 +149,7 @@
           "name": "Does OctoCounts support private repositories?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally."
+            "text": "No. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally."
           }
         }
       ]
@@ -162,17 +162,24 @@
       "@id": "https://github.com/huanglizhuo",
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
-      "sameAs": ["https://github.com/huanglizhuo", "https://github.com/huanglizhuo/OctoCounts", "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj", "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim", "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/", "https://www.npmjs.com/package/octocounts"],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools"
+      ]
     }
     </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Count lines of code in a GitHub repo</nav>
     <main>
-      <p class="meta">Updated October 16, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How to count lines of code in a GitHub repository</h1>
-      <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like <a href="https://github.com/AlDanial/cloc">cloc</a> or <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.</p>
+      <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like <a href="https://github.com/AlDanial/cloc">cloc</a> or <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.</p>
 
       <h2>How do I count lines of code in a GitHub repository without cloning it?</h2>
       <p>Paste the repository URL into the <a href="/">OctoCounts web app</a> — for example <code>https://github.com/react/react</code>. OctoCounts downloads the source archive pinned to an exact commit SHA, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at <a href="/github/react/react">octocounts.com/github/react/react</a>. Results export as text, JSON, or a PNG card, and feed <a href="/badges">README badges</a>.</p>
@@ -221,7 +228,7 @@ cloc .</code></pre>
       <p>It depends on the tool, and the distinction is the whole point of SLOC. <code>wc -l</code> counts everything; tokei and cloc separate code lines from comment lines and blank lines, and &ldquo;SLOC&rdquo; usually means the code-line figure. OctoCounts reports all three categories side by side, and its <a href="/docs/methodology">counting methodology page</a> documents exactly which directories are ignored by default (<code>node_modules</code>, <code>build</code>, <code>dist</code>, <code>vendor</code>, and friends), how doc and test files can be included or excluded, and how each language classifies comments — so a number you cite can be reproduced.</p>
 
       <h2>Does OctoCounts support private repositories?</h2>
-      <p>No. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally &mdash; the <a href="/docs/tokei-online">tokei online guide</a> compares the two routes.</p>
+      <p>No. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally &mdash; the <a href="/docs/tokei-online">tokei online guide</a> compares the two routes.</p>
 
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>

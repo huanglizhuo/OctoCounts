@@ -56,7 +56,7 @@
       "headline": "Best Tools to Count Lines of Code (SLOC) in 2026",
       "description": "A practical comparison of OctoCounts, tokei, cloc, scc, sloccount, and GitHub's language bar for counting source lines of code.",
       "datePublished": "2026-08-30",
-      "dateModified": "2026-10-15",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -97,7 +97,7 @@
           "name": "What is the best free tool to count lines of code?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It depends on where the code lives and what you need. For a quick check of a public GitHub repository without installing anything, OctoCounts or GitHub's own language bar are fastest. For local or private codebases, tokei and scc are the fastest command-line counters, and cloc remains the most widely supported for unusual or legacy languages. There is no single best tool for every case; the right choice depends on whether the repository is public or private, whether you want a CLI or a web report, and how many languages you need recognized."
+            "text": "It depends on where the code lives and what you need. For a check of source line counts in a public GitHub repository without installing anything, use OctoCounts; GitHub's language bar shows byte-based language mix instead. For local or private codebases, tokei, scc, and cloc offer command-line workflows. Check each tool's current language list for unusual or legacy languages. There is no single best tool for every case; the right choice depends on whether the repository is public or private, whether you want a CLI or a web report, and how many languages you need recognized."
           }
         },
         {
@@ -105,7 +105,7 @@
           "name": "What is the difference between tokei, cloc, and scc?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "All three are command-line tools that count files, code lines, comment lines, and blank lines per language. tokei and scc are written in compiled languages (Rust and Go); cloc is written in Perl. cloc has the longest track record and the widest language and file-format support, built up over two decades, while tokei and scc cover the vast majority of common languages."
+            "text": "All three are command-line tools that count files, code lines, comment lines, and blank lines per language. tokei and scc are written in compiled languages (Rust and Go); cloc is written in Perl. cloc has a long track record and a diff mode, while tokei and scc offer their own parsers and output formats. Check the language lists for the exact versions you plan to use."
           }
         },
         {
@@ -135,21 +135,21 @@
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
       "sameAs": [
-        "https://github.com/huanglizhuo",
-        "https://github.com/huanglizhuo/OctoCounts",
-        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-        "https://www.npmjs.com/package/octocounts"
+        "https://github.com/huanglizhuo"
       ],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools"
+      ]
     }
     </script>
   </head>
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Best SLOC tools</nav>
     <main>
-      <p class="meta">Updated October 15, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>Best Tools to Count Lines of Code (SLOC) in 2026</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories and one of six tools compared on this page. It counts files, total lines, code lines, comments, and blanks per language with tokei, run on a downloaded source archive instead of a git clone, and returns a shareable, commit-pinned report. The other tools — tokei, cloc, scc, sloccount, and GitHub's language bar — each measure size differently and suit different workflows.</p>
       <p class="note">Six tools compared for counting source lines of code — OctoCounts, tokei, cloc, scc, sloccount, and GitHub's built-in language bar — with what each measures, who it's best for, and where it falls short. None of these tools measure code quality; they measure size.</p>
@@ -160,7 +160,7 @@
         <tbody>
           <tr><td>OctoCounts</td><td>Web app + browser extension</td><td>Rust / TypeScript</td><td>Public GitHub repos, no install, shareable reports</td><td>Free</td></tr>
           <tr><td><a href="https://github.com/XAMPPRocky/tokei">tokei</a></td><td>CLI</td><td>Rust</td><td>Fast local/private counts, CI pipelines</td><td>Free, open source</td></tr>
-          <tr><td><a href="https://github.com/AlDanial/cloc">cloc</a></td><td>CLI</td><td>Perl</td><td>Widest language support, legacy/unusual codebases</td><td>Free, open source</td></tr>
+          <tr><td><a href="https://github.com/AlDanial/cloc">cloc</a></td><td>CLI</td><td>Perl</td><td>Language coverage for legacy/unusual codebases, legacy/unusual codebases</td><td>Free, open source</td></tr>
           <tr><td><a href="https://github.com/boyter/scc">scc</a></td><td>CLI</td><td>Go</td><td>Fast counts plus complexity estimates in one pass</td><td>Free, open source</td></tr>
           <tr><td><a href="https://www.dwheeler.com/sloccount/">sloccount</a></td><td>CLI</td><td>Perl / C</td><td>COCOMO cost estimates on older Unix-style codebases</td><td>Free, open source (unmaintained)</td></tr>
           <tr><td>GitHub language bar</td><td>Built into GitHub</td><td>—</td><td>A quick, no-setup glance at language mix by bytes</td><td>Free (built in)</td></tr>
@@ -170,7 +170,7 @@
       <div class="tool-card">
         <h3>OctoCounts</h3>
         <span class="best-for">Best for: public GitHub repos, zero install, shareable reports</span>
-        <p>OctoCounts is a free web app and browser extension that counts files, total lines, code lines, comments, and blanks for any public GitHub repository. It downloads the repository's source archive for a pinned commit instead of cloning full git history, runs tokei under the hood, and returns a permanent, shareable report URL — no local installation, no account, and no cloning required. It also ships a README badge, a GitHub Action, a CLI, and an MCP server for AI coding assistants.</p>
+        <p>OctoCounts is a free web app and browser extension that counts files, total lines, code lines, comments, and blanks for any public GitHub repository. It downloads the repository's source archive for a pinned commit instead of cloning full git history, runs tokei under the hood, and returns a shareable report URL — no local installation, no account, and no cloning required. It also ships a README badge, a GitHub Action, a CLI, and an MCP server for AI coding assistants.</p>
         <div class="pros-cons">
           <div><strong>Pros</strong>No install for the web app · shareable, cacheable report URLs · README badges · commit-pinned, reproducible results</div>
           <div><strong>Cons</strong>Public repositories only · depends on network access to analyze · not a replacement for a local CLI in CI that needs private-repo access</div>
@@ -180,7 +180,7 @@
       <div class="tool-card">
         <h3>tokei</h3>
         <span class="best-for">Best for: fast local or private counts, CI pipelines</span>
-        <p>tokei is an open-source, Rust-based command-line counter that supports over 200 languages and is one of the fastest tools in this comparison thanks to parallel file processing. It's the counting engine OctoCounts itself uses. Run it directly against any local checkout, public or private, with no network dependency.</p>
+        <p>tokei is an open-source, Rust-based command-line counter with parallel file processing and support for many languages. It's the counting engine OctoCounts itself uses. Run it directly against any local checkout, public or private, with no network dependency.</p>
         <div class="pros-cons">
           <div><strong>Pros</strong>Very fast · works on private repos · no network required · widely used as a library inside other tools</div>
           <div><strong>Cons</strong>Requires installing a Rust binary or crate · no built-in report sharing or hosting · results aren't reproducible across machines without pinning the tokei version</div>
@@ -190,18 +190,18 @@
 
       <div class="tool-card">
         <h3>cloc</h3>
-        <span class="best-for">Best for: the widest language and file-format support</span>
-        <p>cloc has been counting lines of code since 2006 and supports the broadest range of languages and legacy file formats of any tool here, including many niche and older languages other counters don't recognize. It's slower than tokei or scc on large codebases because it's written in Perl, but its language coverage and long track record make it the default choice when working with unusual or legacy code.</p>
+        <span class="best-for">Best for: the language and file-format coverage</span>
+        <p>cloc has been counting lines of code since 2006 and supports many languages and legacy file formats. Check its published language list against your files; speed and parser coverage depend on the tool version and source tree, so this page does not rank the tools by either measure.</p>
         <div class="pros-cons">
-          <div><strong>Pros</strong>Broadest language support · two decades of edge-case fixes · well documented, widely trusted</div>
-          <div><strong>Cons</strong>Noticeably slower on large repositories · requires a Perl runtime · no hosted/shareable report format</div>
+          <div><strong>Pros</strong>Broad language support · two decades of edge-case fixes · well documented, widely trusted</div>
+          <div><strong>Cons</strong>Performance depends on the repository and tool version · requires a Perl runtime · no hosted/shareable report format</div>
         </div>
       </div>
 
       <div class="tool-card">
         <h3>scc</h3>
         <span class="best-for">Best for: fast counts plus rough complexity estimates</span>
-        <p>scc (Sloc, Cloc and Code) is a Go-based counter that's comparably fast to tokei and additionally estimates cyclomatic complexity and a COCOMO-style cost/effort figure per language. If a single command needs to produce both a line count and a rough complexity signal, scc covers both in one pass.</p>
+        <p>scc (Sloc, Cloc and Code) is a Go-based counter that additionally estimates cyclomatic complexity and a COCOMO-style cost/effort figure per language. If a single command needs to produce both a line count and a rough complexity signal, scc covers both in one pass.</p>
         <div class="pros-cons">
           <div><strong>Pros</strong>Fast · adds complexity and cost estimates tokei and cloc don't · single static binary, easy to install</div>
           <div><strong>Cons</strong>Smaller community than cloc · complexity/cost estimates are rough heuristics, not precise measurements</div>
@@ -221,7 +221,7 @@
       <div class="tool-card">
         <h3>GitHub's language bar</h3>
         <span class="best-for">Best for: a quick, no-setup glance at language mix</span>
-        <p>Every GitHub repository page shows a colored bar breaking down the codebase by language — but that breakdown is a percentage of bytes classified by GitHub's Linguist, not a line count, and it excludes files Linguist marks as vendored, generated, or documentation. It's the fastest possible glance at what languages a repo uses, but it can't answer "how many lines" or "how much is comments versus code." See the full <a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a> comparison.</p>
+        <p>Every GitHub repository page shows a colored bar breaking down the codebase by language — but that breakdown is a percentage of bytes classified by GitHub's Linguist, not a line count, and it excludes files Linguist marks as vendored, generated, or documentation. It's a built-in overview of what languages a repo uses, but it can't answer "how many lines" or "how much is comments versus code." See the full <a href="/docs/github-language-bar-alternative">GitHub language bar alternative</a> comparison.</p>
         <div class="pros-cons">
           <div><strong>Pros</strong>Zero setup, already on every repo page · instant</div>
           <div><strong>Cons</strong>Bytes, not lines · no code/comment/blank breakdown · excludes vendored and generated files from its own classification, which can hide as much as it shows</div>
@@ -229,10 +229,10 @@
       </div>
 
       <h2>What is the best free tool to count lines of code?</h2>
-      <p>It depends on where the code lives and what you need. For a quick check of a public GitHub repository without installing anything, OctoCounts or GitHub's own language bar are fastest. For local or private codebases, tokei and scc are the fastest command-line counters, and cloc remains the most widely supported for unusual or legacy languages. There is no single best tool for every case; the right choice depends on whether the repository is public or private, whether you want a CLI or a web report, and how many languages you need recognized.</p>
+      <p>It depends on where the code lives and what you need. For a check of source line counts in a public GitHub repository without installing anything, use OctoCounts; GitHub's language bar shows byte-based language mix instead. For local or private codebases, tokei, scc, and cloc offer command-line workflows. Check each tool's current language list for unusual or legacy languages. There is no single best tool for every case; the right choice depends on whether the repository is public or private, whether you want a CLI or a web report, and how many languages you need recognized.</p>
 
       <h2>What is the difference between tokei, cloc, and scc?</h2>
-      <p>All three are command-line tools that count files, code lines, comment lines, and blank lines per language. tokei and scc are written in compiled languages (Rust and Go); cloc is written in Perl. cloc has the longest track record and the widest language and file-format support, built up over two decades, while tokei and scc cover the vast majority of common languages.</p>
+      <p>All three are command-line tools that count files, code lines, comment lines, and blank lines per language. tokei and scc are written in compiled languages (Rust and Go); cloc is written in Perl. cloc has a long track record and a diff mode, while tokei and scc offer their own parsers and output formats. Check the language lists for the exact versions you plan to use.</p>
 
       <h2>Can I count lines of code without cloning a GitHub repository?</h2>
       <p>Yes. OctoCounts downloads a repository's source archive for a specific commit instead of performing a full git clone, so it transfers only the current source tree and requires no local installation. GitHub's language bar also requires no cloning, though it only reports byte-based percentages rather than line counts. Local tools such as tokei, cloc, and scc require either cloning the repository or already having a local copy to scan.</p>

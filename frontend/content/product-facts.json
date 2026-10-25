@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "verifiedAt": "2026-10-18",
+  "verifiedAt": "2026-10-25",
   "product": "OctoCounts",
   "facts": {
     "publicRepositoryProviders": {
@@ -31,11 +31,11 @@
       ]
     },
     "accountAccess": {
-      "value": "none",
-      "claim": "No GitHub account access, API token, or sign-up is required.",
+      "value": "not required for analysis; optional Chrome-extension OAuth",
+      "claim": "Public repository analysis needs no account or token. The Chrome extension offers optional GitHub login with public_repo access.",
       "sources": [
-        "frontend/public/docs/api.html",
-        "frontend/index.html FAQ JSON-LD"
+        "frontend/public/privacy.html",
+        "extension/src/shared/github-auth.js — Chrome build gate, OAuth scope and local token storage"
       ]
     },
     "refSupport": {
@@ -68,8 +68,8 @@
       ],
       "claim": "These directories are skipped by default.",
       "sources": [
-        "frontend/src/main.tsx defaultIgnoredDirs",
-        "frontend/public/llms-full.txt"
+        "frontend/src/constants.ts defaultIgnoredDirs",
+        "frontend/public/docs/methodology.html"
       ]
     },
     "analysisOptions": {
@@ -79,12 +79,14 @@
         "includeDocs",
         "includeTests",
         "includeGenerated",
-        "profile"
+        "profile",
+        "respectGitattributes"
       ],
-      "claim": "Users may ignore additional directories or languages and choose whether docs, tests, or generated files are included.",
+      "claim": "Users may ignore directories or languages, control docs/tests/generated inclusion, and optionally apply generated/vendored repository declarations from .gitattributes.",
       "sources": [
-        "frontend/src/main.tsx defaultAnalysisOptions",
-        "frontend/public/llms-full.txt"
+        "frontend/src/constants.ts defaultAnalysisOptions",
+        "frontend/public/docs/methodology.html",
+        "mcp/src/core.js toolDefinitions"
       ]
     },
     "cacheKey": {
@@ -99,8 +101,8 @@
       "value": "plain text, JSON, and a 1200x630 PNG share card",
       "claim": "Reports export as text, JSON, or PNG, generated client-side.",
       "sources": [
-        "frontend/index.html FAQ JSON-LD",
-        "frontend/src/main.tsx export actions"
+        "frontend/public/docs/faq.html",
+        "frontend/public/docs/api.html"
       ]
     },
     "extensions": {
@@ -124,18 +126,29 @@
       ]
     },
     "apiRateLimit": {
-      "value": "no publicly documented rate limit",
-      "claim": "State only that no rate limit is publicly documented; do not promise unlimited use.",
+      "value": "default analyze limits: 5 requests/minute per IP, burst 10",
+      "claim": "Public analysis is rate limited: defaults are 5 requests/minute per IP (burst 10), with an additional force-refresh limit of 2/minute (burst 2). A deployment may configure different limits; observe HTTP 429 and Retry-After.",
       "sources": [
-        "frontend/index.html FAQ JSON-LD"
+        "frontend/public/docs/github-api-count-lines.md",
+        "backend/src/config.rs",
+        "frontend/public/docs/api.html"
       ]
     },
     "privacy": {
-      "value": "no account, no advertising, no personal data collection; public repositories only",
-      "claim": "OctoCounts collects no personal data and shows no advertising.",
+      "value": "no advertising; aggregate website analytics; optional Chrome-extension GitHub login",
+      "claim": "OctoCounts shows no advertising. The website uses aggregate analytics. Optional Chrome-extension login exchanges an OAuth code through the backend and stores the returned GitHub login and token locally until logout.",
       "sources": [
-        "frontend/index.html FAQ JSON-LD",
-        "frontend/public/privacy.html"
+        "frontend/public/privacy.html",
+        "extension/src/shared/github-auth.js",
+        "backend/src/oauth.rs"
+      ]
+    },
+    "reportRetention": {
+      "value": "live URLs may change; saved reports are subject to cache retention and replacement",
+      "claim": "For citation, record the commit, engine, effective rules and measurement date, and export JSON or text for durable retention. Saved report links are not permanent archives.",
+      "sources": [
+        "frontend/public/docs/api.html",
+        "frontend/public/docs/methodology.html"
       ]
     }
   }

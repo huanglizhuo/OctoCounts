@@ -3,13 +3,13 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-18
+Last-Updated: 2026-10-25
 
 ## What OctoCounts Does
 
 OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It reports files, total lines, code lines, comment lines, blank lines, and per-language totals. It works through a web app, browser extensions, public report pages, badges, and an API.
 
-OctoCounts is useful when a developer wants to know whether a public repository is small, large, or unusually complex without cloning it locally. It is also useful for README badges, dependency due diligence, source-code size comparisons, and public citations of repository size.
+OctoCounts is useful when a developer wants to know whether a public repository is small or large by source line count without cloning it locally. It is also useful for README badges, dependency due diligence, source-code size comparisons, and public citations of repository size.
 
 The browser extension is available from the Chrome Web Store, Microsoft Edge Add-ons, and Firefox Add-ons:
 
@@ -26,7 +26,7 @@ The browser extension is available from the Chrome Web Store, Microsoft Edge Add
 5. The report is cached by repository, commit SHA, tokei version, and analysis options.
 6. Cached reports power public report pages, badges, API responses, Open Graph images, and index pages.
 
-Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users may also ignore additional directories or languages and choose whether docs, tests, or generated files are included.
+Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users may also ignore additional directories or languages and choose whether docs, tests, or generated files are included. Optional respectGitattributes applies repository-declared linguist-generated and linguist-vendored exclusions; it is off by default and does not run Linguist heuristics.
 
 ## MCP Server
 
@@ -34,6 +34,8 @@ OctoCounts publishes an MCP (Model Context Protocol) server so AI coding tools (
 
 - `analyze_repo`: count files, total lines, code lines, comment lines, blank lines, and per-language totals for a public GitHub repository.
 - `compare_repos`: compare two public GitHub repositories or refs.
+
+Both MCP tools accept `respect_gitattributes` (optional boolean, default false); comparisons apply the same declaration mode to both sides. Public analysis requires no login. The Chrome extension separately offers optional GitHub login with `public_repo` access; see https://octocounts.com/privacy. Default analyze limits are 5 requests/minute per IP (burst 10); deployments can configure different limits. Observe 429 responses and Retry-After.
 
 Agents connect by registering the server in their MCP client configuration:
 
@@ -60,7 +62,7 @@ npx octocounts https://github.com/tokio-rs/axum --ref main
 npx octocounts rust-lang/rust --json
 ```
 
-Options: `--ref <ref>` (branch, tag, or commit SHA), `--json` (print the raw report JSON), `--api-base <url>` (alternate API), and `--sample` (print a local sample report without network calls).
+Options: `--ref <ref>` (branch, tag, or commit SHA), `--json` (print the raw report JSON), `--api-base <url>` (alternate API), `--respect-gitattributes` (apply generated/vendored repository declarations), and `--sample` (print a local sample report without network calls).
 
 ## GitHub Action
 
@@ -82,7 +84,7 @@ Optional inputs: `repo` (defaults to the current repository), `base-ref` (defaul
 | Branches, tags, commit SHAs | Supported |
 | Private repositories | Not supported |
 | Source-code uploads | Not supported |
-| GitHub account access | Not requested |
+| GitHub account access | Not required for analysis; optional Chrome-extension login requests public_repo access |
 
 For private repositories, run tokei locally.
 
@@ -209,7 +211,7 @@ SLOC means source lines of code. OctoCounts separates total lines into code line
 
 ### Why use OctoCounts instead of cloning locally?
 
-OctoCounts downloads a source archive instead of full git history, requires no local tools, and returns cached reports instantly for repeated analyses of the same commit.
+OctoCounts downloads a source archive instead of full git history, requires no local tools, and can reuse cached reports for repeated analyses of the same commit, engine version, and effective rules.
 
 ### Does OctoCounts support private repositories?
 

@@ -280,8 +280,8 @@
       {
         "num": "03",
         "title": "缓存",
-        "text": "报告按所有者、仓库、提交 SHA 和 tokei 版本存储。当你重新分析同一提交时，缓存会立即命中，无需重新下载，无需重新计数。重新运行会强制进行全新分析并更新缓存。浏览器扩展还会将结果本地缓存，以便离线即时查看。",
-        "code": "cache <1>commit + version</1>"
+        "text": "报告按仓库、提交 SHA、tokei 版本和有效计数规则缓存。命中仍保留的匹配记录时无需重复下载或计数；缓存缺失或过期后需要分析。重新运行会请求全新分析，并受限流约束。扩展可以复用仍保留的本地结果。",
+        "code": "cache <1>commit + version + rules</1>"
       }
     ],
     "pipeline": {
@@ -344,7 +344,7 @@
     "invalid_url": "请使用类似 https://github.com/owner/repo 的链接。",
     "ref_not_found": "请检查分支、标签或提交字段是否拼写正确；也可以留空以使用仓库默认分支。",
     "empty_repository": "该仓库还没有任何提交，没有可统计的内容；重试也不会改变结果。",
-    "rate_limited": "请等待几分钟后重试。已有缓存的报告仍会即时加载。",
+    "rate_limited": "请等待几分钟后重试。仍保留的缓存报告可能依然可用。",
     "too_large": "分析器有大小和超时限制。可以尝试更小的引用，或稍后重试。",
     "not_found": "请确认仓库存在且为公开仓库。私有仓库明确不在当前产品范围内。",
     "github_request_failed": "GitHub 没有返回可用的归档或仓库响应。请稍后重试。",
@@ -391,13 +391,13 @@
   "badgesPage": {
     "kicker": "README 徽章，实时渲染",
     "title": "为你的 README 加上 SLOC 徽章",
-    "subtitle": "选择徽章类型，复制 Markdown，README 就会展示实时代码行数，并链接到永久的 OctoCounts 报告页。",
+    "subtitle": "选择徽章类型，复制 Markdown，README 就会展示实时代码行数，并链接到实时的 OctoCounts 报告页。",
     "faqTitle": "徽章常见问题",
     "faqSubtitle": "关于 README 徽章的常见疑问",
     "faq": [
       {
         "question": "什么是 OctoCounts 徽章？",
-        "answer": "一个可嵌入 README 的小尺寸实时图片，展示仓库的 SLOC 统计，并链接到永久的 OctoCounts 报告页。"
+        "answer": "一个可嵌入 README 的小尺寸实时图片，展示仓库的 SLOC 统计，并链接到实时的 OctoCounts 报告页。"
       },
       {
         "question": "如何把徽章加到 README 里？",
@@ -720,7 +720,7 @@
     "items": {
       "badges": {
         "title": "徽章",
-        "text": "实时 README 徽章，链接到永久报告页。"
+        "text": "实时 README 徽章，链接到实时报告页。"
       },
       "compare": {
         "title": "仓库对比",
@@ -758,7 +758,7 @@
     "step2": "在浏览器中打开任意公开的 GitHub 仓库页面。",
     "step3": "SLOC 卡片自动出现在仓库侧边栏。点击即可打开完整面板，查看按语言划分的行数明细。",
     "permissionsTitle": "权限与数据处理",
-    "permissions": "扩展只读取你正在浏览的公开 GitHub 仓库页面以识别仓库和所有者，并通过 OctoCounts API 对公开数据计数。它不请求 GitHub 账号权限、无需 API 令牌、只支持公开仓库、不收集个人数据。结果按仓库和 ref 本地缓存，重复访问即时加载。",
+    "permissions": "扩展只读取你正在浏览的公开 GitHub 仓库页面以识别仓库和所有者，并通过 OctoCounts API 对公开数据计数。统计公开仓库无需 GitHub 登录或 API 令牌。Chrome 构建还提供用于星标历史的可选 GitHub 登录，在本地保存账号与令牌，令牌交换经过后端；详情见隐私政策。结果按仓库和 ref 本地缓存；重复访问可复用仍保留的结果，缓存缺失或过期后需要重新请求。",
     "scopeTitle": "支持的仓库",
     "scope": "公开 GitHub 仓库。不支持私有仓库和源码上传；如需统计私有代码，请在本地运行 tokei。"
   },

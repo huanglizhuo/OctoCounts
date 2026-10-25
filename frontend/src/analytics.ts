@@ -30,63 +30,28 @@ export const AnalyticsEvents = {
   aiVisit: "ai_visit",
 } as const;
 
-// Answer-engine referrers we want to measure GEO outcomes for: which report
-// pages actually get visited from AI search results.
-const AI_REFERRER_HOSTS: Array<{ host: RegExp; source: string }> = [
-  { host: /(^|\.)chatgpt\.com$/, source: "chatgpt" },
-  { host: /(^|\.)openai\.com$/, source: "chatgpt" },
-  { host: /(^|\.)perplexity\.ai$/, source: "perplexity" },
-  { host: /(^|\.)pplx\.ai$/, source: "perplexity" },
-  { host: /(^|\.)gemini\.google\.com$/, source: "gemini" },
-  { host: /(^|\.)copilot\.microsoft\.com$/, source: "copilot" },
-  { host: /(^|\.)claude\.ai$/, source: "claude" },
-  { host: /(^|\.)kimi\.com$/, source: "kimi" },
-];
+type AnalyticsRuntime = {
+  initAnalytics: (options: { domain?: string; scriptSrc?: string }) => void;
+  trackAiVisitIfReferred: () => void;
+  trackEvent: (eventName: string, props?: AnalyticsProps) => void;
+};
 
-export function aiReferrerSource(referrer: string | undefined): string | undefined {
-  if (!referrer) return undefined;
-  try {
-    const hostname = new URL(referrer).hostname.toLowerCase();
-    return AI_REFERRER_HOSTS.find((entry) => entry.host.test(hostname))?.source;
-  } catch {
-    return undefined;
-  }
+const runtimeUrl = "/analytics-runtime.js";
+function runtime(): Promise<AnalyticsRuntime> {
+  return import(/* @vite-ignore */ new URL(runtimeUrl, window.location.origin).href);
 }
 
 export function trackAiVisitIfReferred() {
-  if (typeof document === "undefined") return;
-  // Touching sessionStorage throws a SecurityError when site data is blocked
-  // (privacy-hardened browsers); that must never take the page down.
-  let seen: string | null = null;
-  try {
-    seen = sessionStorage.getItem("octocounts.ai_visit");
-  } catch {
-    return;
-  }
-  const source = aiReferrerSource(document.referrer);
-  if (!source || seen === source) return;
-  try {
-    sessionStorage.setItem("octocounts.ai_visit", source);
-  } catch {
-    /* best effort */
-  }
-  trackEvent(AnalyticsEvents.aiVisit, { source, path: window.location.pathname });
+  void runtime().then((analytics) => analytics.trackAiVisitIfReferred()).catch(() => {});
 }
 
 export function initAnalytics() {
-  if (!domain || typeof document === "undefined" || document.querySelector("script[data-domain][src*='plausible']")) {
-    return;
-  }
-  const script = document.createElement("script");
-  script.defer = true;
-  script.dataset.domain = domain;
-  script.src = scriptSrc;
-  document.head.appendChild(script);
+  if (typeof document === "undefined") return;
+  void runtime().then((analytics) => analytics.initAnalytics({ domain, scriptSrc })).catch(() => {});
 }
 
 export function trackEvent(eventName: string, props?: AnalyticsProps) {
-  window.plausible?.(eventName, props ? { props } : undefined);
-  window.umami?.track(eventName, props);
+  void runtime().then((analytics) => analytics.trackEvent(eventName, props)).catch(() => {});
 }
 
 export function providerFromRepoUrl(repoUrl: string) {

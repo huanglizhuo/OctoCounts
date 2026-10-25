@@ -6,8 +6,8 @@ User-agent: *
 Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
-# Retrieval-time crawlers (OAI-SearchBot, ChatGPT-User, PerplexityBot,
-# ClaudeBot, Applebot, ...) ground answers and search results that can cite
+# Search/retrieval crawlers (OAI-SearchBot, ChatGPT-User, PerplexityBot,
+# Claude-SearchBot, Claude-User, Applebot, ...) can surface and cite
 # OctoCounts. Allowing them is about visibility in AI answers.
 #
 # GPTBot and CCBot below are TRAINING crawlers; their permission is a separate
@@ -24,7 +24,16 @@ Allow: /
 User-agent: ChatGPT-User
 Allow: /
 
+# ClaudeBot collects content for model training; it is not Claude search.
+# Allow permits crawling, while Content-Signal states permitted content use.
 User-agent: ClaudeBot
+Content-Signal: search=yes,ai-input=yes,ai-train=no
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
 Allow: /
 
 User-agent: anthropic-ai
@@ -33,8 +42,8 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-# Google-Extended (Gemini grounding/training) and CCBot (Common Crawl) are
-# training-use crawlers, allowed as a deliberate, separate choice.
+# Google-Extended controls Gemini grounding/training, not Google Search.
+# Crawl access below does not override the default ai-train=no content signal.
 User-agent: Google-Extended
 Allow: /
 
@@ -44,8 +53,8 @@ Allow: /
 User-agent: CCBot
 Allow: /
 
-# Bytespider (ByteDance) is a training-use crawler; allowed as a deliberate
-# choice, like GPTBot/CCBot above. See docs/ai-crawling-policy.md.
+# Bytespider (ByteDance) crawl access is allowed; the default content-use
+# signal remains ai-train=no. See docs/ai-crawling-policy.md.
 User-agent: Bytespider
 Allow: /
 

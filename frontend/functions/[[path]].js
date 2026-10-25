@@ -20,37 +20,37 @@ const BOOT_SCRIPT_HASH = "'sha256-2mUsir+xXgBNxPOKDMVv/T0CDFNTPTwA4NyqXmyIU4Y='"
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-10-18" },
-  { loc: "https://octocounts.com/zh", lastmod: "2026-10-18" },
-  { loc: "https://octocounts.com/", lastmod: "2026-10-18" },
-  { loc: "https://octocounts.com/compare", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/diff", lastmod: "2026-09-17" },
+  { loc: "https://octocounts.com/zh", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/compare", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/diff", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/recent", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/popular", lastmod: "2026-09-05" },
+  { loc: "https://octocounts.com/recent", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/popular", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/trending", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/badges", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/extension", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-18" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-11" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-18" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-07" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/research", lastmod: "2026-10-16" },
-  { loc: "https://octocounts.com/about", lastmod: "2026-09-30" },
-  { loc: "https://octocounts.com/privacy", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/badges", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/extension", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/privacy", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
 ];
 
@@ -60,7 +60,9 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const COMPARE_CONTENT_LASTMOD = "2026-10-18";
+const COMPARE_CONTENT_LASTMOD = "2026-10-25";
+const REPORT_CONTENT_LASTMOD = "2026-10-25";
+const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -79,16 +81,21 @@ export async function onRequest(context) {
   // of redirecting, leaving duplicate crawlable URLs with only a soft
   // rel=canonical signal; static routes 404'd instead, inconsistently. A
   // single hard redirect here covers both.
-  if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+  if (url.pathname !== "/" && (url.pathname.endsWith("/") || url.pathname.includes("//"))) {
     const target = new URL(url);
-    target.pathname = url.pathname.replace(/\/+$/, "") || "/";
+    target.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
     return Response.redirect(target, 308);
   }
   // A trailing .md suffix selects the markdown twin of the same page
   // (/github/o/r.md, /compare/x-vs-y.md, /docs/methodology.md, ...); route
   // matching below runs on the stripped path so every ref variant resolves.
   const routePath = url.pathname.endsWith(".md") ? url.pathname.slice(0, -3) : url.pathname;
-  const parts = routePath.split("/").filter(Boolean).map(decodeURIComponent);
+  let parts;
+  try {
+    parts = routePath.split("/").filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
   // ?format=md is the explicit opt-in for any client (browsers included); the
   // .md suffix is the linkable form. Neither depends on the user agent.
   const markdownRequested = routePath !== url.pathname || url.searchParams.get("format") === "md";
@@ -114,7 +121,7 @@ export async function onRequest(context) {
   // assets are internal deployment files: /home and /home-zh have no
   // extensionless page of their own, so they redirect to the real canonical
   // URLs (the Chinese homepage lives at /zh).
-  if (url.pathname.endsWith(".html") && url.pathname !== "/404.html") {
+  if (url.pathname.endsWith(".html") && url.pathname !== "/404.html" && parts[0] !== "github") {
     const target = new URL(url);
     const stripped = url.pathname.slice(0, -5);
     if (stripped === "/home") target.pathname = "/";
@@ -127,7 +134,9 @@ export async function onRequest(context) {
 
   const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
   if (legacyReport && !url.searchParams.has("reportId")) {
-    return Response.redirect(new URL(legacyReport, url.origin), 308);
+    if (!parseGitHubRoute(parts)) return new Response("Not found", { status: 404 });
+    const suffix = routePath.split("/").slice(4).join("/");
+    return Response.redirect(new URL(`${legacyReport}${suffix ? `/${suffix}` : ""}${url.pathname.endsWith(".md") ? ".md" : ""}${url.search}`, url.origin), 308);
   }
 
   // IndexNow key verification file. The backend submits URLs with this key;
@@ -156,8 +165,9 @@ export async function onRequest(context) {
     return reportsSitemapResponse(context, Number(reportsSitemapPage[1]));
   }
 
-  if (parts[0] === "github" && parts.length >= 3) {
+  if (parts[0] === "github") {
     const route = parseGitHubRoute(parts);
+    if (!route) return new Response("Not found", { status: 404 });
     return reportResponse(context, route, { markdown: markdownRequested });
   }
 
@@ -248,13 +258,14 @@ export async function onRequest(context) {
   // they go out through markdownResponse with the same text/markdown type
   // and noindex X-Robots-Tag as every other twin. Function-served responses
   // bypass the asset layer's _headers, so that file cannot be relied on for
-  // this. A miss (no such asset) falls through to the plain asset 404.
-  if (url.pathname.endsWith(".md")) {
+  // this. A miss or an HTML fallback returns a real 404.
+  if (markdownRequested) {
     const assetUrl = new URL(url);
-    assetUrl.pathname = routePath;
+    assetUrl.pathname = `${routePath}.md`;
     assetUrl.search = "";
     const asset = await context.env.ASSETS.fetch(new Request(assetUrl.toString(), { method: "GET" }));
-    if (asset.ok) return markdownResponse(asset.body, "public, max-age=3600");
+    if (asset.ok && !asset.headers.get("content-type")?.includes("text/html")) return markdownResponse(asset.body, "public, max-age=3600");
+    return new Response("Markdown not found", { status: 404 });
   }
 
   return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
@@ -274,6 +285,7 @@ async function docsMarkdownResponse(context, slug, options = {}) {
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
+  if (asset.headers.get("content-type")?.includes("text/html")) return new Response("Markdown not found", { status: 404 });
   return markdownResponse(asset.body, "public, max-age=3600", options);
 }
 
@@ -283,6 +295,7 @@ async function researchMarkdownResponse(context, options = {}) {
   url.search = "";
   const asset = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
   if (!asset.ok) return asset;
+  if (asset.headers.get("content-type")?.includes("text/html")) return new Response("Markdown not found", { status: 404 });
   return markdownResponse(asset.body, "public, max-age=3600", options);
 }
 
@@ -325,13 +338,18 @@ function isGitHubPathPart(value) {
 }
 
 function parseGitHubRoute(parts) {
+  if (parts.length < 3 || !isGitHubPathPart(parts[1]) || !isGitHubPathPart(parts[2])) return null;
   const marker = parts[3];
+  if (parts.length > 3 && (parts.length < 5 || !["tree", "commit"].includes(marker))) return null;
+  if (marker === "commit" && (parts.length !== 5 || !/^[a-f0-9]{7,40}$/i.test(parts[4]))) return null;
   const refName = marker === "tree" || marker === "commit" ? parts.slice(4).join("/") : "";
+  if (refName && /[\x00-\x20\x7f]/.test(refName)) return null;
   return {
     provider: "github",
     owner: parts[1],
     repo: parts[2],
     refName,
+    refKind: marker,
   };
 }
 
@@ -396,7 +414,8 @@ async function reportResponse(context, route, options = {}) {
     canonicalSlug.toLowerCase() !== `${route.owner}/${route.repo}`.toLowerCase()
   ) {
     const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
-    return Response.redirect(new URL(`/github/${canonicalOwner}/${canonicalRepo}${suffix}${requestUrl.search}`, requestUrl.origin), 308);
+    const refPath = route.refName ? `/${requestUrl.pathname.split("/")[4]}/${route.refName.split("/").map(encodeURIComponent).join("/")}` : "";
+    return Response.redirect(new URL(`/github/${canonicalOwner}/${canonicalRepo}${refPath}${suffix}${requestUrl.search}`, requestUrl.origin), 308);
   }
   // The report must belong to the URL that requested it. Any upstream mixup
   // (a mis-keyed cache tier serving one repo's payload for another) would
@@ -407,6 +426,13 @@ async function reportResponse(context, route, options = {}) {
   // cached) asks crawlers to retry instead of indexing wrong content.
   if (!reportMatchesRoute(report, route)) {
     return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
+  }
+  if (route.refName && !report.isSnapshot) {
+    const refPath = route.refName.split("/").map(encodeURIComponent).join("/");
+    report.publicPath = `/github/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}/${route.refKind}/${refPath}`;
+    report.canonicalUrl = `https://octocounts.com${report.publicPath}`;
+    report.refKind = route.refKind;
+    report.requestedRef = route.refName;
   }
   // The backend formats every report title/description identically ("N lines
   // of code") even though a filtered count is code lines under that filter.
@@ -444,24 +470,24 @@ async function reportResponse(context, route, options = {}) {
   if (options.markdown) {
     return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : "public, s-maxage=3600, stale-while-revalidate=86400", options);
   }
-  // Conditional GET for crawlers: the report corpus is tens of thousands of
-  // URLs and Googlebot/Bingbot both send If-Modified-Since. generatedAt is
-  // the page's own data date, so Last-Modified is the report's, not a
-  // synthetic response time, and a matching conditional request costs the
-  // crawler no body transfer (crawl-budget efficiency per Google's crawling
-  // docs; freshness signals per every 2026 GEO study).
-  const lastModified = httpDate(report.generatedAt);
+  const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
   if (report.isSnapshot) {
-    return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), "private, no-store", {});
+    return htmlResponse(html, "private, no-store", {});
   }
   const cacheControl = "public, s-maxage=300, stale-while-revalidate=600";
-  if (lastModified && notModifiedSince(context.request, lastModified)) {
+  // Validate the whole representation: templates and related links can change without a new analysis.
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
+  const etag = `W/"${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
+  const validators = context.request.headers.get("if-none-match")?.split(",") ?? [];
+  if (validators.some((value) => value.trim() === "*" || value.trim().replace(/^W\//, "") === etag.slice(2))) {
     return new Response(null, {
       status: 304,
-      headers: { "cache-control": cacheControl, "last-modified": lastModified, ...securityHeaders() },
+      headers: { "cache-control": cacheControl, etag, ...securityHeaders() },
     });
   }
-  return htmlResponse(injectReport(await indexHtml(context), report, apiBase(context), relatedReports), cacheControl, { lastModified });
+  const response = htmlResponse(html, cacheControl);
+  response.headers.set("etag", etag);
+  return response;
 }
 
 /// Markdown twin of injectReport: same report payload, same facts, serialized
@@ -505,6 +531,12 @@ function reportMarkdown(report, relatedReports = []) {
 ${reportCapsuleText(report)}
 
 ${reportLeadText(report)}
+
+## Counting rules and retention
+
+${reportPolicyText(report)}
+
+Saved reports remain subject to cache cleanup and replacement. Export the JSON or text for durable citation; live repository URLs can change.
 
 ## Repository size insights
 
@@ -560,16 +592,18 @@ async function fetchRelatedReports(context, route) {
 
 async function listPageResponse(context, kind, url) {
   const page = url.searchParams.get("page") || "1";
+  if (!/^[1-9]\d*$/.test(page) || !Number.isSafeInteger(Number(page))) return new Response("Not found", { status: 404 });
   // Neither API fetch needs the SPA shell, so start both before reading the
   // asset and overlap all three instead of paying them serially.
-  const apiResponse = fetch(`${apiBase(context)}/api/seo/${kind}?page=${encodeURIComponent(page)}`, {
+  const apiResponse = fetch(`${apiBase(context)}/api/seo/${kind}?limit=36&page=${encodeURIComponent(page)}`, {
     headers: { accept: "application/json" },
-  });
+    signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+  }).then(async (response) => response.ok ? response.json() : null).catch(() => null);
   const rotatingPromise = fetchRotatingReportLocs(context);
   const index = await indexHtml(context);
-  const response = await apiResponse;
-  const payload = response.ok ? await response.json() : { reports: [] };
+  const payload = await apiResponse;
   const pageMeta = listPageMeta(kind);
+  if (!Array.isArray(payload?.reports) || !payload.reports.every((report) => ["repoFullName", "publicPath", "description"].every((key) => typeof report?.[key] === "string"))) return serviceUnavailableResponse(index, pageMeta);
   // Page >1 is noindex,follow; pairing that with a canonical back to page 1
   // sends conflicting signals (Google: pick one). A self-referencing
   // canonical with the page parameter keeps the URL shape unambiguous.
@@ -582,13 +616,10 @@ async function listPageResponse(context, kind, url) {
         `<li><span>${index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
     )
     .join("");
-  // These pages are in the sitemap and marked index,follow. If the API is
-  // unreachable the list comes back empty, and an empty <ul> leaves a crawler
-  // roughly fifteen words of boilerplate to work with -- an indexed page that
-  // says nothing. Answer whatever the page is about instead, and keep the
-  // internal links so the crawl continues.
+  // A successful empty inventory still explains the collection; failures return 503 above.
   const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
   const moreReports = moreReportsHtml(await rotatingPromise);
+  const pagination = `<nav aria-label="Report pages">${Number(page) > 1 ? `<a href="${escapeAttr(pageMeta.canonical)}${page === "2" ? "" : `?page=${Number(page) - 1}`}">Previous page</a>` : ""}${payload.reports.length === 36 ? ` <a href="${escapeAttr(pageMeta.canonical)}?page=${Number(page) + 1}">Next page</a>` : ""}</nav>`;
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -602,7 +633,7 @@ async function listPageResponse(context, kind, url) {
         "@type": "CollectionPage",
         name: title,
         description,
-        url: pageMeta.canonical,
+        url: canonical,
         breadcrumb: breadcrumbItemList(pageMeta.breadcrumbLabel, pageMeta.canonical),
         mainEntity: {
           "@type": "ItemList",
@@ -614,7 +645,7 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}</section>${moreReports}`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1139,7 +1170,7 @@ async function badgesPageResponse(context) {
           },
         ],
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a permanent, commit-pinned SLOC report.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a live SLOC report; saved report IDs and exports preserve the measured version subject to cache retention.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1162,13 +1193,11 @@ const EXTENSION_STORES = [
 // (report and compare Dataset creator, extension SoftwareApplication author)
 // must carry the SAME @id and sameAs set so consumers merge each page's copy
 // with the homepage node instead of recording a duplicate Organization/Person
-// per URL (SEO audit H4). The Person's sameAs is the superset: homepage
-// profile, the OctoCounts repository, every extension store listing the
-// homepage WebApplication already lists, plus the npm package.
+// per URL. Product listings identify the product; Person.sameAs contains only personal profiles.
 const ORGANIZATION_ID = "https://octocounts.com/#organization";
 const PERSON_ID = "https://github.com/huanglizhuo";
 const ORGANIZATION_SAME_AS = ["https://github.com/huanglizhuo/OctoCounts", ...EXTENSION_STORES.map((store) => store.url)];
-const PERSON_SAME_AS = [PERSON_ID, "https://github.com/huanglizhuo/OctoCounts", ...EXTENSION_STORES.map((store) => store.url), "https://www.npmjs.com/package/octocounts"];
+const PERSON_SAME_AS = [PERSON_ID];
 
 const EXTENSION_CONTENT = {
   // Title ≤60 chars including the "| OctoCounts" suffix, description in the
@@ -1187,7 +1216,7 @@ const EXTENSION_CONTENT = {
     "The SLOC card appears in the repository sidebar automatically. Click it to open the full panel with the per-language line breakdown.",
   ],
   permissions:
-    "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. It does not request GitHub account access, needs no API token, works on public repositories only, and collects no personal data. Results are cached locally and by repository and ref so repeat visits load instantly.",
+    "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. Counting public repositories needs no GitHub login or API token. Chrome builds also offer optional GitHub sign-in for star history; the extension stores the login and token locally and uses the backend during token exchange. See the privacy policy for details. Retained local results for the repository and ref can be reused on repeat visits; a missing or expired entry requires a new request.",
   faq: [
     {
       question: "Why does the SLOC card not appear on a repository page?",
@@ -1197,7 +1226,7 @@ const EXTENSION_CONTENT = {
     {
       question: "Are the numbers live or cached?",
       answer:
-        "Counts are cached by repository and ref, and each report is pinned to the exact commit that was counted, so the same page shows the same numbers until the repository moves on and the cache refreshes. The full panel shows the commit the count comes from.",
+        "Local counts are cached by repository and ref, and each report identifies the exact commit counted. A retained entry can be reused; missing or expired entries need a new request. A refreshed count can change when the commit, engine, or effective counting rules change. The full panel shows the measured commit.",
     },
     {
       question: "Which browsers are supported?",
@@ -1269,7 +1298,7 @@ async function extensionPageResponse(context, options = {}) {
             screenshot: "https://octocounts.com/og-image.jpg",
             description: content.description,
             // The homepage Person (@id https://github.com/huanglizhuo) with
-            // the full sameAs set — profile, repository, store listings, npm —
+            // personal identity links only — product listings belong to the product —
             // so this author merges with every other statement of it (H4).
             author: {
               "@type": "Person",
@@ -1469,6 +1498,7 @@ async function buildCompareViewModel(entry, left, right) {
     ["Languages counted", left.languages.length, right.languages.length],
   ];
   const compatibility = comparePolicies(left, right).status;
+  const editorial = (await loadCompareEditorial())[entry.slug];
   const side = (report, date) => ({
     repoFullName: report.repoFullName,
     publicPath: report.publicPath,
@@ -1514,7 +1544,10 @@ async function buildCompareViewModel(entry, left, right) {
     policyText: `${compatibility === "same" ? "Both reports use the same engine and effective counting rules. Repository declarations, when enabled, are specific to each repository." : compatibility === "different" ? "These reports use different engines or counting rules; do not interpret their ratio as a like-for-like comparison." : "Counting rules are unknown for at least one report; comparability cannot be verified."} ${reportPolicyText(left)} ${reportPolicyText(right)}`,
     retentionText: "Saved reports remain subject to cache cleanup and replacement. Export their JSON for durable citation; live report URLs can change.",
     disclaimerText: "Note: code size is not code quality. OctoCounts only reports reproducible line counts and makes no claim that either project is better.",
-    editorial: (await loadCompareEditorial())[entry.slug] ?? null,
+    editorial: editorial ? {
+      ...editorial,
+      scope: `Background observations recorded on ${editorial.verifiedAt}; language descriptions here are historical context, not claims about the current filtered shares. Use this page's measured language breakdown for current counts. ${editorial.scope}`,
+    } : null,
     faq: compareFaq(entry, left, right, leftDate, rightDate),
     relatedLinks: [
       { href: "/compare", label: "Interactive repository comparison" },
@@ -1528,7 +1561,7 @@ async function buildCompareViewModel(entry, left, right) {
       { href: "/docs/glossary", label: "SLOC and code metrics glossary" },
       { href: "/docs/api", label: "OctoCounts API docs" },
     ],
-    updatedAt: left.generatedAt > right.generatedAt ? left.generatedAt : right.generatedAt,
+    updatedAt: [left.generatedAt, right.generatedAt, COMPARE_CONTENT_LASTMOD].sort().at(-1),
   };
 }
 
@@ -1714,10 +1747,18 @@ async function fetchSeoReport(context, target) {
       signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
     });
     if (response.ok) {
-      if (!reportId) return { state: "ok", response };
       const stored = await response.json();
-      if (stored.id !== reportId || stored.repository?.provider !== "github" || !stored.commitSha || !Array.isArray(stored.languages) || !stored.total) return { state: "unavailable" };
-      return { state: "ok", response: Response.json(snapshotSeoReport(stored)) };
+      if (reportId && (stored?.id !== reportId || stored.repository?.provider !== "github")) return { state: "unavailable" };
+      const report = reportId ? snapshotSeoReport(stored) : stored;
+      const validStats = (stats) => ["files", "lines", "code", "comments", "blanks"].every((key) => Number.isFinite(stats?.[key]) && stats[key] >= 0);
+      if (!report || !["repoFullName", "refName", "commitSha", "generatedAt", "publicPath", "canonicalUrl", "title", "description"].every((key) => typeof report[key] === "string")
+        || !Number.isFinite(Date.parse(report.generatedAt)) || !validStats(report.total)
+        || !Array.isArray(report.languages) || !report.languages.every((language) => typeof language?.name === "string" && validStats(language.stats))) return { state: "unavailable" };
+      const policy = report.countingPolicy;
+      if (policy && (typeof policy.version !== "string" || typeof policy.repositoryAttributes?.status !== "string"
+        || !["includeDocs", "includeTests", "includeGenerated"].every((key) => typeof policy[key] === "boolean")
+        || !["ignoredDirs", "ignoredLanguages"].every((key) => Array.isArray(policy[key]) && policy[key].every((value) => typeof value === "string")))) return { state: "unavailable" };
+      return { state: "ok", response: Response.json(report) };
     }
     if (response.status === 404) return { state: "missing" };
     return { state: "unavailable" };
@@ -1770,8 +1811,8 @@ function serviceUnavailableResponse(index, meta) {
 /// Sitemap entries for curated comparisons whose both sides have cached
 /// reports. The backend answers for the whole registry in one query; a
 /// definitive "no reports for this repo" drops the slug (its SSR page is
-/// noindex, so listing it would teach Google to ignore the sitemap), while an
-/// unreachable backend fails open and keeps every entry for this pass.
+/// noindex, so listing it would teach Google to ignore the sitemap). An
+/// unreachable backend returns null so the sitemap can respond with 503.
 async function indexableCompareEntries(context) {
   const uniqueRepos = new Map();
   for (const entry of COMPARE_REGISTRY) {
@@ -1784,14 +1825,7 @@ async function indexableCompareEntries(context) {
   let indexable = cached && Date.now() - cached.checkedAt < COMPARE_EXISTENCE_TTL_MS ? cached.pairs : null;
   if (!indexable) {
     indexable = await fetchIndexablePairs(context, [...uniqueRepos.values()]);
-    if (!indexable) {
-      // Transient backend failure: keep every entry (same semantics as the
-      // per-report "unavailable keeps the entry" rule) and retry next pass.
-      return COMPARE_REGISTRY.map((entry) => ({
-        loc: `https://octocounts.com/compare/${entry.slug}`,
-        lastmod: COMPARE_CONTENT_LASTMOD,
-      }));
-    }
+    if (!indexable) return null;
     compareExistenceCache.set("indexable-pairs", { pairs: indexable, checkedAt: Date.now() });
   }
 
@@ -1801,13 +1835,11 @@ async function indexableCompareEntries(context) {
     return left && right;
   }).map((entry) => ({
     loc: `https://octocounts.com/compare/${entry.slug}`,
-    lastmod: COMPARE_CONTENT_LASTMOD,
   }));
 }
 
 /// One POST to /api/seo/repos-indexable returns the subset of repositories
-/// with at least one cached report. Returns null on any failure so the
-/// caller can fail open.
+/// with an indexable cached report. Returns null on any failure.
 async function fetchIndexablePairs(context, repos) {
   try {
     const response = await fetch(`${apiBase(context)}/api/seo/repos-indexable`, {
@@ -1818,7 +1850,7 @@ async function fetchIndexablePairs(context, repos) {
     });
     if (!response.ok) return null;
     const payload = await response.json();
-    if (!payload || !Array.isArray(payload.repos)) return null;
+    if (!payload || !Array.isArray(payload.repos) || !payload.repos.every((repo) => isGitHubPathPart(repo?.owner) && isGitHubPathPart(repo?.repo))) return null;
     return new Set(payload.repos.map((repo) => `${String(repo.owner).toLowerCase()}/${String(repo.repo).toLowerCase()}`));
   } catch {
     return null;
@@ -1829,15 +1861,8 @@ function seoReportUrl(context, target) {
   const params = new URLSearchParams({ provider: "github", owner: target.owner, repo: target.repo });
   const ref = target.ref || target.refName;
   if (ref) params.set("refName", ref);
+  if (target.refKind) params.set("refKind", target.refKind);
   return `${apiBase(context)}/api/seo/report?${params.toString()}`;
-}
-
-/// RFC 1123 date for Last-Modified, or null when the source date is absent
-/// or unparseable (never invent one).
-function httpDate(value) {
-  if (!value) return null;
-  const ms = Date.parse(value);
-  return Number.isNaN(ms) ? null : new Date(ms).toUTCString();
 }
 
 /// JSON-LD dateModified values are ISO 8601 instants; the backend serializes
@@ -1848,17 +1873,6 @@ function isoMilliseconds(value) {
   return typeof value === "string" ? value.replace(/(\.\d{3})\d+/, "$1") : value;
 }
 
-/// If-Modified-Since has second granularity while generatedAt carries
-/// fractional seconds; compare truncated to whole seconds so a same-second
-/// conditional request still earns its 304. Invalid dates never match.
-function notModifiedSince(request, lastModified) {
-  const header = request.headers.get("if-modified-since");
-  if (!header) return false;
-  const headerMs = Date.parse(header);
-  const lastMs = Date.parse(lastModified);
-  return !Number.isNaN(headerMs) && !Number.isNaN(lastMs) && Math.floor(headerMs / 1000) >= Math.floor(lastMs / 1000);
-}
-
 /// A fetched report is usable for a route only when it describes that route's
 /// repository. Case-insensitive on purpose: the store returns the canonical
 /// casing for a differently-cased URL, which the caller then 308s to — that is
@@ -1867,7 +1881,8 @@ function notModifiedSince(request, lastModified) {
 function reportMatchesRoute(report, target) {
   return (
     typeof report?.repoFullName === "string" &&
-    report.repoFullName.toLowerCase() === `${target.owner}/${target.repo}`.toLowerCase()
+    report.repoFullName.toLowerCase() === `${target.owner}/${target.repo}`.toLowerCase() &&
+    (target.refKind !== "commit" || report.commitSha.toLowerCase().startsWith(target.refName.toLowerCase()))
   );
 }
 
@@ -1937,12 +1952,22 @@ function gitHubUrl(target) {
 }
 
 function compareSummaryText(left, right, leftDate, rightDate) {
-  const leftCode = Math.max(Number(left.total.code) || 0, 1);
-  const rightCode = Math.max(Number(right.total.code) || 0, 1);
-  const ratio = leftCode >= rightCode ? leftCode / rightCode : rightCode / leftCode;
-  const sizePhrase = ratio < 1.15
-    ? `${left.repoFullName} and ${right.repoFullName} are similar in size by code lines`
-    : `${leftCode >= rightCode ? left.repoFullName : right.repoFullName} is about ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)}x the size of ${leftCode >= rightCode ? right.repoFullName : left.repoFullName} by code lines`;
+  const compatibility = comparePolicies(left, right).status;
+  const leftCode = Number(left.total.code);
+  const rightCode = Number(right.total.code);
+  let sizePhrase = "Counting rules are unknown for at least one report; no like-for-like size ratio is stated";
+  if (compatibility === "different") {
+    sizePhrase = "These reports use different engines or counting rules; no like-for-like size ratio is stated";
+  } else if (compatibility === "same") {
+    if (leftCode === 0 || rightCode === 0) {
+      sizePhrase = "At least one report has zero counted code lines; a relative size ratio is not defined";
+    } else {
+      const ratio = Math.max(leftCode, rightCode) / Math.min(leftCode, rightCode);
+      sizePhrase = ratio < 1.15
+        ? `${left.repoFullName} and ${right.repoFullName} are similar in size under the same engine and counting rules`
+        : `${leftCode >= rightCode ? left.repoFullName : right.repoFullName} has about ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)}x the counted code lines of ${leftCode >= rightCode ? right.repoFullName : left.repoFullName} under the same engine and counting rules`;
+    }
+  }
   return `As of ${leftDate}, ${left.repoFullName} contains ${formatNumber(left.total.lines)} total lines (${formatNumber(left.total.code)} code) across ${formatNumber(left.total.files)} files, while ${right.repoFullName} contains ${formatNumber(right.total.lines)} total lines (${formatNumber(right.total.code)} code) across ${formatNumber(right.total.files)} files as of ${rightDate}. ${sizePhrase}. Code size is not code quality: a larger count only means more source material, not a better or worse project.`;
 }
 
@@ -1989,18 +2014,10 @@ function compareMethodologyText(left, right, leftDate, rightDate) {
 /// Compare pages had zero question-based headings before this; it was the
 /// single largest AEO gap on the site given there are 90+ of these pages.
 function compareFaq(entry, left, right, leftDate, rightDate) {
-  const leftCode = Math.max(Number(left.total.code) || 0, 1);
-  const rightCode = Math.max(Number(right.total.code) || 0, 1);
-  const bigger = leftCode >= rightCode ? left.repoFullName : right.repoFullName;
-  const smaller = leftCode >= rightCode ? right.repoFullName : left.repoFullName;
-  const ratio = leftCode >= rightCode ? leftCode / rightCode : rightCode / leftCode;
-  const closeCall = ratio < 1.15;
   return [
     {
       question: `Which has more lines of code, ${left.repoFullName} or ${right.repoFullName}?`,
-      answer: closeCall
-        ? `As of ${leftDate > rightDate ? leftDate : rightDate}, ${left.repoFullName} and ${right.repoFullName} are close in size: ${formatNumber(left.total.code)} vs ${formatNumber(right.total.code)} code lines, a difference of less than 15%. Neither clearly outsizes the other by this metric.`
-        : `${bigger} has more code: ${formatNumber(leftCode >= rightCode ? leftCode : rightCode)} code lines versus ${formatNumber(leftCode >= rightCode ? rightCode : leftCode)} for ${smaller}, about ${ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1)}x as much, based on cached OctoCounts reports as of ${leftDate > rightDate ? leftDate : rightDate}.`,
+      answer: compareSummaryText(left, right, leftDate, rightDate),
     },
     {
       question: "Does more source lines of code mean more complexity?",
@@ -2049,13 +2066,7 @@ function compareJsonLd(model) {
         description: model.description,
         url: model.canonical,
         dateModified: isoMilliseconds(model.updatedAt),
-        // Mirrors the report pages: the h1 plus the summary sentence are the
-        // self-contained block an answer engine would read aloud or quote.
-        speakable: {
-          "@type": "SpeakableSpecification",
-          cssSelector: ["#root h1", "#octocounts-compare-summary"],
-        },
-        measurementTechnique: "tokei via OctoCounts",
+        measurementTechnique: model.policyText,
         variableMeasured: ["files", "lines", "code", "comments", "blanks", "languages"],
         // Same merge rule as the report pages' Dataset: inline for standalone
         // validity, keyed to the homepage Organization @id with its sameAs (H4).
@@ -2125,11 +2136,23 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
 }
 
 async function fetchReportSitemapEntries(context) {
-  const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, { headers: { accept: "application/json" } });
-  // The quality gate runs here, ahead of both consumers (the sitemap index's
-  // page count and each /sitemap-reports-N.xml child), so pagination and
-  // content can never disagree about how many entries exist.
-  return response.ok ? filterReportSitemapEntries(await response.json()) : [];
+  try {
+    const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
+      headers: { accept: "application/json" }, signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const entries = await response.json();
+    return Array.isArray(entries) ? filterReportSitemapEntries(entries) : null;
+  } catch {
+    return null;
+  }
+}
+
+function sitemapUnavailableResponse() {
+  return new Response("Sitemap temporarily unavailable\n", {
+    status: 503,
+    headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "retry-after": "60", ...securityHeaders() },
+  });
 }
 
 /// Quality gate on the /api/seo/sitemap payload (SEO audit H2). Each entry
@@ -2180,7 +2203,7 @@ function filterReportSitemapEntries(entries) {
     if (seenLocs.has(dedupeKey)) continue;
     seenLocs.add(dedupeKey);
     if (!sitemapEntryMeasuredAnything(entry)) continue;
-    kept.push(entry);
+    kept.push({ ...entry, lastmod: entry.lastmod > REPORT_CONTENT_LASTMOD ? entry.lastmod : REPORT_CONTENT_LASTMOD });
   }
   return kept;
 }
@@ -2219,10 +2242,9 @@ async function sitemapIndexResponse(context) {
   // and the static list is compiled in), so skip the compare-existence scan
   // here: the index is the hottest sitemap request crawlers make.
   const dynamicEntries = await fetchReportSitemapEntries(context);
-  const reportPages = Math.max(1, Math.ceil(dynamicEntries.length / REPORTS_SITEMAP_PAGE_SIZE));
-  // Each child states its own freshest lastmod so crawlers can skip children
-  // whose pages have not changed since the last crawl (GSC flags a lastmod-less
-  // index; the audit's Low backlog listed it).
+  if (dynamicEntries === null) return sitemapUnavailableResponse();
+  const reportPages = Math.ceil(dynamicEntries.length / REPORTS_SITEMAP_PAGE_SIZE);
+  // Include a child's freshest lastmod only when its underlying dates are known.
   const snapshot = await trendingSnapshot(context);
   const staticLastmod = maxLastmod(
     STATIC_SITEMAP_ENTRIES.map((entry) =>
@@ -2232,7 +2254,7 @@ async function sitemapIndexResponse(context) {
   const pageSize = REPORTS_SITEMAP_PAGE_SIZE;
   const children = [
     { loc: "https://octocounts.com/sitemap-static.xml", lastmod: staticLastmod },
-    { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([{ lastmod: COMPARE_CONTENT_LASTMOD }]) },
+    { loc: "https://octocounts.com/sitemap-compare.xml" },
     ...Array.from({ length: reportPages }, (_, i) => ({
       loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
       lastmod: maxLastmod(dynamicEntries.slice(i * pageSize, (i + 1) * pageSize)),
@@ -2252,13 +2274,15 @@ async function sitemapIndexResponse(context) {
 async function staticSitemapResponse(context) {
   const snapshot = await trendingSnapshot(context);
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) =>
-    entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } : entry
+    entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } :
+      LIVE_COLLECTION_PATHS.has(new URL(entry.loc).pathname) ? { loc: entry.loc } : entry
   );
   return urlsetResponse(entries);
 }
 
 async function compareSitemapResponse(context) {
-  return urlsetResponse(await indexableCompareEntries(context));
+  const entries = await indexableCompareEntries(context);
+  return entries === null ? sitemapUnavailableResponse() : urlsetResponse(entries);
 }
 
 /// An out-of-range or empty reports chunk used to answer 200 with an empty
@@ -2280,6 +2304,7 @@ function sitemapNotFoundResponse() {
 async function reportsSitemapResponse(context, page) {
   if (!Number.isInteger(page) || page < 1) return sitemapNotFoundResponse();
   const dynamicEntries = await fetchReportSitemapEntries(context);
+  if (dynamicEntries === null) return sitemapUnavailableResponse();
   const slice = dynamicEntries
     .slice((page - 1) * REPORTS_SITEMAP_PAGE_SIZE, page * REPORTS_SITEMAP_PAGE_SIZE)
     .map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod }));
@@ -2311,7 +2336,8 @@ async function indexHtml(context) {
     const url = new URL(context.request.url);
     url.pathname = "/";
     url.search = "";
-    const response = await assets.fetch(new Request(url.toString(), context.request));
+    // Page validators and HEAD requests must not turn the internal template fetch into an empty body.
+    const response = await assets.fetch(new Request(url.toString(), { method: "GET" }));
     html = await response.text();
     indexHtmlCache.set(assets, html);
   }
@@ -2461,7 +2487,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     mdAlternate: report.isSnapshot ? `${report.canonicalUrl}&format=md` : `${report.canonicalUrl}.md`,
     extraHead: `<link rel="preload" as="image" href="${escapeAttr(ogImageUrl)}" fetchpriority="high" />
 <script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
+    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p><section><h2>Counting rules and retention</h2><p>${escapeHtml(reportPolicyText(report))}</p><p>Saved reports remain subject to cache cleanup and replacement. Export the JSON or text for durable citation; live repository URLs can change.</p></section>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
   });
 }
 
@@ -2470,7 +2496,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
 /// Every figure comes straight from the report payload so the capsule cannot
 /// disagree with the table, FAQ, or client summary it sits next to.
 function reportCapsuleText(report) {
-  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} by the OctoCounts tokei engine on ${report.generatedAt.slice(0, 10)}. The report is cached by commit, tokei version, and analysis options, so recounting the same revision returns exactly these numbers.`;
+  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} by the OctoCounts tokei engine on ${report.generatedAt.slice(0, 10)}. The report is cached by commit, tokei version, and analysis options, reproduction requires the same commit, engine version, and effective counting rules. Unknown rules in older reports prevent exact reproduction.`;
 }
 
 /// Human label for a report's non-default analysis configuration, mirroring
@@ -2510,7 +2536,7 @@ function applyReportFilterWording(report) {
 /// section to the ~150-word band that correlates with citation, covering
 /// method and reproducibility without depending on the rest of the page.
 function reportLeadText(report) {
-  return `OctoCounts produced this report by resolving ${report.repoFullName} to commit ${report.commitSha.slice(0, 12)}, downloading the repository source archive, and counting every source file with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options, so counting the same revision again reproduces exactly these numbers.`;
+  return `OctoCounts produced this report by resolving ${report.repoFullName} to commit ${report.commitSha.slice(0, 12)}, downloading the repository source archive, and counting files selected by the effective rules with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options, exact reproduction requires the same commit, engine version, and effective counting rules. Older reports with unknown rules cannot promise exact reproduction.`;
 }
 
 /// Reproducibility block for report pages, rendered by the HTML page and the
@@ -2717,7 +2743,6 @@ function htmlResponse(html, cacheControl, options) {
     "cache-control": cacheControl,
     ...securityHeaders(options),
   };
-  if (options?.lastModified) headers["last-modified"] = options.lastModified;
   // status is set only by the missing-report fallback (404); every other
   // caller leaves it undefined, which the Response constructor reads as 200.
   return new Response(html, { status: options?.status, headers });
@@ -2743,11 +2768,19 @@ function markdownResponse(markdown, cacheControl, options = {}) {
   });
 }
 
-function withHtmlSecurity(response) {
+async function withHtmlSecurity(response) {
+  if (!response.body) return response;
   if (!response.headers.get("content-type")?.includes("text/html")) return response;
   const headers = new Headers(response.headers);
   for (const [name, value] of Object.entries(securityHeaders())) headers.set(name, value);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  let html = await response.text();
+  if (response.ok && !html.includes('src="/analytics.js"')) {
+    html = html.replace(/<\/head>/i, '<script type="module" src="/analytics.js"></script></head>');
+  }
+  headers.delete("content-length");
+  headers.delete("etag");
+  headers.delete("last-modified");
+  return new Response(html, { status: response.status, statusText: response.statusText, headers });
 }
 
 function securityHeaders(options) {
@@ -2762,6 +2795,6 @@ function securityHeaders(options) {
     "permissions-policy": "camera=(), microphone=(), geolocation=()",
     "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
     "cross-origin-opener-policy": "same-origin",
-    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://api.octocounts.com https://www.githubstatus.com https://cloud.umami.is https://gateway.umami.is https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
+    "content-security-policy": `default-src 'self'; script-src 'self' ${BOOT_SCRIPT_HASH} https://cloud.umami.is https://plausible.io https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://www.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://api.octocounts.com https://www.githubstatus.com https://cloud.umami.is https://gateway.umami.is https://plausible.io https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors ${frameable ? "*" : "'none'"}; upgrade-insecure-requests`,
   };
 }

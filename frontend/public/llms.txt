@@ -7,7 +7,7 @@ AI-Usage: search-allowed, training-permitted (all crawlers, including GPTBot, Go
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-18
+Last-Updated: 2026-10-25
 Full Context: https://octocounts.com/llms-full.txt
 Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/react/react.md
 
@@ -202,3 +202,7 @@ OctoCounts is a free SLOC counter for public GitHub repositories. It counts file
 - [中文首页](https://octocounts.com/zh)
 - [GitHub 代码行数统计指南](https://octocounts.com/zh/docs/github-sloc-counter)
 - [计数方法与引用规则](https://octocounts.com/zh/docs/methodology)
+
+## Counting and access caveats
+
+Public analysis needs no account or token. The Chrome extension offers optional GitHub OAuth login; see [Privacy](https://octocounts.com/privacy). Default analyze limits are 5 requests/minute per IP (burst 10). Optional `respectGitattributes` applies repository-declared generated/vendored filtering and is off by default. Saved reports remain subject to cache cleanup and replacement; export JSON or text for durable citation, including the commit, engine version, effective rules, and measurement date.

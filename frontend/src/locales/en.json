@@ -299,8 +299,8 @@
       {
         "num": "03",
         "title": "Cache",
-        "text": "Reports are stored by owner, repo, commit SHA, and tokei version. When you re-analyze the same commit, the cache is hit immediately, with no re-download and no re-count. Re-run forces a fresh analysis and updates the cache. The browser extension also caches results locally for instant offline viewing.",
-        "code": "cache <1>commit + version</1>"
+        "text": "Reports are cached by repository, commit SHA, tokei version, and effective counting rules. A matching retained entry avoids another download and count; expired or missing entries require analysis. Re-run requests a fresh analysis, subject to rate limits. The extension can reuse retained local results.",
+        "code": "cache <1>commit + version + rules</1>"
       }
     ]
   },
@@ -353,11 +353,11 @@
     "snapshotUnavailable": "This saved result is no longer available. Run a new analysis to create another report."
   },
   "errorHelp": {
-    "private_repo": "OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.",
+    "private_repo": "OctoCounts analyzes public repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads.",
     "invalid_url": "Use a URL like https://github.com/owner/repo.",
     "ref_not_found": "Check the ref field for typos, or leave it empty to use the repository default branch.",
     "empty_repository": "The repository has no commits, so there is nothing to count. Retrying will not change that.",
-    "rate_limited": "Wait a few minutes and retry. Cached reports continue to load instantly when available.",
+    "rate_limited": "Wait a few minutes and retry. Retained cached reports may still be available.",
     "too_large": "The analyzer has size and timeout limits. Try a smaller ref or retry later.",
     "not_found": "Confirm that the repository exists and is public. Private repositories are intentionally out of scope.",
     "github_request_failed": "GitHub did not return a usable archive or repository response. Retry after a short wait.",
@@ -404,13 +404,13 @@
   "badgesPage": {
     "kicker": "readme badges, live",
     "title": "SLOC badges for your README",
-    "subtitle": "Pick a badge type, copy the markdown, and your README shows live line counts that link back to a permanent OctoCounts report.",
+    "subtitle": "Pick a badge type, copy the markdown, and your README shows live line counts that link back to a live OctoCounts report.",
     "faqTitle": "Badge FAQ",
     "faqSubtitle": "common questions about README badges",
     "faq": [
       {
         "question": "What is an OctoCounts badge?",
-        "answer": "A small live image you embed in a README that shows repository SLOC stats and links to the permanent OctoCounts report page."
+        "answer": "A small live image you embed in a README that shows repository SLOC stats and links to the live OctoCounts report page."
       },
       {
         "question": "How do I add a badge to my README?",
@@ -722,7 +722,7 @@
     "items": {
       "badges": {
         "title": "Badges",
-        "text": "Live README badges that link back to a permanent report."
+        "text": "Live README badges that link back to a live report."
       },
       "compare": {
         "title": "Compare",
@@ -760,7 +760,7 @@
     "step2": "Open any public GitHub repository page in your browser.",
     "step3": "The SLOC card appears in the repository sidebar automatically. Click it to open the full panel with the per-language line breakdown.",
     "permissionsTitle": "Permissions and data handling",
-    "permissions": "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. It does not request GitHub account access, needs no API token, works on public repositories only, and collects no personal data. Results are cached locally and by repository and ref so repeat visits load instantly.",
+    "permissions": "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. Counting public repositories needs no GitHub login or API token. Chrome builds also offer optional GitHub sign-in for star history; the extension stores the login and token locally and uses the backend during token exchange. See the privacy policy for details. Retained local results for the repository and ref can be reused on repeat visits; a missing or expired entry requires a new request.",
     "scopeTitle": "Supported repositories",
     "scope": "Public GitHub repositories. Private repositories and source-code uploads are not supported; to count private code, run tokei locally."
   },

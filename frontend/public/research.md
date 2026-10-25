@@ -1,12 +1,14 @@
 # How Filtering Changes SLOC Counts: OctoCounts Pilot Study
 
+Article updated October 25, 2026. The pilot measurements remain those collected on September 8, 2026; this revision clarifies limitations and does not rerun the dataset.
+
 _Original OctoCounts research. All measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to [octocounts.com/research](https://octocounts.com/research)._
 
 ## Research question
 
 For the same repository at the same commit, how much do OctoCounts' analysis options — excluding tests, docs, or generated files — change the reported line counts, and what does that imply for comparing reports?
 
-The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. OctoCounts reports always state their configuration, but until this study we had no measured estimate of how large the effect actually is.
+The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. New reports record known effective counting rules; older reports may lack that metadata. This pilot records its selected options but predates the current effective-policy record, which limits exact reproduction.
 
 ## Method
 
@@ -38,7 +40,7 @@ The instrument itself worked: commit pinning, per-run timing, and totals were al
 
 ## Next steps
 
-The measured cost clears the gate for a full study: 10–20 repositories × 4 configurations (≈80 requests) would take roughly 3–4 minutes of sequential requests at the pilot's per-request cost. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under `/research/`.
+A larger study should plan for repository size, queueing, retries, and rate limits rather than extrapolating elapsed time from these eight requests. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under `/research/`.
 
 ## Data
 

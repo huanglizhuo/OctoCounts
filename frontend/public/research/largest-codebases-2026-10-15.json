@@ -1,0 +1,102 @@
+{
+  "source": "https://octocounts.com/docs/largest-codebases",
+  "publishedOn": "2026-10-15",
+  "description": "Transcription of the eight historical measurements already published in the article; not a new analysis or raw report export.",
+  "engine": "tokei 14.0.0",
+  "reportedOptions": {
+    "includeDocs": false,
+    "includeTests": false,
+    "includeGenerated": false
+  },
+  "limitations": "The original full report IDs, full commit SHAs, exact ignored-directory/language lists and effective counting-policy records were not archived with this article. The listed commit prefixes identify the source references as published. Rule-based exclusion does not prove all remaining code is hand-written. Live report URLs can show different measurements.",
+  "measurements": [
+    {
+      "repository": "torvalds/linux",
+      "codeLines": 32360324,
+      "totalLines": 42580025,
+      "files": 89182,
+      "topLanguage": "C",
+      "topLanguageCodePercent": 60.8,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "4056b3c9d3c9",
+      "sourceCommitUrl": "https://github.com/torvalds/linux/commit/4056b3c9d3c9"
+    },
+    {
+      "repository": "mozilla-firefox/firefox",
+      "codeLines": 24586522,
+      "totalLines": 35250721,
+      "files": 140115,
+      "topLanguage": "C++",
+      "topLanguageCodePercent": 22.8,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "3934f7874da5",
+      "sourceCommitUrl": "https://github.com/mozilla-firefox/firefox/commit/3934f7874da5"
+    },
+    {
+      "repository": "llvm/llvm-project",
+      "codeLines": 8307824,
+      "totalLines": 11548761,
+      "files": 37002,
+      "topLanguage": "C++",
+      "topLanguageCodePercent": 67.2,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "5ef967a9c367",
+      "sourceCommitUrl": "https://github.com/llvm/llvm-project/commit/5ef967a9c367"
+    },
+    {
+      "repository": "tensorflow/tensorflow",
+      "codeLines": 5130571,
+      "totalLines": 6835039,
+      "files": 24256,
+      "topLanguage": "C++",
+      "topLanguageCodePercent": 56.2,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "7bef9ab9883d",
+      "sourceCommitUrl": "https://github.com/tensorflow/tensorflow/commit/7bef9ab9883d"
+    },
+    {
+      "repository": "godotengine/godot",
+      "codeLines": 4120690,
+      "totalLines": 5787909,
+      "files": 11416,
+      "topLanguage": "C++",
+      "topLanguageCodePercent": 34.5,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "5ec712e220b7",
+      "sourceCommitUrl": "https://github.com/godotengine/godot/commit/5ec712e220b7"
+    },
+    {
+      "repository": "kubernetes/kubernetes",
+      "codeLines": 3901619,
+      "totalLines": 4848892,
+      "files": 14992,
+      "topLanguage": "Go",
+      "topLanguageCodePercent": 65.9,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "633270dea2b1",
+      "sourceCommitUrl": "https://github.com/kubernetes/kubernetes/commit/633270dea2b1"
+    },
+    {
+      "repository": "postgres/postgres",
+      "codeLines": 1631788,
+      "totalLines": 2930756,
+      "files": 4132,
+      "topLanguage": "C",
+      "topLanguageCodePercent": 59.4,
+      "measuredOn": "2026-10-14",
+      "commitPrefix": "eab68b1be6aa",
+      "sourceCommitUrl": "https://github.com/postgres/postgres/commit/eab68b1be6aa"
+    },
+    {
+      "repository": "git/git",
+      "codeLines": 1148625,
+      "totalLines": 1613277,
+      "files": 3554,
+      "topLanguage": "PO File",
+      "topLanguageCodePercent": 31.0,
+      "measuredOn": "2026-10-10",
+      "commitPrefix": "a018953688f1",
+      "sourceCommitUrl": "https://github.com/git/git/commit/a018953688f1"
+    }
+  ]
+}

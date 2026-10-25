@@ -177,7 +177,7 @@ export function buildEmbedUrl(provider: EmbedProvider, owner: string, repo: stri
 }
 
 export function buildEmbedSnippet(embedUrl: string, width = 400, height = 160) {
-  return `<iframe src="${embedUrl}" width="${width}" height="${height}" frameborder="0" loading="lazy"></iframe>`;
+  return `<iframe src="${embedUrl}" width="${width}" height="${height}" title="OctoCounts repository line counts" frameborder="0" loading="lazy"></iframe>`;
 }
 
 export function buildReportBadgeUrl(reportId: string) {

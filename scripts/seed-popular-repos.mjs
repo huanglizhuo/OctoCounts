@@ -12,7 +12,8 @@ const args = parseArgs(process.argv.slice(2));
 const apiBase = trimTrailingSlash(args["api-base"] ?? process.env.OCTOCOUNTS_API_BASE ?? DEFAULT_API_BASE);
 const repoFile = args.file ?? DEFAULT_REPO_FILE;
 const dryRun = Boolean(args["dry-run"]);
-const limit = numberArg(args.limit, Infinity);
+const limit = args.limit === undefined ? Infinity : Number(args.limit);
+const batch = args.batch === undefined ? 0 : Number(args.batch);
 const concurrency = numberArg(args.concurrency, 2);
 const delayMs = numberArg(args["delay-ms"], 500);
 const pollMs = numberArg(args["poll-ms"], 2500);
@@ -26,7 +27,12 @@ if (args.help || args.h) {
   process.exit(0);
 }
 
-const repos = mergeCompareRegistryRepos(await readRepos(repoFile)).slice(0, limit);
+if (args.limit === true || args.batch === true || (!Number.isSafeInteger(limit) && limit !== Infinity) || limit < 1 || !Number.isSafeInteger(batch) || batch < 0) {
+  throw new Error("--limit must be a positive integer and --batch a non-negative integer");
+}
+const inventory = mergeCompareRegistryRepos(await readRepos(repoFile));
+const offset = Number.isFinite(limit) ? (batch % Math.max(1, Math.ceil(inventory.length / limit))) * limit : 0;
+const repos = inventory.slice(offset, offset + limit);
 
 if (repos.length === 0) {
   console.error("No repositories found to seed.");
@@ -260,7 +266,8 @@ Options:
   --dry-run                 Print planned repositories without network calls
   --api-base <url>          API base URL (default: ${DEFAULT_API_BASE})
   --file <path>             Repo list file (default: data/popular-repos.txt)
-  --limit <n>               Seed only the first n repos
+  --limit <n>               Maximum repos per batch (default: all)
+  --batch <n>               Zero-based rotating batch, wraps after the inventory (default: 0)
   --concurrency <n>         Concurrent analyze jobs (default: 2)
   --delay-ms <n>            Delay before each started repo after the first (default: 500)
   --poll-ms <n>             Job polling interval (default: 2500)

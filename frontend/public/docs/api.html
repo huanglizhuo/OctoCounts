@@ -36,7 +36,7 @@
       "headline": "OctoCounts API Docs",
       "description": "API documentation for public GitHub repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
       "datePublished": "2026-06-12",
-      "dateModified": "2026-10-11",
+      "dateModified": "2026-10-25",
       "mainEntityOfPage": "https://octocounts.com/docs/api",
       "speakable": {
         "@type": "SpeakableSpecification",
@@ -109,7 +109,7 @@
           "name": "How do I add a SLOC badge to my README?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Request https://api.octocounts.com/badge/:owner/:repo with optional type parameters such as code, lines, files, comments, languages, top-language, or ratio, and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the permanent OctoCounts report page."
+            "text": "Request https://api.octocounts.com/badge/:owner/:repo with optional type parameters such as code, lines, files, comments, languages, top-language, or ratio, and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the live OctoCounts report page."
           }
         },
         {
@@ -117,7 +117,7 @@
           "name": "What shareable URLs does OctoCounts provide?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Every analyzed repository gets permanent web URLs such as https://octocounts.com/github/:owner/:repo, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis."
+            "text": "Every analyzed repository gets live web URLs such as https://octocounts.com/github/:owner/:repo, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis."
           }
         }
       ]
@@ -131,22 +131,22 @@
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
       "sameAs": [
-        "https://github.com/huanglizhuo",
-        "https://github.com/huanglizhuo/OctoCounts",
-        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-        "https://www.npmjs.com/package/octocounts"
+        "https://github.com/huanglizhuo"
       ],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools"
+      ]
     }
     </script>
   </head>
   <body>
     <h1>OctoCounts API Docs</h1>
     <p class="answer">OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.</p>
-    <p class="meta">Updated October 11, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
-    <p class="note">OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
+    <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+    <p class="note">OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
 
     <h2>How do I analyze a public GitHub repository?</h2>
     <pre><code>POST https://api.octocounts.com/api/analyze
@@ -237,10 +237,10 @@ https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
     <p><code>GET https://api.octocounts.com/api/reports/:reportId</code> returns repository metadata, the pinned commit SHA, the tokei version used, the analysis key, the active analysis options, per-language rows, and totals for files, lines, code, comments, and blanks.</p>
 
     <h3>How do I add a SLOC badge to my README?</h3>
-    <p>Request <code>https://api.octocounts.com/badge/:owner/:repo</code> with optional <code>type</code> parameters (<code>code</code>, <code>lines</code>, <code>files</code>, <code>comments</code>, <code>languages</code>, <code>top-language</code>, or <code>ratio</code>) and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the permanent OctoCounts report page.</p>
+    <p>Request <code>https://api.octocounts.com/badge/:owner/:repo</code> with optional <code>type</code> parameters (<code>code</code>, <code>lines</code>, <code>files</code>, <code>comments</code>, <code>languages</code>, <code>top-language</code>, or <code>ratio</code>) and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the live OctoCounts report page.</p>
 
     <h3>What shareable URLs does OctoCounts provide?</h3>
-    <p>Every analyzed repository gets permanent web URLs such as <code>https://octocounts.com/github/:owner/:repo</code>, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis.</p>
+    <p>Every analyzed repository gets live web URLs such as <code>https://octocounts.com/github/:owner/:repo</code>, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis.</p>
 
     <p><a href="/">Back to OctoCounts</a></p>
   </body>

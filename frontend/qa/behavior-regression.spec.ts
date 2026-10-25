@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { defaultRepoUrl, defaultRefName } from "../src/constants";
 
 // Overridable so the suite runs against any local dev-server port
 // (5173 is not always free); playwright.config baseURL stays the default.
@@ -61,14 +62,16 @@ test.describe("analysis behavior regressions", () => {
     const ref = page.locator("#repo-ref");
     await expect(ref).toHaveValue("");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
-    // An empty form falls back to the demo seed repo (facebook/react) with its
+    // An empty form falls back to the configured demo seed repo with its
     // pinned demo tag; a blank ref never gets rewritten to a guessed branch —
     // the backend resolves the repository's actual default branch.
-    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "v19.3.0")).toBe(true);
+    await expect.poll(() => requests.some((request) => request.repoUrl === defaultRepoUrl && request.refName === defaultRefName)).toBe(true);
+    await page.locator(".report-search > summary").click();
     await ref.fill("release");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
-    await expect.poll(() => requests.some((request) => request.repoUrl.includes("facebook/react") && request.refName === "release")).toBe(true);
+    await expect.poll(() => requests.some((request) => request.repoUrl === defaultRepoUrl && request.refName === "release")).toBe(true);
 
+    await page.locator(".report-search > summary").click();
     await repo.fill("https://github.com/example/plain-repo");
     await expect(ref).toHaveValue("release");
     await ref.fill("develop");
@@ -226,7 +229,8 @@ test.describe("analysis behavior regressions", () => {
     expect(intrinsicSize).not.toContain("640px");
   });
 
-  test("history endpoint provides keyboard-readable chart data", async ({ page }) => {
+  test("history endpoint provides an accessible summary and keyboard-seekable animation", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: {
       provider: "github", owner: "huanglizhuo", repo: "OctoCounts", currentStars: 0, starPoints: [], slocPoints: [{ date: "2026-01-01", totalLines: 100 }, { date: "2026-09-08", totalLines: 200 }], slocBackfillInProgress: false, starBackfillAvailable: false, starBackfillInProgress: false,
     } }));
@@ -237,16 +241,18 @@ test.describe("analysis behavior regressions", () => {
     await page.goto(BASE_URL);
     // The history chart is part of the full runner; the homepage's example
     // report does not include it, so run a (mocked) analysis first. The
-    // mocked report counts 200 code lines on 2026-09-08, which merges as the
-    // series' last point — the value "End" must land on.
+    // The history's last point remains distinct from the report's metrics.
     await page.locator("#repo-url").fill("https://github.com/huanglizhuo/OctoCounts");
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
-    await expect(page.locator(".repo-history")).toBeVisible();
-    await page.locator(".repo-history-chart svg").focus();
+    await expect(page.locator(".growth-section")).toBeVisible();
+    await expect(page.locator(".growth-wrap .visually-hidden")).toContainText("100 code lines");
+    await expect(page.locator(".growth-wrap .visually-hidden")).toContainText("200 code lines");
+    const seek = page.getByRole("slider", { name: "Growth animation progress" });
+    await seek.focus();
+    await page.keyboard.press("Home");
+    await expect(seek).toHaveValue("0");
     await page.keyboard.press("End");
-    await expect(page.locator(".repo-history-tooltip")).toContainText("200");
-    await page.locator(".repo-history-data summary").click();
-    await expect(page.locator(".repo-history-data tbody tr")).toHaveCount(2);
+    await expect(seek).toHaveValue("1");
   });
 });
 
@@ -384,7 +390,7 @@ test.describe("language share donut", () => {
 // Report-route structure and the report-aware history chart (T23). Deterministic:
 // both the analyze and the repo-history endpoints are route-mocked, and the
 // auxiliary report-page endpoints (live stars, similar repos) fail closed.
-test.describe("report page structure and history chart (T23)", () => {
+test.describe("report page structure and growth history", () => {
   const SAMPLES = [
     { date: "2026-01-01", totalLines: 1000 },
     { date: "2026-04-01", totalLines: 300 }, // suspect dip: under half of both neighbours
@@ -400,6 +406,8 @@ test.describe("report page structure and history chart (T23)", () => {
   }
 
   test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.route("**/api/seo/report?*", (route) => route.fulfill({ status: 404, json: {} }));
     await page.route("**/api/repo-info*", (route) => route.fulfill({ json: { stars: null } }));
     await page.route("**/api/seo/related*", (route) => route.fulfill({ json: { reports: [] } }));
   });
@@ -412,55 +420,34 @@ test.describe("report page structure and history chart (T23)", () => {
     await expect(page.locator(".report-route-sub")).toContainText(/SLOC report/);
   });
 
-  test("the history chart draws Y-axis gridlines and ticks, dots every point, and flags suspect samples", async ({ page }) => {
+  test("growth exposes a textual history summary and discloses different report metrics", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
     await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "axis", report: reportFor("https://github.com/example/widgets", 1500) } }));
     await page.goto(`${BASE_URL}/github/example/widgets`);
-    await expect(page.locator(".repo-history")).toBeVisible();
-
-    // Y axis: [0, max/2, max] gridlines with compact tick labels.
-    await expect(page.locator(".repo-history-gridline")).toHaveCount(3);
-    await expect(page.locator(".repo-history-axis-tick")).toHaveCount(3);
-    // A dot on every point: 4 samples plus the merged report point (below).
-    await expect(page.locator(".repo-history-point")).toHaveCount(5);
-    // The partial-backfill dip renders hollow and dashes the segments hugging it.
-    await expect(page.locator(".repo-history-point-suspect")).toHaveCount(1);
-    const dashedSegments = await page.locator(".repo-history-sloc-line").evaluateAll(
-      (nodes) => nodes.filter((node) => node.getAttribute("stroke-dasharray")).length,
-    );
-    expect(dashedSegments).toBeGreaterThanOrEqual(2);
+    await expect(page.locator(".growth-stage")).toHaveAttribute("aria-label", /1,000→1,400/);
+    await expect(page.locator(".growth-wrap .visually-hidden")).toContainText("2026-01-01");
+    await expect(page.locator(".growth-wrap .visually-hidden")).toContainText("2026-09-07");
+    await expect(page.locator(".growth-this-report")).toContainText("1,500");
+    await expect(page.locator(".growth-note").filter({ hasText: "differ from the history series" })).toBeVisible();
   });
 
-  test("a pinned-ref report shows the this-report marker instead of merging", async ({ page }) => {
+  test("a pinned-ref report keeps its metrics separate from the history", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
     await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "pinned", report: { ...reportFor("https://github.com/example/widgets", 2500), refName: "v1.0.0" } } }));
     await page.goto(`${BASE_URL}/github/example/widgets/tree/v1.0.0`);
     await expect(page.locator(".report-route-sub")).toContainText("SLOC report · v1.0.0");
-    await expect(page.locator(".repo-history")).toBeVisible();
-
-    // Dashed vertical + labelled dot at the report's commit date…
-    await expect(page.locator(".repo-history-report-line")).toHaveCount(1);
-    await expect(page.locator(".repo-history-report-label")).toHaveText("this report · v1.0.0");
-    await expect(page.locator(".repo-history-report-count")).toContainText("2,500");
-    // …and nothing merged: the series stays the endpoint's four samples.
-    await expect(page.locator(".repo-history-point")).toHaveCount(4);
+    await expect(page.locator(".growth-this-report")).toContainText("2,500");
+    await expect(page.locator(".growth-stage")).toHaveAttribute("aria-label", /1,000→1,400/);
+    await expect(page.locator(".growth-wrap .visually-hidden")).not.toContainText("2,500");
   });
 
-  test("a default-branch report merges its code count as the chart's last point", async ({ page }) => {
+  test("an interactive default-branch report cannot rewrite the historical series", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
     await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "merged", report: reportFor("https://github.com/example/widgets", 2500) } }));
     await page.goto(`${BASE_URL}/github/example/widgets`);
-    await expect(page.locator(".repo-history")).toBeVisible();
-
-    // No marker for an unpinned report…
-    await expect(page.locator(".repo-history-report-line")).toHaveCount(0);
-    // …its count becomes the series' final point, so the chart header number
-    // equals the mocked report's code lines (after the 1.4s count-up).
-    await expect(page.locator(".repo-history-count")).toContainText("2,500", { timeout: 6000 });
+    await expect(page.locator(".growth-stage")).toHaveAttribute("aria-label", /1,000→1,400/);
+    await expect(page.locator(".growth-this-report")).toContainText("2,500");
     await expect(page.locator(".summary .cell.accent .val")).toContainText("2,500");
-    await expect(page.locator(".repo-history-point")).toHaveCount(5);
-    await page.locator(".repo-history-data summary").click();
-    await expect(page.locator(".repo-history-data tbody tr").last()).toContainText("2,500");
   });
 });
 

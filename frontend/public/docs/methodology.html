@@ -51,7 +51,7 @@
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
       "datePublished": "2026-07-06",
-      "dateModified": "2026-10-18",
+      "dateModified": "2026-10-25",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -122,14 +122,14 @@
       "name": "huanglizhuo",
       "url": "https://github.com/huanglizhuo",
       "sameAs": [
-        "https://github.com/huanglizhuo",
-        "https://github.com/huanglizhuo/OctoCounts",
-        "https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj",
-        "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim",
-        "https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/",
-        "https://www.npmjs.com/package/octocounts"
+        "https://github.com/huanglizhuo"
       ],
-      "knowsAbout": ["source lines of code", "code metrics", "tokei", "developer tools"]
+      "knowsAbout": [
+        "source lines of code",
+        "code metrics",
+        "tokei",
+        "developer tools"
+      ]
     }
     </script>
       <link rel="alternate" hreflang="en" href="https://octocounts.com/docs/methodology" />
@@ -140,10 +140,10 @@
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Methodology</nav>
     <p><a href="/zh/docs/methodology" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></p>
     <main>
-      <p class="meta">Updated October 18, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts Methodology</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.</p>
-      <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not request account access, and does not analyze private repositories.</p>
+      <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not require account access for analysis, and does not analyze private repositories.</p>
 
       <h2>What is SLOC?</h2>
       <p>SLOC, or source lines of code, is a measure of software size counted as the number of lines in a project's source files. A SLOC count normally separates three kinds of line: <strong>code</strong> lines carrying executable statements or declarations, <strong>comment</strong> lines carrying documentation, and <strong>blank</strong> lines. "Lines of code" without qualification usually means the code figure alone, while "total lines" means all three added together. Because the ratio between them varies widely by language and project, a SLOC report is only comparable when the counting rules are stated. OctoCounts reports all three figures separately for every language, counted with <a href="https://github.com/XAMPPRocky/tokei">tokei</a> at a pinned commit, so reports with matching effective rules can be compared.</p>

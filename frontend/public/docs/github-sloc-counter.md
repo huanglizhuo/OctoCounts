@@ -1,6 +1,6 @@
 # GitHub SLOC Counter Guide
 
-Updated October 18, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.
 
@@ -32,13 +32,13 @@ A worked example: the [live report for React](https://octocounts.com/github/reac
 1. The repository URL is validated and the requested branch, tag, or commit SHA is resolved to an exact commit.
 2. The backend downloads the compressed source archive of that commit — not the git history.
 3. The extracted tree is counted with tokei, skipping heavy dependency and build folders such as `node_modules`, `target`, `dist`, and `vendor` by default.
-4. The report is cached by repository, commit SHA, tokei version, and analysis options — recounting the same commit returns the identical numbers.
+4. The report is cached by repository, commit SHA, tokei version, and analysis options — matching retained entries can be reused when the engine version and effective rules also match.
 
 The full pipeline, including how counting policy metadata and optional repository-declared filtering (`.gitattributes` linguist markers) work, is documented in the [counting methodology](https://octocounts.com/docs/methodology).
 
 ## How accurate is an OctoCounts count?
 
-Exact for what it measures. A report is a precise count of the downloaded source archive under the stated options — same commit, same tokei version, same options on your machine returns the same numbers, because it is the same program reading the same bytes. What it is *not*: a measure of git history, generated artifacts excluded by the options, private code, or code quality. Two honest caveats when you quote counts: state the configuration (including or excluding tests alone can move a total by 20–50% — measured in the [filtering-effects pilot study](https://octocounts.com/research)), and name the commit, since a default branch moves daily. The [SLOC glossary](https://octocounts.com/docs/glossary) defines each reported category precisely.
+Matching counts require the same actual source tree, tokei version, and effective counting rules, including extraction exclusions and repository attributes. A local checkout at the same commit may differ from an archive: export-ignore can omit paths and export-subst can change file contents. Record the full commit SHA, engine version, options, effective policy, and measurement date; retain the exported JSON and a saved-report link while available. Older reports may lack a complete policy. The filtering pilot measures option effects, not local-versus-server parity. See [Git archive attribute semantics](https://git-scm.com/docs/git-archive).
 
 ## Supported Repository Hosts
 
@@ -49,7 +49,7 @@ Exact for what it measures. A report is a precise count of the downloaded source
 
 ## tokei online, without installing anything
 
-tokei itself has no official web interface — it is a command-line tool. OctoCounts runs tokei online, free, at commit-pinned URLs: paste a public GitHub repository URL and get the same counts the CLI would produce, pinned to an exact commit. The [tokei online guide](https://octocounts.com/docs/tokei-online) explains when an online run beats the CLI and how the two compare.
+tokei itself has no official web interface — it is a command-line tool. OctoCounts runs tokei online, free, at commit-pinned URLs: paste a public GitHub repository URL and get counts reproducible with the same source tree, tokei version, and effective filtering rules, pinned to an exact commit. The [tokei online guide](https://octocounts.com/docs/tokei-online) explains when an online run beats the CLI and how the two compare.
 
 ## OctoCounts Docs Guides
 
@@ -96,7 +96,7 @@ The [badges page](https://octocounts.com/badges) documents every badge type and 
 
 ## Comparing repositories, branches, or commits
 
-Line counts answer "how big is this?" — comparisons answer "how big *relative to what?*". The [compare tool](https://octocounts.com/compare) puts two public repositories side by side with their language tables: a framework against its rival, a fork against upstream, or a dependency against its alternative. The [diff tool](https://octocounts.com/diff) tracks a single repository across refs or commits — how much a release grew, what a feature branch added. Both work from the same commit-pinned reports, so a comparison link shows the exact snapshots that were compared. There is also a curated hub of pre-built comparisons for popular pairs, from [React vs Vue](https://octocounts.com/compare/react-vs-vue) to [Rust vs Go](https://octocounts.com/compare/rust-vs-go).
+Line counts answer "how big is this?" — comparisons answer "how big *relative to what?*". The [compare tool](https://octocounts.com/compare) puts two public repositories side by side with their language tables: a framework against its rival, a fork against upstream, or a dependency against its alternative. The [diff tool](https://octocounts.com/diff) tracks a single repository across refs or commits — how much a release grew, what a feature branch added. Live comparison and ref links can change as new reports are cached. Saved comparison links identify particular report IDs while those reports remain retained; export their JSON for your own records. There is also a curated hub of pre-built comparisons for popular pairs, from [React vs Vue](https://octocounts.com/compare/react-vs-vue) to [Rust vs Go](https://octocounts.com/compare/rust-vs-go).
 
 ## API
 
@@ -104,7 +104,7 @@ Programmatic users can start an analysis with `POST /api/analyze`, poll `GET /ap
 
 ## Privacy and Scope
 
-OctoCounts analyzes public repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.
+OctoCounts analyzes public repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. Cached reports contain public repository statistics only.
 
 More questions about counting, extensions, badges, and the API are answered in the [OctoCounts FAQ](https://octocounts.com/docs/faq).
 
@@ -112,11 +112,11 @@ More questions about counting, extensions, badges, and the API are answered in t
 
 ### Is OctoCounts free?
 
-Yes. The web app, report pages, badges, API, CLI, GitHub Action, and MCP server are free to use, with no account or sign-up. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads.
+Yes. The web app, report pages, badges, API, CLI, GitHub Action, and MCP server are free to use, with no account or sign-up. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads.
 
 ### Does OctoCounts clone the repository?
 
-No. OctoCounts downloads the compressed source archive of the exact commit it resolves — not the full git history — which is why a first analysis usually finishes in seconds and a repeat analysis of the same commit is instant. The report records the commit SHA, the tokei version, and the analysis options it was counted with.
+No. OctoCounts downloads the compressed source archive of the exact commit it resolves — not the full git history — a matching retained result can avoid a new count. Cold-run duration depends on repository size, upstream access, queueing, and deployment limits. The report records the commit SHA, the tokei version, and the analysis options it was counted with.
 
 ### Which repositories can OctoCounts count?
 
@@ -124,7 +124,7 @@ Any public github.com repository, at a branch, tag, or commit SHA you choose. Pr
 
 ### How do I cite an OctoCounts count?
 
-Cite tool, options, commit, and date, then link the report: for example, "torvalds/linux has 32,360,324 code lines (counted 2026-10-14 at commit `4056b3c9d3c9`, tests/docs/generated excluded, via OctoCounts/tokei): [octocounts.com/github/torvalds/linux](https://octocounts.com/github/torvalds/linux)". Every report page includes a copyable citation in exactly this shape, generated from the report's own metadata.
+Cite the tool and exact version, full commit SHA, effective counting rules, and measurement date. Include a saved-report link and keep the exported JSON for a particular analysis, since saved reports are subject to retention. Repository and ref URLs are live views and must not be presented as preserved historical measurements. Older records without effective-policy metadata should disclose that limitation.
 
 ### What is the difference between code lines and total lines?
 

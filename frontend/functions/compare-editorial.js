@@ -16,7 +16,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: react/react is a monorepo: the source repository is the React packages plus fixtures, documentation site content, and test infrastructure, not just the react package that ships to apps. vuejs/core is the Vue core repository — the runtime, compiler, and reactivity packages — with its own tests and docs. Both repositories are framework source trees, not applications built with them, and the two archives were counted on the dates shown in the methodology line above.",
     insights: [
-      "In the counted archives, the language mix differs in kind, not just degree: Vue core is predominantly TypeScript, while React's counted code is majority JavaScript with a substantial TypeScript share — a direct consequence of each project's chosen implementation language, visible in the per-language table of each report.",
+      "Vue core includes runtime, compiler, and reactivity packages; React includes its own packages and supporting infrastructure. The current per-language tables describe the selected snapshots and filters, not the language mix of an application built with either framework.",
     ],
     caution:
       "Neither number predicts the size, performance, or quality of an app built with the framework: a bundled application includes a compiled subset of the framework, application code, and dependencies. Use these counts to gauge how much framework source exists to read and maintain.",
@@ -30,7 +30,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: vitejs/vite is the Vite core repository — dev server, build pipeline, and their plugin/rollup integration — while webpack/webpack is the webpack core; loaders, plugins, and the surrounding ecosystems live in separate repositories for both tools. The two repositories contain core-tool source trees, counted on the dates in the methodology line.",
     insights: [
-      "Vite core is written predominantly in TypeScript, matching how it presents its public plugin API, while webpack core remains largely JavaScript; the per-language tables make the difference measurable rather than anecdotal.",
+      "Vite and webpack maintain their core build tooling separately from much of their plugin ecosystems. Compare the selected source trees and filtering rules before treating a difference in language totals as a difference in tool scope.",
     ],
     caution:
       "These counts do not measure build speed or output size for your project: performance depends on the toolchain version, plugin set, and application shape. A smaller tool source tree does not build faster.",
@@ -58,8 +58,8 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: electron/electron is the Electron repository: the embedded Chromium and Node.js integration layer, native shell code, API implementation, and documentation — but not Chromium's or Node's own source, which are consumed as prebuilt binaries. tauri-apps/tauri is the Tauri core repository: the Rust runtime, the process and IPC layer, and the CLI tooling; it equally does not count the system webview it delegates to. Both repositories are the glue layer each project maintains, not the browser engines involved.",
     insights: [
-      "The language tables tell the architectural story directly: Electron's counted code is dominated by C++ for the native integration layer with a sizeable TypeScript/JavaScript API surface, while Tauri core is predominantly Rust — each project's chosen systems language for the same job of connecting web content to the OS.",
-      "The engine asymmetry matters when reading the totals: Electron bundles (and updates) a full Chromium with each app, while Tauri relies on the operating system's webview, so neither repository's SLOC represents what ships inside a finished desktop app.",
+      "Electron exposes a JavaScript API over native integration code, while Tauri uses a Rust core to connect web content to the operating system. The selected snapshots determine how these layers appear in each report's language totals.",
+      "The engine asymmetry matters when reading the totals: Electron bundles Chromium with each app, while Tauri relies on the operating system's webview, so neither repository's SLOC represents what ships inside a finished desktop app.",
     ],
     caution:
       "Repository size is not install size and not memory footprint. A finished app's weight depends on the engine strategy above, not on how many source lines the framework repository contains.",
@@ -73,7 +73,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: rust-lang/rust is the Rust repository: the compiler (largely Rust itself), standard library, tooling, and a very large test suite. golang/go is the Go repository: compiler toolchain, standard library, and runtime, also with its own test suites. Both are language toolchain monorepos, counted with the rules shown in the methodology on the dates above, which makes this one of the more like-for-like comparisons on this site.",
     insights: [
-      "Both repositories are self-hosting toolchains whose counted code is dominated by each project's own language, as the per-language tables show; the shares of C and assembly that remain mark the bootstrap and runtime boundaries each project still maintains by hand.",
+      "These repositories contain compilers, runtimes, libraries, and supporting tools. A language's share of the selected source tree does not identify which files are bootstrap code or prove that they are hand-written; inspect the pinned tree for those boundaries.",
     ],
     caution:
       "Compiler repository size does not measure language quality, compile speed, or runtime performance — those are properties of the shipped toolchain and the programs it produces, not of the source tree's line count.",
@@ -87,7 +87,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: angular/angular is the Angular framework monorepo: the core framework packages, compiler, and tooling, along with documentation and test suites. react/react is the React monorepo: the React packages plus fixtures, documentation site content, and test infrastructure. Both repositories are framework source trees, counted on the dates shown in the methodology line; Angular's CLI and wider tooling ecosystem live in separate repositories.",
     insights: [
-      "Both frameworks present themselves in TypeScript in their current source, as the per-language tables show: Angular's counted code is overwhelmingly TypeScript, while React's tree is majority JavaScript with a substantial TypeScript share — a reflection of how and when each codebase adopted TypeScript rather than of the API surface.",
+      "Angular and React package their framework internals differently. The selected reports show their implementation-language totals; those totals do not establish what language an application must use or when a project adopted TypeScript.",
     ],
     caution:
       "Neither number predicts the size, performance, or quality of an app built with the framework: a bundled application contains a compiled subset of the framework, application code, and dependencies. Use these counts to gauge the reading and maintenance surface of each framework source tree.",
@@ -127,7 +127,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: fastify/fastify is the Fastify core repository — the web framework and its plugin system — while expressjs/express is the Express core, the long-standing minimal Node.js web framework whose middleware ecosystem largely lives in separate repositories. Both repositories are of framework source trees rather than of applications built on them, taken on the dates in the methodology line above.",
     insights: [
-      "Both repositories are implemented predominantly in JavaScript, as the per-language tables show; the difference between the counts is one of overall tree size, not of implementation language.",
+      "Both repositories expose Node.js web-server APIs, but package their routing, middleware, and supporting code differently. Use the selected per-language totals to compare the measured trees, rather than assuming their language proportions are fixed.",
       "Neither archive includes the wider plugin/middleware ecosystems that both frameworks are known for — much of that code is published from separate repositories — so both counts understate the total library surface a typical application touches.",
     ],
     caution:
@@ -142,7 +142,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: nestjs/nest is the NestJS framework repository: its core packages, platform adapters, sample projects, and documentation — a TypeScript framework that runs on top of an underlying HTTP server library (Express by default). expressjs/express is the Express framework itself, a comparatively minimal JavaScript web framework for Node.js. The two repositories are related layers rather than substitutes, and their measurements were taken on the dates in the methodology line.",
     insights: [
-      "The per-language tables show the difference in implementation language directly: NestJS is written in TypeScript, while the Express codebase is predominantly JavaScript — each project's chosen language for its public API surface.",
+      "NestJS provides a TypeScript-oriented application framework over HTTP adapters, while Express supplies a Node.js web-server and middleware API. Their source trees therefore represent different layers, even when used in the same application.",
       "NestJS ships sample applications and multiple platform packages inside its repository, so part of its count exists to demonstrate and adapt the framework rather than to run as the framework core.",
     ],
     caution:
@@ -157,8 +157,8 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: denoland/deno is the Deno runtime repository: the Rust core that embeds V8, the TypeScript/JavaScript runtime and standard-library surface, the CLI, and tooling. nodejs/node is the Node.js repository: the C/C++ runtime and bindings, the JavaScript standard library under lib/, and vendored third-party sources under deps/. Neither count includes V8's own source; both consume it at build time. Both trees were counted on the dates in the methodology line above.",
     insights: [
-      "The per-language tables show the implementation-language split directly: Deno's counted code is predominantly Rust, while Node's is largely C/C++ plus JavaScript for the standard library — the same runtime role expressed through each project's chosen systems language.",
-      "A substantial share of both counts is JavaScript rather than native code: in Deno it is much of the public runtime and standard-library surface, in Node it is the lib/ standard library, so much of each repository is API surface above the native bindings.",
+      "Both runtimes combine native implementation code with higher-level runtime APIs. The language totals depend on the pinned tree and exclusions; they are not measurements of runtime speed or standards coverage.",
+      "Node's lib/ directory and Deno's runtime API code are distinct from native bindings and embedded engines. Inspect the pinned tree to determine which layers contribute to a particular count.",
     ],
     caution:
       "These counts do not measure runtime performance, startup time, or compatibility with the existing npm ecosystem — those are properties of the shipped binaries, not of the repositories' line counts.",
@@ -172,7 +172,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: pnpm/pnpm is the pnpm package manager repository: its core, CLI, and plugin-style subpackages, all maintained as one TypeScript tree. yarnpkg/berry is the Yarn 2+ codebase — the modern Yarn version maintained as a monorepo of its core and published subpackages. Both repositories are therefore package-manager source trees of the same generation, counted on the dates in the methodology line above.",
     insights: [
-      "The per-language tables of both reports show TypeScript as the dominant implementation language on each side, which makes this one of the more like-for-like comparisons on this site in terms of what kind of source is being counted.",
+      "Both package managers maintain installation logic and supporting tooling. Sharing an implementation language does not establish comparable counting rules; compare the declared policies and repository scope alongside the totals.",
     ],
     caution:
       "A smaller source tree does not install dependencies faster or use less disk space: install performance and store layout depend on the released tool's design and on the project being installed, not on repository line counts.",
@@ -186,7 +186,7 @@ export const COMPARE_EDITORIAL = {
     scope:
       "Repository layout before counting filters: tensorflow/tensorflow is the TensorFlow monorepo: the C++ runtime and kernels, the Python frontend, XLA, and a large test and example corpus. pytorch/pytorch is the PyTorch core repository: the Python frontend, the ATen/TH C++ and CUDA kernels, and its own tests and tooling. Both are full machine-learning framework source trees, counted on the dates shown in the methodology line above.",
     insights: [
-      "Both counted trees are framework source, not model code: whatever an application trains or infers with is written on top of these repositories, so neither number reflects what a user of the framework ships.",
+      "Both projects include native compute components and Python-facing APIs. Language totals alone do not distinguish kernels from frontend code or indicate the amount of functionality available to a model author.",
       "The per-language tables show a different center of gravity for each project — TensorFlow's counted code is dominated by C++ (kernels and runtime) while PyTorch's tree leans further toward its Python frontend — which is visible directly in the language breakdown rather than needing to be inferred from the totals.",
     ],
     caution:
@@ -199,16 +199,17 @@ export const COMPARE_EDITORIAL = {
   },
   "react-native-vs-flutter": {
     scope:
-      "Repository layout before counting filters: react/react-native is the React Native repository: the framework's JavaScript layer, native modules and components across several native languages, plus docs and test infrastructure. flutter/flutter is the Flutter SDK repository — the framework and tools written in Dart — but not the Dart engine, which lives in the separate flutter/engine repository. The two repositories therefore cover different layers of each stack, as the language tables above make visible.",
+      "Repository layout before counting filters: react/react-native is the React Native repository: the framework's JavaScript layer, native modules and components across several native languages, plus docs and test infrastructure. flutter/flutter is the Flutter SDK repository, including framework, tools, and the engine source merged into engine/src/flutter. The two repositories package their native and framework layers differently, so inspect each pinned tree's scope before comparing totals.",
     insights: [
-      "The per-language tables show the architectural difference directly: React Native's counted code is spread across JavaScript/TypeScript and several native languages because the repository ships its native glue itself, while flutter/flutter is predominantly Dart, with the engine's C++ counted in a different repository.",
-      "Neither repository counts the engine its apps ultimately run on — React Native relies on an external JavaScript engine, and Flutter's engine sits outside the counted tree — so both totals understate what ships inside a finished app by the same kind of margin.",
+      "React Native bridges JavaScript framework code and native components; Flutter includes its Dart framework and engine sources in one repository. Effective filters determine which files from those layers contribute to the selected reports.",
+      "A source archive is not a shipped application: builds may include engine binaries, dependencies, generated output, and assets not represented by the selected source count. Do not infer an equal packaging margin for the two frameworks.",
     ],
     caution:
       "Repository size is not app install size: a finished app includes an engine build, framework code, and assets that these repositories account for differently. Compare the counts as source-tree sizes, not as what ships to a device.",
     sources: [
       { label: "react/react-native repository", url: "https://github.com/react/react-native" },
-      { label: "flutter/flutter repository (SDK framework and tools)", url: "https://github.com/flutter/flutter" },
+      { label: "Flutter engine and framework repository merge announcement", url: "https://groups.google.com/g/flutter-announce/c/9J8yZQfForg" },
+      { label: "flutter/flutter repository (SDK framework, engine and tools)", url: "https://github.com/flutter/flutter" },
     ],
     verifiedAt: "2026-10-16",
   },
@@ -1240,15 +1241,16 @@ export const COMPARE_EDITORIAL = {
   },
   "nushell-vs-fish": {
     scope:
-      "Repository layout before counting filters: nushell/nushell is the Nushell repository: the structured-data shell written in Rust — parser, evaluation engine, built-in commands, and their tests. fish-shell/fish-shell is the Fish repository: the user-friendly command-line shell written largely in C++, with its own parser, builtins, and documentation. Both repositories are shell source trees, counted on the dates shown in the methodology line.",
+      "Repository layout before counting filters: nushell/nushell is the Nushell repository: the structured-data shell written in Rust — parser, evaluation engine, built-in commands, and their tests. fish-shell/fish-shell is the Fish repository: the user-friendly command-line shell with its own parser, builtins, and documentation; its core was ported from C++ to Rust for fish 4.0. Both repositories are shell source trees, counted on the dates shown in the methodology line.",
     insights: [
-      "The per-language tables mark the clearest difference between the two: Nushell's counted code is predominantly Rust, while Fish's is predominantly C++ — each project's chosen systems language for the same job.",
-      "Both repositories concentrate on the shell itself rather than on external plugins: Nushell ships its core commands in the main tree, and Fish builds its builtins into the single binary, so the totals are more directly comparable than for plugin-extensible tools.",
+      "Nushell and fish 4 use Rust in their core implementations, but have different shell languages and interaction models. The selected tree and counting policy determine language totals; a shared implementation language does not make their scripting semantics interchangeable.",
+      "Both repositories concentrate on the shell and its built-in commands. Inspect the pinned tree to distinguish those components from tests, documentation, and supporting scripts.",
     ],
     caution:
       "Repository size says nothing about startup time, memory use, or scripting capabilities — a shell's interactive feel depends on its features and versions, not on the line count of its source. The counts describe how much code maintains each shell.",
     sources: [
       { label: "nushell/nushell repository", url: "https://github.com/nushell/nushell" },
+      { label: "fish 4.0 release notes (Rust port)", url: "https://fishshell.com/docs/4.0/relnotes.html" },
       { label: "fish-shell/fish-shell repository", url: "https://github.com/fish-shell/fish-shell" },
     ],
     verifiedAt: "2026-09-16",

@@ -7,13 +7,15 @@
     "copy-fonts": "cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 public/fonts/jetbrains-mono-400-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2 public/fonts/jetbrains-mono-700-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-800-normal.woff2 public/fonts/jetbrains-mono-800-latin.woff2",
     "prebuild": "npm run copy-fonts",
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc && vite build && node scripts/prerender-home.mjs",
+    "build": "tsc && vite build --manifest && node scripts/prerender-home.mjs",
     "test:seo": "npm run build && node --test tests/seo.test.mjs",
-    "test:unit": "node --test tests/github-status.test.mjs",
+    "test:unit": "node --test tests/github-status.test.mjs tests/analytics.test.mjs tests/growth-*.test.mjs tests/deployment.test.mjs",
     "test:facts": "node ../scripts/check-product-facts.mjs",
     "test:csp": "node scripts/check-csp-hash.mjs",
-    "test": "npm run test:csp && npm run test:unit && npm run test:facts && npm run test:seo",
-    "preview": "vite preview --host 127.0.0.1"
+    "test": "npm run test:csp && npm run test:unit && npm run test:facts && npm run test:seo && npm run test:budget",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:budget": "node scripts/check-asset-budget.mjs",
+    "test:qa": "playwright test"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.2.8",

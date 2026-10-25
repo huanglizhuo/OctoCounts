@@ -98,15 +98,12 @@ test.describe('OctoCounts visual QA', () => {
 
   test('4. language switcher to Chinese renders new strings', async ({ page }) => {
     await waitForReport(page);
-    await page.locator('button').filter({ hasText: /^EN$/ }).first().click();
-    await page.locator('button').filter({ hasText: /^中文$/ }).first().click();
-    await page.waitForTimeout(300);
+    await page.getByRole('link', { name: '中文', exact: true }).first().click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh');
 
-    const bodyText = await page.locator('body').textContent();
-    expect(bodyText).toContain('分析');
-    expect(bodyText).toContain('Chrome 应用商店');
-    // The theme toggle's stable accessible label (label + aria-pressed pair).
-    expect(bodyText).toContain('切换深色');
+    await expect(page.getByRole('button', { name: '分析', exact: true })).toBeVisible();
+    await expect(page.locator('.topbar')).toContainText('安装扩展');
+    await expect(page.locator('.topbar-controls .theme-toggle')).toHaveAttribute('aria-label', /切换深色/);
   });
 
   test('5. mobile 375px: summary tiles and table render', async ({ browser }) => {

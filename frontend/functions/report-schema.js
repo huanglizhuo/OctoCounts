@@ -11,7 +11,7 @@ export function reportJsonLd(report) {
         url: report.canonicalUrl,
         dateModified: typeof report.generatedAt === "string" ? report.generatedAt.replace(/(\.\d{3})\d+/, "$1") : report.generatedAt,
         ...(report.analysisKey ? { identifier: report.analysisKey } : {}),
-        measurementTechnique: "tokei via OctoCounts",
+        measurementTechnique: `Counted with ${report.tokeiVersion || "unknown tokei version"} via OctoCounts; effective policy ${report.countingPolicy?.version || "unknown"}. See the report's counting rules for exclusions.`,
         variableMeasured: ["files", "lines", "code", "comments", "blanks"].map((name) => ({
           "@type": "PropertyValue", name, value: report.total[name],
         })).concat({ "@type": "PropertyValue", name: "languages", value: report.languages.length }),
@@ -27,7 +27,7 @@ export function reportJsonLd(report) {
           encodingFormat: "application/json",
           contentUrl: report.reportId
             ? `https://api.octocounts.com/api/reports/${encodeURIComponent(report.reportId)}`
-            : `https://api.octocounts.com/api/seo/report?${new URLSearchParams({ provider: report.provider, owner: report.owner, repo: report.repo, ...(report.refName ? { refName: report.refName } : {}) })}`,
+            : `https://api.octocounts.com/api/seo/report?${new URLSearchParams({ provider: report.provider, owner: report.owner, repo: report.repo, ...(report.requestedRef || report.refName ? { refName: report.requestedRef || report.refName } : {}), ...(report.refKind ? { refKind: report.refKind } : {}) })}`,
         },
       },
       {

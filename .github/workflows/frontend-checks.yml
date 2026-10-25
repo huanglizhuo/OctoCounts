@@ -1,0 +1,43 @@
+name: Frontend SEO and browser checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_BASE: ""
+      PLAYWRIGHT_OUTPUT_DIR: /tmp/octocounts-playwright
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:qa
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-browser-diagnostics
+          path: /tmp/octocounts-playwright
+          if-no-files-found: ignore

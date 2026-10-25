@@ -2,9 +2,9 @@
 
 OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.
 
-Updated October 11, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-> OctoCounts analyzes public GitHub repositories only. It does not request GitHub account access, does not support private repositories, and does not accept source-code uploads.
+> OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads.
 
 Canonical page: https://octocounts.com/docs/api
 
@@ -143,10 +143,10 @@ Poll `GET https://api.octocounts.com/api/jobs/:jobId`. Jobs return `queued`, `ru
 
 ### How do I add a SLOC badge to my README?
 
-Request `https://api.octocounts.com/badge/:owner/:repo` with optional `type` parameters (`code`, `lines`, `files`, `comments`, `languages`, `top-language`, or `ratio`) and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the permanent OctoCounts report page.
+Request `https://api.octocounts.com/badge/:owner/:repo` with optional `type` parameters (`code`, `lines`, `files`, `comments`, `languages`, `top-language`, or `ratio`) and optional branch, tag, or commit path segments. Wrap the badge URL in a Markdown image that links to the live OctoCounts report page.
 
 ### What shareable URLs does OctoCounts provide?
 
-Every analyzed repository gets permanent web URLs such as `https://octocounts.com/github/:owner/:repo`, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis.
+Every analyzed repository gets live web URLs such as `https://octocounts.com/github/:owner/:repo`, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis.
 
 [Back to OctoCounts](https://octocounts.com/)

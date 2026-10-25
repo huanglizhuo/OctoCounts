@@ -1,12 +1,12 @@
 # Count lines of code without cloning the repository
 
-Updated October 15, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-You can count a GitHub repository's lines of code without cloning it: paste the URL into the [OctoCounts web app](https://octocounts.com/) and it downloads the source archive of the requested ref — not the git history — counts it with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals in seconds. The [browser extension](https://octocounts.com/extension), report pages, `.md` twins, [badges](https://octocounts.com/badges), and [API](https://octocounts.com/docs/api) all answer from the same archive-based pipeline, so no step ever requires a local clone.
+You can count a GitHub repository's lines of code without cloning it: paste the URL into the [OctoCounts web app](https://octocounts.com/) and it downloads the source archive of the requested ref — not the git history — counts it with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals. Duration depends on repository size, upstream access, queueing, and deployment limits. The [browser extension](https://octocounts.com/extension), report pages, `.md` twins, [badges](https://octocounts.com/badges), and [API](https://octocounts.com/docs/api) all answer from the same archive-based pipeline, so no step ever requires a local clone.
 
 ## Why avoid cloning just to count lines?
 
-A git clone downloads the full history: every revision of every file that ever existed on the default branch. The linux repository's git history is measured in gigabytes, while a single snapshot of its source tree is a few hundred megabytes compressed — and that snapshot is all a line counter reads. Counting lines of code needs files, not history, so for size checks the clone is nearly all waste: minutes of transfer and gigabytes of disk for one number. The [repository size checker guide](https://octocounts.com/docs/github-repository-size-checker) covers how to estimate that size *before* deciding to clone.
+A full clone includes repository history as well as the current source tree. A source archive contains one revision without that history, which is enough for a line count. Transfer size and duration depend on the repository and network; shallow or partial clones can also reduce transfers. With OctoCounts, archive download and counting happen on the server.
 
 ## How do I count lines without cloning?
 
@@ -19,15 +19,15 @@ If you keep reading code on github.com, the [OctoCounts extension](https://octoc
 
 ## Do git partial clones make no-clone counting unnecessary?
 
-They narrow the gap without closing it. `git clone --depth 1` truncates history but still fetches every file of the latest commit, and `--filter=blob:none` defers file contents until checkout — at which point running `wc`, cloc, or tokei fetches the whole tree anyway. A shallow partial clone of a monorepo can still be hundreds of megabytes on your disk. There are also read-only tricks that avoid git entirely — the [GitHub API page](https://octocounts.com/docs/github-api-count-lines) explains why the API route still cannot give you lines — which leaves archive-based counting as the only route that never moves the repository onto your machine.
+They narrow the gap without closing it. `git clone --depth 1` truncates history but still fetches every file of the latest commit, and `--filter=blob:none` defers file contents until checkout — at which point running `wc`, cloc, or tokei fetches the whole tree anyway. A shallow partial clone of a monorepo can still be hundreds of megabytes on your disk. There are also read-only tricks that avoid git entirely — the [GitHub API page](https://octocounts.com/docs/github-api-count-lines) explains why the API route still cannot give you lines — server-side archive counting is one way to avoid moving the source tree onto your machine.
 
 ## Do the numbers match a count on a local clone?
 
-Yes, when the inputs match. OctoCounts counts the source archive of one exact commit with tokei; check out the same commit locally and run the same tokei version with the same options, and the counts agree — it is the same program reading the same bytes. Every report records its commit SHA, tokei version, and analysis options so the claim is checkable; the [counting methodology](https://octocounts.com/docs/methodology) documents the pipeline and the [filtering-effects pilot study](https://octocounts.com/research) publishes the raw measurements (collected with tokei 12.1 on 2026-09-08; production now runs tokei 14.0.0).
+Matching counts require the same actual source tree, tokei version, and effective counting rules, including extraction exclusions and repository attributes. A local checkout at the same commit may differ from an archive: export-ignore can omit paths and export-subst can change file contents. Record the full commit SHA, engine version, options, effective policy, and measurement date; retain the exported JSON and a saved-report link while available. Older reports may lack a complete policy. The filtering pilot measures option effects, not local-versus-server parity. See [Git archive attribute semantics](https://git-scm.com/docs/git-archive).
 
 ## What is the fastest way to count lines without cloning?
 
-For a one-off, open `https://octocounts.com/github/:owner/:repo` directly — a warm report renders instantly because results are cached by repository, commit SHA, tokei version, and analysis options. For automation, the [API's](https://octocounts.com/docs/api) `GET /api/reports/:reportId` returns full JSON and the badge endpoints return a ready-made SVG. For scale: in OctoCounts' [2026 pilot](https://octocounts.com/research), archive-based analysis of the react and vite repositories completed in 1.2–1.9 seconds per request, end to end, on a cold queue.
+For a one-off, open `https://octocounts.com/github/:owner/:repo` directly — a warm report can reuse cached counts because results are cached by repository, commit SHA, tokei version, and analysis options. For automation, the [API's](https://octocounts.com/docs/api) `GET /api/reports/:reportId` returns full JSON and the badge endpoints return a ready-made SVG. For scale: in OctoCounts' [2026 pilot](https://octocounts.com/research), archive-based analysis of the react and vite repositories completed in 1.2–1.9 seconds of observed wall time per request; cache and queue state were not controlled.
 
 ## When do you still need a clone?
 

@@ -32,6 +32,24 @@ docker compose -f docker-compose.dev.yml down
 
 ---
 
+## Static preview image
+
+`frontend/Dockerfile` and `frontend/nginx.conf` provide a local static/SPA preview,
+not the production SEO server. The preview sends `X-Robots-Tag: noindex, nofollow`;
+it serves known interactive routes and static documents, and returns 404 for unknown
+paths. Dynamic XML sitemaps, curated comparison SSR, report Markdown and IndexNow
+verification require Cloudflare Pages Functions (`frontend/functions`). Deploy both
+`frontend/dist` and those functions for the production site; a bare Nginx copy of
+`dist` does not provide an equivalent deployment. Static analytics injection is also
+provided by the Pages function, not this preview image.
+
+The weekly seed workflow rotates its batch using `GITHUB_RUN_NUMBER`, including
+repositories appended from the comparison registry. For a local dry run, use
+`node scripts/seed-popular-repos.mjs --dry-run --limit 50 --batch 0`; increment the
+batch to cover the next group. It wraps after the last batch. The sitemap API
+returns the complete eligible GitHub inventory; the Pages function splits it into
+XML files, so its 50,000-URL file limit does not truncate the whole inventory.
+
 ## Local Development (Host-native)
 
 If you'd rather not run Docker and enjoy living dangerously, start a local Postgres database first and set `DATABASE_URL` to it.
@@ -200,7 +218,7 @@ to `main` and on `v*` tags, publishing:
 | Image | Contents |
 |---|---|
 | `ghcr.io/huanglizhuo/octocounts-api` | backend (`backend/`) |
-| `ghcr.io/huanglizhuo/octocounts-web` | frontend (`frontend/`) |
+| `ghcr.io/huanglizhuo/octocounts-web` | local static/SPA preview (`frontend/`); not the production SEO deployment |
 | `ghcr.io/huanglizhuo/octocounts-mcp` | hosted MCP HTTP server (`mcp/`) |
 
 Cut a release by pushing a version tag (`git tag v0.4.0 && git push origin v0.4.0`),
@@ -215,6 +233,10 @@ on the box. To ship a new version: push a tag here, then bump `OCTO_TAG` in
 
 > The old `docker compose up --build -d` flow (build-on-server) is superseded by the
 > above. `docker-compose.dev.yml` remains for local development.
+
+The public frontend uses Cloudflare Pages: build `frontend/dist` and deploy it
+with `frontend/functions`. The web preview image above intentionally sends
+`noindex`; do not substitute it for that Pages deployment.
 
 ### Environment variables
 
@@ -287,17 +309,20 @@ and pushing the core pages after a deploy) — commands and caveats live in
 
 ### Cloudflare edge cache and Web Analytics
 
-Applied and checked in the Cloudflare dashboard on 2026-09-27. These settings
-live outside this repository; a code deployment does not recreate them.
+The dashboard observations below were recorded on 2026-09-27; they are not a
+new production verification. These settings live outside this repository;
+a code deployment does not recreate them. The format guidance was updated
+on 2026-10-25 to match the current HTML-for-all-user-agents implementation.
 
 In the `octocounts.com` zone, keep Cache Rules in this order:
 
 1. `octocounts-public-pages-respect-origin`
    (rule ID `b36d1aef197a4c52aea66e41994ae031`).
 2. The existing public SEO pages and read-only API cache rule.
-3. The existing retrieval-time AI crawler bypass rule for `/github/`,
-   `/compare/`, and `/docs/`. Keep it after the public rules so it can serve
-   Markdown for the configured crawler User-Agents.
+3. Inspect any legacy retrieval-time AI crawler bypass rule for `/github/`,
+   `/compare/`, and `/docs/`. If retained, it may bypass caching but must not
+   transform canonical HTML into Markdown. UA-based format switching was
+   removed; only `.md` and `?format=md` request Markdown.
 
 The first rule uses this exact expression:
 
@@ -332,11 +357,11 @@ rtk proxy curl -sS -D - -o /dev/null 'https://octocounts.com/extension?format=md
 rtk proxy curl -sS -D - -o /dev/null -A 'PerplexityBot/1.0' https://octocounts.com/compare/react-vs-vue
 ```
 
-Check that normal pages remain HTML, explicit `?format=md` responses are
-Markdown under a separate URL key, and the crawler request above remains
-Markdown with `private, no-store` and a bypassed/DYNAMIC cache status. A
-UA-only `no-store` response prevents insertion into shared cache but cannot
-bypass an already-cached HTML response by itself; preserve the crawler rule.
+Check that normal pages and the crawler request above both remain HTML with
+the same indexing policy. Explicit `?format=md` responses are Markdown under
+a separate URL key and carry `X-Robots-Tag: noindex, follow`. Do not apply a
+Markdown response or its noindex header to canonical HTML by User-Agent.
+Validate the current zone rules before relying on the historical cache samples.
 
 **Web Analytics:** retain the Pages-managed site `octocounts.pages.dev +1`,
 which includes `octocounts.com`. Its beacon token is
@@ -348,8 +373,9 @@ to detect the duplication. After disabling domain auto-injection and purging
 only the homepage URL, browser checks of `/` and `/compare` showed just the
 Pages beacon. Analytics report aggregation was not revalidated in that check.
 
-Rollback: disable only `octocounts-public-pages-respect-origin`, leaving the
-existing cache and crawler rules intact. To restore the previous duplicate
+Rollback of that cache-rule change: disable only
+`octocounts-public-pages-respect-origin`, leaving unrelated rules intact;
+do not restore retired UA-based format switching. To restore the previous duplicate
 analytics configuration, set the separate domain site's RUM back to Enable
 and Update; do not delete the Pages-managed site. Security settings were not
 changed by this work.
@@ -373,3 +399,23 @@ reached through a Cloudflare Tunnel back to the VPS backend (see the private
 The backend requires Git when `respectGitattributes` is enabled; the runtime Docker image includes it. Install Git on hosts that run the Rust binary directly. Git attributes are evaluated in an isolated temporary repository, with a 30-second deadline and an 8 MiB cumulative declaration limit. The option stays off by default and does not change existing cache keys when off.
 
 Saved report IDs pin measured counts but remain subject to report cache retention and replacement. Expired IDs return unavailable rather than triggering a recount. See `frontend/public/docs/api.md` for Retry-After handling, safe POST retries, long-polling and recovery using job IDs.
+
+## Report ref routing migration (2026-10-25)
+
+Deploy the backend before the corresponding Pages Functions update. The SEO
+report API now accepts `refKind=tree|commit` alongside `refName`; without it,
+legacy automatic interpretation remains supported. This distinguishes a
+hexadecimal branch name from a SHA. Pages preserves the explicit ref in the
+HTML canonical, Markdown alternate and Dataset download URL.
+
+The existing startup migration creates `repository_refs`, a mapping from each
+observed repository/ref to its resolved commit. It requires the same DDL
+permission as existing startup migrations. Cache hits and deduplicated jobs
+record the mapping without duplicating reports or downloading source again;
+mapping-write failures log a warning without failing an otherwise successful
+analysis. Repository renames migrate the mappings.
+
+Old aliases that were never recorded cannot be recovered from a single report's
+ref name. Their next normal analysis request resolves the ref and records it,
+including when the count is already cached. A newly observed commit without a
+retained canonical report returns 404 rather than an older ref's count.

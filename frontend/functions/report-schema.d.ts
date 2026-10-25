@@ -1,6 +1,6 @@
 import type { Report } from "../src/types";
 
-export function reportJsonLd(report: Pick<Report, "generatedAt" | "analysisKey" | "commitSha" | "refName" | "languages" | "total"> & {
+export function reportJsonLd(report: Pick<Report, "generatedAt" | "analysisKey" | "commitSha" | "refName" | "languages" | "total"> & Partial<Pick<Report, "tokeiVersion" | "countingPolicy">> & {
   canonicalUrl: string;
   repoFullName: string;
   description: string;
@@ -9,4 +9,6 @@ export function reportJsonLd(report: Pick<Report, "generatedAt" | "analysisKey" 
   owner: string;
   repo: string;
   reportId?: string;
+  requestedRef?: string;
+  refKind?: "tree" | "commit";
 }): Record<string, unknown>;

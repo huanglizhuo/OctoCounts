@@ -1,8 +1,8 @@
 # How to count lines of code in a GitHub repository
 
-Updated October 16, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the fastest.
+There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.
 
 ## How do I count lines of code in a GitHub repository without cloning it?
 
@@ -62,7 +62,7 @@ It depends on the tool, and the distinction is the whole point of SLOC. `wc -l` 
 
 ## Does OctoCounts support private repositories?
 
-No. OctoCounts analyzes public github.com repositories only, does not request GitHub account access, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally — the [tokei online guide](https://octocounts.com/docs/tokei-online) compares the two routes.
+No. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally — the [tokei online guide](https://octocounts.com/docs/tokei-online) compares the two routes.
 
 ## Related OctoCounts pages
 

@@ -8,6 +8,7 @@ ARG VITE_API_BASE=/api
 ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 
+# Local static/SPA preview; production uses Cloudflare Pages plus frontend/functions.
 FROM nginx:1.27-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html

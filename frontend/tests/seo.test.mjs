@@ -136,7 +136,7 @@ test("renamed repository URLs permanently redirect to the current canonical repo
   ]) {
     const response = await onRequest(requestContext(path));
     assert.equal(response.status, 308);
-    assert.equal(response.headers.get("location"), "https://octocounts.com/github/huanglizhuo/OctoCounts");
+    assert.equal(response.headers.get("location"), `https://octocounts.com/github/huanglizhuo/OctoCounts${path.endsWith("/tree/main") ? "/tree/main" : ""}`);
   }
 });
 
@@ -323,7 +323,7 @@ test("static and Pages Function responses apply production security headers", as
 
   for (const value of [
     "/fonts/*\n  Cache-Control: public, max-age=31536000, immutable",
-    "/octocounts-*-768.webp\n  Cache-Control: public, max-age=31536000, immutable",
+    "/octocounts-*.webp\n  Cache-Control: public, max-age=86400, stale-while-revalidate=86400",
     "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
     "Cross-Origin-Opener-Policy: same-origin",
   ]) assert.ok(headers.includes(value));
@@ -506,7 +506,7 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
     assert.doesNotMatch(staticXml, /<changefreq>|<priority>/);
 
     const reportsXml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml", snapshot))).text();
-    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
+    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-10-25<\/lastmod>/);
     assert.doesNotMatch(reportsXml, /<changefreq>|<priority>/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -644,9 +644,8 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
     const staticDates = [...edge.matchAll(/\{ loc: "https:\/\/octocounts\.com\/[^"]*", lastmod: "(\d{4}-\d{2}-\d{2})" \}/g)].map((match) => match[1]);
     const expectedStaticMax = staticDates.reduce((a, b) => (b > a ? b : a));
     assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-static\\.xml</loc>\\s*<lastmod>${expectedStaticMax}</lastmod>`));
-    const compareLastmod = edge.match(/COMPARE_CONTENT_LASTMOD = "(\d{4}-\d{2}-\d{2})"/)[1];
-    assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-compare\\.xml</loc>\\s*<lastmod>${compareLastmod}</lastmod>`));
-    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-07-14<\/lastmod>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<\/sitemap>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-10-25<\/lastmod>/);
 
     for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
       const xml = await (await onRequest(await renderedContext(path, {
@@ -711,7 +710,7 @@ test("dist index.html keeps the meta shapes the edge injector matches", async ()
   assert.match(html, /<div id="root"><\/div>/);
 });
 
-test("every generated sitemap child carries a lastmod date per URL", async () => {
+test("sitemaps omit freshness claims for changing collections without a reliable content timestamp", async () => {
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();
   globalThis.fetch = async (url, init) => {
@@ -733,7 +732,11 @@ test("every generated sitemap child carries a lastmod date per URL", async () =>
       const blocks = xml.match(/<url>[\s\S]*?<\/url>/g) ?? [];
       assert.ok(blocks.length > 0, path);
       for (const block of blocks) {
-        assert.match(block, /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/, `${path}: ${block}`);
+        if (path === "/sitemap-compare.xml" || /<loc>https:\/\/octocounts\.com\/(stats|recent|popular|hall-of-monoliths)<\/loc>/.test(block)) {
+          assert.doesNotMatch(block, /<lastmod>/);
+        } else {
+          assert.match(block, /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/, `${path}: ${block}`);
+        }
       }
     }
   } finally {
@@ -975,7 +978,7 @@ test("curated comparison SSR renders balanced citable content", async () => {
     assert.ok(dataset, `${slug} Dataset node`);
     assert.deepEqual(dataset.isBasedOn, [left.canonicalUrl, right.canonicalUrl]);
     assert.equal(dataset.url, `https://octocounts.com/compare/${slug}`);
-    assert.equal(dataset.dateModified, right.generatedAt > left.generatedAt ? right.generatedAt : left.generatedAt);
+    assert.equal(dataset.dateModified, [left.generatedAt, right.generatedAt, "2026-10-25"].sort().at(-1));
     assert.equal(dataset.dateModified, model.updatedAt, `${slug} model updatedAt matches JSON-LD dateModified`);
     assert.ok(graph.some((node) => node["@type"] === "BreadcrumbList"), `${slug} breadcrumbs`);
 
@@ -1162,40 +1165,41 @@ test("report page answers 503 + no-store when the report API is unreachable", as
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
-test("report page carries a semantic timestamp and answers conditional GETs", async () => {
+test("report validators cover template changes as well as measured data", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json(CURATED_FIXTURES["react/react"]);
   try {
     const context = await renderedContext("/github/react/react");
-    // Stale conditional request: full 200 with a machine-readable freshness
-    // trail — Last-Modified from the report's own generatedAt, plus <time>
-    // around the visible date so agents parse it without regexes.
-    const fresh = await onRequest({
-      ...context,
-      request: new Request("https://octocounts.com/github/react/react", {
-        headers: { "if-modified-since": "Wed, 01 Jan 2026 00:00:00 GMT" },
-      }),
-    });
-    assert.equal(fresh.status, 200);
-    assert.equal(fresh.headers.get("last-modified"), "Mon, 20 Jul 2026 00:00:00 GMT");
-    assert.match(await fresh.text(), /<time datetime="2026-07-20T00:00:00Z">2026-07-20T00:00:00Z<\/time>/);
-
-    // Same-second-or-newer conditional request: 304 with no body.
-    const notModified = await onRequest({
-      ...context,
-      request: new Request("https://octocounts.com/github/react/react", {
-        headers: { "if-modified-since": "Mon, 20 Jul 2026 00:00:00 GMT" },
-      }),
-    });
-    assert.equal(notModified.status, 304);
-    assert.equal(notModified.headers.get("last-modified"), "Mon, 20 Jul 2026 00:00:00 GMT");
-    assert.equal(await notModified.text(), "");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    const assetFetch = context.env.ASSETS.fetch;
+    context.env.ASSETS.fetch = async (request) => {
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("if-none-match"), null);
+      assert.equal(request.headers.get("if-modified-since"), null);
+      return assetFetch(request);
+    };
+    const fresh = await onRequest({ ...context, request: new Request(context.request, {
+      headers: { "if-modified-since": "Mon, 20 Jul 2026 00:00:00 GMT" },
+    }) });
+    assert.equal(fresh.status, 200, "data-only dates must not hide template updates");
+    assert.equal(fresh.headers.get("last-modified"), null);
+    const etag = fresh.headers.get("etag");
+    assert.match(etag, /^W\/"[a-f0-9]{64}"$/);
+    assert.match(await fresh.text(), /<time datetime="2026-07-20T00:00:00Z">/);
+    const conditional = new Request(context.request, { headers: { "if-none-match": etag } });
+    const unchanged = await onRequest({ ...context, request: conditional });
+    assert.equal(unchanged.status, 304);
+    assert.equal(unchanged.headers.get("etag"), etag);
+    assert.equal(await unchanged.text(), "");
+    const oldFetch = context.env.ASSETS.fetch;
+    const changed = await onRequest({ ...context, request: conditional, env: { ...context.env, ASSETS: {
+      fetch: async (request) => new Response((await (await oldFetch(request)).text()) + "<!-- template v2 -->", { headers: { "content-type": "text/html" } }),
+    } } });
+    assert.equal(changed.status, 200);
+    assert.notEqual(changed.headers.get("etag"), etag);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
-test("curated comparison dataset is speakable and anchors its summary sentence", async () => {
+test("curated comparison dataset omits inapplicable speakable and keeps a visible summary", async () => {
   const restore = stubReportFetch(CURATED_FIXTURES);
   let html;
   try {
@@ -1205,7 +1209,7 @@ test("curated comparison dataset is speakable and anchors its summary sentence",
     restore();
   }
   assert.match(html, /<p id="octocounts-compare-summary">/);
-  assert.match(html, /"speakable":\{"@type":"SpeakableSpecification","cssSelector":\["#root h1","#octocounts-compare-summary"\]\}/);
+  assert.doesNotMatch(html, /"speakable"/);
 });
 
 test("report page answers 503 + no-store when the payload belongs to a different repository", async () => {
@@ -1402,7 +1406,7 @@ test("a compare payload with a foreign repository name still fails closed withou
   assert.doesNotMatch(html, /fake-owner/);
 });
 
-test("sitemap drops curated comparisons whose reports are missing but keeps them when the backend fails", async () => {
+test("sitemap drops missing comparisons and returns 503 when eligibility cannot be checked", async () => {
   const originalFetch = globalThis.fetch;
   __resetCompareExistenceCacheForTests();
   globalThis.fetch = async (url, init) => {
@@ -1437,8 +1441,7 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
   // Everything with both sides cached stays listed.
   assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/vite-vs-webpack<\/loc>/);
 
-  // An unreachable backend fails open: no curated entry is dropped, and the
-  // failed answer is not cached (the next pass retries).
+  // A failed eligibility check must not advertise unverified URLs.
   __resetCompareExistenceCacheForTests();
   globalThis.fetch = async (url, init) => {
     const request = new URL(url);
@@ -1448,21 +1451,20 @@ test("sitemap drops curated comparisons whose reports are missing but keeps them
     }
     return Response.json({});
   };
-  let xmlOnFailure;
+  let failedResponse;
   try {
-    const response = await onRequest(await renderedContext("/sitemap-compare.xml", {
+    failedResponse = await onRequest(await renderedContext("/sitemap-compare.xml", {
       source: "https://github.com/trending",
       generatedAt: "2026-07-15T02:17:00Z",
       date: "2026-07-15",
       repositories: [],
     }));
-    xmlOnFailure = await response.text();
   } finally {
     globalThis.fetch = originalFetch;
   }
-  assert.match(xmlOnFailure, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>/);
-  const curatedCount = (xmlOnFailure.match(/<loc>https:\/\/octocounts\.com\/compare\//g) ?? []).length;
-  assert.equal(curatedCount, COMPARE_REGISTRY.length);
+  assert.equal(failedResponse.status, 503);
+  assert.equal(failedResponse.headers.get("cache-control"), "no-store");
+  assert.equal(failedResponse.headers.get("retry-after"), "60");
 });
 
 test("bare /compare noscript links every curated comparison", async () => {
@@ -1840,7 +1842,7 @@ test("docs dateModified and sitemap lastmod follow the per-page content manifest
     globalThis.fetch = originalFetch;
   }
   for (const [loc, lastmod] of manifestSitemapPages) {
-    if (loc.endsWith("/trending")) continue; // injected from the daily snapshot
+    if (/\/(trending|stats|recent|popular|hall-of-monoliths)$/.test(loc)) continue; // dynamic dates are injected or omitted
     const block = staticXml.match(new RegExp(`<url>\\s*<loc>${loc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}<\\/loc>\\s*<lastmod>([^<]+)<\\/lastmod>`));
     assert.ok(block, `${loc} present in generated static sitemap`);
     assert.equal(block[1], lastmod, `${loc} generated sitemap lastmod matches manifest`);
@@ -1956,6 +1958,11 @@ test("curated comparisons expose effective rules and saved citations in every re
       const md = await (await onRequest(await renderedContext("/compare/react-vs-vue.md"))).text();
       const model = JSON.parse(html.match(/id="octocounts-compare-data">([^<]*)<\/script>/)[1]);
       assert.equal(model.compatibility, status);
+      assert.equal(model.faq[0].answer, model.summaryText);
+      if (status !== "same") {
+        assert.match(model.summaryText, /no like-for-like size ratio/);
+        assert.doesNotMatch(model.summaryText, /\d+(?:\.\d+)?x /);
+      }
       assert.ok(html.includes(model.policyText));
       assert.ok(md.includes(model.policyText));
       assert.match(model.policyText, /tokei-14\.0\.0/);
@@ -1999,6 +2006,46 @@ test("legacy Dataset downloads retain the measured ref instead of falling back t
   } finally {
     restore();
   }
+});
+
+test("explicit refs keep their identity in canonical, Markdown and Dataset URLs", async (t) => {
+  for (const [kind, reference] of [["tree", "release/v1"], ["tree", "deadbee"], ["tree", "feature.html"], ["commit", RELATED_REPORT_FIXTURE.commitSha.slice(0, 12)]]) {
+    const fixture = { ...RELATED_REPORT_FIXTURE, refName: kind === "tree" ? reference : "main" };
+    const path = `/github/octo-org/octo-repo/${kind}/${reference}`;
+    const calls = [];
+    t.mock.method(globalThis, "fetch", async (raw) => {
+      const url = new URL(raw);
+      if (url.pathname === "/api/seo/report") { calls.push(url); return Response.json(fixture); }
+      return Response.json({ reports: [] });
+    });
+    const response = await onRequest(await renderedContext(path));
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    const canonical = `https://octocounts.com${path}`;
+    assert.ok(html.includes(`<link rel="canonical" href="${canonical}"`), path);
+    assert.ok(html.includes(`type="text/markdown" href="${canonical}.md"`), path);
+    const dataset = JSON.parse(html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)[1])["@graph"].find((node) => node["@type"] === "Dataset");
+    assert.equal(dataset.url, canonical);
+    const download = new URL(dataset.distribution.contentUrl);
+    assert.equal(download.searchParams.get("refName"), reference);
+    assert.equal(download.searchParams.get("refKind"), kind);
+    const markdown = await onRequest(await renderedContext(`${path}.md`));
+    assert.equal(markdown.status, 200);
+    assert.match(await markdown.text(), new RegExp(fixture.commitSha.slice(0, 12)));
+    assert.ok(calls.every((url) => url.searchParams.get("refName") === reference && url.searchParams.get("refKind") === kind));
+    t.mock.restoreAll();
+  }
+});
+
+test("a commit URL never publishes another commit's report", async () => {
+  const restore = stubReportAndRelatedFetch({ reports: [] });
+  try {
+    for (const suffix of ["", ".md"]) {
+      const response = await onRequest(await renderedContext(`/github/octo-org/octo-repo/commit/0000000${suffix}`));
+      assert.equal(response.status, 503);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
+  } finally { restore(); }
 });
 
 test("report SSR, JSON-LD, summary, and markdown expose the reproducible snapshot link when the configuration is known", async () => {
@@ -2299,7 +2346,7 @@ test("/research serves its static HTML without a directory-redirect loop and hon
   const response = await onRequest(researchAssetContext("/research"));
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html/);
-  assert.equal(await response.text(), html);
+  assert.equal(await response.text(), html.replace("</head>", '<script type="module" src="/analytics.js"></script></head>'));
 
   // The canonical URL is slash-free: /research/ redirects to it instead of
   // looping (the asset server 308s /research → /research/ for directories;
@@ -2496,7 +2543,7 @@ test("editorial compare pages carry scoped, sourced explanations in every format
     for (const [source, label] of [[html, "HTML"], [md, "markdown"]]) {
       assert.ok(source.includes("About this comparison"), `${label} editorial heading`);
       assert.ok(source.includes("react/react is a monorepo"), `${label} scope statement`);
-      assert.ok(source.includes("predominantly TypeScript"), `${label} data-supported insight`);
+      assert.ok(source.includes("historical context"), `${label} distinguishes background from measured language shares`);
       assert.ok(source.includes("Neither number predicts the size, performance, or quality"), `${label} caution`);
       assert.ok(source.includes("https://github.com/react/react"), `${label} source link`);
       assert.ok(source.includes("Statements verified 2026-10-16"), `${label} verification date`);
@@ -2567,7 +2614,14 @@ test("fixed report HTML and markdown read the saved ID, including small filtered
   assert.deepEqual(summary.countingPolicy, report.countingPolicy);
   const md = await onRequest(await renderedContext(path + "&format=md"));
   assert.equal(md.status, 200);
-  assert.match(await md.text(), /17 code lines/);
+  const markdown = await md.text();
+  assert.match(markdown, /17 code lines/);
+  for (const body of [html, markdown]) {
+    assert.match(body, /Counting rules and retention/);
+    assert.match(body, /policy attributes-v1; docs excluded, tests excluded, generated excluded/);
+    assert.match(body, /Repository declarations: applied/);
+    assert.match(body, /Saved reports remain subject to cache cleanup and replacement/);
+  }
   assert.ok(calls.every((url) => !url.includes("/api/seo/report") && !url.includes("/api/analyze")));
 });
 
@@ -2600,7 +2654,7 @@ test("custom counting links without saved IDs never render canonical cache count
 test("nginx routes Chinese pages and explicit Markdown without falling back to the SPA", async () => {
   const nginx = await readFile(new URL("nginx.conf", ROOT), "utf8");
   assert.ok(nginx.includes('location = /zh { rewrite ^ /home-zh.html break; }'));
-  assert.ok(nginx.includes('add_header X-Robots-Tag $markdown_robots always;'));
+  assert.ok(nginx.includes('add_header X-Robots-Tag "noindex, nofollow" always;'));
   assert.ok(nginx.includes('text/markdown md;'));
   for (const slug of ["github-sloc-counter", "methodology"]) {
     assert.ok(nginx.includes(`location = /zh/docs/${slug} {`));
@@ -2688,4 +2742,120 @@ test("Chinese guides serve HTML to all bots and explicit Markdown twins with noi
       assert.match(md, /reportId/);
     }
   }
+});
+
+test("invalid GitHub report paths never fetch or render another report", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("invalid routes must not fetch"); };
+  try {
+    for (const path of ["/github/o/r/nonsense", "/github/o/r/tree", "/github/o/r/commit/not-a-sha", "/github/o/r/commit/abcdef1/extra", "/github/o%2Fr/repo", "/github/o/%E0%A4%A", "/github/o"]) {
+      assert.equal((await onRequest(requestContext(path))).status, 404, path);
+    }
+    const normalized = await onRequest(requestContext("/github//o/r?format=md"));
+    assert.equal(normalized.status, 308);
+    assert.equal(normalized.headers.get("location"), "https://octocounts.com/github/o/r?format=md");
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("static Markdown twins fetch the actual Markdown asset and reject HTML fallbacks", async () => {
+  for (const path of ["/about.md", "/about?format=md", "/docs/methodology.md", "/docs/methodology?format=md", "/zh/docs/methodology.md", "/research.md", "/research?format=md"]) {
+    const context = requestContext(path);
+    context.env.ASSETS.fetch = async (request) => {
+      assert.equal(new URL(request.url).pathname, path.split("?")[0].replace(/\.md$/, "") + ".md");
+      assert.equal(new URL(request.url).search, "");
+      return new Response("# About OctoCounts", { headers: { "content-type": "text/markdown" } });
+    };
+    const response = await onRequest(context);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type"), /text\/markdown/);
+    assert.equal(await response.text(), "# About OctoCounts");
+    context.env.ASSETS.fetch = async () => new Response("<!doctype html>", { headers: { "content-type": "text/html" } });
+    assert.equal((await onRequest(context)).status, 404);
+  }
+});
+
+test("sitemap and list outages are retryable rather than empty indexed content", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const failure of [async () => new Response("outage", { status: 503 }), async () => { throw new Error("offline"); }, async () => Response.json({ wrong: "shape" }), async () => Response.json({ reports: [null], repos: [null] })]) {
+      globalThis.fetch = failure;
+      for (const path of ["/sitemap.xml", "/sitemap-reports-1.xml", "/sitemap-compare.xml", "/recent", "/popular", "/hall-of-monoliths"]) {
+        __resetCompareExistenceCacheForTests();
+        const response = await onRequest(await renderedContext(path));
+        assert.equal(response.status, 503, path);
+        assert.equal(response.headers.get("cache-control"), "no-store", path);
+      }
+    }
+    globalThis.fetch = async () => Response.json([]);
+    const index = await (await onRequest(await renderedContext("/sitemap.xml"))).text();
+    assert.doesNotMatch(index, /sitemap-reports-/, "successful empty inventories do not advertise nonexistent chunks");
+    assert.equal((await onRequest(await renderedContext("/sitemap-reports-1.xml"))).status, 404);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("invalid upstream report bodies return retryable 503 in both formats", async (t) => {
+  for (const body of ["<html>upstream error</html>", "null", JSON.stringify({ repoFullName: "react/react" }), JSON.stringify({ ...CURATED_FIXTURES["react/react"], total: { code: -1 } }), JSON.stringify({ ...CURATED_FIXTURES["react/react"], countingPolicy: { version: "broken" } })]) {
+    t.mock.method(globalThis, "fetch", async () => new Response(body));
+    for (const path of ["/github/react/react", "/github/react/react.md", "/compare/react-vs-vue", "/compare/react-vs-vue.md"]) {
+      const response = await onRequest(await renderedContext(path));
+      assert.equal(response.status, 503, path);
+      assert.equal(response.headers.get("cache-control"), "no-store", path);
+    }
+    t.mock.restoreAll();
+  }
+});
+
+test("SSR list pagination uses the client's page size and exposes crawlable navigation", async () => {
+  const originalFetch = globalThis.fetch;
+  let requested;
+  globalThis.fetch = async (raw) => {
+    const url = new URL(raw);
+    if (url.pathname === "/api/seo/recent") {
+      requested = url;
+      return Response.json({ reports: Array.from({ length: 36 }, (_, i) => ({ ...RELATED_REPORT_FIXTURE, repoFullName: `org/repo-${i + 37}`, publicPath: `/github/org/repo-${i + 37}` })) });
+    }
+    return Response.json([]);
+  };
+  try {
+    const response = await onRequest(await renderedContext("/recent?page=2"));
+    assert.equal(response.status, 200);
+    assert.equal(requested.searchParams.get("limit"), "36");
+    assert.equal(requested.searchParams.get("page"), "2");
+    const html = await response.text();
+    assert.match(html, /href="https:\/\/octocounts.com\/recent">Previous page/);
+    assert.match(html, /href="https:\/\/octocounts.com\/recent\?page=3">Next page/);
+    assert.match(html, /org\/repo-72/);
+    assert.equal((await onRequest(await renderedContext("/recent?page=NaN"))).status, 404);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("zero-code comparisons never invent a size ratio in summaries or FAQ schema", async () => {
+  const fixtures = structuredClone(CURATED_FIXTURES);
+  for (const name of ["react/react", "vuejs/core"]) {
+    fixtures[name].countingPolicy = { version: "v1", includeDocs: true, includeTests: true, includeGenerated: true, ignoredDirs: [], ignoredLanguages: [], repositoryAttributes: { status: "off" } };
+    fixtures[name].tokeiVersion = "tokei-14.0.0";
+  }
+  fixtures["react/react"].total.code = 0;
+  const restore = stubReportFetch(fixtures);
+  try {
+    const html = await (await onRequest(await renderedContext("/compare/react-vs-vue"))).text();
+    const model = JSON.parse(html.match(/id="octocounts-compare-data">([^<]*)<\/script>/)[1]);
+    assert.match(model.summaryText, /zero counted code lines/);
+    assert.doesNotMatch(model.summaryText, /\d+(?:\.\d+)?x /);
+    assert.equal(model.faq[0].answer, model.summaryText);
+  } finally { restore(); }
+});
+
+test("indexable file threshold stays consistent between the edge and backend", async () => {
+  const edge = await readFile(new URL("functions/[[path]].js", ROOT), "utf8");
+  const backend = await readFile(new URL("../backend/src/seo.rs", ROOT), "utf8");
+  assert.equal(edge.match(/MIN_INDEXABLE_REPORT_FILES = (\d+)/)[1], backend.match(/MIN_INDEXABLE_REPORT_FILES: \w+ = (\d+)/)[1]);
+});
+
+test("static asset 304 responses keep a null body", async () => {
+  const context = requestContext("/about");
+  context.env.ASSETS.fetch = async () => new Response(null, { status: 304, headers: { "content-type": "text/html" } });
+  const response = await onRequest(context);
+  assert.equal(response.status, 304);
+  assert.equal(await response.text(), "");
 });

@@ -1061,10 +1061,19 @@ function buildCanonicalReportUrl(report: Report, ref: string) {
     const params = new URLSearchParams({ reportId: report.id, analysis: JSON.stringify(report.analysisOptions) });
     return `${buildPublicReportUrl(report.repository.owner, report.repository.name, report.commitSha)}?${params}`;
   }
-  return buildPublicReportUrl(report.repository.owner, report.repository.name, ref);
+  return buildCanonicalUrlForParsedRepo({ owner: report.repository.owner, repo: report.repository.name }, report.repository.htmlUrl, ref);
 }
 
 function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string }, _repoUrl: string, ref: string) {
+  const route = parsePublicReportPath(window.location.pathname);
+  const routeRepo = route ? parsePublicRepo(route.repoUrl) : null;
+  // The route owns whether this is the default report, a branch, or a commit.
+  // A cached report's resolved refName cannot recover that distinction (and a
+  // hexadecimal branch name must not silently become a commit URL).
+  if (routeRepo?.owner.toLowerCase() === parsed.owner.toLowerCase()
+    && routeRepo.repo.toLowerCase() === parsed.repo.toLowerCase()) {
+    return new URL(window.location.pathname, buildPublicReportUrl(parsed.owner, parsed.repo, "")).href;
+  }
   return buildPublicReportUrl(parsed.owner, parsed.repo, ref);
 }
 
@@ -1119,6 +1128,14 @@ function setCanonical(href: string) {
     document.head.appendChild(element);
   }
   element.href = href;
+  const canonical = new URL(href);
+  if (canonical.pathname.startsWith("/github/")) {
+    const markdown = new URL(canonical);
+    if (canonical.searchParams.has("reportId")) markdown.searchParams.set("format", "md");
+    else markdown.pathname += ".md";
+    document.head.querySelectorAll<HTMLLinkElement>('link[rel="alternate"][type="text/markdown"]')
+      .forEach((link) => { link.href = markdown.href; });
+  }
 }
 
 function Pipeline() {
