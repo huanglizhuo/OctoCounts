@@ -1,11 +1,12 @@
-# GitHub Trending daily snapshot generated 2026-10-25T07:33:17.371Z
-cloudflare/security-audit-skill
-NVIDIA/OpenShell
-aws/agent-toolkit-for-aws
+# GitHub Trending daily snapshot generated 2026-10-26T07:45:08.851Z
+makecindy/cindy
 Nutlope/hallmark
-luongnv89/claude-howto
+debpalash/VoiceStudio
 pbakaus/impeccable
 pollen-robotics/microduck
-google-gemini/gemini-cli
-jbiaojerry/ebook-treasure-chest
-makecindy/cindy
+TauricResearch/TradingAgents
+Renhuai123/ziwei-doushu
+JetBrains/thinkrail
+coollabsio/coolify
+cloudflare/security-audit-skill
+AgriciDaniel/claude-seo
