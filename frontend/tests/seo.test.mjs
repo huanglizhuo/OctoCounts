@@ -1589,7 +1589,10 @@ test("report HTML and Markdown survive a stalled optional related request", { ti
     if (new URL(url).pathname !== "/api/seo/related") return Response.json(RELATED_REPORT_FIXTURE);
     assert.ok(options.signal, "the optional request must have a deadline");
     return new Promise((_resolve, reject) => {
+      // Model the socket handle: Node 22's AbortSignal timeout alone is unref'ed.
+      const pendingSocket = setTimeout(() => reject(new Error("related deadline was not enforced")), 4000);
       options.signal.addEventListener("abort", () => {
+        clearTimeout(pendingSocket);
         aborted += 1;
         reject(options.signal.reason);
       }, { once: true });
