@@ -1,12 +1,12 @@
 # How to count lines of code in a GitHub repository
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 27, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.
 
 ## How do I count lines of code in a GitHub repository without cloning it?
 
-Paste the repository URL into the [OctoCounts web app](https://octocounts.com/) — for example `https://github.com/react/react`. OctoCounts downloads the source archive pinned to an exact commit SHA, runs [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at [octocounts.com/github/react/react](https://octocounts.com/github/react/react). Results export as text, JSON, or a PNG card, and feed [README badges](https://octocounts.com/badges).
+Paste the repository URL into the [OctoCounts web app](https://octocounts.com/) — for example `https://github.com/react/react`. OctoCounts downloads the source archive pinned to an exact commit SHA, runs [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comment lines, blank lines, and per-language totals. A retained matching report can be reused; new analysis time depends on repository size and queue load. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at [octocounts.com/github/react/react](https://octocounts.com/github/react/react). Results export as text, JSON, or a PNG card, and feed [README badges](https://octocounts.com/badges).
 
 ## How do I count lines of code directly on github.com?
 
@@ -63,6 +63,12 @@ It depends on the tool, and the distinction is the whole point of SLOC. `wc -l` 
 ## Does OctoCounts support private repositories?
 
 No. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally — the [tokei online guide](https://octocounts.com/docs/tokei-online) compares the two routes.
+
+## Which counting options should I use?
+
+Choose the scope before comparing numbers: include tests and docs for the maintained source tree, or exclude them for a narrower question. Keep the same engine and effective rules on both sides. The ten-repository study holds each repository at one commit and changes one filter at a time; its all-included experimental baseline is explicitly selected, not a promise about website defaults. Download the raw records to check which rules produced a number.
+
+[Read the October 27, 2026 study and download its raw reports](https://octocounts.com/research#cross-language-2026-10-27).
 
 ## Related OctoCounts pages
 

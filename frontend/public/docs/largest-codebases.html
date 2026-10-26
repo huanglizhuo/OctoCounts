@@ -52,7 +52,7 @@
       "headline": "How many lines of code? The largest codebases, counted",
       "description": "How many lines of code are in Linux, Firefox, LLVM, TensorFlow, Godot, and Kubernetes? First-party tokei counts at recorded commit prefixes with the same declared exclusion toggles; full effective rules were not archived.",
       "datePublished": "2026-10-15",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-27",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -139,7 +139,7 @@
           "name": "Why do line counts for the same codebase differ between websites?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Four things to record when comparing counts: the tool (wc counts every line; cloc, tokei, and scc split code from comments and blanks, each with its own language rules), the options (whether tests, docs, generated files, and vendor folders are included can swing totals by 20-50%), the commit (a default branch moves every day), and the date the count was taken. A count without a tool, version, commit, and options is not comparable to any other count."
+            "text": "Four things to record when comparing counts: the tool (wc counts every line; cloc, tokei, and scc split code from comments and blanks, each with its own language rules), the options (the two-repository pilot measured 26–48% fewer code lines when excluding tests; that sample does not establish a general range for all repositories or filters), the commit (a default branch moves every day), and the date the count was taken. A count without a tool, version, commit, and options is not comparable to any other count."
           }
         },
         {
@@ -175,7 +175,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Largest codebases</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How many lines of code? The largest codebases, counted</h1>
       <p class="answer">Counted by OctoCounts with tokei 14.0.0 over each repository's default branch at a pinned commit (test, docs, and generated-file exclusion rules enabled): the <strong>Linux kernel</strong> has 32,360,324 code lines, <strong>Firefox</strong> 24,586,522, <strong>LLVM</strong> 8,307,824, <strong>TensorFlow</strong> 5,130,571, <strong>Godot</strong> 4,120,690, <strong>Kubernetes</strong> 3,901,619, <strong>PostgreSQL</strong> 1,631,788, and <strong>git</strong> 1,148,625. These historical figures name the measured commit prefix and date. Repository links open live reports, which may show different counts.</p>
 
@@ -213,7 +213,7 @@
       <p>Four things to record when comparing counts:</p>
       <ol>
         <li><strong>The tool.</strong> <code>wc -l</code> counts every line in every text file; cloc, tokei, and scc split code from comments and blanks, each with its own language database (the <a href="/docs/tokei-vs-cloc-vs-scc">tokei vs cloc vs scc comparison</a> covers the differences).</li>
-        <li><strong>The options.</strong> Including or excluding tests, docs, generated files, and vendor folders can swing totals by 20&ndash;50% &mdash; OctoCounts' <a href="/research">pilot study</a> measured exactly how much on react and vite.</li>
+        <li><strong>The options.</strong> OctoCounts' <a href="/research">two-repository pilot study</a> measured 26&ndash;48% fewer code lines when excluding tests on React and Vite. This sample does not establish a general range for other repositories or filters.</li>
         <li><strong>The commit.</strong> A default branch moves daily; a count without a commit SHA describes a moving target.</li>
         <li><strong>The date.</strong> The measurement date records when the count was made; a fixed commit identifies the same tree regardless of measurement date.</li>
       </ol>
@@ -223,6 +223,10 @@
       <p>No &mdash; and this dataset is the argument. PostgreSQL averages 395 code lines per file with 30.3% of all lines being comments: dense, heavily documented code. Kubernetes averages 260 code lines per file at 80.5% code. The linux kernel averages 363 code lines per file across 50 languages. Size is an input to planning, budgeting, and the honest sanity check (&ldquo;is this really too big to audit before we depend on it?&rdquo;) &mdash; not a verdict on engineering quality.</p>
 
       <p class="note">If you cite these figures, credit OctoCounts and link this article and its historical JSON table. The original saved reports and full effective rules were not archived, so these records support attribution but not a complete reproduction. The <a href="/docs/methodology">methodology page</a> includes the recommended citation format.</p>
+
+      <h2>How should I compare sizes under different filters?</h2>
+      <p>Use the same engine and effective counting rules, then preserve the exported reports. The new ten-repository study compares test, documentation, generated-directory and repository-declaration filters at a fixed commit per project. It provides full raw evidence for those projects; it does not repair missing provenance in this page’s older eight-repository table or establish a universal test-code percentage.</p>
+      <p><a href="/research#cross-language-2026-10-27">Read the October 27, 2026 study and download its raw reports</a>.</p>
 
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/hall-of-monoliths">Hall of Monoliths: largest measured repositories, live</a></li>

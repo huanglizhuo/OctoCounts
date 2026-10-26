@@ -67,6 +67,8 @@ for (const file of copyFiles) {
 // Performance claims: no comparative or multiplier performance statements
 // without a published reproducible experiment (facts.performanceClaims).
 const forbidden = [
+  { pattern: /per-language totals in a few seconds|can swing totals by 20(?:-|–|&ndash;)50%/i, reason: "latency needs cache/queue conditions; filtering percentages must name the measured sample" },
+  { pattern: /AI-Usage: search-allowed, training-permitted/i, reason: "default training-use signal is no, with an explicit GPTBot exception; crawl access is separate" },
   { pattern: /same URL and ref always produce the same count|regardless of branch movement|相同的链接和引用总是产生相同的计数|不受分支移动影响/i, reason: "reproducibility requires the same commit, engine and effective counting rules; live refs may move" },
   { pattern: /gitlab/i, reason: "all GitLab support and copy was removed from the public product on 2026-09-08; re-adding any mention needs an explicit product decision" },
   { pattern: /10[-–]50\s?x/i, reason: "unsupported size/speed multiplier (see product-facts.json performanceClaims)" },
@@ -99,7 +101,7 @@ function checkIdentity(value, file) {
       if (file.endsWith("largest-codebases.html") && value.license) {
         note(`${path.relative(ROOT, file)}: dataset licensing needs an explicit data-license source; the code license is insufficient`);
       }
-      if (file.endsWith("research.html") && value.dateModified !== "2026-10-16") {
+      if (file.endsWith("research.html") && value.distribution?.some((item) => item.contentUrl?.endsWith("/pilot-samples.jsonl")) && value.dateModified !== "2026-10-16") {
         note(`${path.relative(ROOT, file)}: unchanged pilot Dataset must retain its recorded metadata date, independent of article edits`);
       }
     }

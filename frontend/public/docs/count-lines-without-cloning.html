@@ -52,7 +52,7 @@
       "headline": "Count lines of code without cloning a repository",
       "description": "Count a GitHub repository's lines of code without cloning: archive-based counting in the browser, the sidebar extension, markdown reports, badges, and the API.",
       "datePublished": "2026-10-15",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-27",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -153,7 +153,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Count without cloning</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>Count lines of code without cloning the repository</h1>
       <p class="answer">You can count a GitHub repository's lines of code without cloning it: paste the URL into the <a href="/">OctoCounts web app</a> and it downloads the source archive of the requested ref &mdash; not the git history &mdash; counts it with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals. Duration depends on repository size, upstream access, queueing, and deployment limits. The <a href="/extension">browser extension</a>, report pages, <code>.md</code> twins, <a href="/badges">badges</a>, and <a href="/docs/api">API</a> all answer from the same archive-based pipeline, so no step ever requires a local clone.</p>
 
@@ -180,6 +180,10 @@
 
       <h2>When do you still need a clone?</h2>
       <p>Private repositories &mdash; OctoCounts analyzes public github.com repositories only and does not accept uploads &mdash; and any analysis that needs local tooling beyond line counts. In those cases clone (shallow if you like) and run <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> in the checkout; the <a href="/docs/count-lines-of-code-github">full counting guide</a> covers the clone-based commands too.</p>
+
+      <h2>How can I verify a count without keeping a clone?</h2>
+      <p>Export the report JSON and retain its full commit SHA, tokei version, generatedAt, selected options and effective countingPolicy. The ten-repository study archives complete reports rather than relying on a live cache. It measures filtering effects on GitHub source archives; it does not establish parity with a local checkout, and request wall time is not a cold-download benchmark.</p>
+      <p><a href="/research#cross-language-2026-10-27">Read the October 27, 2026 study and download its raw reports</a>.</p>
 
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository (all four methods)</a></li>

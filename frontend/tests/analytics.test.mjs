@@ -8,7 +8,7 @@ const source = await readFile(new URL("../public/analytics-runtime.js", import.m
 function analytics({ saved, blockedStorage = false } = {}) {
   const scripts = [];
   const storage = new Map(saved ? [["octocounts.ai_visit", saved]] : []);
-  const window = { location: { pathname: "/docs/methodology" } };
+  const window = { location: { pathname: "/docs/methodology", search: "" } };
   const document = {
     referrer: "https://chatgpt.com/",
     querySelector: (selector) => scripts.find((script) => selector.includes("data-domain") ? script.dataset.domain : script.dataset.websiteId),
@@ -19,7 +19,7 @@ function analytics({ saved, blockedStorage = false } = {}) {
     getItem(key) { if (blockedStorage) throw new Error("blocked"); return storage.get(key) ?? null; },
     setItem(key, value) { if (blockedStorage) throw new Error("blocked"); storage.set(key, value); },
   };
-  const runtime = vm.runInNewContext(`${source.replaceAll("export function", "function")}\n({ initAnalytics, trackEvent, trackAiVisitIfReferred, aiReferrerSource })`, { window, document, sessionStorage, URL });
+  const runtime = vm.runInNewContext(`${source.replaceAll("export function", "function")}\n({ initAnalytics, trackEvent, trackAiVisitIfReferred, aiReferrerSource })`, { window, document, sessionStorage, URL, URLSearchParams });
   return { ...runtime, window, document, storage, scripts };
 }
 
@@ -38,6 +38,39 @@ test("AI landings wait for the SDK and retain their original landing path", () =
   assert.equal(events[0][0], "ai_visit");
   assert.equal(events[0][1].path, "/docs/methodology");
   assert.deepEqual(JSON.parse(app.storage.get("octocounts.ai_visit")), ["chatgpt"]);
+});
+
+test("ChatGPT campaign fallback tracks once and keeps the attribution basis", () => {
+  const app = analytics();
+  app.document.referrer = "";
+  app.window.location.search = "?utm_source=chatgpt.com";
+  app.initAnalytics();
+  app.trackAiVisitIfReferred();
+  const events = [];
+  app.window.umami = { track: (...event) => events.push(event) };
+  app.scripts[0].load();
+  app.document.referrer = "https://chatgpt.com/";
+  app.trackAiVisitIfReferred();
+  assert.equal(events.length, 1);
+  assert.equal(events[0][1].source, "chatgpt");
+  assert.equal(events[0][1].attribution, "utm");
+  assert.deepEqual(JSON.parse(app.storage.get("octocounts.ai_visit")), ["chatgpt"]);
+
+  const conflict = analytics();
+  conflict.document.referrer = "https://perplexity.ai/";
+  conflict.window.location.search = "?utm_source=chatgpt.com";
+  conflict.window.umami = { track: (_name, props) => {
+    assert.equal(props.source, "perplexity");
+    assert.equal(props.attribution, "referrer");
+  } };
+  conflict.trackAiVisitIfReferred();
+  for (const tag of ["chatgpt.com.evil.test", "evilchatgpt.com", "https://chatgpt.com", "openai.com", ""]) {
+    const unknown = analytics();
+    unknown.document.referrer = "";
+    unknown.window.location.search = `?utm_source=${encodeURIComponent(tag)}`;
+    unknown.window.umami = { track: () => assert.fail(`unexpected attribution: ${tag}`) };
+    unknown.trackAiVisitIfReferred();
+  }
 });
 
 test("deduplication remembers all sources, including across page loads", () => {

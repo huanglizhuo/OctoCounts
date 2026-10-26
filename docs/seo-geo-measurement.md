@@ -1,6 +1,6 @@
 # OctoCounts SEO / GEO Measurement (SG-10)
 
-- Updated: 2026-10-25. Shared static/app tracking and delivery tests added.
+- Updated: 2026-10-27. ChatGPT UTM fallback and attribution basis added.
 - Created: 2026-09-08 (batch A kickoff of the SEO/GEO plan's SG-10 (history: docs/seo-geo-history.md)).
 - Status: event dictionary and export templates are authoritative for the
   current code; dashboards and baselines must be filled from real exports.
@@ -11,7 +11,7 @@
 
 | Event | Trigger | Properties | Dedup / notes | Cannot imply |
 |---|---|---|---|---|
-| `ai_visit` | Landing visit whose `document.referrer` host matches a known AI answer host (`chatgpt.com`, `chat.openai.com`, `perplexity.ai`, `pplx.ai`, `gemini.google.com`, `copilot.microsoft.com`, `claude.ai`, `kimi.com`) | `source` (chatgpt/perplexity/gemini/copilot/claude/kimi), `path` | Once per source per session (a JSON source set in `sessionStorage` `octocounts.ai_visit`); storage-blocked browsers deduplicate within one page only | Total AI citations (unclicked citations are invisible); AI traffic without referrer |
+| `ai_visit` | Landing visit with a known AI referrer, or exact `utm_source=chatgpt.com` when no known AI referrer exists. Known AI answer hosts: `chatgpt.com`, `chat.openai.com`, `perplexity.ai`, `pplx.ai`, `gemini.google.com`, `copilot.microsoft.com`, `claude.ai`, `kimi.com` | `source` (chatgpt/perplexity/gemini/copilot/claude/kimi), `path`, `attribution` (referrer/utm) | Once per source per session (a JSON source set in `sessionStorage` `octocounts.ai_visit`); storage-blocked browsers deduplicate within one page only | Total AI citations (unclicked citations are invisible); AI traffic without a recognized referrer or campaign tag |
 | `analyze_submitted` | User submits an analysis | `provider`, plus runner context | Per submission | That an analysis succeeded |
 | `analyze_completed` | An analysis returns a report | `provider`, cached flag optional | Per completion | That every visit analyzed something |
 | `extension_store_click` | Click on any store install link | `store` (chrome/edge/firefox), `placement` (`hero`, `topbar`, `extension_section`, `extension_page`, …) | Per click, no dedup by design | That the user installed or kept the extension |
@@ -29,8 +29,7 @@ Events wait in memory until the configured SDK loads; AI visit markers are
 stored only after an SDK accepts the call. Each provider receives an event at
 most once. SDK acceptance does not prove network delivery or backend ingestion.
 A blocked SDK or leaving the page before it loads can still lose an event.
-The source set migrates legacy single-source session markers. No referrer
-means unknown; provider documentation such as platform.openai.com is not
+The source set migrates legacy single-source session markers. No recognized referrer or campaign tag means unknown; provider documentation such as platform.openai.com is not
 classified as ChatGPT. Analytics are optional and never gate page interaction.
 `frontend/tests/analytics.test.mjs` covers delayed SDKs, duplicate sources,
 legacy markers, blocked storage, rejected SDK calls, and false-positive hosts.
@@ -43,7 +42,7 @@ event rather than renaming it.
 ## 2. Source classification
 
 - **AI visit**: `ai_visit` event above. Absence of the event is absence of an
-  identifiable AI referrer, not absence of AI traffic.
+  identifiable AI referrer/campaign tag, not absence of AI traffic.
 - **Search**: referrer from a search engine results page (google.com, bing.com,
   …) — classify in the analytics backend, never from `google.com` alone as AI.
 - **Known source parameter**: tagged URLs kept out of canonical (analytics
@@ -116,3 +115,21 @@ Use production CrUX/RUM and a dated mobile Lighthouse run before attributing
 ranking or conversion changes to performance. No private search/analytics
 exports have been added by this code change; unknown baseline cells remain
 unknown rather than invented zeros.
+
+## 8. ChatGPT attribution and citation baseline (2026-10-27)
+
+Known AI referrers take precedence over UTM tags. Otherwise only the exact
+`utm_source=chatgpt.com` value selects ChatGPT. UTM is user-editable attribution,
+not proof of a citation or crawler identity. The existing per-source session
+marker is shared by both paths. A visit keeps its initial landing path and
+attribution basis even if the analytics SDK loads later. Canonical URLs remain
+free of campaign parameters. Umami may also record campaigns independently.
+
+The fixed bilingual prompt set and recording template are in
+[chatgpt-geo-baseline.csv](chatgpt-geo-baseline.csv). Blank result fields mean
+not measured. Run each prompt in a fresh chat with search enabled and record
+model, locale, date, answer evidence, mention, linked citation, URL and whether
+the answer preserves commit/date/counting-policy limitations. Repeat under the
+same conditions; report the denominator and distinguish mentions from citations.
+Do not fill these fields from curl or a generic web-search API. GSC/Bing/Umami
+private exports remain required for their respective metrics.

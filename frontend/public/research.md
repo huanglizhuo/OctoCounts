@@ -1,8 +1,72 @@
-# How Filtering Changes SLOC Counts: OctoCounts Pilot Study
+# How Filtering Changes SLOC Counts: 10-Repository Study
 
-Article updated October 25, 2026. The pilot measurements remain those collected on September 8, 2026; this revision clarifies limitations and does not rerun the dataset.
+Article updated October 27, 2026. The new ten-repository study and the unchanged September pilot are separate datasets.
 
-_Original OctoCounts research. All measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to [octocounts.com/research](https://octocounts.com/research)._
+## Cross-language study — October 27, 2026
+
+In this non-random sample of 10 public repositories, excluding test directories reduced code-line counts by 0.0% to 84.3% at a fixed commit per repository. These are filter effects, not estimates of each project’s total test code. All 50 runs used tokei-14.0.0; complete reports and effective rules are archived below.
+
+### Sample and method
+
+Ten repositories were selected before collection to cover seven ecosystems and two broad project types: JavaScript/TypeScript (Express, Vite), Python (Flask, Requests), Rust (fd, ripgrep), Go (Gin), Java (jsoup), C++ (nlohmann/json), and Swift (Alamofire). This is a convenience sample of libraries, frameworks and developer tools, not a random or size-stratified survey.
+
+Collected on October 27, 2026 in Asia/Singapore (UTC timestamps are retained in the data). For each repository, the first run resolved the default branch; the other four runs used that exact 40-character SHA. The experimental “default” baseline explicitly enables docs, tests and generated files, disables repository declarations, uses the default profile and supplies no custom ignores. This is not a statement about website defaults: built-in dependency/build exclusions and tokei traversal rules still apply.
+
+The first three variants independently disable tests, docs or generated directories. Directory matching is case-sensitive. Test-directory rules match test, tests, __tests__ and fixtures; they do not remove every file named *_test.go. Docs rules match docs, doc and documentation; generated-directory rules match generated, gen and .generated. The fifth variant additionally enables respectGitattributes with generated files excluded. Compare the declaration-enabled result with exclude-generated to isolate the effect of repository declarations, not with the all-included baseline.
+
+Requests ran sequentially with at least 13 seconds between analyses and no force-refresh. Cache hits were allowed. collectedAt is the collection timestamp; report.generatedAt is the counting timestamp. Wall time includes API/queue/polling behavior and is not a controlled performance benchmark. This completed dataset has 50 successful runs and zero failed rows; the collector records failures instead of dropping them.
+
+### Code-line results
+
+Parentheses show reduction from the experimental baseline; every row uses one fixed commit. Full SHAs are in the raw data.
+
+| Repository / commit | Baseline code | Exclude tests | Exclude docs | Exclude generated | + Declarations |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| expressjs/express @ 1c6f1b0fe400 | 16,632 | 2,619 (−84.3%) | 16,632 (0.0%) | 16,632 (0.0%) | 16,632 (0.0%) |
+| vitejs/vite @ e954a9cda0b5 | 115,672 | 83,338 (−28.0%) | 114,182 (−1.3%) | 115,672 (0.0%) | 115,672 (0.0%) |
+| pallets/flask @ d086db856be1 | 25,621 | 19,686 (−23.2%) | 16,101 (−37.2%) | 25,621 (0.0%) | 25,621 (0.0%) |
+| psf/requests @ 611c6162cbc4 | 12,012 | 7,795 (−35.1%) | 9,505 (−20.9%) | 12,012 (0.0%) | 12,012 (0.0%) |
+| sharkdp/fd @ c44735ec0f13 | 7,991 | 4,577 (−42.7%) | 7,793 (−2.5%) | 7,991 (0.0%) | 7,793 (−2.5%) |
+| BurntSushi/ripgrep @ 6892bc2b7efe | 42,949 | 38,194 (−11.1%) | 42,543 (−0.9%) | 42,949 (0.0%) | 42,949 (0.0%) |
+| gin-gonic/gin @ 0f09c3a9b462 | 18,311 | 18,311 (0.0%) | 18,311 (0.0%) | 18,311 (0.0%) | 18,311 (0.0%) |
+| jhy/jsoup @ 0c508f17a52d | 49,802 | 20,894 (−58.0%) | 49,802 (0.0%) | 49,802 (0.0%) | 49,802 (0.0%) |
+| nlohmann/json @ 81d66291c556 | 184,337 | 93,032 (−49.5%) | 171,079 (−7.2%) | 184,337 (0.0%) | 145,483 (−21.1%) |
+| Alamofire/Alamofire @ bda9ed57d729 | 324,285 | 324,285 (0.0%) | 27,204 (−91.6%) | 324,285 (0.0%) | 324,285 (0.0%) |
+
+### Repository-declaration evidence
+
+| Repository | Declaration status | Excluded files | Vendored flags | Generated flags |
+| --- | --- | ---: | ---: | ---: |
+| expressjs/express | not_found | 0 | 0 | 0 |
+| vitejs/vite | applied | 0 | 0 | 0 |
+| pallets/flask | not_found | 0 | 0 | 0 |
+| psf/requests | not_found | 0 | 0 | 0 |
+| sharkdp/fd | applied | 6 | 6 | 0 |
+| BurntSushi/ripgrep | not_found | 0 | 0 | 0 |
+| gin-gonic/gin | not_found | 0 | 0 | 0 |
+| jhy/jsoup | applied | 0 | 0 | 0 |
+| nlohmann/json | applied | 4 | 0 | 4 |
+| Alamofire/Alamofire | not_found | 0 | 0 | 0 |
+
+Vendored/generated flags may overlap; excluded files count each removed file once. The raw policy records preserve the exact status and rules.
+
+### Scope and limitations
+
+A zero delta means the selected rules removed no counted code lines; it does not prove absence of tests, documentation or generated code. Declaration exclusion counts above describe extracted files, including files tokei may not count. Archive contents can differ from a checkout because of export-ignore/export-subst. Results describe these commits and tokei version, not future branch tips, code quality, performance, or GitHub Linguist byte percentages. The September pilot remains separate and was not overwritten.
+
+### Download and cite
+
+Each JSONL row includes the full API report, report ID, full commit SHA, selected options, effective countingPolicy, repository-attribute status/removal counts, engine version, generatedAt, collectedAt, outcome, wall time and the collector source SHA-256. Retain this versioned file when citing the results; live saved reports can expire.
+
+[Download all 50 raw reports (JSONL)](https://octocounts.com/research/filtering-effects-2026-10-27.jsonl) · [Archived collector and shared CLI client](https://octocounts.com/research/filtering-effects-2026-10-27-source.json) (source hashes included).
+
+Dataset SHA-256: `03dc0f9f6a0896bad5cb2bb25edd0ffcd7f067ce777b7fe2847d06488339ba34`
+
+Cite: OctoCounts, “How Filtering Changes SLOC Counts: 10-Repository Study”, October 27, 2026, tokei-14.0.0. Include the repository, full commit SHA and named configuration; link to this section and the versioned dataset.
+
+## Historical two-repository pilot — September 8, 2026
+
+_Original OctoCounts research. All pilot measurements were collected by OctoCounts on 2026-09-08 from public GitHub repositories with the tokei-12.1 engine. If you cite these numbers, please credit OctoCounts and link to [octocounts.com/research](https://octocounts.com/research)._
 
 ## Research question
 
@@ -38,9 +102,9 @@ The instrument itself worked: commit pinning, per-run timing, and totals were al
 - Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.
 - A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. OctoCounts' production engine has since been upgraded to [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (see the [counting methodology](https://octocounts.com/docs/methodology)); the pilot was not rerun, so these figures describe tokei-12.1 only.
 
-## Next steps
+## Pilot follow-up
 
-A larger study should plan for repository size, queueing, retries, and rate limits rather than extrapolating elapsed time from these eight requests. The full study should sample across languages and project types (not only JavaScript/TypeScript tooling) and report per-rule match rates, not only deltas. When it ships, this page will be updated and versioned data files will appear under `/research/`.
+The October 27 study above expands the sample to ten repositories and archives complete current-engine reports. It is a separate measurement set; these historical pilot rows remain unchanged.
 
 ## Data
 

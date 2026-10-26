@@ -1,153 +1,76 @@
 #!/usr/bin/env node
-// Bounded sample collector for the filtering-effects study (SG-06).
-//
-// For each repository: run the default configuration, pin every other
-// configuration to the commit the default run resolved, and append one JSONL
-// line per run to the output file. Sequential (concurrency 1), no
-// force-refresh, single retry per request, and a hard repository cap unless
-// --max-repos is given. Failures are recorded as outcome:"failed" rows.
-//
-// Usage:
-//   node scripts/collect-research-sample.mjs --repos facebook/react,vitejs/vite \
-//     --out research/filtering-effects/pilot-samples.jsonl [--max-repos 2]
-// Add --dry-run to print the plan without issuing any request.
-import { appendFile, mkdir, writeFile } from "node:fs/promises";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+// Sequential, commit-pinned research collection; raw reports survive cache eviction.
+// NODE_USE_SYSTEM_CA=1 node scripts/collect-research-sample.mjs --repos owner/repo,... --out /tmp/study.jsonl --max-repos 10
+import assert from "node:assert/strict";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { parseArgs } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-const execFileAsync = promisify(execFile);
+import { analyzeAndWait } from "../cli/src/api.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const API = process.env.OCTOCOUNTS_API ?? "https://api.octocounts.com";
-const JOB_POLL_MS = 2_000;
-const JOB_POLL_LIMIT = 90; // 3 minutes per job before recording a failure
-
-const CONFIGS = [
-  { config: "default", options: { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: true, includeTests: true, includeGenerated: true } },
-  { config: "exclude-tests", options: { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: true, includeTests: false, includeGenerated: true } },
-  { config: "exclude-docs", options: { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: false, includeTests: true, includeGenerated: true } },
-  { config: "exclude-generated", options: { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: true, includeTests: true, includeGenerated: false } },
+const base = { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: true, includeTests: true, includeGenerated: true, respectGitattributes: false };
+export const CONFIGS = [
+  { config: "default", options: { ...base } },
+  { config: "exclude-tests", options: { ...base, includeTests: false } },
+  { config: "exclude-docs", options: { ...base, includeDocs: false } },
+  { config: "exclude-generated", options: { ...base, includeGenerated: false } },
+  { config: "repository-declarations", options: { ...base, includeGenerated: false, respectGitattributes: true } },
 ];
 
-// HTTP via curl: Node's bundled CA store does not trust this machine's
-// proxy certificate ("unable to get local issuer certificate"), while curl
-// uses the system store. Research-only tooling, so shelling out is fine.
-async function curlJson(url, options = {}) {
-  const args = ["-sS", "--max-time", String(options.timeoutMs ?? 30_000), "-w", "\n%{http_code}"];
-  if (options.method === "POST") {
-    args.push("-X", "POST", "-H", "content-type: application/json", "--data-binary", options.body);
-  }
-  const { stdout } = await execFileAsync("curl", [...args, url], { maxBuffer: 10 * 1024 * 1024 });
-  const newline = stdout.lastIndexOf("\n");
-  const status = Number(stdout.slice(newline + 1).trim());
-  const body = stdout.slice(0, newline);
-  if (status < 200 || status >= 300) throw new Error(`HTTP ${status}: ${body.slice(0, 200)}`);
-  return body ? JSON.parse(body) : null;
-}
-
-function parseArgs(argv) {
-  const args = { maxRepos: 2, dryRun: false, repos: [], out: "" };
-  for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === "--repos") args.repos = argv[i + 1].split(",").map((value) => value.trim()).filter(Boolean);
-    else if (argv[i] === "--out") args.out = argv[i + 1];
-    else if (argv[i] === "--max-repos") args.maxRepos = Number(argv[i + 1]);
-    else if (argv[i] === "--dry-run") args.dryRun = true;
-  }
-  return args;
-}
-
-async function analyzeOnce(repoUrl, refName, options) {
-  return curlJson(`${API}/api/analyze`, {
-    method: "POST",
-    body: JSON.stringify({ repoUrl, refName: refName || undefined, forceRefresh: false, options, source: "api" }),
-    timeoutMs: 60_000,
-  });
-}
-
-async function withRetry(label, fn) {
-  const startedAt = Date.now();
+export async function collectRun(repository, entry, pinnedCommit, collectorSha256) {
+  const started = Date.now();
+  const row = { study: "filtering-effects", repository, config: entry.config, options: entry.options, refName: pinnedCommit || null, collectedAt: new Date().toISOString(), collectorSha256 };
   try {
-    const value = await fn();
-    return { outcome: "ok", kind: value.kind, wallTimeMs: Date.now() - startedAt, report: value.kind === "cached" ? value.report : null, jobId: value.jobId ?? null };
+    if (entry.config !== "default" && !pinnedCommit) throw new Error("baseline failed; variant not submitted without a pinned commit");
+    const report = await analyzeAndWait(API, { repoUrl: `https://github.com/${repository}`, refName: pinnedCommit || undefined, forceRefresh: false, options: entry.options, source: "api" });
+    row.report = report;
+    assert.match(report.commitSha, /^[a-f0-9]{40}$/i, "complete commit SHA required");
+    if (pinnedCommit) assert.equal(report.commitSha, pinnedCommit, "variant changed the measured commit");
+    assert.equal(`${report.repository.owner}/${report.repository.name}`.toLowerCase(), repository.toLowerCase(), "repository mismatch");
+    assert.ok(report.id && report.tokeiVersion && Number.isFinite(Date.parse(report.generatedAt)), "report provenance required");
+    assert.ok(report.countingPolicy?.version && report.countingPolicy.repositoryAttributes?.status, "effective counting rules required");
+    for (const key of ["includeDocs", "includeTests", "includeGenerated"]) assert.equal(report.countingPolicy[key], entry.options[key], `effective ${key} differs`);
+    assert.equal(report.analysisOptions?.respectGitattributes ?? false, entry.options.respectGitattributes, "repository declaration option differs");
+    for (const key of ["files", "lines", "code", "comments", "blanks"]) assert.ok(Number.isFinite(report.total?.[key]) && report.total[key] >= 0, `invalid ${key}`);
+    return { ...row, outcome: "ok", wallTimeMs: Date.now() - started, commitSha: report.commitSha, tokeiVersion: report.tokeiVersion, totals: report.total, report };
   } catch (error) {
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
-    try {
-      const value = await fn();
-      return { outcome: "ok-after-retry", kind: value.kind, wallTimeMs: Date.now() - startedAt, report: value.kind === "cached" ? value.report : null, jobId: value.jobId ?? null };
-    } catch (retryError) {
-      return { outcome: "failed", wallTimeMs: Date.now() - startedAt, error: `${label}: ${retryError.message}` };
-    }
+    return { ...row, outcome: "failed", wallTimeMs: Date.now() - started, error: error.message, jobId: error.jobId ?? null };
   }
 }
 
-async function waitForJob(jobId) {
-  for (let attempt = 0; attempt < JOB_POLL_LIMIT; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, JOB_POLL_MS));
-    const payload = await curlJson(`${API}/api/jobs/${jobId}`);
-    if (payload.status === "completed" && payload.reportId) {
-      const reportPayload = await curlJson(`${API}/api/reports/${payload.reportId}`);
-      return reportPayload.report ?? reportPayload;
+async function main() {
+  const { values } = parseArgs({ options: { repos: { type: "string" }, out: { type: "string" }, "max-repos": { type: "string", default: "2" }, "dry-run": { type: "boolean", default: false } } });
+  const repos = values.repos?.split(",").map(value => value.trim()) ?? [];
+  const cap = Number(values["max-repos"]);
+  assert.ok(repos.length && values.out, "--repos and --out are required");
+  assert.ok(Number.isInteger(cap) && cap > 0 && cap <= 20, "--max-repos must be 1–20");
+  assert.ok(repos.every(repo => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)), "repositories must use owner/name");
+  assert.equal(new Set(repos.map(repo => repo.toLowerCase())).size, repos.length, "duplicate repository");
+  const selected = repos.slice(0, cap);
+  if (values["dry-run"]) return console.log(JSON.stringify({ api: API, repos: selected, configs: CONFIGS }, null, 2));
+  const output = path.resolve(ROOT, values.out);
+  const collectorSha256 = createHash("sha256").update(await readFile(fileURLToPath(import.meta.url))).digest("hex");
+  await mkdir(path.dirname(output), { recursive: true });
+  await writeFile(output, "", { flag: "wx" }); // Never truncate earlier measurements.
+  let first = true;
+  for (const repository of selected) {
+    let pinnedCommit;
+    for (const entry of CONFIGS) {
+      // Stay below the public 5/minute analysis limit, even on cache hits.
+      if (!first) await new Promise(resolve => setTimeout(resolve, 13_000));
+      first = false;
+      const row = await collectRun(repository, entry, pinnedCommit, collectorSha256);
+      if (entry.config === "default" && row.outcome === "ok") pinnedCommit = row.commitSha;
+      await appendFile(output, `${JSON.stringify(row)}\n`);
+      console.log(`${repository} ${entry.config}: ${row.outcome} ${row.totals ? `code=${row.totals.code}` : row.error}`);
     }
-    if (payload.status === "failed") throw new Error(`job failed: ${payload.error ?? "unknown"}`);
   }
-  throw new Error("job poll limit reached");
+  console.log(`done → ${output}`);
 }
 
-const totals = (report) => report
-  ? { files: report.total.files, lines: report.total.lines, code: report.total.code, comments: report.total.comments, blanks: report.total.blanks }
-  : null;
-
-const args = parseArgs(process.argv.slice(2));
-if (args.repos.length === 0 || !args.out) {
-  console.error("usage: collect-research-sample.mjs --repos owner/name,... --out file.jsonl [--max-repos 2] [--dry-run]");
-  process.exit(1);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
-const repos = args.repos.slice(0, args.maxRepos);
-if (args.dryRun) {
-  console.log(JSON.stringify({ api: API, repos, configs: CONFIGS.map((entry) => entry.config) }, null, 2));
-  process.exit(0);
-}
-
-await mkdir(path.dirname(path.resolve(ROOT, args.out)), { recursive: true });
-await writeFile(path.resolve(ROOT, args.out), "");
-
-for (const repo of repos) {
-  const repoUrl = `https://github.com/${repo}`;
-  let pinnedCommit = "";
-  for (const entry of CONFIGS) {
-    // Variants pin the commit the default run resolved, so every group counts
-    // identical source material.
-    const refName = entry.config === "default" ? "" : pinnedCommit;
-    if (entry.config !== "default" && !pinnedCommit) throw new Error(`default run for ${repo} did not resolve a commit; aborting before variant runs`);
-    const result = await withRetry(`${repo}/${entry.config}`, () => analyzeOnce(repoUrl, refName, entry.options));
-    let report = result.report ?? null;
-    if (result.outcome !== "failed" && result.kind === "job" && result.jobId) {
-      try {
-        report = await waitForJob(result.jobId);
-      } catch (error) {
-        result.outcome = "failed";
-        result.error = `job: ${error.message}`;
-      }
-    }
-    if (report?.commitSha) pinnedCommit = report.commitSha;
-    const row = {
-      study: "filtering-effects",
-      repository: repo,
-      config: entry.config,
-      options: entry.options,
-      refName: refName || null,
-      commitSha: report?.commitSha ?? null,
-      collectedAt: new Date().toISOString(),
-      outcome: result.outcome,
-      kind: result.kind ?? null,
-      wallTimeMs: result.wallTimeMs,
-      tokeiVersion: report?.tokeiVersion ?? null,
-      totals: totals(report),
-    };
-    await appendFile(path.resolve(ROOT, args.out), `${JSON.stringify(row)}\n`);
-    console.log(`${repo} ${entry.config}: ${result.outcome} (${result.wallTimeMs}ms) ${row.totals ? `code=${row.totals.code}` : result.error ?? ""}`);
-  }
-}
-console.log(`done → ${args.out}`);

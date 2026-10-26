@@ -96,11 +96,13 @@ function seenSources() {
 }
 
 export function trackAiVisitIfReferred() {
-  const source = aiReferrerSource(document.referrer);
+  const referrerSource = aiReferrerSource(document.referrer);
+  // Known AI referrers take precedence over user-editable campaign tags.
+  const source = referrerSource || (new URLSearchParams(window.location.search).get("utm_source") === "chatgpt.com" ? "chatgpt" : undefined);
   if (!source || queuedSources.has(source) || seenSources().includes(source)) return;
   queuedSources.add(source);
   const path = window.location.pathname;
-  trackEvent("ai_visit", { source, path }, () => {
+  trackEvent("ai_visit", { source, path, attribution: referrerSource ? "referrer" : "utm" }, () => {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify([...new Set([...seenSources(), source])]));
     } catch {

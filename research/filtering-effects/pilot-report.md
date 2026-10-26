@@ -4,7 +4,7 @@
   no force-refresh, one retry per request — none needed).
 - Samples: `pilot-samples.jsonl` (8 rows, 0 failures). Raw rows are the
   authority; this report only summarizes them.
-- Reproduce: `node scripts/collect-research-sample.mjs --repos facebook/react,vitejs/vite --out /tmp/pilot.jsonl`
+- Historical collector invocation: `node scripts/collect-research-sample.mjs --repos facebook/react,vitejs/vite --out /tmp/pilot.jsonl`. The current collector and production engine have changed; this command does not reproduce the old tokei-12.1 dataset.
 
 ## Measured cost (the full-study gate)
 
@@ -75,3 +75,7 @@ Proceed to the full 10–20 repository run at the measured cost (~80 requests,
 single concurrency, minutes of wall time), sampling across ecosystems. Data
 files per version (`frontend/public/research/…`) and the article page are part
 of the full-study task, not of this pilot.
+
+## October 27, 2026 follow-up
+
+The owner authorized the prioritized SEO/GEO implementation, including the expanded study. The new ten-repository, five-configuration collection is published separately at `frontend/public/research/filtering-effects-2026-10-27.jsonl`, with complete reports and effective policies. The September pilot and its original constraints above are historical; its runtime extrapolation is not a current cost or latency estimate.

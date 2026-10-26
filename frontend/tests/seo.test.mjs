@@ -1582,6 +1582,37 @@ test("report SSR omits the similar section when the related API fails or misbeha
   }
 });
 
+test("report HTML and Markdown survive a stalled optional related request", { timeout: 6000 }, async () => {
+  const originalFetch = globalThis.fetch;
+  let aborted = 0;
+  globalThis.fetch = async (url, options) => {
+    if (new URL(url).pathname !== "/api/seo/related") return Response.json(RELATED_REPORT_FIXTURE);
+    assert.ok(options.signal, "the optional request must have a deadline");
+    return new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        aborted += 1;
+        reject(options.signal.reason);
+      }, { once: true });
+    });
+  };
+  try {
+    for (const suffix of ["", ".md"]) {
+      const response = await onRequest(await renderedContext(`/github/octo-org/octo-repo${suffix}`));
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
+      const body = await response.text();
+      assert.match(body, /octo-org\/octo-repo/);
+      assert.match(body, /15,000/);
+      assert.doesNotMatch(body, /Similar repository reports/);
+      if (!suffix) assert.match(body, /rel="canonical" href="https:\/\/octocounts.com\/github\/octo-org\/octo-repo"/);
+      else assert.equal(response.headers.get("x-robots-tag"), "noindex, follow");
+    }
+    assert.equal(aborted, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("trending.xml serves an RSS 2.0 feed from the daily snapshot", async () => {
   const snapshot = {
     source: "https://github.com/trending",
@@ -1906,7 +1937,7 @@ test("report markdown twins mirror the SSR report via ?format=md and the .md suf
       const response = await onRequest(await renderedContext(path));
       assert.equal(response.status, 200, path);
       assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", path);
       const md = await response.text();
       assert.match(md, /^# octo-org\/octo-repo SLOC report\n/, path);
       assert.ok(md.includes(`> ${RELATED_REPORT_FIXTURE.citation}`), path);
@@ -2176,7 +2207,7 @@ test("canonical reports serve indexable HTML to AI, search and training crawlers
     const explicit = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo?format=md"), "PerplexityBot/1.0"));
     assert.match(explicit.headers.get("content-type") ?? "", /^text\/markdown/);
     assert.equal(explicit.headers.get("x-robots-tag"), "noindex, follow");
-    assert.equal(explicit.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+    assert.equal(explicit.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
     assert.equal(explicit.headers.get("vary"), null);
   } finally {
     restore();
@@ -2190,7 +2221,7 @@ test("curated comparison markdown mirrors the SSR comparison", async () => {
       const response = await onRequest(await renderedContext(path));
       assert.equal(response.status, 200, path);
       assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+      assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", path);
       const md = await response.text();
       assert.match(md, /^# React vs Vue: source lines of code compared\n/, path);
       assert.ok(md.includes("| Metric | [react/react](https://octocounts.com/github/react/react) | [vuejs/core](https://octocounts.com/github/vuejs/core) |"), path);
@@ -2250,7 +2281,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
   for (const path of ["/trending.md", "/trending?format=md"]) {
     const response = await onRequest(await renderedContext(path, snapshot));
     assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, path);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", path);
     const md = await response.text();
     assert.match(md, /^# Trending GitHub repositories today\n/, path);
     assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. (1,234 stars today, Rust)"), path);
@@ -2282,7 +2313,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
   try {
     const response = await onRequest(await renderedContext("/stats?format=md"));
     assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=900, stale-while-revalidate=3600");
+    assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
     const md = await response.text();
     assert.match(md, /^# OctoCounts public growth stats\n/);
     assert.match(md, /## Where analyses come from\n\n- Web app: 2,000 reports/);

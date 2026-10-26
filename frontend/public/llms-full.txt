@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-25
+Last-Updated: 2026-10-27
 
 ## What OctoCounts Does
 
@@ -115,7 +115,7 @@ For private repositories, run tokei locally.
 - Largest codebases by lines of code (linux, Firefox, LLVM, TensorFlow, Godot, Kubernetes, PostgreSQL, git — first-party counts pinned to commits): https://octocounts.com/docs/largest-codebases
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
-- Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research
+- Research (ten repositories, five configurations, archived full reports; separate historical pilot): https://octocounts.com/research
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 
@@ -226,3 +226,7 @@ For fixed counts, cite the saved report link containing `reportId`, and include 
 - [中文首页](https://octocounts.com/zh)
 - [GitHub 代码行数统计指南](https://octocounts.com/zh/docs/github-sloc-counter)
 - [计数方法与引用规则](https://octocounts.com/zh/docs/methodology)
+
+## Versioned filtering evidence
+
+The October 27, 2026 study covers 10 selected repositories across seven ecosystems, with five configurations at one fixed commit per repository. It measures directory-filter and repository-declaration effects, not the true proportion of all test code or a general open-source benchmark. The explicit all-included baseline is not the website default. Full reports, effective rules, complete SHAs and collector hashes are archived at https://octocounts.com/research/filtering-effects-2026-10-27.jsonl . Methods and limitations: https://octocounts.com/research#cross-language-2026-10-27 .

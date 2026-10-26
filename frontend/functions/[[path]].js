@@ -33,22 +33,22 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/extension", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/research", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-27" },
+  { loc: "https://octocounts.com/research", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
@@ -463,12 +463,9 @@ async function reportResponse(context, route, options = {}) {
     const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
     return Response.redirect(new URL(report.publicPath + suffix + requestUrl.search, requestUrl.origin), 308);
   }
-  // 1h, not 24h: report titles/descriptions carry live line counts, and the
-  // SEO report API behind this page already serves s-maxage=3600. Caching the
-  // HTML a day longer than its own data source left stale counts in SERP
-  // titles for up to a day after a big push. SWR keeps origin load low.
+  // Keep live HTML and Markdown on the same freshness window.
   if (options.markdown) {
-    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
   if (report.isSnapshot) {
@@ -579,6 +576,8 @@ async function fetchRelatedReports(context, route) {
     });
     const response = await fetch(`${apiBase(context)}/api/seo/related?${params.toString()}`, {
       headers: { accept: "application/json" },
+      // Optional links must not hold the report open when this endpoint stalls.
+      signal: AbortSignal.timeout(1500),
     });
     if (!response.ok) return [];
     const payload = await response.json();
@@ -758,7 +757,7 @@ async function trendingPageResponse(context, options = {}) {
   const rotatingPromise = fetchRotatingReportLocs(context);
   const snapshot = await trendingSnapshot(context);
   if (options.markdown) {
-    return markdownResponse(trendingMarkdown(snapshot) + moreReportsMarkdown(await rotatingPromise), "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(trendingMarkdown(snapshot) + moreReportsMarkdown(await rotatingPromise), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const index = await indexHtml(context);
   const title = TRENDING_TITLE;
@@ -912,7 +911,7 @@ async function statsPageResponse(context, options = {}) {
   });
   const stats = response.ok ? await response.json() : null;
   if (options.markdown) {
-    return markdownResponse(statsMarkdown(stats), "public, s-maxage=900, stale-while-revalidate=3600", options);
+    return markdownResponse(statsMarkdown(stats), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const index = await indexHtml(context);
   const title = STATS_TITLE;
@@ -1239,7 +1238,7 @@ const EXTENSION_CONTENT = {
 
 async function extensionPageResponse(context, options = {}) {
   if (options.markdown) {
-    return markdownResponse(extensionMarkdown(), "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(extensionMarkdown(), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const index = await indexHtml(context);
   const content = EXTENSION_CONTENT;
@@ -1467,7 +1466,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
   if (options.markdown) {
     const markdown = compareMarkdown(model);
     stale.set(entry.slug, { ...stale.get(entry.slug), markdown });
-    return markdownResponse(markdown, "public, s-maxage=3600, stale-while-revalidate=86400", options);
+    return markdownResponse(markdown, "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const html = injectCuratedCompare(await indexHtml(context), model);
   stale.set(entry.slug, { ...stale.get(entry.slug), html });

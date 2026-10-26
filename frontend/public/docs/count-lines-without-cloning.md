@@ -1,6 +1,6 @@
 # Count lines of code without cloning the repository
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 27, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 You can count a GitHub repository's lines of code without cloning it: paste the URL into the [OctoCounts web app](https://octocounts.com/) and it downloads the source archive of the requested ref — not the git history — counts it with tokei, and returns files, total lines, code lines, comments, blanks, and per-language totals. Duration depends on repository size, upstream access, queueing, and deployment limits. The [browser extension](https://octocounts.com/extension), report pages, `.md` twins, [badges](https://octocounts.com/badges), and [API](https://octocounts.com/docs/api) all answer from the same archive-based pipeline, so no step ever requires a local clone.
 
@@ -32,6 +32,12 @@ For a one-off, open `https://octocounts.com/github/:owner/:repo` directly — a 
 ## When do you still need a clone?
 
 Private repositories — OctoCounts analyzes public github.com repositories only and does not accept uploads — and any analysis that needs local tooling beyond line counts. In those cases clone (shallow if you like) and run [tokei](https://github.com/XAMPPRocky/tokei) or [cloc](https://github.com/AlDanial/cloc) in the checkout; the [full counting guide](https://octocounts.com/docs/count-lines-of-code-github) covers the clone-based commands too.
+
+## How can I verify a count without keeping a clone?
+
+Export the report JSON and retain its full commit SHA, tokei version, generatedAt, selected options and effective countingPolicy. The ten-repository study archives complete reports rather than relying on a live cache. It measures filtering effects on GitHub source archives; it does not establish parity with a local checkout, and request wall time is not a cold-download benchmark.
+
+[Read the October 27, 2026 study and download its raw reports](https://octocounts.com/research#cross-language-2026-10-27).
 
 ## Related OctoCounts pages
 

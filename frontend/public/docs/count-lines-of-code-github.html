@@ -52,7 +52,7 @@
       "headline": "How to count lines of code in a GitHub repository",
       "description": "Four ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension, git commands, and cloc or tokei — commands included.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-27",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -93,7 +93,7 @@
           "name": "How do I count lines of code in a GitHub repository without cloning it?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Paste the repository URL into the OctoCounts web app. OctoCounts downloads the source archive pinned to an exact commit SHA, runs tokei, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit. Results export as text, JSON, or a PNG card, and feed README badges."
+            "text": "Paste the repository URL into the OctoCounts web app. OctoCounts downloads the source archive pinned to an exact commit SHA, runs tokei, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals. A retained matching report can be reused; new analysis time depends on repository size and queue load. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit. Results export as text, JSON, or a PNG card, and feed README badges."
           }
         },
         {
@@ -177,12 +177,12 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs/github-sloc-counter">SLOC guide</a> / Count lines of code in a GitHub repo</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How to count lines of code in a GitHub repository</h1>
       <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like <a href="https://github.com/AlDanial/cloc">cloc</a> or <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.</p>
 
       <h2>How do I count lines of code in a GitHub repository without cloning it?</h2>
-      <p>Paste the repository URL into the <a href="/">OctoCounts web app</a> — for example <code>https://github.com/react/react</code>. OctoCounts downloads the source archive pinned to an exact commit SHA, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals in a few seconds. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at <a href="/github/react/react">octocounts.com/github/react/react</a>. Results export as text, JSON, or a PNG card, and feed <a href="/badges">README badges</a>.</p>
+      <p>Paste the repository URL into the <a href="/">OctoCounts web app</a> — for example <code>https://github.com/react/react</code>. OctoCounts downloads the source archive pinned to an exact commit SHA, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns files, total lines, code lines, comment lines, blank lines, and per-language totals. A retained matching report can be reused; new analysis time depends on repository size and queue load. No clone, account, or installation is needed, you can target a branch, tag, or commit, and every report is linkable and cached by commit — for instance, the live report for React is at <a href="/github/react/react">octocounts.com/github/react/react</a>. Results export as text, JSON, or a PNG card, and feed <a href="/badges">README badges</a>.</p>
 
       <h2>How do I count lines of code directly on github.com?</h2>
       <p>Install the OctoCounts browser extension for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a>. The extension adds a SLOC card to the GitHub repository sidebar — right next to the language bar — showing files, total lines, code, comments, blanks, and the top languages for the repository you are viewing, with a link to the full report. This is the closest thing to a line counter built into github.com itself, because GitHub's own sidebar shows byte-based language percentages, not line counts (see the <a href="/docs/github-language-bar-alternative">language bar alternative page</a> for why those differ).</p>
@@ -229,6 +229,10 @@ cloc .</code></pre>
 
       <h2>Does OctoCounts support private repositories?</h2>
       <p>No. OctoCounts analyzes public github.com repositories only, does not require GitHub account access for analysis, and does not accept source-code uploads. For private code, clone it and run tokei or cloc locally &mdash; the <a href="/docs/tokei-online">tokei online guide</a> compares the two routes.</p>
+
+      <h2>Which counting options should I use?</h2>
+      <p>Choose the scope before comparing numbers: include tests and docs for the maintained source tree, or exclude them for a narrower question. Keep the same engine and effective rules on both sides. The ten-repository study holds each repository at one commit and changes one filter at a time; its all-included experimental baseline is explicitly selected, not a promise about website defaults. Download the raw records to check which rules produced a number.</p>
+      <p><a href="/research#cross-language-2026-10-27">Read the October 27, 2026 study and download its raw reports</a>.</p>
 
       <nav aria-label="Related OctoCounts pages"><ul>
         <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>
