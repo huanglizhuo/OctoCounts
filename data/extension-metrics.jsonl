@@ -187,3 +187,6 @@
 {"date":"2026-10-26","store":"chrome","users":185,"rating":5,"ratingCount":null,"version":"0.5.0"}
 {"date":"2026-10-26","store":"firefox","users":2,"rating":0,"ratingCount":null,"version":"0.4.1"}
 {"date":"2026-10-26","store":"edge","users":18,"rating":0,"ratingCount":0,"version":null}
+{"date":"2026-10-27","store":"chrome","users":185,"rating":5,"ratingCount":null,"version":"0.5.0"}
+{"date":"2026-10-27","store":"firefox","users":1,"rating":0,"ratingCount":null,"version":"0.4.1"}
+{"date":"2026-10-27","store":"edge","users":18,"rating":0,"ratingCount":0,"version":null}
