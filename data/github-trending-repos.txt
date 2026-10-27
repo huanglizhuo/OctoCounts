@@ -1,12 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-10-26T07:45:08.851Z
-makecindy/cindy
+# GitHub Trending daily snapshot generated 2026-10-27T07:47:53.331Z
 Nutlope/hallmark
-debpalash/VoiceStudio
-pbakaus/impeccable
-pollen-robotics/microduck
 TauricResearch/TradingAgents
-Renhuai123/ziwei-doushu
 JetBrains/thinkrail
-coollabsio/coolify
-cloudflare/security-audit-skill
-AgriciDaniel/claude-seo
+makecindy/cindy
+affaan-m/ECC
+pbakaus/impeccable
+NVIDIA/SkillSpector
+pollen-robotics/microduck
+nightly-labs/openbot
+Panniantong/Agent-Reach
+debpalash/VoiceStudio
+gitroomhq/postiz-app
+alchaincyf/huashu-design
+multica-ai/andrej-karpathy-skills
