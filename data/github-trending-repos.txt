@@ -1,15 +1,12 @@
-# GitHub Trending daily snapshot generated 2026-10-27T07:47:53.331Z
+# GitHub Trending daily snapshot generated 2026-10-28T08:25:02.941Z
+elayadesign/ai-design-skills
 Nutlope/hallmark
-TauricResearch/TradingAgents
-JetBrains/thinkrail
-makecindy/cindy
-affaan-m/ECC
-pbakaus/impeccable
-NVIDIA/SkillSpector
-pollen-robotics/microduck
 nightly-labs/openbot
-Panniantong/Agent-Reach
-debpalash/VoiceStudio
+obra/superpowers
+pbakaus/impeccable
+makecindy/cindy
 gitroomhq/postiz-app
-alchaincyf/huashu-design
-multica-ai/andrej-karpathy-skills
+affaan-m/ECC
+HKUDS/DeepTutor
+JetBrains/thinkrail
+togg53192-cmd/jailbreaks
