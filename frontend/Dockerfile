@@ -1,4 +1,4 @@
-FROM node:23-bookworm-slim AS builder
+FROM node:22.23.4-bookworm-slim AS builder
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -9,7 +9,8 @@ ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 
 # Local static/SPA preview; production uses Cloudflare Pages plus frontend/functions.
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
+RUN apk upgrade --no-cache ca-certificates ca-certificates-bundle
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 EXPOSE 80
