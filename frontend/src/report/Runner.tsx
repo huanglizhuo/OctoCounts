@@ -225,12 +225,6 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
           </div>
         </div>
       ) : null}
-      {isDemo && report ? (
-        <div className="demo-report-head">
-          <span className="chart-tag">{t("samples.label")}</span>
-          <strong>{t("runner.exampleReport")}</strong>
-        </div>
-      ) : null}
       <div className="runner-head" ref={headRef}>
         <div className="left">
           {report ? (

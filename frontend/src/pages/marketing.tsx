@@ -470,7 +470,6 @@ export function ExtensionPage() {
   return (
     <MarketingShell>
       <section className="growth-hero tool-hero" aria-label={t("extensionLanding.heroTitle")}>
-        <span className="chart-tag">{t("growth.nav.stats.kicker")}</span>
         <h1>{t("extensionLanding.heroTitle")}</h1>
         <p>{t("extensionLanding.heroIntro")}</p>
       </section>
@@ -491,7 +490,7 @@ export function ExtensionPage() {
           </StoreLink>
         </div>
       </section>
-      <section aria-label="How the extension works">
+      <section className="extension-guide" aria-label={t("extensionLanding.stepsTitle")}>
         <div className="section-h">
           <h2>{t("extensionLanding.stepsTitle")}</h2>
         </div>

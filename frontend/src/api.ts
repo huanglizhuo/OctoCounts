@@ -59,7 +59,7 @@ export async function analyzeAndWait(request: { repoUrl: string; refName: string
     jobId = result.jobId;
     while (Date.now() < deadline) {
       const job = await fetchJson<JobRecord>(`/api/jobs/${encodeURIComponent(jobId)}?wait=20`, { signal: controller.signal }, { deadline });
-      if (job.status === "failed") throw new Error(job.error?.message ?? i18n.t("compare.analysisFailed"));
+      if (job.status === "failed") throw new Error(localizedErrorCodeMessage(job.error?.code, job.error?.message ?? "", "compare.analysisFailed"));
       if (job.status === "completed" && job.reportId) return await fetchJson<Report>(`/api/reports/${encodeURIComponent(job.reportId)}`, { signal: controller.signal }, { deadline });
       await waitForRetry(250, controller.signal);
     }

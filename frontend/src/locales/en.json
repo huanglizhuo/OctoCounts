@@ -22,7 +22,7 @@
   },
   "hero": {
     "title": "Count lines of code in GitHub repositories",
-    "subtitle": "Paste a public GitHub repository URL to get files, code, comment, and blank line totals per language. Free, no sign-up, no clone — powered by <1>tokei</1>.",
+    "subtitle": "Paste a public GitHub repository URL to get code, comment, and blank line totals per language. Free, no sign-up, no clone.",
     "freshnessLabel": "Last updated",
     "placeholderUrl": "https://github.com/owner/repo",
     "refLabel": "ref",
@@ -36,7 +36,7 @@
     "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
     "reportSubtitle": "SLOC report",
     "reportSubtitleRef": "SLOC report · {{ref}}",
-    "trustLine": "Open source · Powered by tokei · 200+ languages",
+    "trustLine": "Open source · Powered by <1>tokei</1> · 200+ languages",
     "editReport": "Analyze another repo / change settings"
   },
   "samples": {
@@ -90,7 +90,6 @@
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "cache hit",
     "freshRun": "fresh run",
-    "demoNote": "The report below is a live example. Paste any public repo URL above to analyze yours.",
     "generated": "generated {{date}} / {{duration}}ms / {{version}}",
     "exportPngFailed": "PNG export failed. Retry the export.",
     "exampleReport": "Example report",
@@ -468,6 +467,7 @@
     "postHackerNews": "Post on Hacker News"
   },
   "compare": {
+    "cancelled": "Comparison stopped. Your inputs and previous result are preserved.",
     "draftChanged": "Inputs changed. Run again to update this result.",
     "title": "Compare Repos",
     "subtitle": "forks, alternatives, or branches",
@@ -542,7 +542,7 @@
   "growth": {
     "reportsLabel": "Reports",
     "navAria": "Public report pages",
-    "footerTagline": "OctoCounts growth loops are built from aggregate public report activity.",
+    "footerTagline": "Source line counts and language statistics for public GitHub repositories.",
     "loading": "Loading public report stats...",
     "error": "Stats are temporarily unavailable.",
     "empty": "No reports yet.",
@@ -564,7 +564,7 @@
         "detail": "GitHub daily"
       },
       "hall": {
-        "label": "Hall",
+        "label": "Monoliths",
         "detail": "largest repos"
       }
     },

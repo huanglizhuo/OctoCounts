@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { sourceRepoUrl } from "./constants";
 import { ThemeSwitch } from "./scheme";
@@ -105,26 +105,37 @@ export function Topbar() {
         <Menu size={16} aria-hidden="true" />
         <span className="visually-hidden">{t("topbar.menu")}</span>
       </>, <>
-        <div className="site-menu-group">
-          <a href={homePath} aria-current={isHome ? "page" : undefined}>{t("topbar.analyze")}</a>
-          {publicReportLinks.map((item) => (
-            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
-          ))}
-          <a href="/compare" aria-current={isActive("/compare") ? "page" : undefined}>{t("topbar.compare")}</a>
-          <a href="/diff" aria-current={isActive("/diff") ? "page" : undefined}>{t("topbar.diff")}</a>
-          <a href="/badges" aria-current={isActive("/badges") ? "page" : undefined}>{t("topbar.badges")}</a>
-          <a href="/extension" aria-current={isActive("/extension") ? "page" : undefined}>{t("footer.extension")}</a>
-        </div>
-        <div className="site-menu-group">
-          <StoreLink store="chrome" placement="topbar">{t("topbar.chrome")}</StoreLink>
-          <StoreLink store="edge" placement="topbar">{t("topbar.edge")}</StoreLink>
-          <StoreLink store="firefox" placement="topbar">{t("topbar.firefox")}</StoreLink>
-        </div>
-        <div className="site-menu-group site-menu-preferences">
+        <div className="site-menu-group site-menu-preferences" role="group" aria-label={t("languageSwitcher.label")}>
           {languageControls}
           <ThemeSwitch />
           <a href={sourceRepoUrl} target="_blank" rel="noreferrer">GitHub</a>
         </div>
+        <a href={homePath} aria-current={isHome ? "page" : undefined}>{t("topbar.analyze")}</a>
+        <details className="site-menu-section">
+          <summary>{t("topbar.explore")}<ChevronDown size={14} aria-hidden="true" /></summary>
+          <div className="site-menu-group">
+            {publicReportLinks.map((item) => (
+              <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
+            ))}
+          </div>
+        </details>
+        <details className="site-menu-section">
+          <summary>{t("topbar.tools")}<ChevronDown size={14} aria-hidden="true" /></summary>
+          <div className="site-menu-group">
+            <a href="/compare" aria-current={isActive("/compare") ? "page" : undefined}>{t("topbar.compare")}</a>
+            <a href="/diff" aria-current={isActive("/diff") ? "page" : undefined}>{t("topbar.diff")}</a>
+            <a href="/badges" aria-current={isActive("/badges") ? "page" : undefined}>{t("topbar.badges")}</a>
+          </div>
+        </details>
+        <details className="site-menu-section">
+          <summary>{t("topbar.installExtension")}<ChevronDown size={14} aria-hidden="true" /></summary>
+          <div className="site-menu-group">
+            <a href="/extension" aria-current={isActive("/extension") ? "page" : undefined}>{t("extensionSection.learnMore")}</a>
+            <StoreLink store="chrome" placement="topbar">{t("topbar.chrome")}</StoreLink>
+            <StoreLink store="edge" placement="topbar">{t("topbar.edge")}</StoreLink>
+            <StoreLink store="firefox" placement="topbar">{t("topbar.firefox")}</StoreLink>
+          </div>
+        </details>
       </>)}
     </header>
   );

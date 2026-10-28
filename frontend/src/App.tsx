@@ -550,18 +550,10 @@ export function App() {
               <>
                 <h1 id="hero-title" className="title">{t("hero.title")}</h1>
                 <p className="subtitle">
-                  <Trans i18nKey="hero.subtitle" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
+                  {t("hero.subtitle")}
                 </p>
-                {/* Static trust strip: prerendered with the page, so it can
-                    never reflow above the fold. Availability chips carry no
-                    numbers (the real store figures — 5.0 from 2 ratings —
-                    are too thin to advertise; constants.ts stays the only
-                    surface that shows them). */}
                 <p className="hero-trust">
-                  <span>{t("hero.trustLine")}</span>
-                  <span className="trust-chip">Chrome</span>
-                  <span className="trust-chip">Edge</span>
-                  <span className="trust-chip">Firefox</span>
+                  <Trans i18nKey="hero.trustLine" components={{ 1: <a href="https://github.com/XAMPPRocky/tokei" target="_blank" rel="noreferrer" /> }} />
                 </p>
               </>
             )}
@@ -604,11 +596,6 @@ export function App() {
                   <span>{t("hero.alsoLine")}</span>
                   <a href="/extension">{t("extensionSection.learnMore")}</a>
                 </div>
-                {/* Pre-rendered (CSS-toggled, no JS) coarse-pointer replacement
-                    for the install CTAs — see the pointer:coarse media block. */}
-                <p className="mobile-install-note">
-                  {t("extensionSection.desktopOnly")} <a href="/extension">{t("extensionSection.learnMore")}</a>
-                </p>
                 {recentRepos.length > 0 ? (
                   <div className="quick-rows recent-rows" role="group" aria-label={t("recent.ariaLabel")}>
                     {recentRepos.map((entry) => (
@@ -645,9 +632,6 @@ export function App() {
             <h2>{demoActive ? t("runner.exampleReport") : t("runner.title")}</h2>
             {demoActive ? null : <span className="sub">{t("runner.status." + status)}</span>}
           </div>
-          {!repoUrl && (
-            <p className="demo-note">{t("runner.demoNote")}</p>
-          )}
           <Runner
             command={lastCommand}
             status={status}

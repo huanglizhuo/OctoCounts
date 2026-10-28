@@ -1,7 +1,8 @@
 import { ArrowLeftRight, Loader2, Play, Clipboard } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { analyzeAndWait, fetchJson } from "./api";
+import { parsePublicRepo } from "./badges";
 import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { defaultRefName, defaultRepoUrl } from "./constants";
 import { copyText, formatNumber, languageColor, visibleLanguageColor } from "./reportUtils";
@@ -24,8 +25,10 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
   const [rightRef, setRightRef] = useState(initialCompare.rightRef);
   const [leftReport, setLeftReport] = useState<Report | null>(null);
   const [rightReport, setRightReport] = useState<Report | null>(null);
-  const [compareStatus, setCompareStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
+  const [compareStatus, setCompareStatus] = useState<"idle" | "running" | "completed" | "failed" | "cancelled">("idle");
   const [compareError, setCompareError] = useState("");
+  const [failedSide, setFailedSide] = useState<"left" | "right" | null>(null);
+  const errorId = useId();
   const [completedShareUrl, setCompletedShareUrl] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<"copied" | "failed" | null>(null);
   const operation = useRef<number>(0);
@@ -46,10 +49,23 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
     trackEvent("compare_run", { mode: "repos", leftProvider: providerFromRepoUrl(snapshot.leftRepo), rightProvider: providerFromRepoUrl(snapshot.rightRepo) });
     setCompareStatus("running");
     setCompareError("");
+    setFailedSide(null);
+    if (!parsePublicRepo(snapshot.leftRepo) || !parsePublicRepo(snapshot.rightRepo)) {
+      setFailedSide(!parsePublicRepo(snapshot.leftRepo) ? "left" : "right");
+      setCompareError(t("error.invalidUrl"));
+      setCompareStatus("failed");
+      return;
+    }
     try {
       const [left, right] = await Promise.all([
-        analyzeAndWait({ repoUrl: snapshot.leftRepo, refName: snapshot.leftRef, options: countingOptions, signal: controller.signal }),
-        analyzeAndWait({ repoUrl: snapshot.rightRepo, refName: snapshot.rightRef, options: countingOptions, signal: controller.signal }),
+        analyzeAndWait({ repoUrl: snapshot.leftRepo, refName: snapshot.leftRef, options: countingOptions, signal: controller.signal }).catch((error) => {
+          if (run === operation.current && !controller.signal.aborted) setFailedSide((current) => current ?? "left");
+          throw error;
+        }),
+        analyzeAndWait({ repoUrl: snapshot.rightRepo, refName: snapshot.rightRef, options: countingOptions, signal: controller.signal }).catch((error) => {
+          if (run === operation.current && !controller.signal.aborted) setFailedSide((current) => current ?? "right");
+          throw error;
+        }),
       ]);
       if (run !== operation.current) return;
       setLeftReport(left);
@@ -60,7 +76,7 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
     } catch (error) {
       if (run !== operation.current) return;
       controller.abort();
-      setCompareError(error instanceof Error ? error.message : t("error.requestFailed"));
+      setCompareError(error instanceof Error && !(error instanceof TypeError) ? error.message : t("error.requestFailed"));
       setCompareStatus("failed");
     }
   };
@@ -92,7 +108,7 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
     <div className="compare-panel">
       {showHelp ? <p className="compare-help">{t("compare.help")}</p> : null}
       <form className="compare-form" onSubmit={(event) => { event.preventDefault(); void runCompare(); }}>
-        <CompareInput label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
+        <CompareInput name="left" errorId={failedSide === "left" ? errorId : undefined} label={t("compare.leftRepo")} repo={leftRepo} refName={leftRef} setRepo={setLeftRepo} setRef={setLeftRef} />
         <button
           type="button"
           className="copybtn compare-swap"
@@ -107,11 +123,14 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
         >
           <ArrowLeftRight size={16} aria-hidden="true" />
         </button>
-        <CompareInput label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
-        <button className="btn compare-run" disabled={compareStatus === "running"}>
-          {compareStatus === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-          {t("compare.run")}
-        </button>
+        <CompareInput name="right" errorId={failedSide === "right" ? errorId : undefined} label={t("compare.rightRepo")} repo={rightRepo} refName={rightRef} setRepo={setRightRepo} setRef={setRightRef} />
+        <div className="compare-run">
+          {compareStatus === "running" ? <button type="button" className="copybtn" onClick={() => { ++operation.current; activeRequest.current?.abort(); setCompareStatus("cancelled"); }}>{t("runner.cancel")}</button> : null}
+          <button className="btn" disabled={compareStatus === "running"}>
+            {compareStatus === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+            {t("compare.run")}
+          </button>
+        </div>
       </form>
       <AnalysisOptionsPanel key={optionsKey} options={options} setOptions={setOptions} defaults={canonicalAnalysisOptions} />
       <div className="compare-share-row">
@@ -122,9 +141,10 @@ export function CompareRepos({ showHelp = true }: { showHelp?: boolean }) {
         </button>
       </div>
       {compareStatus === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
+      {compareStatus === "cancelled" ? <p role="status">{t("compare.cancelled")}</p> : null}
       {compareStatus === "failed" ? (
-        <div className="compare-error">
-          <span>{compareError}</span>
+        <div className="compare-error" role="alert" id={errorId}>
+          <div>{failedSide ? <strong>{t(failedSide === "left" ? "compare.leftRepo" : "compare.rightRepo")}: </strong> : null}{compareError}<p>{t("errorHelp.default")}</p></div>
           <button type="button" className="copybtn retry-btn" onClick={() => void runCompare()}>{t("error.retry")}</button>
         </div>
       ) : null}
@@ -141,12 +161,16 @@ async function copyCompareUrl(url: string) {
 }
 
 function CompareInput({
+  name,
+  errorId,
   label,
   repo,
   refName,
   setRepo,
   setRef,
 }: {
+  name: string;
+  errorId?: string;
   label: string;
   repo: string;
   refName: string;
@@ -159,11 +183,11 @@ function CompareInput({
       <legend>{label}</legend>
       <label>
         <span>{t("compare.repoUrl")}</span>
-        <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
+        <input name={`${name}Repo`} aria-describedby={errorId} value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
       </label>
       <label>
         <span>{t("compare.ref")}</span>
-        <input value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} />
+        <input name={`${name}Ref`} aria-describedby={errorId} value={refName} onChange={(event) => setRef(event.target.value)} placeholder={t("compare.refPlaceholder")} />
       </label>
     </fieldset>
   );
@@ -178,8 +202,10 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
   const [headRef, setHeadRef] = useState(initialDiff.head);
   const [baseReport, setBaseReport] = useState<Report | null>(null);
   const [headReport, setHeadReport] = useState<Report | null>(null);
-  const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
+  const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed" | "cancelled">("idle");
   const [error, setError] = useState("");
+  const [failedSide, setFailedSide] = useState<"repo" | "base" | "head" | null>(null);
+  const errorId = useId();
   const [completedShareUrl, setCompletedShareUrl] = useState<string | null>(null);
   const operation = useRef<number>(0);
   const activeRequest = useRef<AbortController | null>(null);
@@ -199,10 +225,23 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
     trackEvent("compare_run", { mode: "diff", provider: providerFromRepoUrl(snapshot.repo) });
     setStatus("running");
     setError("");
+    setFailedSide(null);
+    if (!parsePublicRepo(snapshot.repo)) {
+      setFailedSide("repo");
+      setError(t("error.invalidUrl"));
+      setStatus("failed");
+      return;
+    }
     try {
       const [base, head] = await Promise.all([
-        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.base, options: countingOptions, signal: controller.signal }),
-        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.head, options: countingOptions, signal: controller.signal }),
+        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.base, options: countingOptions, signal: controller.signal }).catch((error) => {
+          if (run === operation.current && !controller.signal.aborted) setFailedSide((current) => current ?? "base");
+          throw error;
+        }),
+        analyzeAndWait({ repoUrl: snapshot.repo, refName: snapshot.head, options: countingOptions, signal: controller.signal }).catch((error) => {
+          if (run === operation.current && !controller.signal.aborted) setFailedSide((current) => current ?? "head");
+          throw error;
+        }),
       ]);
       if (run !== operation.current) return;
       setBaseReport(base);
@@ -214,7 +253,7 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
       if (run !== operation.current) return;
       controller.abort();
       setStatus("failed");
-      setError(err instanceof Error ? err.message : t("error.requestFailed"));
+      setError(err instanceof Error && !(err instanceof TypeError) ? err.message : t("error.requestFailed"));
     }
   };
 
@@ -249,24 +288,27 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
           <legend>{t("diff.repo")}</legend>
           <label>
             <span>{t("compare.repoUrl")}</span>
-            <input value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
+            <input name="repo" aria-describedby={failedSide ? errorId : undefined} value={repo} onChange={(event) => setRepo(event.target.value)} placeholder="https://github.com/owner/repo" />
           </label>
         </fieldset>
         <fieldset className="compare-field">
           <legend>{t("diff.refs")}</legend>
           <label>
             <span>{t("diff.base")}</span>
-            <input value={baseRef} onChange={(event) => setBaseRef(event.target.value)} placeholder={t("diff.base")} />
+            <input name="baseRef" aria-describedby={failedSide === "base" ? errorId : undefined} value={baseRef} onChange={(event) => setBaseRef(event.target.value)} placeholder={t("diff.base")} />
           </label>
           <label>
             <span>{t("diff.head")}</span>
-            <input value={headRef} onChange={(event) => setHeadRef(event.target.value)} placeholder={t("diff.head")} />
+            <input name="headRef" aria-describedby={failedSide === "head" ? errorId : undefined} value={headRef} onChange={(event) => setHeadRef(event.target.value)} placeholder={t("diff.head")} />
           </label>
         </fieldset>
-        <button className="btn compare-run" disabled={status === "running"}>
-          {status === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
-          {t("diff.run")}
-        </button>
+        <div className="compare-run">
+          {status === "running" ? <button type="button" className="copybtn" onClick={() => { ++operation.current; activeRequest.current?.abort(); setStatus("cancelled"); }}>{t("runner.cancel")}</button> : null}
+          <button className="btn" disabled={status === "running"}>
+            {status === "running" ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+            {t("diff.run")}
+          </button>
+        </div>
       </form>
       <AnalysisOptionsPanel key={optionsKey} options={options} setOptions={setOptions} defaults={canonicalAnalysisOptions} />
       <div className="compare-share-row">
@@ -277,9 +319,10 @@ export function DiffRefs({ showHelp = true }: { showHelp?: boolean }) {
         </button>
       </div>
       {status === "running" ? <div className="compare-status" role="status"><Loader2 className="spin" size={13} aria-hidden="true" /> {t("compare.running")}</div> : null}
+      {status === "cancelled" ? <p role="status">{t("compare.cancelled")}</p> : null}
       {status === "failed" ? (
-        <div className="compare-error">
-          <span>{error}</span>
+        <div className="compare-error" role="alert" id={errorId}>
+          <div>{failedSide ? <strong>{t(`diff.${failedSide}`)}: </strong> : null}{error}<p>{t("errorHelp.default")}</p></div>
           <button type="button" className="copybtn retry-btn" onClick={() => void runDiff()}>{t("error.retry")}</button>
         </div>
       ) : null}

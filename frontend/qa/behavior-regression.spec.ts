@@ -180,8 +180,8 @@ test.describe("analysis behavior regressions", () => {
 
   test("topbar menus are mutually exclusive and restore focus after Escape", async ({ page }) => {
     await page.goto(BASE_URL);
-    const explore = page.locator("details.topbar-menu").filter({ hasText: "Explore" });
-    const tools = page.locator("details.topbar-menu").filter({ hasText: "Tools" });
+    const explore = page.locator(".topbar-nav details.topbar-menu").filter({ hasText: "Explore" });
+    const tools = page.locator(".topbar-nav details.topbar-menu").filter({ hasText: "Tools" });
     await explore.locator("summary").click();
     await expect(explore).toHaveAttribute("open", "");
     await tools.locator("summary").click();
@@ -545,5 +545,150 @@ test.describe("responsive tap and type floors (T23)", () => {
     );
     expect(primaries).toEqual(["Analyze"]);
     await context.close();
+  });
+});
+
+
+test.describe("UI review fixes", () => {
+  for (const mode of ["compare", "diff"] as const) {
+    test(`${mode}: invalid input and server failures identify the field, announce recovery, and can retry`, async ({ page }) => {
+      let requests = 0;
+      let fail = true;
+      await page.route("**/api/analyze", async (route) => {
+        requests++;
+        const request = route.request().postDataJSON() as { repoUrl: string; refName?: string };
+        const failingSide = mode === "compare" ? request.repoUrl.includes("axum") : request.refName === "main";
+        if (fail && failingSide) {
+          await route.fulfill({ status: 404, json: { code: "ref_not_found", message: "upstream raw error" } });
+        } else {
+          await route.fulfill({ json: { kind: "cached", report: reportFor(request.repoUrl, 123) } });
+        }
+      });
+      await page.goto(`${BASE_URL}/${mode}`);
+      const repo = page.locator(`input[name="${mode === "compare" ? "leftRepo" : "repo"}"]`);
+      const original = await repo.inputValue();
+      await repo.fill("not-a-repository");
+      await page.locator(".compare-run .btn").click();
+      await expect(page.getByRole("alert")).toContainText("Enter a public github.com repository URL");
+      await expect(repo).toHaveAttribute("aria-describedby", await page.getByRole("alert").getAttribute("id") as string);
+      expect(requests).toBe(0);
+      await repo.fill(original);
+      await page.getByRole("button", { name: "retry", exact: true }).click();
+      await expect(page.getByRole("alert")).toContainText(mode === "compare" ? "Right repository" : "head ref");
+      await expect(page.getByRole("alert")).toContainText("The requested branch, tag, or commit was not found");
+      await expect(page.getByRole("alert")).toContainText("Retry the analysis");
+      const failedField = page.locator(`input[name="${mode === "compare" ? "rightRef" : "headRef"}"]`);
+      await expect(failedField).toHaveAttribute("aria-describedby", await page.getByRole("alert").getAttribute("id") as string);
+      fail = false;
+      await page.getByRole("button", { name: "retry", exact: true }).click();
+      await expect(page.locator(".compare-results")).toBeVisible();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(repo).toHaveValue(original);
+    });
+
+    test(`${mode}: cancellation keeps the previous result and ignores a late response`, async ({ page }) => {
+      await page.addInitScript(() => {
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => nativeFetch(input, init ? { ...init, signal: undefined } : init)) as typeof window.fetch;
+      });
+      let hold = false;
+      let held = 0;
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => { release = resolve; });
+      await page.route("**/api/analyze", async (route) => {
+        const request = route.request().postDataJSON() as { repoUrl: string };
+        const delayed = hold;
+        if (delayed) { held++; await pending; }
+        await route.fulfill({ json: { kind: "cached", report: reportFor(request.repoUrl, delayed ? 999 : 123) } });
+      });
+      await page.goto(`${BASE_URL}/${mode}`);
+      await page.locator(".compare-run .btn").click();
+      await expect(page.locator(".compare-results")).toBeVisible();
+      const result = await page.locator(".compare-results").textContent();
+      const inputs = await page.locator(".compare-form input").evaluateAll((nodes) => nodes.map((node) => (node as HTMLInputElement).value));
+      hold = true;
+      await page.locator(".compare-run .btn").click();
+      await expect.poll(() => held).toBe(2);
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(page.getByRole("status").filter({ hasText: "Comparison stopped" })).toBeVisible();
+      await expect(page.locator(".compare-run .btn")).toBeEnabled();
+      release();
+      await page.waitForTimeout(150);
+      await expect(page.locator(".compare-results")).toHaveText(result!);
+      expect(await page.locator(".compare-form input").evaluateAll((nodes) => nodes.map((node) => (node as HTMLInputElement).value))).toEqual(inputs);
+      hold = false;
+      await page.locator(".compare-run .btn").click();
+      await expect(page.getByRole("status").filter({ hasText: "Comparison stopped" })).toHaveCount(0);
+      await expect(page.locator(".compare-run .btn")).toBeEnabled();
+    });
+  }
+
+  test("queued comparison failures use the current language and preserve recovery details", async ({ page }) => {
+    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "job", jobId: "failed-job" } }));
+    await page.route("**/api/jobs/failed-job?*", (route) => route.fulfill({ json: { status: "failed", error: { code: "ref_not_found", message: "raw upstream message" } } }));
+    await page.goto(`${BASE_URL}/compare`);
+    await page.locator('.topbar-controls button.lang-btn').filter({ hasText: "中文" }).click();
+    await page.locator(".compare-run .btn").click();
+    await expect(page.getByRole("alert")).not.toContainText("raw upstream message");
+    await expect(page.getByRole("alert")).toContainText("failed-job");
+    await expect(page.getByRole("alert")).toContainText("未找到");
+  });
+
+  for (const locale of ["en", "zh"]) {
+    test(`${locale}: mobile first screen exposes the example number and grouped menu preferences`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${BASE_URL}${locale === "zh" ? "/zh" : "/"}`);
+      const value = page.locator(".summary .cell.accent .val");
+      await expect(value).toBeVisible();
+      expect(await value.evaluate((node) => node.getBoundingClientRect().bottom)).toBeLessThanOrEqual(844);
+      for (const chip of await page.locator(".samples-row .chip").all()) {
+        const box = await chip.boundingBox();
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+      }
+      const menu = page.locator(".topbar-site-menu");
+      await menu.locator(":scope > summary").click();
+      await expect(menu.locator(".site-menu-preferences")).toBeInViewport();
+      await expect(menu.locator(".site-menu-section")).toHaveCount(3);
+      await menu.locator(".site-menu-section > summary").nth(1).click();
+      await expect(menu.locator('a[href="/compare"]')).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(menu).not.toHaveAttribute("open", "");
+      await expect(menu.locator(":scope > summary")).toBeFocused();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    });
+  }
+
+  test("form borders meet 3:1 in both themes and narrow controls keep 44px targets", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE_URL}/compare`);
+    await page.locator(".analysis-options summary").click();
+    for (const control of await page.locator('.compare-run .btn, .analysis-options-grid select, .analysis-options-grid input:not([type="checkbox"])').all()) {
+      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    for (const scheme of ["matrix", "paper"]) {
+      await page.evaluate((scheme) => { document.documentElement.dataset.scheme = scheme; }, scheme);
+      const ratio = await page.locator(".compare-field input").first().evaluate((node) => {
+        const ctx = document.createElement("canvas").getContext("2d")!;
+        const luminance = (color: string) => {
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, 1, 1);
+          const channels = [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3).map((v) => v / 255).map((v) => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        const style = getComputedStyle(node);
+        const values = [luminance(style.borderTopColor), luminance(style.backgroundColor)].sort((a, b) => a - b);
+        return (values[1] + 0.05) / (values[0] + 0.05);
+      });
+      expect(ratio).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  test("extension copy has no untranslated key and uses readable paragraph and heading spacing", async ({ page }) => {
+    await page.goto(`${BASE_URL}/extension`);
+    await expect(page.locator("main")).not.toContainText("growth.nav.stats.kicker");
+    const heading = page.locator(".extension-guide > h2").first();
+    expect(await heading.evaluate((node) => parseFloat(getComputedStyle(node).marginTop) > parseFloat(getComputedStyle(node).marginBottom))).toBe(true);
+    expect(await page.locator(".extension-guide").evaluate((node) => node.getBoundingClientRect().width)).toBeLessThan(800);
   });
 });

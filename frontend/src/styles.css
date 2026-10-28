@@ -42,6 +42,7 @@ html[data-scheme="matrix"] {
   --err: oklch(65% 0.210 12);
   --blue: oklch(74% 0.128 232);
   --violet: oklch(72% 0.165 292);
+  --input-border: oklch(55% 0.025 148);
   --rule: oklch(24% 0.038 148);
   --rule-2: oklch(17% 0.032 148);
   --selection: oklch(23% 0.045 148);
@@ -99,6 +100,7 @@ html[data-scheme="paper"] {
   --err: oklch(45% 0.118 16);
   --blue: oklch(46% 0.100 238);
   --violet: oklch(47% 0.128 288);
+  --input-border: oklch(60% 0.013 90);
   --rule: oklch(84% 0.013 90);
   --rule-2: oklch(88% 0.013 90);
   --selection: oklch(90% 0.045 148);
@@ -534,7 +536,7 @@ section {
   display: flex;
   align-items: stretch;
   gap: 0;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--input-border);
   background: var(--panel);
   box-shadow: var(--terminal-shadow);
   transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
@@ -571,7 +573,7 @@ section {
 }
 
 .input-row .ref {
-  border-left: 1px solid var(--rule);
+  border-left: 1px solid var(--input-border);
   background: color-mix(in srgb, var(--bg) 34%, transparent);
   padding: 0 10px;
   display: flex;
@@ -968,8 +970,8 @@ body.embed-mode {
 .analysis-options-grid select,
 .analysis-options-grid input:not([type="checkbox"]) {
   width: 100%;
-  min-height: 36px;
-  border: 1px solid var(--rule);
+  min-height: max(36px, var(--tap-min));
+  border: 1px solid var(--input-border);
   background: var(--bg);
   color: var(--fg);
   padding: 7px 9px;
@@ -1263,17 +1265,22 @@ body.embed-mode {
 .compare-field input {
   min-width: 0;
   width: 100%;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--input-border);
   background: var(--bg);
   color: var(--fg);
   padding: 8px 10px;
 }
 
 .compare-run {
-  min-height: 42px;
-  padding-inline: 16px;
+  display: flex;
+  gap: var(--space-2);
   grid-column: 1 / -1;
   justify-self: end;
+}
+
+.compare-run .btn {
+  min-height: max(42px, var(--tap-min));
+  padding-inline: var(--space-4);
 }
 
 .compare-share-row {
@@ -2345,21 +2352,6 @@ table.report tr.totals td.lang {
   pointer-events: none;
 }
 
-/* Demo variant (homepage): "Example report" head + the trimmed read-only
-   view that ends in a link to the real report page. */
-.demo-report-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-4) 0;
-}
-
-.demo-report-head strong {
-  color: var(--fg);
-  font-size: var(--text-base);
-  font-weight: 700;
-}
-
 .trust-details div {
   min-width: 0;
   background: var(--panel);
@@ -3258,10 +3250,8 @@ footer a:focus-visible {
     --tap-min: 44px;
   }
 
-  /* Sentence links (subtitle's tokei credit, the hero extension link, the
-     coarse-pointer extension note) are ~17px as bare inline boxes; give
-     them a real hit box. */
-  .subtitle a,
+  /* Standalone attribution and extension links keep a full touch target. */
+  .hero-trust a,
   .mobile-install-note a,
   .hero-paths-line > a {
     display: inline-flex;
@@ -3337,22 +3327,6 @@ footer a:focus-visible {
   table.report tr.lang-row:hover td.lang {
     background: var(--bg-2);
   }
-}
-
-/* Demo note above seeded runner result */
-.demo-note {
-  font-size: var(--fs-min);
-  color: var(--fg-mute);
-  margin: 0 0 8px;
-  padding: 4px 8px;
-  border: 1px dashed var(--rule-2);
-  background: color-mix(in srgb, var(--panel) 58%, transparent);
-}
-
-.demo-note::before {
-  content: ">";
-  color: var(--accent);
-  margin-right: 7px;
 }
 
 /* Use cases grid (reuses .how/.step layout) */
@@ -3627,6 +3601,21 @@ td.lang .row-share {
 
 .tool-hero p {
   max-width: 70ch;
+  text-wrap: pretty;
+}
+
+.extension-guide {
+  max-width: 70ch;
+  line-height: 1.7;
+}
+
+.extension-guide > h2 {
+  margin: var(--space-7) 0 var(--space-2);
+}
+
+.extension-guide p {
+  margin: 0;
+  text-wrap: pretty;
 }
 
 .growth-metrics {
@@ -4105,15 +4094,8 @@ td.lang .row-share {
   color: var(--fg-dim);
 }
 
-.trust-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  color: var(--fg-mute);
-  white-space: nowrap;
+.hero-trust a {
+  color: var(--link);
 }
 
 /* ---- Sample chips as a text-link row (T7) ---- */
@@ -4127,6 +4109,7 @@ td.lang .row-share {
 }
 
 .samples-row .chip {
+  min-width: var(--tap-min);
   border: 0;
   background: none;
   padding: 2px 0;
@@ -4365,10 +4348,29 @@ button.expand::before {
     gap: 2px;
   }
 
-  .site-menu-group + .site-menu-group {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--rule);
+  .site-menu-preferences {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .site-menu-section > summary {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .site-menu-section[open] > summary svg {
+    transform: rotate(180deg);
+  }
+
+  .site-menu-section .site-menu-group {
+    padding-left: var(--space-3);
+  }
+
+  .hero-paths-line {
+    display: none;
   }
 
   .topbar-site-menu .topbar-popover a,
