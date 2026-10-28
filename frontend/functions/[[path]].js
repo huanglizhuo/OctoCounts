@@ -86,6 +86,13 @@ export async function onRequest(context) {
     target.pathname = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
     return Response.redirect(target, 308);
   }
+  // Pages also exposes .html assets without their extension.
+  if (["/home", "/home-zh", "/index"].includes(url.pathname)) {
+    const target = new URL(url);
+    target.pathname = url.pathname === "/home-zh" || url.searchParams.get("lng") === "zh" ? "/zh" : "/";
+    target.searchParams.delete("lng");
+    return Response.redirect(target, 308);
+  }
   // A trailing .md suffix selects the markdown twin of the same page
   // (/github/o/r.md, /compare/x-vs-y.md, /docs/methodology.md, ...); route
   // matching below runs on the stripped path so every ref variant resolves.
@@ -193,7 +200,15 @@ export async function onRequest(context) {
 
   if (parts[0] === "compare" && parts.length === 2) {
     const curated = findCuratedComparison(parts[1].toLowerCase());
-    if (curated) return curatedCompareResponse(context, curated, { markdown: markdownRequested });
+    if (curated) {
+      const canonicalPath = `/compare/${curated.slug}${url.pathname.endsWith(".md") ? ".md" : ""}`;
+      if (url.pathname !== canonicalPath) {
+        const target = new URL(url);
+        target.pathname = canonicalPath;
+        return Response.redirect(target, 308);
+      }
+      return curatedCompareResponse(context, curated, { markdown: markdownRequested });
+    }
     // Unknown comparison slugs are not curated content; they fall through to
     // static asset handling, which answers 404 in production.
   }
@@ -754,8 +769,9 @@ function trendingMarkdown(snapshot) {
 }
 
 async function trendingPageResponse(context, options = {}) {
-  const rotatingPromise = fetchRotatingReportLocs(context);
   const snapshot = await trendingSnapshot(context);
+  if (!snapshot) return collectionUnavailableResponse(context, "/trending", TRENDING_TITLE, options);
+  const rotatingPromise = fetchRotatingReportLocs(context);
   if (options.markdown) {
     return markdownResponse(trendingMarkdown(snapshot) + moreReportsMarkdown(await rotatingPromise), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
@@ -815,8 +831,8 @@ async function trendingPageResponse(context, options = {}) {
 /// OctoCounts report page, where the counted lines live.
 async function trendingFeedResponse(context) {
   const snapshot = await trendingSnapshot(context);
-  const buildDate = new Date(snapshot.generatedAt || snapshot.date || Date.now());
-  const pubDate = Number.isNaN(buildDate.getTime()) ? new Date().toUTCString() : buildDate.toUTCString();
+  if (!snapshot) return collectionUnavailableResponse(context, "/trending", TRENDING_TITLE, { feed: true });
+  const pubDate = new Date(snapshot.generatedAt).toUTCString();
   const title = TRENDING_TITLE;
   const items = snapshot.repositories
     .map((repo) => {
@@ -861,12 +877,10 @@ const STATS_SOURCE_LABELS = {
 /// Markdown twin of the /stats SSR body: same /api/stats payload, serialized
 /// as lists with absolute report links.
 function statsMarkdown(stats) {
-  const totals = stats?.totals
-    ? `- ${formatNumber(stats.totals.reportsGenerated)} reports generated
+  const totals = `- ${formatNumber(stats.totals.reportsGenerated)} reports generated
 - ${formatNumber(stats.totals.repositoriesAnalyzed)} public repositories analyzed
 - ${formatNumber(stats.totals.linesCounted)} total lines counted (${formatNumber(stats.totals.codeLinesCounted)} code)
-- ${formatNumber(stats.totals.languagesDetected)} languages detected`
-    : "The live figures are loading. OctoCounts is a free source lines of code counter for public GitHub repositories; the totals above are drawn from every report it has generated.";
+- ${formatNumber(stats.totals.languagesDetected)} languages detected`;
   const sources = stats?.sources?.length
     ? `\n## Where analyses come from\n\n${stats.sources
         .map((row) => `- ${STATS_SOURCE_LABELS[row.source] ?? row.source}: ${formatNumber(row.reports)} reports`)
@@ -908,27 +922,22 @@ OctoCounts counts lines of code without cloning: it downloads a repository's sou
 async function statsPageResponse(context, options = {}) {
   const response = await fetch(`${apiBase(context)}/api/stats`, {
     headers: { accept: "application/json" },
-  });
-  const stats = response.ok ? await response.json() : null;
+    signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+  }).catch(() => null);
+  const stats = response?.ok ? await response.json().catch(() => null) : null;
+  if (!validStats(stats)) return collectionUnavailableResponse(context, "/stats", STATS_TITLE, options);
   if (options.markdown) {
     return markdownResponse(statsMarkdown(stats), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
   const index = await indexHtml(context);
   const title = STATS_TITLE;
   const description = STATS_DESCRIPTION;
-  // An indexed page must never bottom out at a single "unavailable" sentence:
-  // that is all a crawler would have to cite. When the numbers are missing,
-  // explain what the page measures and where the figures come from instead —
-  // and when the numbers are present, a bare four-item list still says nothing
-  // about what they measure, so the explanation and links render in both states.
-  const totals = stats?.totals
-    ? `<ul>
+  const totals = `<ul>
       <li>${formatNumber(stats.totals.reportsGenerated)} reports generated</li>
       <li>${formatNumber(stats.totals.repositoriesAnalyzed)} public repositories analyzed</li>
       <li>${formatNumber(stats.totals.linesCounted)} total lines counted (${formatNumber(stats.totals.codeLinesCounted)} code)</li>
       <li>${formatNumber(stats.totals.languagesDetected)} languages detected</li>
-    </ul>`
-    : `<p>The live figures are loading. OctoCounts is a free source lines of code counter for public GitHub repositories; the totals above are drawn from every report it has generated.</p>`;
+    </ul>`;
   // The aggregate sections below are the citable payload of this page; they
   // mirror the /api/stats fields the JS dashboard charts, as plain HTML.
   const sources = stats?.sources?.length
@@ -1802,9 +1811,34 @@ function serviceUnavailableResponse(index, meta) {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
+      "retry-after": "60",
       ...securityHeaders(),
     },
   });
+}
+
+async function collectionUnavailableResponse(context, path, title, options = {}) {
+  const message = "Live data is temporarily unavailable. Please try again shortly.";
+  if (options.markdown || options.feed) {
+    return new Response(`${title}\n\n${message}\n`, {
+      status: 503,
+      headers: { "content-type": `${options.markdown ? "text/markdown" : "text/plain"}; charset=utf-8`, "cache-control": "no-store", "retry-after": "60", ...securityHeaders() },
+    });
+  }
+  return serviceUnavailableResponse(await indexHtml(context), {
+    title, description: message, canonical: `https://octocounts.com${path}`,
+    robots: "index,follow", ogImage: "https://octocounts.com/og-image.jpg",
+    bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${message}</p></section>`,
+  });
+}
+
+function validStats(stats) {
+  const count = (value) => Number.isSafeInteger(value) && value >= 0;
+  return stats && ["reportsGenerated", "repositoriesAnalyzed", "linesCounted", "codeLinesCounted", "languagesDetected"].every((key) => count(stats.totals?.[key]))
+    && Array.isArray(stats.sources) && stats.sources.every((row) => typeof row?.source === "string" && count(row.reports))
+    && Array.isArray(stats.languages) && stats.languages.every((row) => typeof row?.language === "string" && count(row.code) && count(row.reports))
+    && Array.isArray(stats.topRepositories) && stats.topRepositories.every((repo) => typeof repo?.owner === "string" && typeof repo.repo === "string"
+      && REPORT_SITEMAP_LOC_PATTERN.test(`https://octocounts.com${repo.publicPath}`) && count(repo.total?.lines) && count(repo.total?.code));
 }
 
 /// Sitemap entries for curated comparisons whose both sides have cached
@@ -2247,12 +2281,12 @@ async function sitemapIndexResponse(context) {
   const snapshot = await trendingSnapshot(context);
   const staticLastmod = maxLastmod(
     STATIC_SITEMAP_ENTRIES.map((entry) =>
-      entry.loc.endsWith("/trending") && snapshot.date ? { lastmod: snapshot.date } : entry
+      entry.loc.endsWith("/trending") ? { lastmod: snapshot?.date } : entry
     )
   );
   const pageSize = REPORTS_SITEMAP_PAGE_SIZE;
   const children = [
-    { loc: "https://octocounts.com/sitemap-static.xml", lastmod: staticLastmod },
+    { loc: "https://octocounts.com/sitemap-static.xml", lastmod: snapshot ? staticLastmod : undefined },
     { loc: "https://octocounts.com/sitemap-compare.xml" },
     ...Array.from({ length: reportPages }, (_, i) => ({
       loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
@@ -2273,7 +2307,7 @@ async function sitemapIndexResponse(context) {
 async function staticSitemapResponse(context) {
   const snapshot = await trendingSnapshot(context);
   const entries = STATIC_SITEMAP_ENTRIES.map((entry) =>
-    entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot.date } :
+    entry.loc.endsWith("/trending") ? { ...entry, lastmod: snapshot?.date } :
       LIVE_COLLECTION_PATHS.has(new URL(entry.loc).pathname) ? { loc: entry.loc } : entry
   );
   return urlsetResponse(entries);
@@ -2315,12 +2349,20 @@ async function trendingSnapshot(context) {
   const url = new URL(context.request.url);
   url.pathname = "/github-trending.json";
   url.search = "";
-  const response = await context.env.ASSETS.fetch(new Request(url.toString(), context.request));
-  if (!response.ok) return { source: "https://github.com/trending", generatedAt: "", date: "", repositories: [] };
+  const response = await context.env.ASSETS.fetch(new Request(url.toString(), { method: "GET", signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS) })).catch(() => null);
+  if (!response?.ok) return null;
   const snapshot = await response.json().catch(() => null);
-  return snapshot && Array.isArray(snapshot.repositories)
+  return snapshot && snapshot.source === "https://github.com/trending"
+    && typeof snapshot.generatedAt === "string" && Number.isFinite(Date.parse(snapshot.generatedAt))
+    && /^\d{4}-\d{2}-\d{2}$/.test(snapshot.date) && new Date(snapshot.generatedAt).toISOString().slice(0, 10) === snapshot.date
+    && Array.isArray(snapshot.repositories) && snapshot.repositories.every((repo) =>
+      typeof repo?.fullName === "string" && typeof repo.description === "string"
+      && (repo.language === null || typeof repo.language === "string")
+      && Number.isSafeInteger(repo.rank) && repo.rank > 0
+      && Number.isSafeInteger(repo.starsToday) && repo.starsToday >= 0
+      && REPORT_SITEMAP_LOC_PATTERN.test(`https://octocounts.com${repo.publicPath}`))
     ? snapshot
-    : { source: "https://github.com/trending", generatedAt: "", date: "", repositories: [] };
+    : null;
 }
 
 // The SPA shell is immutable for a deployment, so memoize its text per

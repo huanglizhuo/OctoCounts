@@ -10,6 +10,13 @@ import { comparePolicies } from "../functions/counting-policy.js";
 const ROOT = new URL("../", import.meta.url);
 const EXTENSION_PACKAGE = new URL("../../extension/package.json", import.meta.url);
 const EDGE_ADD_ON_URL = "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim";
+const EMPTY_STATS = {
+  totals: { reportsGenerated: 0, repositoriesAnalyzed: 0, linesCounted: 0, codeLinesCounted: 0, languagesDetected: 0 },
+  sources: [], languages: [], topRepositories: [],
+};
+const EMPTY_TRENDING = {
+  source: "https://github.com/trending", generatedAt: "2026-10-28T08:25:02.941Z", date: "2026-10-28", repositories: [],
+};
 
 const docs = [
   ["github-sloc-counter", "https://octocounts.com/docs/github-sloc-counter"],
@@ -1649,11 +1656,13 @@ test("trending.xml serves an RSS 2.0 feed from the daily snapshot", async () => 
   assert.doesNotMatch(xml, /Fish & </);
 });
 
-test("trending.xml stays a valid empty feed without a snapshot", async () => {
-  const response = await onRequest(await renderedContext("/trending.xml"));
+test("trending.xml stays a valid empty feed for a successful empty snapshot", async () => {
+  const response = await onRequest(await renderedContext("/trending.xml", EMPTY_TRENDING));
+  assert.equal(response.status, 200);
   const xml = await response.text();
   assert.match(xml, /<rss version="2\.0">/);
   assert.doesNotMatch(xml, /<item>/);
+  assert.match(xml, /<lastBuildDate>Wed, 28 Oct 2026 08:25:02 GMT<\/lastBuildDate>/);
 });
 
 test("the trending page head advertises the RSS feed", async () => {
@@ -2429,7 +2438,7 @@ test("HTML pages advertise their markdown twin with a text/markdown alternate li
   assert.ok((await trending.text()).includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/trending.md" />'));
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({});
+  globalThis.fetch = async () => Response.json(EMPTY_STATS);
   try {
     const stats = await onRequest(await renderedContext("/stats"));
     assert.ok((await stats.text()).includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/stats.md" />'));
@@ -2892,4 +2901,107 @@ test("static asset 304 responses keep a null body", async () => {
   const response = await onRequest(context);
   assert.equal(response.status, 304);
   assert.equal(await response.text(), "");
+});
+
+test("homepage asset aliases and comparison spellings redirect to a single canonical URL", async () => {
+  for (const [path, expected] of [
+    ["/home", "/"], ["/home-zh", "/zh"], ["/index", "/"],
+    ["/home?lng=zh&utm_source=chatgpt.com", "/zh?utm_source=chatgpt.com"],
+    ["/home-zh?lng=en&utm_source=chatgpt.com", "/zh?utm_source=chatgpt.com"],
+    ["/compare/React-Vs-Vue", "/compare/react-vs-vue"],
+    ["/compare/%72eact-vs-vue?utm_source=chatgpt.com", "/compare/react-vs-vue?utm_source=chatgpt.com"],
+    ["/compare/React-Vs-Vue.md?utm_source=chatgpt.com", "/compare/react-vs-vue.md?utm_source=chatgpt.com"],
+    ["/compare/React-Vs-Vue?format=md", "/compare/react-vs-vue?format=md"],
+  ]) {
+    const response = await onRequest(requestContext(path));
+    assert.equal(response.status, 308, path);
+    assert.equal(response.headers.get("location"), `https://octocounts.com${expected}`, path);
+  }
+});
+
+test("stats failures are retryable in HTML and Markdown, including invalid rows and timeouts", async (t) => {
+  const failures = [
+    async () => new Response("unavailable", { status: 503 }),
+    async () => { throw new Error("network failure"); },
+    async () => { throw new DOMException("timed out", "TimeoutError"); },
+    async () => new Response("<html>upstream error</html>"),
+    ...[null, {}, { ...EMPTY_STATS, totals: { ...EMPTY_STATS.totals, linesCounted: -1 } },
+      { ...EMPTY_STATS, sources: [null] }, { ...EMPTY_STATS, languages: [{ language: "Rust" }] },
+      { ...EMPTY_STATS, topRepositories: [{ owner: "org", repo: "repo", publicPath: "javascript:alert(1)", total: { lines: 1, code: 1 } }] },
+    ].map((body) => async () => Response.json(body)),
+  ];
+  for (const fail of failures) {
+    t.mock.method(globalThis, "fetch", async (_url, init) => {
+      assert.ok(init.signal instanceof AbortSignal, "stats requests must be bounded");
+      return fail();
+    });
+    for (const path of ["/stats", "/stats.md", "/stats?format=md"]) {
+      const response = await onRequest(await renderedContext(path));
+      assert.equal(response.status, 503, path);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(response.headers.get("retry-after"), "60");
+      assert.equal(response.headers.get("x-robots-tag"), null, "transient errors must not deindex the canonical page");
+      const body = await response.text();
+      assert.match(body, /temporarily unavailable/);
+      assert.doesNotMatch(body, /noindex|undefined|"@type":"Dataset"/);
+      assert.match(response.headers.get("content-type"), path === "/stats" ? /text\/html/ : /text\/markdown/);
+    }
+    t.mock.restoreAll();
+  }
+  t.mock.method(globalThis, "fetch", async () => Response.json(EMPTY_STATS));
+  for (const path of ["/stats", "/stats.md"]) {
+    const response = await onRequest(await renderedContext(path));
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /0 reports generated/);
+  }
+});
+
+test("missing or corrupt Trending data cannot become a fresh empty page, feed, or sitemap date", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json([]));
+  const failures = [
+    async () => new Response("Not found", { status: 404 }),
+    async () => { throw new Error("asset unavailable"); },
+    async () => new Response("<html>fallback</html>"),
+    ...[null, {}, { ...EMPTY_TRENDING, date: "not-a-date" }, { ...EMPTY_TRENDING, generatedAt: "bad" },
+      { ...EMPTY_TRENDING, date: "2026-02-30", generatedAt: "2026-02-30T00:00:00Z" },
+      { ...EMPTY_TRENDING, repositories: [null] },
+      { ...EMPTY_TRENDING, repositories: [{ rank: 1, fullName: "org/repo", description: "Repo", language: null, starsToday: 0, publicPath: "https://other.example" }] },
+    ].map((body) => async () => Response.json(body)),
+  ];
+  for (const fail of failures) {
+    for (const path of ["/trending", "/trending.md", "/trending?format=md", "/trending.xml", "/sitemap-static.xml", "/sitemap.xml"]) {
+      const context = await renderedContext(path);
+      const assets = context.env.ASSETS.fetch;
+      context.env.ASSETS.fetch = async (request) => new URL(request.url).pathname === "/github-trending.json" ? fail() : assets(request);
+      const response = await onRequest(context);
+      const body = await response.text();
+      if (path.startsWith("/sitemap")) {
+        assert.equal(response.status, 200, "independent sitemap inventory remains available");
+        const block = body.match(/<(?:url|sitemap)>\s*<loc>https:\/\/octocounts.com\/(?:trending|sitemap-static.xml)<\/loc>[\s\S]*?<\/(?:url|sitemap)>/)[0];
+        assert.doesNotMatch(block, /<lastmod>/, "unknown freshness must not be invented");
+      } else {
+        assert.equal(response.status, 503, path);
+        assert.equal(response.headers.get("cache-control"), "no-store");
+        assert.equal(response.headers.get("retry-after"), "60");
+        assert.match(body, /temporarily unavailable/);
+        assert.doesNotMatch(body, /<lastBuildDate>|noindex|undefined|"@type":"CollectionPage"/);
+      }
+    }
+  }
+});
+
+test("Trending reads an unconditional snapshot even for HEAD and conditional page requests", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json([]));
+  const context = await renderedContext("/trending", EMPTY_TRENDING);
+  context.request = new Request(context.request.url, { method: "HEAD", headers: { "if-none-match": "page-etag", "if-modified-since": "Wed, 28 Oct 2026 00:00:00 GMT" } });
+  const assets = context.env.ASSETS.fetch;
+  context.env.ASSETS.fetch = async (request) => {
+    if (new URL(request.url).pathname === "/github-trending.json") {
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("if-none-match"), null);
+      assert.equal(request.headers.get("if-modified-since"), null);
+    }
+    return assets(request);
+  };
+  assert.equal((await onRequest(context)).status, 200);
 });
