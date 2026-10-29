@@ -9,7 +9,9 @@ type CopyReport = {
   analysisOptions?: Partial<AnalysisOptions> | null;
 };
 
-export const DATA_AND_PROSE_LANGUAGES: Set<string>;
+// Pages Functions compiles every file under functions/ as a route module, so
+// this file must also be valid as plain TypeScript: function declarations
+// only (an uninitialized `export const` fails that build).
 export function isCanonicalAnalysisOptions(options: Partial<AnalysisOptions> | null | undefined): boolean;
 export function analysisOptionsLabel(options: Partial<AnalysisOptions> | null | undefined): string | null;
 export function primaryLanguage(languages: CopyLanguage[], totalCode: number): { name: string; code: number; percent: number; programming: boolean } | null;

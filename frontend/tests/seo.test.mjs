@@ -3121,3 +3121,14 @@ test("the docs hub is a real page that every guide breadcrumb resolves to", asyn
     if (html.includes('<nav><a href="/">OctoCounts</a> / ')) assert.match(html, /<nav><a href="\/">OctoCounts<\/a> \/ <a href="\/docs">Docs<\/a> \/ /, `${slug} visible breadcrumb`);
   }
 });
+
+test("every functions/ module compiles the way Pages Functions builds it", async () => {
+  // Pages treats each file under functions/ as a route module and compiles it
+  // with esbuild, .d.ts files included; a declaration that is only valid in a
+  // .d.ts (an uninitialized `export const`) fails the whole deployment.
+  const { readdir } = await import("node:fs/promises");
+  for (const name of await readdir(new URL("functions/", ROOT))) {
+    const source = await readFile(new URL(`functions/${name}`, ROOT), "utf8");
+    await assert.doesNotReject(transform(source, { loader: name.endsWith(".ts") ? "ts" : "js", format: "esm" }), name);
+  }
+});
