@@ -1,12 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-10-28T08:25:02.941Z
+# GitHub Trending daily snapshot generated 2026-10-29T08:25:06.940Z
+JetBrains/thinkrail
 elayadesign/ai-design-skills
-Nutlope/hallmark
-nightly-labs/openbot
 obra/superpowers
+HKUDS/DeepTutor
+macro-inc/macro
+Nutlope/hallmark
 pbakaus/impeccable
 makecindy/cindy
-gitroomhq/postiz-app
-affaan-m/ECC
-HKUDS/DeepTutor
-JetBrains/thinkrail
+nightly-labs/openbot
 togg53192-cmd/jailbreaks
+hmjz100/LinkSwift
+expo/skills
+ruvnet/RuView
+xiaolai/the-craft-of-selfteaching
