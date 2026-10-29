@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-27",
+  "updated": "2026-10-29",
   "purpose": "Per-URL record of real content changes (SG-07). A page's lastmod changes ONLY when that page's content, key links, or structured facts change — build changes, unrelated commits, and date-only edits never bump it. frontend/functions/[[path]].js (STATIC_SITEMAP_ENTRIES) mirrors this file; tests assert the sync. llms.txt / llms-full.txt stay recorded here as a content-change log but are intentionally NOT sitemap entries (text/plain assets do not belong in XML sitemaps). Update the manifest and the functions mirror together in the same change.",
   "provenance": {
     "2026-09-05": "Inherited from the pre-manifest blanket date (2026-09-05 site-wide update). Replace with the page's true content-change date next time that page actually changes; do not bulk-edit.",
@@ -15,11 +15,12 @@
     "2026-10-15": "Real content changes made on 2026-10-15 (SEO action-plan round 5): four new docs pages added (/docs/count-lines-without-cloning, /docs/github-api-count-lines, /docs/tokei-vs-cloc-vs-scc, /docs/largest-codebases — HTML and markdown twins each; largest-codebases carries first-party tokei 14.0.0 counts pinned to commits for eight famous repositories). /docs/github-sloc-counter expanded into a fuller pillar (worked example, counting pipeline, accuracy statement, visible FAQ with matching FAQPage JSON-LD, docs index grown to 16 links); /docs/octocounts-vs-cloc gained a cloc-command-mapping section. Meta descriptions trimmed to the ≤160-char band on eight docs pages (best-sloc-counter-tools, count-lines-of-code-github, github-language-bar-alternative, github-repository-size-checker, glossary, octocounts-vs-scc, octocounts-vs-tokei, tokei-online) and two over-60-char titles shortened; methodology's tokei-pinning check date refreshed after re-verifying Cargo.lock. Contextual links added from size-checker, count-lines, best-tools, and hall-of-monoliths into the new pages; llms.txt and llms-full.txt refreshed to match.",
     "2026-10-18": "Canonical URLs serve HTML to all user agents. Comparison evidence and counting rules, saved Dataset downloads, live-ref wording and citation guidance corrected. Added independent Chinese homepage and two Chinese guides, reciprocal language links, canonical URLs and sitemap entries.",
     "2026-10-25": "SEO/GEO repair: correct cache/ref/error/Markdown behavior, policy-aware comparisons, reproducibility and retention claims, rate limits, entity identities, optional OAuth and static-content attribution. Dynamic collection and comparison sitemap lastmod is omitted when no reliable content timestamp is available; manifest entries still record actual editorial changes. Research measurements and editorial verification dates were not refreshed.",
-    "2026-10-27": "Bound optional report links; align live HTML/Markdown caching; add ChatGPT UTM attribution. Correct conditional latency, sample-scoped filtering results and AI usage wording; publish versioned cross-language research evidence."
+    "2026-10-27": "Bound optional report links; align live HTML/Markdown caching; add ChatGPT UTM attribution. Correct conditional latency, sample-scoped filtering results and AI usage wording; publish versioned cross-language research evidence.",
+    "2026-10-29": "SEO/GEO round 6: new /docs guide hub (HTML and markdown twin) and the guides' visible breadcrumbs now point at it (navigation chrome only, so those guides keep their dates); best-sloc-counter-tools table text corrected; largest-codebases meta and TechArticle description shortened; report and comparison templates rewritten (report titles drop the canonical-options suffix, capsule and FAQ name the counting rules once with readable dates, top programming language skips data and prose formats, comparison titles shortened, both gained guide links); llms.txt trimmed to an index whose comparison list moved to llms-full.txt, which also gained the three 2026-10-07 guides and the hub."
   },
   "comparePages": {
-    "lastmod": "2026-10-25",
-    "note": "Comparison summaries and FAQs now gate ratios on matching policies, handle zero counts, distinguish historical editorial context, and correct entity/schema claims."
+    "lastmod": "2026-10-29",
+    "note": "Comparison titles shortened to \"X vs Y: lines of code compared\" and related links gained the guide hub and how-to guide; summaries and FAQs unchanged."
   },
   "pages": {
     "https://octocounts.com/": "2026-10-25",
@@ -32,6 +33,7 @@
     "https://octocounts.com/hall-of-monoliths": "2026-10-25",
     "https://octocounts.com/badges": "2026-10-25",
     "https://octocounts.com/extension": "2026-10-25",
+    "https://octocounts.com/docs": "2026-10-29",
     "https://octocounts.com/docs/github-sloc-counter": "2026-10-25",
     "https://octocounts.com/docs/api": "2026-10-25",
     "https://octocounts.com/docs/methodology": "2026-10-27",
@@ -39,7 +41,7 @@
     "https://octocounts.com/docs/faq": "2026-10-25",
     "https://octocounts.com/docs/octocounts-vs-cloc": "2026-10-25",
     "https://octocounts.com/docs/github-language-bar-alternative": "2026-10-25",
-    "https://octocounts.com/docs/best-sloc-counter-tools": "2026-10-25",
+    "https://octocounts.com/docs/best-sloc-counter-tools": "2026-10-29",
     "https://octocounts.com/docs/tokei-online": "2026-10-25",
     "https://octocounts.com/docs/count-lines-of-code-github": "2026-10-27",
     "https://octocounts.com/docs/github-repository-size-checker": "2026-10-25",
@@ -48,11 +50,11 @@
     "https://octocounts.com/docs/count-lines-without-cloning": "2026-10-27",
     "https://octocounts.com/docs/github-api-count-lines": "2026-10-25",
     "https://octocounts.com/docs/tokei-vs-cloc-vs-scc": "2026-10-25",
-    "https://octocounts.com/docs/largest-codebases": "2026-10-27",
+    "https://octocounts.com/docs/largest-codebases": "2026-10-29",
     "https://octocounts.com/research": "2026-10-27",
     "https://octocounts.com/about": "2026-10-25",
-    "https://octocounts.com/llms.txt": "2026-10-27",
-    "https://octocounts.com/llms-full.txt": "2026-10-27",
+    "https://octocounts.com/llms.txt": "2026-10-29",
+    "https://octocounts.com/llms-full.txt": "2026-10-29",
     "https://octocounts.com/privacy": "2026-10-25",
     "https://octocounts.com/contact": "2026-09-30",
     "https://octocounts.com/zh": "2026-10-25",

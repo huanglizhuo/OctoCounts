@@ -91,12 +91,13 @@ const escapeAttr = (value) => String(value).replace(/&/g, "&amp;").replace(/"/g,
 // and the OG/Twitter mirror swap to the zh locale strings read from source.
 // Each language has its own canonical URL and reciprocal language links.
 const zhLocale = JSON.parse(await readFile(path.join(root, "src", "locales", "zh.json"), "utf8"));
+const enLocale = JSON.parse(await readFile(path.join(root, "src", "locales", "en.json"), "utf8"));
 function zhHead(html) {
   const title = escapeAttr(zhLocale.app.title);
   const description = escapeAttr(zhLocale.app.description);
   const replaceMeta = (prefix) => new RegExp(`${prefix} content="[^"]*" />`);
   return html
-    .replace('<html lang="en">', '<html lang="zh">')
+    .replace('<html lang="en">', '<html lang="zh-Hans">')
     .replace('<link rel="canonical" href="https://octocounts.com/"', '<link rel="canonical" href="https://octocounts.com/zh"')
     .replace('<meta property="og:url" content="https://octocounts.com/"', '<meta property="og:url" content="https://octocounts.com/zh"')
     .replace('<link rel="help" href="https://octocounts.com/docs/github-sloc-counter"', '<link rel="help" href="https://octocounts.com/zh/docs/github-sloc-counter"')
@@ -139,7 +140,7 @@ for (const locale of ["en", "zh"]) {
     <script type="application/ld+json" id="octocounts-home-page">${JSON.stringify({
       "@context": "https://schema.org", "@type": "WebPage", "@id": `${canonical}#webpage`,
       url: canonical, inLanguage: locale === "zh" ? "zh-Hans" : "en",
-      name: locale === "zh" ? zhLocale.app.title : "OctoCounts – GitHub SLOC Counter",
+      name: locale === "zh" ? zhLocale.app.title : enLocale.app.title,
       isPartOf: { "@id": "https://octocounts.com/#website" },
       about: { "@id": "https://octocounts.com/#app" },
     }).replace(/</g, "\\u003c")}</script>`;

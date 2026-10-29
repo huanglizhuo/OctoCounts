@@ -127,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
         state.clone(),
         config.sloc_compaction_interval_seconds,
     );
+    spawn_stats_refresh_task(state.clone());
 
     let app = build_router(state);
 
@@ -238,6 +239,24 @@ fn spawn_cleanup_task(store: Store, interval_seconds: u64, config: CleanupConfig
                 }
             }
             tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
+        }
+    });
+}
+
+/// The growth-stats aggregate scans every report (about ten seconds in
+/// production), longer than the edge's eight-second upstream budget, so
+/// `/api/stats` must never compute it inline on a cold cache. Recompute it in
+/// the background every five minutes, starting at boot; the cache TTL
+/// (`AppCaches::stats`) outlives two missed refreshes before the handler's own
+/// compute-on-miss path takes over again.
+fn spawn_stats_refresh_task(state: AppState) {
+    tokio::spawn(async move {
+        loop {
+            match state.coordinator.store().growth_stats().await {
+                Ok(stats) => state.caches.stats.insert("stats".to_string(), stats).await,
+                Err(error) => tracing::warn!(%error, "growth stats refresh failed"),
+            }
+            tokio::time::sleep(Duration::from_secs(300)).await;
         }
     });
 }

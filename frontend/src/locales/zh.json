@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "OctoCounts – GitHub SLOC 计数器",
+    "title": "GitHub 代码行数统计工具：免费在线统计仓库代码量 | OctoCounts",
     "description": "OctoCounts 显示公开 GitHub 仓库的实际源代码行数：文件数、代码行、注释行、空行和每种语言的统计。无需克隆。"
   },
   "topbar": {
@@ -34,8 +34,8 @@
     "alsoLine": "还可以：在 GitHub 侧栏直接看 SLOC",
     "sidebarHint": "直接在 GitHub 仓库侧边栏查看 SLOC。",
     "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
-    "reportSubtitle": "SLOC 报告",
-    "reportSubtitleRef": "SLOC 报告 · {{ref}}",
+    "reportSubtitle": "代码行数 · SLOC 报告",
+    "reportSubtitleRef": "代码行数 · SLOC 报告 · {{ref}}",
     "trustLine": "开源 · 由 <1>tokei</1> 驱动 · 支持 200+ 种语言",
     "editReport": "分析其他仓库 / 修改设置"
   },
@@ -306,8 +306,10 @@
     "apiDocs": "API 文档",
     "slocGuide": "SLOC 指南",
     "faq": "常见问题",
+    "countLines": "统计代码行数（英文）",
     "languageBar": "语言条替代方案",
     "methodology": "统计方法",
+    "allGuides": "全部指南（英文）",
     "badges": "徽章",
     "github": "GitHub",
     "builtBy": "由 <1>huanglizhuo</1> 构建，独立开发者",

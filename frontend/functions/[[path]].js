@@ -1,4 +1,5 @@
 import { reportJsonLd } from "./report-schema.js";
+import { analysisOptionsLabel, isCanonicalAnalysisOptions, primaryLanguage, primaryLanguagePhrase, reportPageDescription, reportPageTitle } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
 import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
@@ -31,6 +32,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-27" },
@@ -38,7 +40,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
@@ -47,7 +49,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-27" },
+  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/research", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-10-25" },
@@ -60,8 +62,8 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const COMPARE_CONTENT_LASTMOD = "2026-10-25";
-const REPORT_CONTENT_LASTMOD = "2026-10-25";
+const COMPARE_CONTENT_LASTMOD = "2026-10-29";
+const REPORT_CONTENT_LASTMOD = "2026-10-29";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
@@ -449,11 +451,11 @@ async function reportResponse(context, route, options = {}) {
     report.refKind = route.refKind;
     report.requestedRef = route.refName;
   }
-  // The backend formats every report title/description identically ("N lines
-  // of code") even though a filtered count is code lines under that filter.
-  // When the payload's analysisOptions prove a non-default configuration,
-  // reword so "lines of code" cannot be read as a whole-repository count.
-  applyReportFilterWording(report);
+  // Title and description come from the module the hydrated page also uses,
+  // so the server and client metadata agree; options narrower than the
+  // canonical public set are labelled in both.
+  report.title = reportPageTitle(report);
+  report.description = reportPageDescription(report);
   // Below the indexable floor the page would be a thin URL Google crawls and
   // drops; answer the same hard 404 the missing branch does so the URL leaves
   // the index (and stop paying the render). Totals live in the same payload
@@ -478,15 +480,17 @@ async function reportResponse(context, route, options = {}) {
     const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
     return Response.redirect(new URL(report.publicPath + suffix + requestUrl.search, requestUrl.origin), 308);
   }
-  // Keep live HTML and Markdown on the same freshness window.
+  // Keep live HTML and Markdown on the same freshness window. A report only
+  // changes when it is re-analyzed, so an hour at the edge (a day of stale
+  // serving while revalidating) lets most crawler hits skip the API round trip.
+  const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
   if (options.markdown) {
-    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : "public, s-maxage=300, stale-while-revalidate=600", options);
+    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : cacheControl, options);
   }
   const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
   if (report.isSnapshot) {
     return htmlResponse(html, "private, no-store", {});
   }
-  const cacheControl = "public, s-maxage=300, stale-while-revalidate=600";
   // Validate the whole representation: templates and related links can change without a new analysis.
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
   const etag = `W/"${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
@@ -506,7 +510,6 @@ async function reportResponse(context, route, options = {}) {
 /// as headings, a pipe table, FAQ, and absolute internal links so the text is
 /// quotable without the surrounding page.
 function reportMarkdown(report, relatedReports = []) {
-  const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
   const table = [
     "| Language | Files | Lines | Code | Comments | Blanks |",
     "| --- | ---: | ---: | ---: | ---: | ---: |",
@@ -518,18 +521,20 @@ function reportMarkdown(report, relatedReports = []) {
   const faq = reportFaq(report)
     .map((item) => `### ${item.question}\n\n${item.answer}`)
     .join("\n\n");
-  const relatedCompare = relatedComparisons(report.topLanguage?.name);
+  const relatedCompare = relatedComparisons(report);
   const links = [
     "- [Recently analyzed repositories](https://octocounts.com/recent)",
     "- [Popular SLOC reports](https://octocounts.com/popular)",
     "- [Trending GitHub repositories](https://octocounts.com/trending)",
     "- [Hall of Monoliths](https://octocounts.com/hall-of-monoliths)",
     ...relatedCompare.map((entry) => `- [${entry.name}](https://octocounts.com/compare/${entry.slug})`),
+    "- [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github)",
     "- [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)",
     "- [Counting methodology](https://octocounts.com/docs/methodology)",
     "- [SLOC and code metrics glossary](https://octocounts.com/docs/glossary)",
     "- [Original research: how filtering changes SLOC counts](https://octocounts.com/research)",
     "- [OctoCounts API docs](https://octocounts.com/docs/api)",
+    "- [All OctoCounts guides](https://octocounts.com/docs)",
   ].join("\n");
   const similar = relatedReports.length
     ? `\n## Similar repository reports\n\n${relatedReports
@@ -556,7 +561,7 @@ ${reportInsightsText(report)}
 
 ${table}
 
-Top language${top}. Generated at ${report.generatedAt}. Canonical report: ${report.canonicalUrl}
+${reportLanguageLine(report)} Generated on ${readableDate(report.generatedAt)}. Canonical report: ${report.canonicalUrl}
 
 ${reportReproduceMarkdown(report)}
 
@@ -591,8 +596,9 @@ async function fetchRelatedReports(context, route) {
     });
     const response = await fetch(`${apiBase(context)}/api/seo/related?${params.toString()}`, {
       headers: { accept: "application/json" },
-      // Optional links must not hold the report open when this endpoint stalls.
-      signal: AbortSignal.timeout(1500),
+      // Optional links must not hold the report open when this endpoint stalls;
+      // the backend finishes and caches a slow lookup for the next request.
+      signal: AbortSignal.timeout(1000),
     });
     if (!response.ok) return [];
     const payload = await response.json();
@@ -924,10 +930,17 @@ async function statsPageResponse(context, options = {}) {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
   }).catch(() => null);
-  const stats = response?.ok ? await response.json().catch(() => null) : null;
-  if (!validStats(stats)) return collectionUnavailableResponse(context, "/stats", STATS_TITLE, options);
+  const fresh = response?.ok ? await response.json().catch(() => null) : null;
+  // Stale-while-error, like curated comparisons: a slow or failed upstream
+  // answers with this isolate's last validated totals under a short TTL, so
+  // the next good pass replaces them; only a never-rendered isolate 503s.
+  const scratch = envScratchMap(context.env);
+  if (validStats(fresh)) scratch.set("stats:last-good", fresh);
+  const stats = validStats(fresh) ? fresh : scratch.get("stats:last-good");
+  if (!stats) return collectionUnavailableResponse(context, "/stats", STATS_TITLE, options);
+  const cacheControl = stats === fresh ? "public, s-maxage=300, stale-while-revalidate=600" : "public, max-age=60, stale-while-revalidate=600";
   if (options.markdown) {
-    return markdownResponse(statsMarkdown(stats), "public, s-maxage=300, stale-while-revalidate=600", options);
+    return markdownResponse(statsMarkdown(stats), cacheControl, options);
   }
   const index = await indexHtml(context);
   const title = STATS_TITLE;
@@ -976,22 +989,32 @@ async function statsPageResponse(context, options = {}) {
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
       mdAlternate: "https://octocounts.com/stats.md",
+      // breadcrumb is a WebPage property, so the page node carries it and the
+      // Dataset rides along as its main entity.
       jsonLd: {
         "@context": "https://schema.org",
-        "@type": "Dataset",
-        name: title,
-        description,
+        "@type": "WebPage",
+        "@id": "https://octocounts.com/stats#webpage",
         url: "https://octocounts.com/stats",
+        name: title,
         breadcrumb: breadcrumbItemList("Site stats", "https://octocounts.com/stats"),
-        // The stats dashboard shipped on 2026-07-10 (backend fd456cb, edge
-        // function 82ed24a); the API exposes no earlier creation timestamp.
-        datePublished: "2026-07-10",
-        measurementTechnique: "Aggregate public OctoCounts report activity",
-        variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
+        mainEntity: {
+          "@type": "Dataset",
+          "@id": "https://octocounts.com/stats#dataset",
+          name: title,
+          description,
+          url: "https://octocounts.com/stats",
+          // The stats dashboard shipped on 2026-07-10 (backend fd456cb, edge
+          // function 82ed24a); the API exposes no earlier creation timestamp.
+          datePublished: "2026-07-10",
+          creator: { "@type": "Organization", "@id": ORGANIZATION_ID, name: "OctoCounts", url: "https://octocounts.com/" },
+          measurementTechnique: "Aggregate public OctoCounts report activity",
+          variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
+        },
       },
       bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
     }),
-    "public, s-maxage=300, stale-while-revalidate=600"
+    cacheControl
   );
 }
 
@@ -1204,7 +1227,15 @@ const EXTENSION_STORES = [
 // per URL. Product listings identify the product; Person.sameAs contains only personal profiles.
 const ORGANIZATION_ID = "https://octocounts.com/#organization";
 const PERSON_ID = "https://github.com/huanglizhuo";
-const ORGANIZATION_SAME_AS = ["https://github.com/huanglizhuo/OctoCounts", ...EXTENSION_STORES.map((store) => store.url)];
+// Official package and third-party profiles that describe this same product;
+// mirrored by the Organization node in index.html.
+const ORGANIZATION_SAME_AS = [
+  "https://github.com/huanglizhuo/OctoCounts",
+  ...EXTENSION_STORES.map((store) => store.url),
+  "https://www.npmjs.com/package/octocounts",
+  "https://glama.ai/mcp/servers/huanglizhuo/OctoCounts",
+  "https://alternativeto.net/software/octocounts/about/",
+];
 const PERSON_SAME_AS = [PERSON_ID];
 
 const EXTENSION_CONTENT = {
@@ -1410,6 +1441,14 @@ async function homePageResponse(context) {
   return htmlResponse(await indexHtml(context), "no-store");
 }
 
+/// "React vs Vue: lines of code compared | OctoCounts". The brand suffix is
+/// dropped when it would push the title past the ~60 characters a SERP shows,
+/// so the pair names and "lines of code" are never the truncated part.
+function compareTitle(name) {
+  const title = `${name}: lines of code compared`;
+  return title.length + " | OctoCounts".length > 60 ? title : `${title} | OctoCounts`;
+}
+
 /// Degraded-state response for curated compare pages: backend down or an
 /// integrity-guard mismatch. Stale-while-error first — a slug with a last-good
 /// render gets that render back with a normal 200 and a short TTL so the next
@@ -1422,7 +1461,7 @@ async function compareUnavailableResponse(context, entry, options = {}) {
     if (!options.markdown && cached.html) return htmlResponse(cached.html, "public, max-age=60, stale-while-revalidate=600");
   }
   return serviceUnavailableResponse(await indexHtml(context), {
-    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    title: compareTitle(entry.name),
     description: `The ${entry.name} source line count comparison is temporarily unavailable. Please try again shortly.`,
     canonical: `https://octocounts.com/compare/${entry.slug}`,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
@@ -1503,7 +1542,7 @@ async function buildCompareViewModel(entry, left, right) {
     ["Code lines", left.total.code, right.total.code],
     ["Comment lines", left.total.comments, right.total.comments],
     ["Blank lines", left.total.blanks, right.total.blanks],
-    ["Languages counted", left.languages.length, right.languages.length],
+    ["Languages counted", languageCount(left), languageCount(right)],
   ];
   const compatibility = comparePolicies(left, right).status;
   const editorial = (await loadCompareEditorial())[entry.slug];
@@ -1517,7 +1556,7 @@ async function buildCompareViewModel(entry, left, right) {
     commitSha: report.commitSha,
     generatedAt: report.generatedAt,
     date,
-    totals: { ...report.total, languages: report.languages.length },
+    totals: { ...report.total, languages: languageCount(report) },
     topLanguages: topLanguages(report, 5).map((language) => ({ name: language.name, code: language.stats.code })),
   });
   return {
@@ -1525,7 +1564,7 @@ async function buildCompareViewModel(entry, left, right) {
     slug: entry.slug,
     name: entry.name,
     canonical,
-    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    title: compareTitle(entry.name),
     heading: `${entry.name}: source lines of code compared`,
     // Meta description ~120-140 chars for typical registry names (SEO audit
     // H5): the old template's closing clause ("Totals, language mix, and
@@ -1564,10 +1603,13 @@ async function buildCompareViewModel(entry, left, right) {
       { href: "/trending", label: "Trending GitHub repositories" },
       { href: "/hall-of-monoliths", label: "Hall of Monoliths" },
       { href: "/research", label: "Original research: how filtering changes SLOC counts" },
+      { href: "/docs/count-lines-of-code-github", label: "How to count lines of code in a GitHub repository" },
+      { href: "/docs/largest-codebases", label: "Largest codebases by lines of code" },
       { href: "/docs/github-sloc-counter", label: "GitHub SLOC counter guide" },
       { href: "/docs/methodology", label: "Counting methodology" },
       { href: "/docs/glossary", label: "SLOC and code metrics glossary" },
       { href: "/docs/api", label: "OctoCounts API docs" },
+      { href: "/docs", label: "All OctoCounts guides" },
     ],
     updatedAt: [left.generatedAt, right.generatedAt, COMPARE_CONTENT_LASTMOD].sort().at(-1),
   };
@@ -1581,7 +1623,7 @@ function compareFallbackViewModel(entry, state) {
     slug: entry.slug,
     name: entry.name,
     canonical: `https://octocounts.com/compare/${entry.slug}`,
-    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    title: compareTitle(entry.name),
     heading: `${entry.name}: source lines of code compared`,
     interactiveHref: `/compare/${entry.slug}`,
   };
@@ -1730,8 +1772,9 @@ async function resolveRenamedCompareEntry(context, entry, left, right) {
 /// - "<compare slug>" -> { html, markdown }: last-good curated-compare
 ///   renders for stale-while-error (see compareUnavailableResponse).
 /// - "rotating-reports:<day>" -> [loc]: the hub pages' daily report slice
-///   (see fetchRotatingReportLocs). Key namespaces cannot collide: registry
-///   slugs contain no ":".
+///   (see fetchRotatingReportLocs).
+/// - "stats:last-good" -> validated /api/stats payload (see statsPageResponse).
+/// Key namespaces cannot collide: registry slugs contain no ":".
 const lastGoodEnvCache = new WeakMap();
 
 function envScratchMap(env) {
@@ -1867,6 +1910,7 @@ async function indexableCompareEntries(context) {
     const right = indexable.has(`${entry.right.owner.toLowerCase()}/${entry.right.repo.toLowerCase()}`);
     return left && right;
   }).map((entry) => ({
+    slug: entry.slug,
     loc: `https://octocounts.com/compare/${entry.slug}`,
   }));
 }
@@ -2128,7 +2172,7 @@ function compareJsonLd(model) {
 function injectCompareFallback(index, entry) {
   const fullNames = `${entry.left.owner}/${entry.left.repo} and ${entry.right.owner}/${entry.right.repo}`;
   return injectHeadAndNoscript(index, {
-    title: `${entry.name}: source lines of code compared | OctoCounts`,
+    title: compareTitle(entry.name),
     description: `Source line count comparison of ${fullNames}. Analyze these public GitHub repositories with OctoCounts.`,
     canonical: `https://octocounts.com/compare/${entry.slug}`,
     robots: "noindex,follow,max-image-preview:large",
@@ -2236,9 +2280,22 @@ function filterReportSitemapEntries(entries) {
     if (seenLocs.has(dedupeKey)) continue;
     seenLocs.add(dedupeKey);
     if (!sitemapEntryMeasuredAnything(entry)) continue;
-    kept.push({ ...entry, lastmod: entry.lastmod > REPORT_CONTENT_LASTMOD ? entry.lastmod : REPORT_CONTENT_LASTMOD });
+    kept.push({ ...entry, dataLastmod: entry.lastmod, lastmod: entry.lastmod > REPORT_CONTENT_LASTMOD ? entry.lastmod : REPORT_CONTENT_LASTMOD });
   }
   return kept;
+}
+
+/// Per-slug lastmod for curated comparisons: the newer of the two reports'
+/// data dates and the comparison template date, the same day the page's
+/// visible updatedAt names. A slug with a side missing from the report
+/// inventory gets no date rather than an invented one.
+function compareLastmods(reportEntries) {
+  const dates = new Map(reportEntries.map((entry) => [entry.loc.toLowerCase(), entry.dataLastmod ?? entry.lastmod]));
+  const side = (target) => dates.get(`https://octocounts.com/github/${target.owner}/${target.repo}`.toLowerCase());
+  return new Map(COMPARE_REGISTRY.map((entry) => {
+    const [left, right] = [side(entry.left), side(entry.right)];
+    return [entry.slug, typeof left === "string" && typeof right === "string" ? [left, right, COMPARE_CONTENT_LASTMOD].sort().at(-1) : undefined];
+  }));
 }
 
 /// True unless the entry's own totals prove it is not worth indexing: an
@@ -2287,7 +2344,7 @@ async function sitemapIndexResponse(context) {
   const pageSize = REPORTS_SITEMAP_PAGE_SIZE;
   const children = [
     { loc: "https://octocounts.com/sitemap-static.xml", lastmod: snapshot ? staticLastmod : undefined },
-    { loc: "https://octocounts.com/sitemap-compare.xml" },
+    { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([...compareLastmods(dynamicEntries).values()].map((lastmod) => ({ lastmod }))) },
     ...Array.from({ length: reportPages }, (_, i) => ({
       loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
       lastmod: maxLastmod(dynamicEntries.slice(i * pageSize, (i + 1) * pageSize)),
@@ -2314,8 +2371,11 @@ async function staticSitemapResponse(context) {
 }
 
 async function compareSitemapResponse(context) {
-  const entries = await indexableCompareEntries(context);
-  return entries === null ? sitemapUnavailableResponse() : urlsetResponse(entries);
+  const [entries, reportEntries] = await Promise.all([indexableCompareEntries(context), fetchReportSitemapEntries(context)]);
+  if (entries === null) return sitemapUnavailableResponse();
+  // Dates are optional: without the report inventory the URLs still list.
+  const lastmods = reportEntries ? compareLastmods(reportEntries) : new Map();
+  return urlsetResponse(entries.map((entry) => ({ loc: entry.loc, lastmod: lastmods.get(entry.slug) })));
 }
 
 /// An out-of-range or empty reports chunk used to answer 200 with an empty
@@ -2418,10 +2478,18 @@ function listPageMeta(kind) {
   };
 }
 
-/// Curated comparisons relevant to a report's dominant language, so every
-/// long-tail /github/* page links into the compare corpus with topical
-/// anchors instead of an identical link list on every page.
-function relatedComparisons(topLanguageName) {
+/// Curated comparisons for a report page: first every comparison this
+/// repository is part of (react/react -> React vs Vue, ...), then ones
+/// matching its top programming language, so every long-tail /github/* page
+/// links into the compare corpus with topical anchors.
+function relatedComparisons(report) {
+  const fullName = String(report.repoFullName ?? "").toLowerCase();
+  const own = COMPARE_REGISTRY.filter((entry) => [entry.left, entry.right].some((side) => `${side.owner}/${side.repo}`.toLowerCase() === fullName));
+  const byLanguage = comparisonsForLanguage(primaryLanguage(report.languages, report.total?.code)?.name);
+  return [...new Set([...own, ...byLanguage])].slice(0, 4);
+}
+
+function comparisonsForLanguage(topLanguageName) {
   const byLanguage = {
     JavaScript: ["react-vs-vue", "nextjs-vs-vite", "vite-vs-webpack", "angular-vs-vue"],
     TypeScript: ["nextjs-vs-vite", "angular-vs-vue", "svelte-vs-vue", "react-vs-vue"],
@@ -2449,7 +2517,6 @@ function relatedComparisons(topLanguageName) {
 }
 
 function injectReport(index, report, apiBaseUrl, relatedReports = []) {
-  const top = report.topLanguage ? ` (${report.topLanguage.name} ${report.topLanguage.percent.toFixed(1)}%)` : "";
   const lead = `<p>${escapeHtml(reportLeadText(report))}</p>`;
   const rows = report.languages
     .map(
@@ -2462,8 +2529,8 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     .join("")}</section>`;
   // Contextual links out of every report page: crawlers get a path from any
   // long-tail /github/* URL into the curated compare corpus (and vice versa),
-  // and each link is relevant to the repository's dominant language.
-  const relatedCompare = relatedComparisons(report.topLanguage?.name);
+  // led by the comparisons this repository itself appears in.
+  const relatedCompare = relatedComparisons(report);
   const relatedCompareHtml = relatedCompare.length
     ? `<li>${relatedCompare
         .map((entry) => `<a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a>`)
@@ -2482,11 +2549,13 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>${relatedCompareHtml}
     ${repoBadgesCta}
     ${repoDiffCta}
+    <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
     <li><a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
+    <li><a href="/docs">All OctoCounts guides</a></li>
   </ul></nav>`;
   // Visible, not just linked from <meta property="og:image">: a crawler that
   // never executes JavaScript otherwise sees a text-only page even though a
@@ -2515,7 +2584,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // (plan §7): the report payload this function sees carries no SLOC history
   // samples, so the sentence sticks to what the report itself knows — the
   // first/last sample numbers render client-side and are never invented here.
-  const growthSsrHtml = `<p class="growth-ssr">Play the growth animation for ${escapeHtml(report.repoFullName)} on this page — ${formatNumber(report.total.code)} code lines across ${formatNumber(report.languages.length)} languages, counted by tokei.</p>`;
+  const growthSsrHtml = `<p class="growth-ssr">Play the growth animation for ${escapeHtml(report.repoFullName)} on this page — ${formatNumber(report.total.code)} code lines across ${formatNumber(languageCount(report))} languages, counted by tokei.</p>`;
   const jsonSummary = reportSummaryJson(report);
   return injectHeadAndNoscript(index, {
     title: report.title,
@@ -2528,7 +2597,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     mdAlternate: report.isSnapshot ? `${report.canonicalUrl}&format=md` : `${report.canonicalUrl}.md`,
     extraHead: `<link rel="preload" as="image" href="${escapeAttr(ogImageUrl)}" fetchpriority="high" />
 <script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
-    bodyContent: table + `<p>Top language${escapeHtml(top)}. Generated at <time datetime="${escapeAttr(report.generatedAt)}">${escapeHtml(report.generatedAt)}</time>.</p><section><h2>Counting rules and retention</h2><p>${escapeHtml(reportPolicyText(report))}</p><p>Saved reports remain subject to cache cleanup and replacement. Export the JSON or text for durable citation; live repository URLs can change.</p></section>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
+    bodyContent: table + `<p>${escapeHtml(reportLanguageLine(report))} Generated on <time datetime="${escapeAttr(isoMilliseconds(report.generatedAt))}">${escapeHtml(readableDate(report.generatedAt))}</time>.</p><section><h2>Counting rules and retention</h2><p>${escapeHtml(reportPolicyText(report))}</p><p>Saved reports remain subject to cache cleanup and replacement. Export the JSON or text for durable citation; live repository URLs can change.</p></section>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,
   });
 }
 
@@ -2537,38 +2606,32 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
 /// Every figure comes straight from the report payload so the capsule cannot
 /// disagree with the table, FAQ, or client summary it sits next to.
 function reportCapsuleText(report) {
-  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} by the OctoCounts tokei engine on ${report.generatedAt.slice(0, 10)}. The report is cached by commit, tokei version, and analysis options, reproduction requires the same commit, engine version, and effective counting rules. Unknown rules in older reports prevent exact reproduction.`;
+  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted with tokei from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} on ${readableDate(report.generatedAt)}.${reportRulesSentence(report)}`;
 }
 
-/// Human label for a report's non-default analysis configuration, mirroring
-/// the backend's own configuration_summary phrases. Returns null for a default
-/// configuration (title stays as-is) and for pre-option-tracking reports
-/// (options absent — the filter set is unknown, so nothing may be claimed).
-function reportFilterLabel(report) {
-  const options = report.analysisOptions;
-  if (!options || typeof options !== "object") return null;
-  const parts = [];
-  if (options.includeTests === false) parts.push("tests excluded");
-  if (options.includeDocs === false) parts.push("docs excluded");
-  if (options.includeGenerated === false) parts.push("generated excluded");
-  if (options.profile === "source-only") parts.push("source-only profile");
-  const ignored = [
-    ...(Array.isArray(options.ignoredDirs) ? options.ignoredDirs : []),
-    ...(Array.isArray(options.ignoredLanguages) ? options.ignoredLanguages : []),
-  ];
-  if (ignored.length) parts.push(`${ignored.length} custom ${ignored.length === 1 ? "ignore" : "ignores"}`);
-  return parts.length ? parts.join(", ") : null;
+/// One sentence naming the counting rules behind the capsule's figures, so
+/// the quotable opening never implies a whole-repository count.
+function reportRulesSentence(report) {
+  if (!report.analysisOptions) return " The counting rules of this older report were not recorded.";
+  if (isCanonicalAnalysisOptions(report.analysisOptions)) return " Tests, docs and generated files are excluded under OctoCounts' canonical public options.";
+  const label = analysisOptionsLabel(report.analysisOptions);
+  return label ? ` Counting options: ${label}.` : " Tests, docs and generated files are included.";
 }
 
-/// Reword the backend-built title ("owner/repo: N lines of code | OctoCounts")
-/// and meta description so a filtered count reads as what it is. The backend
-/// format is fixed, but both rewrites no-op harmlessly if a future format
-/// change stops matching rather than mangling the string.
-function applyReportFilterWording(report) {
-  const label = reportFilterLabel(report);
-  if (!label) return;
-  report.title = report.title.replace(/ lines of code \| OctoCounts$/, ` code lines (${label}) | OctoCounts`);
-  report.description = report.description.replace(" code lines ", ` code lines (${label}) `);
+/// "Top language: Go 98.5%." (or "Top programming language: …" when data or
+/// prose formats such as JSON hold a larger share), "" when nothing counted.
+function reportLanguageLine(report) {
+  const phrase = primaryLanguagePhrase(report.languages, report.total.code);
+  return phrase ? `${phrase[0].toUpperCase()}${phrase.slice(1)}.` : "";
+}
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/// "October 23, 2026" for an RFC 3339 instant: the UTC calendar date its
+/// prefix names, the same day the docs pages' "Updated" lines use.
+function readableDate(value) {
+  const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
+  return MONTH_NAMES[month - 1] && day ? `${MONTH_NAMES[month - 1]} ${day}, ${year}` : String(value).slice(0, 10);
 }
 
 /// Plain-text core of the report lead, shared by the HTML page and the
@@ -2577,7 +2640,7 @@ function applyReportFilterWording(report) {
 /// section to the ~150-word band that correlates with citation, covering
 /// method and reproducibility without depending on the rest of the page.
 function reportLeadText(report) {
-  return `OctoCounts produced this report by resolving ${report.repoFullName} to commit ${report.commitSha.slice(0, 12)}, downloading the repository source archive, and counting files selected by the effective rules with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options, exact reproduction requires the same commit, engine version, and effective counting rules. Older reports with unknown rules cannot promise exact reproduction.`;
+  return `OctoCounts produced this report by resolving ${report.repoFullName} to commit ${report.commitSha.slice(0, 12)}, downloading the repository source archive, and counting files selected by the effective rules with tokei, the open-source line counter written in Rust. The table below breaks the count down by programming language into files, total lines, code lines, comment lines, and blank lines, so the figures can be compared across languages and projects. Results are cached by commit, tokei version, and analysis options; an exact reproduction needs the same commit, engine version, and effective counting rules.${report.analysisOptions ? "" : " Older reports with unknown rules cannot promise exact reproduction."}`;
 }
 
 /// Reproducibility block for report pages, rendered by the HTML page and the
@@ -2609,8 +2672,19 @@ function reportInsightsText(report) {
   const commentRatio = ((Number(report.total.comments) || 0) / lines) * 100;
   const codePerFile = (Number(report.total.code) || 0) / files;
   const scale = report.total.code >= 1_000_000 ? "very large" : report.total.code >= 100_000 ? "large" : report.total.code >= 10_000 ? "medium-sized" : "small";
-  const concentration = report.topLanguage ? `${report.topLanguage.name} accounts for ${report.topLanguage.percent.toFixed(1)}% of counted code` : "No single top language was identified";
+  const primary = primaryLanguage(report.languages, report.total.code);
+  const concentration = !primary
+    ? "No single top language was identified"
+    : primaryLanguagePhrase(report.languages, report.total.code).startsWith("top programming")
+      ? `${primary.name} is the largest programming language at ${primary.percent.toFixed(1)}% of counted code; data and prose formats such as JSON or YAML hold a larger share`
+      : `${primary.name} accounts for ${primary.percent.toFixed(1)}% of counted code`;
   return `This is a ${scale} codebase by counted code lines. Code represents ${codeRatio.toFixed(1)}% of all lines, comments represent ${commentRatio.toFixed(1)}%, and the repository averages ${formatNumber(Math.round(codePerFile))} code lines per file. ${concentration}.`;
+}
+
+/// The report's full language count: SEO payloads list only their first
+/// twelve languages and state the total separately (older backends did not).
+function languageCount(report) {
+  return Number.isSafeInteger(report.languageCount) ? report.languageCount : report.languages.length;
 }
 
 function reportFaq(report) {
@@ -2618,7 +2692,7 @@ function reportFaq(report) {
   return [
     {
       question: `How many lines of code does ${report.repoFullName} have?`,
-      answer: `${report.repoFullName} has ${formatNumber(report.total.lines)} total lines, including ${formatNumber(report.total.code)} code lines, ${formatNumber(report.total.comments)} comment lines, and ${formatNumber(report.total.blanks)} blank lines.`,
+      answer: `${report.repoFullName} has ${formatNumber(report.total.code)} lines of code, plus ${formatNumber(report.total.comments)} comment lines and ${formatNumber(report.total.blanks)} blank lines, for ${formatNumber(report.total.lines)} total lines at commit ${shortSha} on ${readableDate(report.generatedAt)}.${reportRulesSentence(report)}`,
     },
     {
       question: `How was the ${report.repoFullName} line count measured?`,
@@ -2626,7 +2700,7 @@ function reportFaq(report) {
     },
     {
       question: `What commit was counted for ${report.repoFullName}?`,
-      answer: `This OctoCounts report was generated from ${report.refName} at commit ${shortSha} on ${report.generatedAt}.`,
+      answer: `This OctoCounts report was generated from ${report.refName} at commit ${shortSha} on ${readableDate(report.generatedAt)}.`,
     },
   ];
 }
@@ -2655,6 +2729,7 @@ function reportSummaryJson(report) {
     snapshotUrl: report.snapshotUrl,
     totals: report.total,
     topLanguage: report.topLanguage,
+    languageCount: languageCount(report),
     languages: report.languages,
     citation: report.citation,
     methodology: "https://octocounts.com/docs/methodology",

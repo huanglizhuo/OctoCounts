@@ -14,7 +14,7 @@ export function reportJsonLd(report) {
         measurementTechnique: `Counted with ${report.tokeiVersion || "unknown tokei version"} via OctoCounts; effective policy ${report.countingPolicy?.version || "unknown"}. See the report's counting rules for exclusions.`,
         variableMeasured: ["files", "lines", "code", "comments", "blanks"].map((name) => ({
           "@type": "PropertyValue", name, value: report.total[name],
-        })).concat({ "@type": "PropertyValue", name: "languages", value: report.languages.length }),
+        })).concat({ "@type": "PropertyValue", name: "languages", value: Number.isSafeInteger(report.languageCount) ? report.languageCount : report.languages.length }),
         creator: {
           "@type": "Organization",
           "@id": "https://octocounts.com/#organization",

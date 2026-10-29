@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerate the curated-comparison section of llms.txt from
+// Regenerate the curated-comparison section of llms-full.txt from
 // functions/compare-registry.js (SG-07). Run by CI on pushes that touch the
 // frontend; exits 0 with no changes when the section already matches.
 //
@@ -13,7 +13,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 async function refreshCompareSection() {
   const { COMPARE_REGISTRY } = await import("../frontend/functions/compare-registry.js");
-  const file = new URL("../frontend/public/llms.txt", import.meta.url);
+  const file = new URL("../frontend/public/llms-full.txt", import.meta.url);
   const before = await readFile(file, "utf8");
   const body = COMPARE_REGISTRY.map(
     (entry) => `- ${entry.name} (${entry.left.owner}/${entry.left.repo} vs ${entry.right.owner}/${entry.right.repo}): https://octocounts.com/compare/${entry.slug}`
@@ -32,4 +32,4 @@ async function refreshCompareSection() {
 }
 
 const changed = await refreshCompareSection();
-console.log(changed ? "llms.txt compare section regenerated" : "llms.txt compare section already current");
+console.log(changed ? "llms-full.txt compare section regenerated" : "llms-full.txt compare section already current");

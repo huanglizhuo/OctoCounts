@@ -1,6 +1,6 @@
 # Best Tools to Count Lines of Code (SLOC) in 2026
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 29, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories and one of six tools compared on this page. It counts files, total lines, code lines, comments, and blanks per language with tokei, run on a downloaded source archive instead of a git clone, and returns a shareable, commit-pinned report. The other tools — tokei, cloc, scc, sloccount, and GitHub's language bar — each measure size differently and suit different workflows.
 
@@ -12,7 +12,7 @@ Six tools compared for counting source lines of code — OctoCounts, tokei, cloc
 | --- | --- | --- | --- | --- |
 | OctoCounts | Web app + browser extension | Rust / TypeScript | Public GitHub repos, no install, shareable reports | Free |
 | [tokei](https://github.com/XAMPPRocky/tokei) | CLI | Rust | Fast local/private counts, CI pipelines | Free, open source |
-| [cloc](https://github.com/AlDanial/cloc) | CLI | Perl | Language coverage for legacy/unusual codebases, legacy/unusual codebases | Free, open source |
+| [cloc](https://github.com/AlDanial/cloc) | CLI | Perl | Language coverage for legacy and unusual codebases | Free, open source |
 | [scc](https://github.com/boyter/scc) | CLI | Go | Fast counts plus complexity estimates in one pass | Free, open source |
 | [sloccount](https://www.dwheeler.com/sloccount/) | CLI | Perl / C | COCOMO cost estimates on older Unix-style codebases | Free, open source (unmaintained) |
 | GitHub language bar | Built into GitHub | — | A quick, no-setup glance at language mix by bytes | Free (built in) |

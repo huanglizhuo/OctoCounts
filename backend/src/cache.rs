@@ -40,13 +40,16 @@ pub struct AppCaches {
 impl AppCaches {
     pub fn new() -> Self {
         Self {
-            stats: ttl_cache(1, Duration::from_secs(60)),
+            // Refreshed every 5 minutes by main::spawn_stats_refresh_task.
+            stats: ttl_cache(1, Duration::from_secs(900)),
             seo_report: ttl_cache(5_000, Duration::from_secs(3_600)),
             seo_recent: ttl_cache(100, Duration::from_secs(60)),
             seo_popular: ttl_cache(100, Duration::from_secs(300)),
             seo_monoliths: ttl_cache(100, Duration::from_secs(900)),
             seo_sitemap: ttl_cache(1, Duration::from_secs(900)),
-            seo_related: ttl_cache(5_000, Duration::from_secs(3_600)),
+            // Sized for the whole report inventory: a miss is a multi-second
+            // scan, and peers only change when new reports land.
+            seo_related: ttl_cache(10_000, Duration::from_secs(21_600)),
             seo_repo_history: ttl_cache(5_000, Duration::from_secs(3_600)),
             og_png: ttl_cache(500, Duration::from_secs(86_400)),
             badge_svg: ttl_cache(2_000, Duration::from_secs(300)),

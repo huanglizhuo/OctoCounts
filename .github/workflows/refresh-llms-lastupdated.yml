@@ -1,6 +1,6 @@
-name: Refresh llms.txt compare section
+name: Refresh llms-full.txt compare section
 
-# Regenerate the curated-comparison block of llms.txt from the compare
+# Regenerate the curated-comparison block of llms-full.txt from the compare
 # registry so the list can never drift from the routes the edge function
 # serves. Dates are NOT touched: they are per-page records of real content
 # change, maintained by hand via frontend/content/content-manifest.json.
@@ -35,10 +35,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/public/llms.txt
+          git add frontend/public/llms-full.txt
           if git diff --cached --quiet; then
-            echo "llms.txt compare section already current"
+            echo "llms-full.txt compare section already current"
           else
-            git commit -m "chore: refresh llms.txt compare section"
+            git commit -m "chore: refresh llms-full.txt compare section"
             git push origin HEAD:main
           fi

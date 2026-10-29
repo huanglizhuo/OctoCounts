@@ -13,12 +13,13 @@
         "profile": "default"
       },
       "canonicalUrl": "https://octocounts.com/github/octocounts/empty",
-      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Canonical public options (tests, docs and generated files excluded). Counted with tokei via OctoCounts.",
       "commitSha": "ffffffffffffffffffff",
-      "description": "octocounts/empty contains 0 code lines across 0 files and 0 languages.",
+      "description": "octocounts/empty has 0 lines of code across 0 files and 0 languages.",
       "durationMs": 7,
       "generatedAt": "2024-06-01T00:30:15+00:00",
       "htmlUrl": "https://github.com/octocounts/empty",
+      "languageCount": 0,
       "languages": [],
       "owner": "octocounts",
       "provider": "github",
@@ -50,12 +51,13 @@
         "profile": "default"
       },
       "canonicalUrl": "https://octocounts.com/gitlab/gitlab-org/ci-cd/gitlab-runner",
-      "citation": "As of 2024-05-20 (commit aabbccddeeff), gitlab-org/ci-cd/gitlab-runner contains 431,818 total lines: 350,000 code, 50,000 comments, 31,818 blank, across 2,189 files in 2 languages (top: Go 98.8%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-05-20 (commit aabbccddeeff), gitlab-org/ci-cd/gitlab-runner contains 431,818 total lines: 350,000 code, 50,000 comments, 31,818 blank, across 2,189 files in 2 languages (top language: Go 98.8%). Canonical public options (tests, docs and generated files excluded). Counted with tokei via OctoCounts.",
       "commitSha": "aabbccddeeff00112233",
-      "description": "gitlab-org/ci-cd/gitlab-runner contains 350,000 code lines across 2,189 files and 2 languages; top language: Go 98.8%.",
+      "description": "gitlab-org/ci-cd/gitlab-runner has 350,000 lines of code across 2,189 files and 2 languages; top language: Go 98.8%.",
       "durationMs": 4567,
       "generatedAt": "2024-05-20T17:30:15+00:00",
       "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
+      "languageCount": 2,
       "languages": [
         {
           "children": [],
@@ -114,12 +116,13 @@
         "profile": "default"
       },
       "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
-      "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
+      "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top language: Rust 53.5%). Canonical public options (tests, docs and generated files excluded). Counted with tokei via OctoCounts.",
       "commitSha": "9f8e7d6c5b4a39281706",
-      "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
+      "description": "rust-lang/rust has 2,306,821 lines of code across 16,346 files and 15 languages; top language: Rust 53.5%.",
       "durationMs": 91234,
       "generatedAt": "2024-03-14T09:30:15+00:00",
       "htmlUrl": "https://github.com/rust-lang/rust",
+      "languageCount": 15,
       "languages": [
         {
           "children": [

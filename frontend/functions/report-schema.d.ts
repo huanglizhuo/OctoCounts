@@ -11,4 +11,5 @@ export function reportJsonLd(report: Pick<Report, "generatedAt" | "analysisKey" 
   reportId?: string;
   requestedRef?: string;
   refKind?: "tree" | "commit";
+  languageCount?: number;
 }): Record<string, unknown>;

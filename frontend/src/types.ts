@@ -62,6 +62,8 @@ export type Report = {
   countingPolicy?: CountingPolicy | null;
   snapshotUrl?: string;
   languages: LanguageReport[];
+  /** Full language count when `languages` is a truncated SEO card list. */
+  languageCount?: number;
   total: Stats;
 };
 

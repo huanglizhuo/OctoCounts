@@ -1,5 +1,6 @@
 // Pure constructors — the UI lives in ReportActions, which renders these
 // links in its "more" menu so every surface fires the same URL semantics.
+import { isCanonicalAnalysisOptions } from "../../functions/report-copy.js";
 import { formatNumber } from "../reportUtils";
 import type { Report } from "../types";
 import { buildSnapshotReportUrl } from "./shared";
@@ -16,9 +17,12 @@ function reportCitation(report: Report) {
   if (!options.includeDocs) toggles.push("docs excluded");
   if (!options.includeGenerated) toggles.push("generated excluded");
   if (options.profile && options.profile !== "default") toggles.push(`profile: ${options.profile}`);
-  const configuration = ignores.length || toggles.length
-    ? `custom configuration (${[...toggles, ...ignores.map((entry) => `ignoring ${entry}`)].join(", ")})`
-    : "default configuration";
+  // Public report pages use the canonical options; only other sets are "custom".
+  const configuration = isCanonicalAnalysisOptions(options)
+    ? "canonical public options (tests, docs and generated files excluded)"
+    : ignores.length || toggles.length
+      ? `custom configuration (${[...toggles, ...ignores.map((entry) => `ignoring ${entry}`)].join(", ")})`
+      : "default configuration";
   const countedAt = report.generatedAt.slice(0, 10);
   return `${report.repository.owner}/${report.repository.name} has ${formatNumber(report.total.code)} lines of code (SLOC counted ${countedAt} at commit ${report.commitSha.slice(0, 12)}, ${configuration}, via OctoCounts/tokei): ${buildSnapshotReportUrl(report)}`;
 }

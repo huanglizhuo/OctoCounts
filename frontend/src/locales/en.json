@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "OctoCounts – GitHub SLOC Counter",
-    "description": "OctoCounts shows actual source line counts for public GitHub repositories: files, code lines, comments, blanks, and per-language totals. No clone required."
+    "title": "GitHub Lines of Code Counter – Free, No Cloning | OctoCounts",
+    "description": "OctoCounts is a free SLOC counter for public GitHub repositories. Count files, code lines, comments, blanks, and language totals without cloning."
   },
   "topbar": {
     "brandName": "OctoCounts",
@@ -34,8 +34,8 @@
     "alsoLine": "Also: see SLOC right in GitHub's sidebar",
     "sidebarHint": "See SLOC directly in GitHub's repo sidebar.",
     "ambiguousRef": "This URL may contain a branch and a path. Enter the ref explicitly before analyzing.",
-    "reportSubtitle": "SLOC report",
-    "reportSubtitleRef": "SLOC report · {{ref}}",
+    "reportSubtitle": "Lines of code · SLOC report",
+    "reportSubtitleRef": "Lines of code · SLOC report · {{ref}}",
     "trustLine": "Open source · Powered by <1>tokei</1> · 200+ languages",
     "editReport": "Analyze another repo / change settings"
   },
@@ -319,8 +319,10 @@
     "apiDocs": "API docs",
     "slocGuide": "SLOC guide",
     "faq": "FAQ",
+    "countLines": "Count lines of code",
     "languageBar": "Language bar alternative",
     "methodology": "Methodology",
+    "allGuides": "All guides",
     "badges": "Badges",
     "github": "GitHub",
     "builtBy": "Built by <1>huanglizhuo</1>, indie developer",

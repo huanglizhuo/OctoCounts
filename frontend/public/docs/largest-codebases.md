@@ -1,6 +1,6 @@
 # How many lines of code? The largest codebases, counted
 
-Updated October 27, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 29, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 Counted by OctoCounts with tokei 14.0.0 over each repository's default branch at a pinned commit (test, docs, and generated-file exclusion rules enabled): the **Linux kernel** has 32,360,324 code lines, **Firefox** 24,586,522, **LLVM** 8,307,824, **TensorFlow** 5,130,571, **Godot** 4,120,690, **Kubernetes** 3,901,619, **PostgreSQL** 1,631,788, and **git** 1,148,625. These historical figures name the measured commit prefix and date. Repository links open live reports, which may show different counts.
 

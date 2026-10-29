@@ -9,12 +9,13 @@
     "profile": "default"
   },
   "canonicalUrl": "https://octocounts.com/github/rust-lang/rust",
-  "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top: Rust 53.5%). Custom configuration (tests excluded, docs excluded, generated excluded). Counted with tokei via OctoCounts.",
+  "citation": "As of 2024-03-14 (commit 9f8e7d6c5b4a), rust-lang/rust contains 2,846,077 total lines: 2,306,821 code, 329,546 comments, 209,710 blank, across 16,346 files in 15 languages (top language: Rust 53.5%). Canonical public options (tests, docs and generated files excluded). Counted with tokei via OctoCounts.",
   "commitSha": "9f8e7d6c5b4a39281706",
-  "description": "rust-lang/rust contains 2,306,821 code lines across 16,346 files and 15 languages; top language: Rust 53.5%.",
+  "description": "rust-lang/rust has 2,306,821 lines of code across 16,346 files and 15 languages; top language: Rust 53.5%.",
   "durationMs": 91234,
   "generatedAt": "2024-03-14T09:30:15+00:00",
   "htmlUrl": "https://github.com/rust-lang/rust",
+  "languageCount": 15,
   "languages": [
     {
       "children": [

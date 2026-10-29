@@ -87,6 +87,9 @@ pub struct SeoReport {
     duration_ms: u128,
     total: LanguageStats,
     top_language: Option<TopLanguage>,
+    /// The report's full language count. `languages` carries only the first
+    /// `SEO_CARD_LANGUAGES` entries, so its length undercounts large repos.
+    language_count: usize,
     languages: Vec<LanguageReport>,
 }
 
@@ -164,45 +167,55 @@ pub async fn related(
     }
 
     let provider = parse_provider(&query.provider)?;
-    // Same resolver as `report`: a pre-rename slug still gets its (re-keyed)
-    // repository's interlinks, filed under the current spelling.
-    let Some((card, _canonical_slug)) =
-        resolve_report_card(&state, provider, &query.owner, &query.repo, None, None)
-            .await
-            .map_err(ApiError::internal)?
-    else {
+    // A miss is a multi-second scan, and the edge stops waiting after a second
+    // (the links are optional). Run it detached so a dropped request still
+    // fills the cache for the next render instead of being cancelled with it.
+    let (owner, repo) = (query.owner.clone(), query.repo.clone());
+    let list = tokio::spawn(async move {
+        // Same resolver as `report`: a pre-rename slug still gets its
+        // (re-keyed) repository's interlinks, filed under the current spelling.
+        let Some((card, _canonical_slug)) =
+            resolve_report_card(&state, provider, &owner, &repo, None, None).await?
+        else {
+            return Ok(None);
+        };
+        let reports = state
+            .coordinator
+            .store()
+            .related_reports(
+                provider,
+                &card.owner,
+                &card.repo,
+                card.languages
+                    .first()
+                    .map(|language| language.name.as_str()),
+                card.total.code as i64,
+                // The source's own line total feeds the mirror exclusion: a
+                // copy of this repo matches BOTH its code and line counts exactly.
+                card.total.lines as i64,
+                RELATED_LIMIT,
+            )
+            .await?
+            .into_iter()
+            .map(related_report)
+            .collect();
+        let list = RelatedList { reports };
+        state
+            .caches
+            .seo_related
+            .insert(cache_key, list.clone())
+            .await;
+        anyhow::Ok(Some(list))
+    })
+    .await
+    .map_err(|error| ApiError::internal(error.into()))?
+    .map_err(ApiError::internal)?;
+    let Some(list) = list else {
         return Err(ApiError::not_found(
             "report_not_found",
             "report was not found",
         ));
     };
-    let reports = state
-        .coordinator
-        .store()
-        .related_reports(
-            provider,
-            &card.owner,
-            &card.repo,
-            card.languages
-                .first()
-                .map(|language| language.name.as_str()),
-            card.total.code as i64,
-            // The source's own line total feeds the mirror exclusion: a copy
-            // of this repo matches BOTH its code and line counts exactly.
-            card.total.lines as i64,
-            RELATED_LIMIT,
-        )
-        .await
-        .map_err(ApiError::internal)?
-        .into_iter()
-        .map(related_report)
-        .collect();
-    let list = RelatedList { reports };
-    state
-        .caches
-        .seo_related
-        .insert(cache_key, list.clone())
-        .await;
 
     Ok((related_cache_headers(), Json(list)))
 }
@@ -685,10 +698,7 @@ fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
     let canonical_url = format!("https://octocounts.com{public_path}");
     let repo_full_name = format!("{}/{}", card.owner, card.repo);
     let top_language = top_language(card);
-    let top_phrase = top_language
-        .as_ref()
-        .map(|top| format!("; top language: {} {:.1}%", top.name, top.percent))
-        .unwrap_or_default();
+    let language_phrase = primary_language_phrase(card);
     let configuration = configuration_summary(card.analysis_options.as_ref());
     let title = format!(
         "{}: {} lines of code | OctoCounts",
@@ -696,12 +706,16 @@ fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
         format_number(card.total.code)
     );
     let description = format!(
-        "{} contains {} code lines across {} files and {} languages{}.",
+        "{} has {} lines of code across {} files and {} languages{}.",
         repo_full_name,
         format_number(card.total.code),
         format_number(card.total.files),
         format_number(card.language_count),
-        top_phrase
+        if language_phrase.is_empty() {
+            String::new()
+        } else {
+            format!("; {language_phrase}")
+        }
     );
     let citation = format!(
         "As of {} (commit {}), {} contains {} total lines: {} code, {} comments, {} blank, across {} files in {} languages{}.{} Counted with tokei via OctoCounts.",
@@ -714,10 +728,7 @@ fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
         format_number(card.total.blanks),
         format_number(card.total.files),
         format_number(card.language_count),
-        top_language
-            .as_ref()
-            .map(|top| format!(" (top: {} {:.1}%)", top.name, top.percent))
-            .unwrap_or_default(),
+        if language_phrase.is_empty() { String::new() } else { format!(" ({language_phrase})") },
         configuration
     );
 
@@ -754,6 +765,7 @@ fn seo_report(card: &ReportCard, canonical_slug: Option<String>) -> SeoReport {
         duration_ms: card.duration_ms,
         total: card.total.clone(),
         top_language,
+        language_count: card.language_count,
         languages: card.languages.clone(),
     }
 }
@@ -765,6 +777,11 @@ fn configuration_summary(options: Option<&AnalysisOptions>) -> String {
     let Some(options) = options else {
         return " Configuration unknown; this report predates option tracking.".to_string();
     };
+    // Every public report page uses the canonical options, so they are named
+    // as such rather than listed as a "custom" deviation from the app default.
+    if *options == AnalysisOptions::canonical() {
+        return " Canonical public options (tests, docs and generated files excluded).".to_string();
+    }
     let mut parts: Vec<String> = Vec::new();
     if !options.include_tests {
         parts.push("tests excluded".to_string());
@@ -810,6 +827,71 @@ fn snapshot_url(
         "{canonical_url}/commit/{commit_sha}?analysis={}",
         urlencoding::encode(&options_json)
     ))
+}
+
+/// Data and prose formats by tokei display name (GitHub Linguist's "data" and
+/// "prose" types). They stay in every count and table; they are only skipped
+/// when naming a report's top programming language. Mirrored by
+/// DATA_AND_PROSE_LANGUAGES in frontend/functions/report-copy.js (seo.test.mjs
+/// asserts the two lists match).
+const DATA_AND_PROSE_LANGUAGES: &[&str] = &[
+    "AsciiDoc",
+    "INI",
+    "JSON",
+    "Markdown",
+    "Org",
+    "PO File",
+    "Plain Text",
+    "ReStructuredText",
+    "SVG",
+    "TOML",
+    "Unreal Markdown",
+    "XML",
+    "YAML",
+];
+
+/// "top language: Go 98.5%", or "top programming language: TypeScript 25.3%"
+/// when data or prose formats hold a larger share; empty when nothing was
+/// counted. Same rule as primaryLanguagePhrase in report-copy.js, including
+/// first-wins ties.
+fn primary_language_phrase(card: &ReportCard) -> String {
+    fn first_largest<'a>(
+        best: Option<&'a LanguageReport>,
+        language: &'a LanguageReport,
+    ) -> Option<&'a LanguageReport> {
+        match best {
+            Some(best) if language.stats.code <= best.stats.code => Some(best),
+            _ => Some(language),
+        }
+    }
+    let largest = card.languages.iter().fold(None, first_largest);
+    let programming = card
+        .languages
+        .iter()
+        .filter(|language| {
+            !DATA_AND_PROSE_LANGUAGES.contains(&language.name.as_str()) && language.stats.code > 0
+        })
+        .fold(None, first_largest);
+    let Some(pick) = programming.or(largest) else {
+        return String::new();
+    };
+    let percent = if card.total.code == 0 {
+        0.0
+    } else {
+        (pick.stats.code as f64 / card.total.code as f64) * 100.0
+    };
+    let outweighed =
+        programming.is_some() && largest.is_some_and(|top| top.stats.code > pick.stats.code);
+    format!(
+        "{}: {} {:.1}%",
+        if outweighed {
+            "top programming language"
+        } else {
+            "top language"
+        },
+        pick.name,
+        percent
+    )
 }
 
 fn top_language(card: &ReportCard) -> Option<TopLanguage> {
@@ -877,7 +959,10 @@ fn format_number(value: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{configuration_summary, repository_html_url, seo_report, snapshot_url, ReportCard};
+    use super::{
+        configuration_summary, primary_language_phrase, repository_html_url, seo_report,
+        snapshot_url, ReportCard,
+    };
     use crate::models::{AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats};
     use chrono::{TimeZone, Utc};
 
@@ -1002,6 +1087,54 @@ mod tests {
             configuration_summary(Some(&default_options())),
             " Default configuration."
         );
+    }
+
+    /// Public report pages use the canonical options: the citation names them
+    /// instead of calling them "custom", the description names the largest
+    /// programming language rather than a data format, and the full language
+    /// count travels with the truncated language list.
+    #[test]
+    fn canonical_reports_name_their_options_and_top_programming_language() {
+        assert_eq!(
+            configuration_summary(Some(&AnalysisOptions::canonical())),
+            " Canonical public options (tests, docs and generated files excluded)."
+        );
+        let language = |name: &str, code: usize| LanguageReport {
+            name: name.to_string(),
+            stats: LanguageStats {
+                code,
+                ..LanguageStats::default()
+            },
+            children: Vec::new(),
+        };
+        let mut card = card(Some(AnalysisOptions::canonical()));
+        card.total.code = 100;
+        card.languages = vec![
+            language("JSON", 60),
+            language("TypeScript", 30),
+            language("YAML", 10),
+        ];
+        let json = serde_json::to_value(seo_report(&card, None)).unwrap();
+        assert_eq!(
+            json["description"],
+            "rust-lang/rust has 100 lines of code across 16,346 files and 15 languages; top programming language: TypeScript 30.0%."
+        );
+        assert!(json["citation"].as_str().unwrap().contains(
+            "(top programming language: TypeScript 30.0%). Canonical public options (tests, docs and generated files excluded)."
+        ));
+        assert_eq!(json["languageCount"], 15);
+        assert_eq!(
+            json["topLanguage"]["name"], "JSON",
+            "the structured field keeps its meaning"
+        );
+
+        card.languages = vec![language("Markdown", 0)];
+        assert_eq!(
+            primary_language_phrase(&card),
+            "top language: Markdown 0.0%"
+        );
+        card.languages.clear();
+        assert_eq!(primary_language_phrase(&card), "");
     }
 
     #[test]

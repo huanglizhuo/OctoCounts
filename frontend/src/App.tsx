@@ -24,12 +24,12 @@ import { GrowthLoadingBars } from "./growth/GrowthSkeleton";
 import { usePrerenderedHome, useExtensionPromo } from "./prerenderContext";
 import { faqForLanguage, faqJsonLdScript } from "./homeFaq";
 import { reportJsonLd } from "../functions/report-schema.js";
+import { reportPageDescription, reportPageTitle } from "../functions/report-copy.js";
 import "./styles.css";
 import initialReportData from "./initialReport.json";
 import {
   commandText,
   formatCompactNumber,
-  formatNumber,
   normalizedProvider,
 } from "./reportUtils";
 import type { AnalysisOptions, GrowthRepositoryStat, GrowthStats, Report, Stats } from "./types";
@@ -200,6 +200,7 @@ function seedReportFromSsrSummary(): Report | null {
       analysisOptions: summary.analysisOptions ?? defaultAnalysisOptions,
       snapshotUrl: summary.snapshotUrl,
       countingPolicy: summary.countingPolicy,
+      languageCount: summary.languageCount,
       languages: (summary.languages ?? []).map((language: { name: string; stats: Stats }) => ({
         name: language.name,
         stats: language.stats,
@@ -748,8 +749,10 @@ export function App() {
                 <li><a href="/docs/api">{t("footer.apiDocs")}</a></li>
                 <li><a href={i18n.language === "zh" ? "/zh/docs/github-sloc-counter" : "/docs/github-sloc-counter"}>{t("footer.slocGuide")}</a></li>
                 <li><a href="/docs/faq">{t("footer.faq")}</a></li>
+                <li><a href="/docs/count-lines-of-code-github">{t("footer.countLines")}</a></li>
                 <li><a href="/docs/github-language-bar-alternative">{t("footer.languageBar")}</a></li>
                 <li><a href={i18n.language === "zh" ? "/zh/docs/methodology" : "/docs/methodology"}>{t("footer.methodology")}</a></li>
+                <li><a href="/docs">{t("footer.allGuides")}</a></li>
               </ul>
             </div>
             <div className="footer-col">
@@ -1008,9 +1011,12 @@ function syncPageMetadata({
 
   const parsed = report ? { owner: report.repository.owner, repo: report.repository.name } : parsePublicRepo(repoUrl);
   const effectiveRef = report?.refName || refName.trim();
-  const title = parsed ? `${parsed.owner}/${parsed.repo} SLOC report | OctoCounts` : defaultTitle;
-  const description = report
-    ? `${parsed?.owner}/${parsed?.repo} has ${formatNumber(report.total.code)} code lines across ${formatNumber(report.total.files)} files and ${formatNumber(report.languages.length)} languages.`
+  // A loaded report uses the edge function's own title/description builder,
+  // so the rendered DOM keeps the metadata the server sent.
+  const copy = report ? { repoFullName: `${report.repository.owner}/${report.repository.name}`, total: report.total, languages: report.languages, languageCount: report.languageCount, analysisOptions: report.analysisOptions } : null;
+  const title = copy ? reportPageTitle(copy) : parsed ? `${parsed.owner}/${parsed.repo} SLOC report | OctoCounts` : defaultTitle;
+  const description = copy
+    ? reportPageDescription(copy)
     : parsed
       ? `Source line count report for ${parsed.owner}/${parsed.repo}: files, code lines, comments, blanks, and language totals.`
       : defaultDescription;
