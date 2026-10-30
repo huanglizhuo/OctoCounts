@@ -11,7 +11,7 @@ chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.1"
 futures = "0.3"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "stream"] }
-resvg = "0.47"
+resvg = "0.49"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.11"
@@ -19,12 +19,12 @@ sqlx = { version = "0.8", default-features = false, features = ["chrono", "json"
 tar = "0.4"
 tempfile = "3.27"
 thiserror = "2.0"
-tokei = "14.0"
+tokei = "15.0"
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 mimalloc = { version = "0.1", default-features = false }
 moka = { version = "0.12", features = ["future"] }
-tower-http = { version = "0.6", features = ["compression-br", "compression-gzip", "cors", "set-header", "trace"] }
+tower-http = { version = "0.7", features = ["compression-br", "compression-gzip", "cors", "set-header", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
