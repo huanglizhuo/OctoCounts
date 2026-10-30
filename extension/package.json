@@ -16,7 +16,7 @@
     "release": "node scripts/release.js"
   },
   "devDependencies": {
-    "linkedom": "^0.18.13",
+    "linkedom": "^0.18.14",
     "vite": "^6.0.0"
   }
 }
