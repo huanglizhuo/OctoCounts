@@ -57,7 +57,7 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 |---|---|
 | Backend | Rust · Axum · Tokio · SQLx · Postgres · tokei |
 | Frontend | React · TypeScript · Vite · TanStack Query |
-| Infra | Cloudflare Pages (Pages Functions SSR) · GHCR image + sloc-infra dual VPS (VPS-A/VPS-B) + Cloudflare Tunnel · Postgres on VPS-B (Neon frozen snapshot as fallback) · Docker Compose (local dev only) |
+| Infra | Cloudflare Pages (Pages Functions SSR) · GHCR image + sloc-infra dual VPS (VPS-A/VPS-B) + Cloudflare Tunnel · Postgres on VPS-B (nightly backups to VPS-A) · Docker Compose (local dev only) |
 
 ## Badges
 

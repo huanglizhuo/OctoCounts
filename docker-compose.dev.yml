@@ -42,7 +42,9 @@ services:
         condition: service_healthy
 
   web-dev:
-    image: node:23-bookworm-slim
+    # Same major as CI and frontend/Dockerfile; odd-numbered Node lines go
+    # end-of-life within months (23 already has).
+    image: node:22-bookworm-slim
     working_dir: /app
     environment:
       VITE_API_BASE: ${VITE_API_BASE:-http://127.0.0.1:8080}
