@@ -583,6 +583,14 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
+        // The rename pass matches every row (not just canonical ones) by
+        // case-insensitive slug: 150 ms per lookup as a filtered full index
+        // scan, 0.1 ms with this.
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_reports_provider_ci ON reports (provider, lower(owner), lower(repo))",
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -791,8 +799,15 @@ impl Store {
         .execute(&self.pool)
         .await?;
 
+        // The UNIQUE constraint's index already covers (provider, owner, repo,
+        // snapshot_date); this duplicate only doubled the write cost.
+        sqlx::query("DROP INDEX IF EXISTS idx_star_snapshots_lookup")
+            .execute(&self.pool)
+            .await?;
+        // Rename folding matches slugs case-insensitively; without this the
+        // startup pass seq-scanned the table once per recorded redirect.
         sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_star_snapshots_lookup ON star_snapshots (provider, owner, repo, snapshot_date)",
+            "CREATE INDEX IF NOT EXISTS idx_star_snapshots_ci ON star_snapshots (provider, lower(owner), lower(repo))",
         )
         .execute(&self.pool)
         .await?;
@@ -964,8 +979,13 @@ impl Store {
             .execute(&self.pool)
             .await?;
 
+        // Same as star_snapshots: the UNIQUE index already serves lookups, and
+        // case-insensitive slug matching needs its own expression index.
+        sqlx::query("DROP INDEX IF EXISTS idx_sloc_snapshots_lookup")
+            .execute(&self.pool)
+            .await?;
         sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_sloc_snapshots_lookup ON sloc_snapshots (provider, owner, repo, snapshot_date)",
+            "CREATE INDEX IF NOT EXISTS idx_sloc_snapshots_ci ON sloc_snapshots (provider, lower(owner), lower(repo))",
         )
         .execute(&self.pool)
         .await?;
@@ -2570,6 +2590,12 @@ impl Store {
                 })
             })
             .collect()
+    }
+
+    /// Cheapest possible round trip, for the readiness probe.
+    pub async fn ping(&self) -> anyhow::Result<()> {
+        sqlx::query("SELECT 1").execute(&self.pool).await?;
+        Ok(())
     }
 
     pub async fn growth_stats(&self) -> anyhow::Result<GrowthStats> {

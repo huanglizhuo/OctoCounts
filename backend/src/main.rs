@@ -23,6 +23,8 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
+    extract::State,
+    http::StatusCode,
     routing::{get, post},
     Router,
 };
@@ -155,6 +157,7 @@ async fn main() -> anyhow::Result<()> {
 fn build_router(state: AppState) -> Router {
     let routes = Router::new()
         .route("/healthz", get(|| async { "ok" }))
+        .route("/readyz", get(readyz))
         .route("/internal/stats", get(api::internal_stats))
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
@@ -197,6 +200,17 @@ fn build_router(state: AppState) -> Router {
         );
 
     apply_middleware(routes).with_state(state)
+}
+
+/// Readiness for the tunnel watchdog (sloc-infra): `/healthz` only proves the
+/// process answers, so a node that cannot reach the database (ghost talks to
+/// VPS-B's Postgres across providers) would keep taking tunnel traffic and
+/// fail every request. Bounded so a stalled pool reads as not ready.
+async fn readyz(State(state): State<AppState>) -> (StatusCode, &'static str) {
+    match tokio::time::timeout(Duration::from_secs(2), state.coordinator.store().ping()).await {
+        Ok(Ok(())) => (StatusCode::OK, "ok"),
+        _ => (StatusCode::SERVICE_UNAVAILABLE, "database unavailable"),
+    }
 }
 
 /// The release this binary was built from: the image tag CI passes as the
@@ -392,6 +406,41 @@ mod tests {
                 .unwrap();
             assert_eq!(response.headers()["x-octocounts-build"], BUILD, "{uri}");
         }
+    }
+
+    #[tokio::test]
+    async fn readyz_checks_the_database() {
+        let Some((app, pool, schema)) = test_app().await else {
+            eprintln!("skipping: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        pool.close().await;
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let pool = PgPoolOptions::new()
+            .connect(&std::env::var("TEST_DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        drop_schema(&pool, &schema).await;
     }
 
     #[tokio::test]
