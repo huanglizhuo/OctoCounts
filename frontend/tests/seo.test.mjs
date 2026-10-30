@@ -497,6 +497,27 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
 });
 
+// Repository owners write Trending descriptions; String.replace would read
+// these as splice directives if the SSR passed them as replacement strings.
+test("trending SSR renders dollar patterns in third-party descriptions literally", async () => {
+  const description = "Costs $` to run, $& more, $' less, $$ total";
+  const snapshot = {
+    source: "https://github.com/trending",
+    period: "daily",
+    generatedAt: "2026-07-15T02:17:00Z",
+    date: "2026-07-15",
+    repositories: [{
+      rank: 1, owner: "octo-org", name: "octo-repo", fullName: "octo-org/octo-repo", description,
+      language: "Rust", starsToday: 1, totalStars: 2,
+      htmlUrl: "https://github.com/octo-org/octo-repo", publicPath: "/github/octo-org/octo-repo",
+    }],
+  };
+  const html = await (await onRequest(await renderedContext("/trending", snapshot))).text();
+  assert.ok(html.includes("Costs $` to run, $&amp; more, $&#39; less, $$ total"), "description must survive verbatim");
+  assert.equal((html.match(/<\/head>/g) ?? []).length, 1);
+  assert.equal((html.match(/<div id="root">/g) ?? []).length, 1);
+});
+
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
   const snapshot = {
     source: "https://github.com/trending",

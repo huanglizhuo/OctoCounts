@@ -2770,11 +2770,15 @@ async function growthPageResponse(context, owner, repo) {
   return htmlResponse(html, "public, max-age=60", {});
 }
 
+// Every replacement below is a function, never a string: String.replace reads
+// `$&`, `` $` `` and `$'` in a string replacement as splice directives, and the
+// inserted text includes third-party prose (GitHub Trending descriptions).
+// escapeHtml leaves `$` and backticks alone, so it cannot defuse them.
 function injectHeadAndNoscript(index, meta) {
   let html = index
     .replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi, "")
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>\s*/gi, "");
-  html = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(meta.title)}</title>`);
+  html = html.replace(/<title>.*?<\/title>/i, () => `<title>${escapeHtml(meta.title)}</title>`);
   html = setMeta(html, "name", "description", meta.description);
   html = setMeta(html, "name", "robots", meta.robots);
   html = setMeta(html, "property", "og:title", meta.title);
@@ -2788,16 +2792,16 @@ function injectHeadAndNoscript(index, meta) {
   html = setMeta(html, "name", "twitter:title", meta.title);
   html = setMeta(html, "name", "twitter:description", meta.description);
   html = setMeta(html, "name", "twitter:image", meta.ogImage);
-  html = html.replace(/<link rel="canonical" href="[^"]*" \/>/i, `<link rel="canonical" href="${escapeAttr(meta.canonical)}" />`);
+  html = html.replace(/<link rel="canonical" href="[^"]*" \/>/i, () => `<link rel="canonical" href="${escapeAttr(meta.canonical)}" />`);
   if (meta.jsonLd) {
-    html = html.replace("</head>", `<script type="application/ld+json">${escapeScriptJson(meta.jsonLd)}</script>\n</head>`);
+    html = html.replace("</head>", () => `<script type="application/ld+json">${escapeScriptJson(meta.jsonLd)}</script>\n</head>`);
   }
   // Crawler discovery for the markdown twin (?format=md / .md suffix).
   if (meta.mdAlternate) {
-    html = html.replace("</head>", `<link rel="alternate" type="text/markdown" href="${escapeAttr(meta.mdAlternate)}" />\n</head>`);
+    html = html.replace("</head>", () => `<link rel="alternate" type="text/markdown" href="${escapeAttr(meta.mdAlternate)}" />\n</head>`);
   }
   if (meta.extraHead) {
-    html = html.replace("</head>", `${meta.extraHead}\n</head>`);
+    html = html.replace("</head>", () => `${meta.extraHead}\n</head>`);
   }
   // Server-rendered facts go INSIDE #root as regular visible HTML, not into a
   // <noscript> after it. Several AI fetchers (Perplexity's reader, some ChatGPT
@@ -2805,7 +2809,7 @@ function injectHeadAndNoscript(index, meta) {
   // content lower. React mounts with createRoot().render(), which discards the
   // container's existing children, so the app replaces this block on hydration
   // while no-JS crawlers keep the full facts, table, FAQ, and links.
-  html = html.replace('<div id="root"></div>', `<div id="root">${meta.bodyContent}</div>`);
+  html = html.replace('<div id="root"></div>', () => `<div id="root">${meta.bodyContent}</div>`);
   return html;
 }
 
@@ -2813,8 +2817,8 @@ function setMeta(html, attr, key, content) {
   const escaped = escapeAttr(content);
   const pattern = new RegExp(`<meta ${attr}="${escapeRegExp(key)}" content="[^"]*" \\/>`, "i");
   const replacement = `<meta ${attr}="${key}" content="${escaped}" />`;
-  if (pattern.test(html)) return html.replace(pattern, replacement);
-  return html.replace("</head>", `${replacement}\n</head>`);
+  if (pattern.test(html)) return html.replace(pattern, () => replacement);
+  return html.replace("</head>", () => `${replacement}\n</head>`);
 }
 
 function escapeScriptJson(value) {

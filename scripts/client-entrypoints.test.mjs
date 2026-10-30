@@ -5,6 +5,17 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
+import { handleRequest } from "../mcp/src/core.js";
+
+test("MCP initialize negotiates the protocol version the spec way", async () => {
+  const negotiated = async (protocolVersion) =>
+    (await handleRequest({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion } })).result.protocolVersion;
+  assert.equal(await negotiated("2025-03-26"), "2025-03-26", "a supported version is echoed");
+  assert.equal(await negotiated("2024-11-05"), "2024-11-05");
+  assert.equal(await negotiated("2099-01-01"), "2025-06-18", "anything else gets the newest supported version");
+  assert.equal(await negotiated(undefined), "2025-06-18");
+});
+
 test("MCP stdio accepts ping and cancellation while an analysis is pending", async (t) => {
   let pollStarted;
   const started = new Promise((resolve) => { pollStarted = resolve; });

@@ -18,7 +18,9 @@ const concurrency = numberArg(args.concurrency, 2);
 const delayMs = numberArg(args["delay-ms"], 500);
 const pollMs = numberArg(args["poll-ms"], 2500);
 const maxPolls = numberArg(args["max-polls"], 120);
-const requestRetries = numberArg(args["request-retries"], 3);
+// Generous because the analyze limit (burst 5, then 10/minute per IP) is
+// smaller than a batch: workers queue on Retry-After rather than fail.
+const requestRetries = numberArg(args["request-retries"], 10);
 const forceRefresh = Boolean(args["force-refresh"]);
 const source = String(args.source ?? "seed");
 
@@ -124,18 +126,22 @@ async function getJson(path) {
 async function requestJson(path, init) {
   let lastError;
   for (let attempt = 0; attempt <= requestRetries; attempt += 1) {
+    let retryAfterMs = 0;
     try {
       const response = await fetch(`${apiBase}${path}`, init);
       const retryable = response.status === 429 || response.status >= 500;
       if (!retryable || attempt === requestRetries) return readJsonResponse(response);
       await response.text();
+      // The API's per-IP token bucket says when the next request is admitted;
+      // retrying sooner only spends another attempt on another 429.
+      retryAfterMs = Number(response.headers.get("retry-after")) * 1_000 || 0;
       lastError = new Error(`${response.status} ${response.statusText}`);
     } catch (error) {
       lastError = error;
       if (attempt === requestRetries) throw error;
     }
 
-    const backoffMs = Math.min(1_000 * (2 ** attempt), 8_000);
+    const backoffMs = Math.min(Math.max(1_000 * (2 ** attempt), retryAfterMs), 60_000);
     console.log(`retry ${attempt + 1}/${requestRetries} for ${path} after ${lastError instanceof Error ? lastError.message : String(lastError)}`);
     await sleep(backoffMs);
   }
@@ -272,7 +278,7 @@ Options:
   --delay-ms <n>            Delay before each started repo after the first (default: 500)
   --poll-ms <n>             Job polling interval (default: 2500)
   --max-polls <n>           Max polls per job (default: 120)
-  --request-retries <n>     Retries for network, 429, and 5xx errors (default: 3)
+  --request-retries <n>     Retries for network, 429, and 5xx errors, honoring Retry-After (default: 10)
   --force-refresh           Bypass cached report lookup
   --source <name>           Analysis source label (default: seed)
 `);

@@ -4,10 +4,17 @@ const apiBase = trimTrailingSlash(process.env.OCTOCOUNTS_API_BASE || "https://ap
 
 const SERVER_INFO = { name: "octocounts-mcp", version: "0.2.0" };
 
+// Newest first. A tools-only server already returning structuredContent fits
+// all three; the revisions differ in features it does not use.
+const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+
 async function dispatch(message, signal) {
   if (message.method === "initialize") {
+    // Per the spec: echo the client's version when supported, otherwise offer
+    // the newest one this server speaks and let the client decide.
+    const requested = message.params?.protocolVersion;
     return {
-      protocolVersion: "2024-11-05",
+      protocolVersion: PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0],
       capabilities: { tools: {} },
       serverInfo: SERVER_INFO,
     };
