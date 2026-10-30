@@ -10,6 +10,12 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      # A tokei major changes the counts and must move TOKEI_VERSION in
+      # backend/src/analyzer.rs and the methodology docs with it, so it is
+      # upgraded by hand (see the tokei 15 PR), never by a bot.
+      - dependency-name: tokei
+        update-types: ["version-update:semver-major"]
     groups:
       cargo:
         patterns: ["*"]
