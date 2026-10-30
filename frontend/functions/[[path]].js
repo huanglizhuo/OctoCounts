@@ -19,7 +19,7 @@ const BOOT_SCRIPT_HASH = "'sha256-2mUsir+xXgBNxPOKDMVv/T0CDFNTPTwA4NyqXmyIU4Y='"
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
 const STATIC_SITEMAP_ENTRIES = [
-  { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-10-18" },
+  { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-10-30" },
   { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/zh", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/", lastmod: "2026-10-25" },
@@ -35,7 +35,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-27" },
+  { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-30" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
@@ -44,7 +44,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-30" },
   { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-25" },

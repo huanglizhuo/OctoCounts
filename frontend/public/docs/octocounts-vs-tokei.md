@@ -71,7 +71,7 @@ Matching counts require the same actual source tree, tokei version, and effectiv
 
 ### Which tokei version does OctoCounts run?
 
-Production currently runs tokei 14.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work.
+Production currently runs tokei 15.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work.
 
 ### When is the tokei CLI the only option?
 
