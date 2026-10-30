@@ -458,6 +458,16 @@ fn build_ref_cache(ttl: Duration) -> Cache<(String, Option<String>), RepoRef> {
 /// Star counts drift continuously, so the refresh cache is short; failures
 /// (None) are cached too, so an unreachable API does not become a request
 /// amplifier.
+/// A definitive "no such repository": cached like a hit, so a stream of
+/// made-up names cannot spend one API call each. Rate limits and outages are
+/// not, since the next request may well succeed.
+fn is_missing_repo(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::NOT_FOUND | StatusCode::GONE | StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS
+    )
+}
+
 fn build_stars_cache() -> Cache<(RepositoryProvider, String, String), Option<u64>> {
     Cache::builder()
         .max_capacity(REF_CACHE_CAPACITY)
@@ -622,7 +632,7 @@ impl GitHubClient {
         owner: &str,
         repo: &str,
     ) -> Option<u64> {
-        let cache_key = (provider.clone(), owner.to_string(), repo.to_string());
+        let cache_key = (*provider, owner.to_string(), repo.to_string());
         if let Some(cached) = self.stars_cache.get(&cache_key).await {
             return cached;
         }
@@ -636,6 +646,9 @@ impl GitHubClient {
                 );
                 let response = self.get_with_retry(&url, false).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
+                    if is_missing_repo(response.status()) {
+                        self.stars_cache.insert(cache_key, None).await;
+                    }
                     return None;
                 }
                 response.json::<RepoResponse>().await.ok()?.stargazers_count
@@ -646,6 +659,9 @@ impl GitHubClient {
                 let url = format!("https://gitlab.com/api/v4/projects/{path}");
                 let response = self.get_with_retry(&url, false).await.ok()?;
                 if !matches!(response.status(), StatusCode::OK) {
+                    if is_missing_repo(response.status()) {
+                        self.stars_cache.insert(cache_key, None).await;
+                    }
                     return None;
                 }
                 response
@@ -672,7 +688,7 @@ impl GitHubClient {
         if !matches!(provider, RepositoryProvider::GitHub) {
             return None;
         }
-        let cache_key = (provider.clone(), owner.to_string(), repo.to_string());
+        let cache_key = (*provider, owner.to_string(), repo.to_string());
         if let Some(cached) = self.created_at_cache.get(&cache_key).await {
             return cached;
         }
@@ -904,12 +920,12 @@ impl GitHubClient {
     }
 
     /// A one-off, unauthenticated-by-default client used only for a caller's
-    /// star-history token. Kept separate from `self.client` (which bakes the
-    /// server's own `GITHUB_TOKEN` into its default headers) so there is
-    /// never a question of whether a per-request Authorization header would
-    /// compete with a baked-in default one — this client has no defaults to
-    /// compete with.
-    fn caller_token_client() -> Client {
+    /// own token (star history, the extension's OAuth exchange). Kept separate
+    /// from `self.client` (which bakes the server's own `GITHUB_TOKEN` into its
+    /// default headers) so there is never a question of whether a per-request
+    /// Authorization header would compete with a baked-in default one — this
+    /// client has no defaults to compete with.
+    pub(crate) fn caller_token_client() -> Client {
         Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30))
@@ -1442,9 +1458,8 @@ impl GitHubClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_ref_cache, canonical_filing, github_html_url, interpret_graphql, RepoFiling,
-        GitHubClient,
-        GraphQlFailure, GraphQlOutcome, RepoRef, RepositoryProvider, REF_CACHE_TTL,
+        build_ref_cache, canonical_filing, github_html_url, interpret_graphql, GitHubClient,
+        GraphQlFailure, GraphQlOutcome, RepoFiling, RepoRef, RepositoryProvider, REF_CACHE_TTL,
     };
 
     #[test]
@@ -1810,7 +1825,10 @@ mod tests {
     /// casing-only difference must never be reported as a rename.
     #[test]
     fn canonical_casing_is_adopted_from_the_api_spelling() {
-        for api_identity in ["huanglizhuo/OctoCounts", "https://github.com/huanglizhuo/OctoCounts"] {
+        for api_identity in [
+            "huanglizhuo/OctoCounts",
+            "https://github.com/huanglizhuo/OctoCounts",
+        ] {
             assert_eq!(
                 canonical_filing("HUANGLIZHUO", "octocounts", api_identity),
                 RepoFiling {
@@ -1842,7 +1860,12 @@ mod tests {
         // (requested owner, requested repo, API spelling, expected filing)
         for (owner, repo, api_identity, filed) in [
             ("facebook", "react", "react/react", ("react", "react")),
-            ("vuejs", "vue-next", "https://github.com/vuejs/core", ("vuejs", "core")),
+            (
+                "vuejs",
+                "vue-next",
+                "https://github.com/vuejs/core",
+                ("vuejs", "core"),
+            ),
             (
                 "huanglizhuo",
                 "OctoPoint",

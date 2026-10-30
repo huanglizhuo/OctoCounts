@@ -55,7 +55,9 @@ impl RateLimiter {
     pub fn check(&self, key: &IpAddr) -> Result<(), u64> {
         let mut state = self.buckets.lock().unwrap();
         if state.0.elapsed() >= SWEEP_INTERVAL {
-            state.1.retain(|_, bucket| bucket.updated.elapsed() < IDLE_RETENTION);
+            state
+                .1
+                .retain(|_, bucket| bucket.updated.elapsed() < IDLE_RETENTION);
             state.0 = Instant::now();
         }
 
@@ -66,9 +68,8 @@ impl RateLimiter {
             .entry(*key)
             .or_insert_with(|| Bucket::full(capacity));
         let now = Instant::now();
-        bucket.tokens =
-            (bucket.tokens + now.duration_since(bucket.updated).as_secs_f64() * refill)
-                .min(capacity);
+        bucket.tokens = (bucket.tokens + now.duration_since(bucket.updated).as_secs_f64() * refill)
+            .min(capacity);
         bucket.updated = now;
 
         if bucket.tokens >= 1.0 {
@@ -98,7 +99,7 @@ pub struct RateLimits {
     /// `force_refresh` bypasses the report cache and re-downloads a whole
     /// archive, so it gets a quota of its own: 2 per minute.
     pub force_refresh: RateLimiter,
-    /// Both the OAuth `start` redirect and the paste-a-token endpoint accept
+    /// The extension's code exchange and token-connect endpoints accept
     /// unauthenticated input and trigger outbound GitHub API calls, so they
     /// share one modest quota to bound how much abuse a single IP can push
     /// through them.
@@ -109,6 +110,10 @@ pub struct RateLimits {
     /// GitHub camo from a small set of shared IPs, so this bucket is much
     /// looser than `analyze`: a 60-badge burst, refilling at 120/minute.
     pub badge: RateLimiter,
+    /// `/api/repo-info` spends the server's GitHub token on every name it has
+    /// not cached, so arbitrary names would drain the quota analysis needs.
+    /// A person refreshing share cards stays far below 60/minute.
+    pub repo_info: RateLimiter,
 }
 
 impl RateLimits {
@@ -118,6 +123,7 @@ impl RateLimits {
             force_refresh: RateLimiter::per_minute(2, 2),
             github_auth: RateLimiter::per_minute(3, 5),
             badge: RateLimiter::per_minute(60, 120),
+            repo_info: RateLimiter::per_minute(30, 60),
         }
     }
 }
@@ -128,8 +134,10 @@ impl Default for RateLimits {
     }
 }
 
-/// `TRUST_PROXY`: set to 1/true only when a trusted reverse proxy fronts the
-/// service and overwrites (not appends to) `X-Forwarded-For`.
+/// `TRUST_PROXY`: set to 1/true only when the service is reachable solely
+/// through a trusted proxy. Production qualifies: Cloudflare Tunnel ->
+/// cloudflared -> this service, so the socket peer is always the cloudflared
+/// container and, without this, every visitor shares one bucket.
 fn trust_proxy() -> bool {
     static TRUST_PROXY: OnceLock<bool> = OnceLock::new();
     *TRUST_PROXY.get_or_init(|| {
@@ -146,25 +154,38 @@ fn trust_proxy() -> bool {
 
 /// The client IP a rate-limit decision should be keyed on.
 ///
-/// `X-Forwarded-For` is only consulted when `TRUST_PROXY` says the socket
-/// address is a proxy we control; otherwise the header is attacker-supplied
-/// and trusting it would make the limit trivially bypassable.
+/// Forwarding headers are only consulted when `TRUST_PROXY` says the socket
+/// address is a proxy we control; otherwise they are attacker-supplied and
+/// trusting them would make the limit trivially bypassable.
 pub fn client_ip(headers: &HeaderMap, remote: Option<SocketAddr>) -> Option<IpAddr> {
-    if trust_proxy() {
-        if let Some(forwarded) = headers
+    client_ip_from(trust_proxy(), headers, remote)
+}
+
+fn client_ip_from(
+    trust_proxy: bool,
+    headers: &HeaderMap,
+    remote: Option<SocketAddr>,
+) -> Option<IpAddr> {
+    if trust_proxy {
+        // Cloudflare overwrites CF-Connecting-IP with the visitor's address,
+        // so unlike X-Forwarded-For a client cannot smuggle in a value.
+        if let Some(ip) = headers
+            .get("cf-connecting-ip")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.trim().parse().ok())
+        {
+            return Some(ip);
+        }
+        // Otherwise the last X-Forwarded-For hop is the one our proxy added
+        // (or the only one, if it overwrites); earlier entries are whatever
+        // the client claimed, so keying on them would be bypassable.
+        if let Some(ip) = headers
             .get("x-forwarded-for")
             .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.rsplit(',').next())
+            .and_then(|value| value.trim().parse().ok())
         {
-            // The first entry is the client the proxy saw; the rest is
-            // whatever the client claimed before that.
-            if let Some(ip) = forwarded
-                .split(',')
-                .next()
-                .map(str::trim)
-                .and_then(|value| value.parse().ok())
-            {
-                return Some(ip);
-            }
+            return Some(ip);
         }
     }
     remote.map(|addr| addr.ip())
@@ -202,7 +223,35 @@ mod tests {
     #[test]
     fn without_a_header_the_socket_address_decides() {
         let remote: SocketAddr = "10.0.0.1:5000".parse().unwrap();
-        assert_eq!(client_ip(&HeaderMap::new(), Some(remote)), Some(remote.ip()));
+        assert_eq!(
+            client_ip(&HeaderMap::new(), Some(remote)),
+            Some(remote.ip())
+        );
         assert_eq!(client_ip(&HeaderMap::new(), None), None);
+    }
+
+    /// Production shape: every request arrives from the cloudflared container,
+    /// and a visitor may send any X-Forwarded-For they like.
+    #[test]
+    fn behind_a_trusted_proxy_the_visitor_decides_and_cannot_spoof() {
+        let cloudflared: SocketAddr = "172.18.0.5:41000".parse().unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "6.6.6.6, 203.0.113.7".parse().unwrap());
+        assert_eq!(
+            client_ip_from(true, &headers, Some(cloudflared)),
+            Some("203.0.113.7".parse().unwrap()),
+            "the proxy-appended last hop, not the client-claimed first one",
+        );
+
+        headers.insert("cf-connecting-ip", "198.51.100.9".parse().unwrap());
+        assert_eq!(
+            client_ip_from(true, &headers, Some(cloudflared)),
+            Some("198.51.100.9".parse().unwrap()),
+        );
+        assert_eq!(
+            client_ip_from(false, &headers, Some(cloudflared)),
+            Some(cloudflared.ip()),
+            "untrusted forwarding headers are ignored",
+        );
     }
 }

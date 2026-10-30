@@ -11,7 +11,9 @@ use uuid::Uuid;
 use crate::{
     api::AppState,
     coordinator::{job_is_finished, AnalysisCoordinator},
-    models::{AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider},
+    models::{
+        AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider,
+    },
     ratelimit::client_ip,
     repo_history::ensure_repo_history,
 };
@@ -27,7 +29,11 @@ pub(crate) struct BadgeParams {
 /// Cached responses stay unthrottled: only requests that could trigger a full
 /// analysis spend a token, which bounds the badge endpoint as an analysis
 /// amplifier without choking README renders.
-async fn check_badge_quota(state: &AppState, ip: Option<std::net::IpAddr>, params: &BadgeParams) -> Option<Response> {
+async fn check_badge_quota(
+    state: &AppState,
+    ip: Option<std::net::IpAddr>,
+    params: &BadgeParams,
+) -> Option<Response> {
     let ip = ip?;
     if state.rate_limits.badge.check(&ip).is_ok() {
         return None;
@@ -57,7 +63,10 @@ pub async fn badge_default(
 ) -> Response {
     serve_badge(
         state,
-        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        client_ip(
+            &headers,
+            connect_info.map(|Extension(ConnectInfo(addr))| addr),
+        ),
         owner,
         repo,
         None,
@@ -73,9 +82,27 @@ pub async fn badge_report(
     Query(params): Query<BadgeParams>,
 ) -> Response {
     match state.coordinator.store().report(&report_id).await {
-        Ok(Some(report)) => svg_response(render_for_params(&report, &params), "public, max-age=3600"),
-        Ok(None) => (StatusCode::NOT_FOUND, [(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "no-store")], render_error_for_params(&params)).into_response(),
-        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, [(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "no-store")], render_error_for_params(&params)).into_response(),
+        Ok(Some(report)) => {
+            svg_response(render_for_params(&report, &params), "public, max-age=3600")
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            [
+                (header::CONTENT_TYPE, "image/svg+xml"),
+                (header::CACHE_CONTROL, "no-store"),
+            ],
+            render_error_for_params(&params),
+        )
+            .into_response(),
+        Err(_) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [
+                (header::CONTENT_TYPE, "image/svg+xml"),
+                (header::CACHE_CONTROL, "no-store"),
+            ],
+            render_error_for_params(&params),
+        )
+            .into_response(),
     }
 }
 
@@ -88,7 +115,10 @@ pub async fn badge_branch(
 ) -> Response {
     serve_badge(
         state,
-        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        client_ip(
+            &headers,
+            connect_info.map(|Extension(ConnectInfo(addr))| addr),
+        ),
         owner,
         repo,
         Some(branch),
@@ -107,7 +137,10 @@ pub async fn badge_tag(
 ) -> Response {
     serve_badge(
         state,
-        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        client_ip(
+            &headers,
+            connect_info.map(|Extension(ConnectInfo(addr))| addr),
+        ),
         owner,
         repo,
         Some(tag),
@@ -126,7 +159,10 @@ pub async fn badge_commit(
 ) -> Response {
     serve_badge(
         state,
-        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        client_ip(
+            &headers,
+            connect_info.map(|Extension(ConnectInfo(addr))| addr),
+        ),
         owner,
         repo,
         Some(sha),
@@ -268,7 +304,7 @@ fn comma_format(n: usize) -> String {
     let mut result = String::new();
     let len = chars.len();
     for (i, &ch) in chars.iter().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
+        if i > 0 && (len - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(ch);
@@ -278,7 +314,7 @@ fn comma_format(n: usize) -> String {
 
 fn compact_suffix(val: f64, suffix: char) -> String {
     let tenths = (val * 10.0).round() as u64;
-    if tenths % 10 == 0 {
+    if tenths.is_multiple_of(10) {
         format!("{}{}", tenths / 10, suffix)
     } else {
         format!("{}.{}{}", tenths / 10, tenths % 10, suffix)
@@ -564,8 +600,8 @@ fn xml_escape(s: &str) -> String {
 fn lang_badge_svg(lang: &str, value: &str, color: &str) -> String {
     let label_tenths = text_width(lang) + 100;
     let value_tenths = text_width(value) + 100;
-    let left_w = (label_tenths + 9) / 10;
-    let right_w = (value_tenths + 9) / 10;
+    let left_w = label_tenths.div_ceil(10);
+    let right_w = value_tenths.div_ceil(10);
     let total_w = left_w + right_w;
     let left_cx = left_w / 2;
     let right_cx = left_w + right_w / 2;
@@ -636,7 +672,10 @@ pub async fn star_history_badge(
     };
     if let Some(limited) = check_badge_quota(
         &state,
-        client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)),
+        client_ip(
+            &headers,
+            connect_info.map(|Extension(ConnectInfo(addr))| addr),
+        ),
         &params,
     )
     .await
@@ -687,7 +726,12 @@ fn render_star_history_svg(points: &[(NaiveDate, i64)], current_stars: Option<u6
     let min_date = points[0].0;
     let max_date = points[points.len() - 1].0;
     let span_days = (max_date - min_date).num_days().max(1) as f64;
-    let max_star = points.iter().map(|(_, count)| *count).max().unwrap_or(1).max(1) as f64;
+    let max_star = points
+        .iter()
+        .map(|(_, count)| *count)
+        .max()
+        .unwrap_or(1)
+        .max(1) as f64;
 
     let plot_width = STAR_CHART_WIDTH - STAR_CHART_PAD_LEFT - STAR_CHART_PAD_RIGHT;
     let plot_height = STAR_CHART_HEIGHT - STAR_CHART_PAD_TOP - STAR_CHART_PAD_BOTTOM;
@@ -696,7 +740,8 @@ fn render_star_history_svg(points: &[(NaiveDate, i64)], current_stars: Option<u6
     let coords: Vec<(f64, f64)> = points
         .iter()
         .map(|(date, count)| {
-            let x = STAR_CHART_PAD_LEFT + ((*date - min_date).num_days() as f64 / span_days) * plot_width;
+            let x = STAR_CHART_PAD_LEFT
+                + ((*date - min_date).num_days() as f64 / span_days) * plot_width;
             let y = baseline_y - (*count as f64 / max_star) * plot_height;
             (x, y)
         })
@@ -737,8 +782,8 @@ fn render_star_history_svg(points: &[(NaiveDate, i64)], current_stars: Option<u6
 #[cfg(test)]
 mod tests {
     use super::{
-        badge_cache_key, format_percent, format_stat, normalize_badge_type, render_star_history_svg,
-        BadgeParams,
+        badge_cache_key, format_percent, format_stat, normalize_badge_type,
+        render_star_history_svg, BadgeParams,
     };
     use crate::cache::AppCaches;
     use chrono::NaiveDate;
@@ -768,7 +813,10 @@ mod tests {
             Some(100),
         );
 
-        assert!(svg.contains("<path d=\"M"), "line path should start with a moveto");
+        assert!(
+            svg.contains("<path d=\"M"),
+            "line path should start with a moveto"
+        );
         assert!(svg.contains("2026-01-01"), "first date label");
         assert!(svg.contains("2026-03-01"), "last date label");
         assert!(svg.contains("100"), "current star count label");
@@ -780,10 +828,8 @@ mod tests {
         // Two snapshots recorded the same day (a backfill point and today's
         // exact snapshot can land on the same date) must not produce a NaN
         // or infinite coordinate from a zero-day span.
-        let svg = render_star_history_svg(
-            &[(date("2026-01-01"), 1), (date("2026-01-01"), 2)],
-            Some(2),
-        );
+        let svg =
+            render_star_history_svg(&[(date("2026-01-01"), 1), (date("2026-01-01"), 2)], Some(2));
         assert!(!svg.contains("NaN"));
         assert!(!svg.contains("inf"));
     }

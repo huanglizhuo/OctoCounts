@@ -192,8 +192,19 @@ pub async fn report(
 /// snapshot or hides the badge.
 pub async fn repo_info(
     State(state): State<AppState>,
+    connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
+    headers: HeaderMap,
     Query(params): Query<RepoInfoQuery>,
 ) -> Result<Response, ApiError> {
+    if let Some(ip) = client_ip(
+        &headers,
+        connect_info.map(|Extension(ConnectInfo(addr))| addr),
+    ) {
+        if let Err(seconds) = state.rate_limits.repo_info.check(&ip) {
+            return Err(ApiError::rate_limited(seconds));
+        }
+    }
+
     let provider = match params.provider.as_deref() {
         Some("gitlab") | Some("gitLab") | Some("GitLab") => RepositoryProvider::GitLab,
         _ => RepositoryProvider::GitHub,
@@ -230,7 +241,7 @@ pub struct RepoInfoQuery {
     pub provider: Option<String>,
 }
 
-fn is_repo_part(value: &str) -> bool {
+pub(crate) fn is_repo_part(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 100
         && value
@@ -269,29 +280,29 @@ fn stats_cache_headers() -> HeaderMap {
 /// Lightweight ops view: live job counts, stored reports, report-cache hit
 /// ratio, upstream 429s and uptime, all per process.
 ///
-/// Protected by `INTERNAL_STATS_TOKEN` when that env var is set (send it in
-/// the `x-stats-token` header); without it the endpoint is open, since every
-/// field it exposes is non-sensitive. Not cached: it is an on-demand read for
-/// a human or a scraper, not something fronted by a CDN.
+/// Protected by `INTERNAL_STATS_TOKEN` (send it in the `x-stats-token`
+/// header). With no token configured the route answers 404: the API is public
+/// behind the tunnel, so an internal view must not be open merely because
+/// nobody set a secret. Not cached: it is an on-demand read for a human or a
+/// scraper, not something fronted by a CDN.
 pub async fn internal_stats(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    if let Ok(token) = std::env::var("INTERNAL_STATS_TOKEN") {
-        let token = token.trim().to_string();
-        if !token.is_empty() {
-            let provided = headers
-                .get("x-stats-token")
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or_default();
-            if provided != token {
-                return Err(ApiError::new(
-                    StatusCode::UNAUTHORIZED,
-                    "unauthorized",
-                    "a valid x-stats-token header is required",
-                ));
-            }
-        }
+    let token = std::env::var("INTERNAL_STATS_TOKEN").unwrap_or_default();
+    if token.trim().is_empty() {
+        return Err(ApiError::not_found("not_found", "not found"));
+    }
+    let provided = headers
+        .get("x-stats-token")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    if provided != token.trim() {
+        return Err(ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "unauthorized",
+            "a valid x-stats-token header is required",
+        ));
     }
 
     let job_counts = state

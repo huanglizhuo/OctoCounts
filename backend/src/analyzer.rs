@@ -20,8 +20,8 @@ use tokei::{Config, Language, LanguageType, Languages, Report as TokeiReport};
 use tokio::time::timeout;
 
 use crate::models::{
-    AnalysisOptions, AnalysisProfile, CountingPolicy, LanguageReport, LanguageStats, RepoRef, Report,
-    Repository,
+    AnalysisOptions, AnalysisProfile, CountingPolicy, LanguageReport, LanguageStats, RepoRef,
+    Report, Repository,
 };
 
 /// The counting engine this binary actually links, as reported to clients and
@@ -127,7 +127,8 @@ fn analyze_blocking_with_limit(
         &extract_root,
         &ignored_dirs,
         options.respect_gitattributes,
-    ).map_err(|error| {
+    )
+    .map_err(|error| {
         if oversized.load(Ordering::Relaxed) {
             AnalysisError::ArchiveTooLarge
         } else {
@@ -148,7 +149,8 @@ fn analyze_blocking_with_limit(
         include_tests: options.include_tests && !source_only,
         include_generated: options.include_generated && !source_only,
         ignored_dirs: ignored_dirs.clone(),
-        ignored_languages: options.ignored_languages
+        ignored_languages: options
+            .ignored_languages
             .iter()
             .map(|value| value.to_lowercase())
             .collect(),
@@ -285,7 +287,9 @@ fn extract_archive<R: Read>(
         let size = entry.header().size()?;
         if size > MAX_SINGLE_FILE_BYTES {
             if respect_gitattributes
-                && stripped.file_name().is_some_and(|name| name == ".gitattributes")
+                && stripped
+                    .file_name()
+                    .is_some_and(|name| name == ".gitattributes")
             {
                 return Err(anyhow!("repository attribute declarations are too large"));
             }

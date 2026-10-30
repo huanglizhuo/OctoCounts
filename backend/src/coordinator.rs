@@ -31,6 +31,14 @@ use crate::{
 /// which no in-memory channel can observe.
 const JOB_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
+/// How often a job this process owns refreshes its `updated_at`. Several beats
+/// fit inside [`crate::store::JOB_ABANDONED_AFTER_SECONDS`], so one slow write
+/// never makes a live job look abandoned.
+const JOB_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
+const _: () = assert!(
+    JOB_HEARTBEAT_INTERVAL.as_secs() * 3 < crate::store::JOB_ABANDONED_AFTER_SECONDS as u64
+);
+
 /// Whether a job has reached a state it will never leave.
 pub fn job_is_finished(status: JobStatus) -> bool {
     matches!(status, JobStatus::Completed | JobStatus::Failed)
@@ -312,7 +320,7 @@ impl AnalysisCoordinator {
             if let Some(report) = self
                 .store
                 .cached_report_for_provider(
-                    repo_ref.provider.clone(),
+                    repo_ref.provider,
                     &repo_ref.owner,
                     &repo_ref.repo,
                     &repo_ref.commit_sha,
@@ -333,7 +341,7 @@ impl AnalysisCoordinator {
         let (job, created) = self
             .store
             .create_or_get_active_job(JobKey {
-                provider: repo_ref.provider.clone(),
+                provider: repo_ref.provider,
                 owner: &repo_ref.owner,
                 repo: &repo_ref.repo,
                 commit_sha: &repo_ref.commit_sha,
@@ -362,64 +370,86 @@ impl AnalysisCoordinator {
     ) {
         let coordinator = self.clone();
         tokio::spawn(async move {
-            let Ok(_permit) = coordinator.semaphore.acquire().await else {
-                coordinator
-                    .set_job_failed(job_id, "internal", "analysis worker is unavailable")
-                    .await;
-                return;
-            };
-
-            coordinator.set_job_running(job_id).await;
-
-            let archive = match coordinator
-                .github
-                .archive_reader(
-                    &repo_ref.provider,
-                    &repo_ref.owner,
-                    &repo_ref.repo,
-                    &repo_ref.commit_sha,
-                    analyzer::max_archive_bytes(),
-                )
-                .await
-            {
-                Ok(archive) => archive,
-                Err(error) => {
-                    tracing::warn!(%error, "archive download failed");
-                    let api_error = ApiError::from(error);
-                    coordinator
-                        .set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
-                        .await;
-                    return;
+            // Heartbeat while this process owns the job -- queued on the
+            // semaphore or running -- so that if the process dies the job stops
+            // counting as active (`Store::active_job`) instead of blocking its
+            // repository until stale cleanup.
+            let heartbeat = async {
+                loop {
+                    tokio::time::sleep(JOB_HEARTBEAT_INTERVAL).await;
+                    if let Err(error) = coordinator.store.touch_job(job_id).await {
+                        tracing::warn!(%error, "failed to heartbeat job");
+                    }
                 }
             };
-
-            match analyzer::analyze(AnalysisInput {
-                repo_ref,
-                archive,
-                options,
-                analysis_key,
-            })
-            .await
-            {
-                Ok(report) => complete_job(&coordinator, job_id, report, source).await,
-                // The size limit now trips mid-stream rather than after the
-                // download, but it is the same user-facing failure, so it keeps
-                // reporting through the same error code.
-                Err(AnalysisError::ArchiveTooLarge) => {
-                    tracing::warn!("archive exceeded the size limit while streaming");
-                    let api_error = ApiError::from(GitHubError::TooLarge);
-                    coordinator
-                        .set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
-                        .await;
-                }
-                Err(error) => {
-                    tracing::warn!(%error, "analysis failed");
-                    coordinator
-                        .set_job_failed(job_id, "analysis_failed", &error.to_string())
-                        .await;
-                }
+            tokio::select! {
+                () = coordinator.run_analysis_job(job_id, repo_ref, options, analysis_key, source) => {}
+                _ = heartbeat => {}
             }
         });
+    }
+
+    async fn run_analysis_job(
+        &self,
+        job_id: Uuid,
+        repo_ref: RepoRef,
+        options: crate::models::AnalysisOptions,
+        analysis_key: String,
+        source: AnalysisSource,
+    ) {
+        let Ok(_permit) = self.semaphore.acquire().await else {
+            self.set_job_failed(job_id, "internal", "analysis worker is unavailable")
+                .await;
+            return;
+        };
+
+        self.set_job_running(job_id).await;
+
+        let archive = match self
+            .github
+            .archive_reader(
+                &repo_ref.provider,
+                &repo_ref.owner,
+                &repo_ref.repo,
+                &repo_ref.commit_sha,
+                analyzer::max_archive_bytes(),
+            )
+            .await
+        {
+            Ok(archive) => archive,
+            Err(error) => {
+                tracing::warn!(%error, "archive download failed");
+                let api_error = ApiError::from(error);
+                self.set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
+                    .await;
+                return;
+            }
+        };
+
+        match analyzer::analyze(AnalysisInput {
+            repo_ref,
+            archive,
+            options,
+            analysis_key,
+        })
+        .await
+        {
+            Ok(report) => complete_job(self, job_id, report, source).await,
+            // The size limit now trips mid-stream rather than after the
+            // download, but it is the same user-facing failure, so it keeps
+            // reporting through the same error code.
+            Err(AnalysisError::ArchiveTooLarge) => {
+                tracing::warn!("archive exceeded the size limit while streaming");
+                let api_error = ApiError::from(GitHubError::TooLarge);
+                self.set_job_failed(job_id, &api_error.body().code, &api_error.body().message)
+                    .await;
+            }
+            Err(error) => {
+                tracing::warn!(%error, "analysis failed");
+                self.set_job_failed(job_id, "analysis_failed", &error.to_string())
+                    .await;
+            }
+        }
     }
 }
 

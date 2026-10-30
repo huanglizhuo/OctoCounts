@@ -24,10 +24,13 @@ use crate::{
 /// abandoned just short of the analyzer giving up on it too.
 const SLOC_BACKFILL_JOB_TIMEOUT: Duration = Duration::from_secs(320);
 
-/// The forward sampler's first pass runs this soon after startup, so a
-/// deployment immediately refreshes stale charts instead of waiting a full
-/// `sloc_forward_interval_seconds`.
+/// The forward sampler's (and compaction's) first pass runs this soon after
+/// startup, so a deployment immediately refreshes stale charts instead of
+/// waiting a full `sloc_forward_interval_seconds`.
 const FORWARD_TASK_WARMUP_SECONDS: u64 = 120;
+
+/// How long a background task waits before retrying a failed listing query.
+const LIST_RETRY_SECONDS: u64 = 60;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -149,12 +152,7 @@ pub(crate) async fn ensure_repo_history(
 ) -> anyhow::Result<(
     Vec<(NaiveDate, i64)>,
     Option<u64>,
-    Vec<(
-        NaiveDate,
-        i64,
-        String,
-        Option<SlocLanguages>,
-    )>,
+    Vec<(NaiveDate, i64, String, Option<SlocLanguages>)>,
     bool,
     bool,
     bool,
@@ -309,12 +307,14 @@ pub async fn repo_history(
         sloc_points: sloc_history
             .iter()
             .enumerate()
-            .map(|(index, (date, total_lines, _, languages))| SlocHistoryPoint {
-                date: date.to_string(),
-                total_lines: *total_lines,
-                languages: languages.clone(),
-                suspect: suspect_indices.contains(&index).then_some(true),
-            })
+            .map(
+                |(index, (date, total_lines, _, languages))| SlocHistoryPoint {
+                    date: date.to_string(),
+                    total_lines: *total_lines,
+                    languages: languages.clone(),
+                    suspect: suspect_indices.contains(&index).then_some(true),
+                },
+            )
             .collect(),
         sloc_backfill_in_progress,
         star_backfill_available,
@@ -348,7 +348,12 @@ pub async fn repo_history(
             })
             .take(SLOC_RESAMPLE_MAX_POINTS)
             .collect();
-        spawn_sloc_resample(state.clone(), query.owner.clone(), query.repo.clone(), samples);
+        spawn_sloc_resample(
+            state.clone(),
+            query.owner.clone(),
+            query.repo.clone(),
+            samples,
+        );
     }
 
     Ok((repo_history_cache_headers(), Json(response)))
@@ -376,9 +381,7 @@ pub(crate) fn sloc_point_is_suspect(prev: i64, value: i64, next: i64) -> bool {
 /// one side, so there is no implausible-dip shape to test for.
 pub(crate) fn suspect_sloc_indices(values: &[i64]) -> Vec<usize> {
     (1..values.len().saturating_sub(1))
-        .filter(|&index| {
-            sloc_point_is_suspect(values[index - 1], values[index], values[index + 1])
-        })
+        .filter(|&index| sloc_point_is_suspect(values[index - 1], values[index], values[index + 1]))
         .collect()
 }
 
@@ -402,7 +405,12 @@ const SLOC_RESAMPLE_COOLDOWN: Duration = Duration::from_secs(24 * 60 * 60);
 /// spawns at most one repair), and idempotence — `record_sloc_snapshot`'s
 /// upsert means a repeat run corrects rather than duplicates. Runs entirely
 /// off the request path: the caller spawns and returns immediately.
-fn spawn_sloc_resample(state: AppState, owner: String, repo: String, samples: Vec<(NaiveDate, String)>) {
+fn spawn_sloc_resample(
+    state: AppState,
+    owner: String,
+    repo: String,
+    samples: Vec<(NaiveDate, String)>,
+) {
     tokio::spawn(async move {
         let store = state.coordinator.store();
         match store
@@ -806,9 +814,9 @@ pub(crate) async fn run_sloc_forward_sample(
 /// repo has moved. Without it the recorded series freezes on the day of the
 /// first view — the exact bug that motivated the adaptive-sampling redesign.
 ///
-/// Unlike the star task, the first pass runs after a short warmup rather than
-/// a full interval: a deployment of this feature is typically followed by
-/// stale-everywhere charts, and a two-minute catch-up beats waiting a day.
+/// The first pass runs after a short warmup rather than a full interval: a
+/// deployment of this feature is typically followed by stale-everywhere
+/// charts, and a two-minute catch-up beats waiting a day.
 pub(crate) fn spawn_sloc_forward_task(state: AppState, interval_seconds: u64) {
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(FORWARD_TASK_WARMUP_SECONDS)).await;
@@ -817,6 +825,9 @@ pub(crate) fn spawn_sloc_forward_task(state: AppState, interval_seconds: u64) {
                 Ok(repos) => repos,
                 Err(error) => {
                     tracing::warn!(%error, "failed to list watched repos for sloc forward sampling");
+                    // Without a pause this spun as fast as the database could
+                    // refuse connections, for as long as it was down.
+                    tokio::time::sleep(Duration::from_secs(LIST_RETRY_SECONDS)).await;
                     continue;
                 }
             };
@@ -850,15 +861,19 @@ const SLOC_COMPACTION_MIN_POINTS: usize = 8;
 /// per week, older than a year to first/last/min/max per calendar month.
 /// The most recent point is always kept (it is the chart's "current" value),
 /// and nothing is destroyed — see `supersede_sloc_snapshots`.
+///
+/// Like the forward task it starts after a warmup instead of a full interval:
+/// deploys restart nodes more often than daily, so a sleep-first loop seldom
+/// reached a pass. Compaction is idempotent, so an extra pass costs only reads.
 pub(crate) fn spawn_sloc_compaction_task(state: AppState, interval_seconds: u64) {
     tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(FORWARD_TASK_WARMUP_SECONDS)).await;
         loop {
-            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
-
             let repos = match state.coordinator.store().repos_with_sloc_snapshots().await {
                 Ok(repos) => repos,
                 Err(error) => {
                     tracing::warn!(%error, "failed to list repos for sloc compaction");
+                    tokio::time::sleep(Duration::from_secs(LIST_RETRY_SECONDS)).await;
                     continue;
                 }
             };
@@ -873,6 +888,7 @@ pub(crate) fn spawn_sloc_compaction_task(state: AppState, interval_seconds: u64)
                 }
             }
             tracing::info!(superseded, "sloc compaction pass completed");
+            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
 }
@@ -1206,15 +1222,27 @@ mod tests {
             .map(|index| (format!("Lang{index:02}"), index * 10))
             .collect();
         let report = report_with_languages(
-            &pairs.iter().map(|(name, code)| (name.as_str(), *code)).collect::<Vec<_>>(),
+            &pairs
+                .iter()
+                .map(|(name, code)| (name.as_str(), *code))
+                .collect::<Vec<_>>(),
         );
 
         let languages = sloc_sample_languages(&report).unwrap();
 
         assert_eq!(languages.len(), 40, "the cap keeps the top 40 by code");
-        assert_eq!(languages["Lang49"], 490, "the highest-code language survives");
-        assert!(!languages.contains_key("Lang00"), "the smallest language is dropped");
-        assert!(!languages.contains_key("Lang09"), "the 10th-smallest is dropped too");
+        assert_eq!(
+            languages["Lang49"], 490,
+            "the highest-code language survives"
+        );
+        assert!(
+            !languages.contains_key("Lang00"),
+            "the smallest language is dropped"
+        );
+        assert!(
+            !languages.contains_key("Lang09"),
+            "the 10th-smallest is dropped too"
+        );
         assert!(languages.contains_key("Lang10"));
     }
 

@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::AppState,
+    api::{is_repo_part, AppState},
     error::ApiError,
     github::{GitHubClient, GitHubError},
     models::RepositoryProvider,
@@ -22,8 +22,15 @@ struct AccessTokenResponse {
     access_token: Option<String>,
 }
 
-async fn exchange_oauth_code(client_id: &str, client_secret: &str, code: &str, redirect_uri: &str) -> Option<String> {
-    let client = reqwest::Client::new();
+async fn exchange_oauth_code(
+    client_id: &str,
+    client_secret: &str,
+    code: &str,
+    redirect_uri: &str,
+) -> Option<String> {
+    // Timeouts matter here: a bare `Client::new()` has none, so a stalled
+    // GitHub connection held the request open indefinitely.
+    let client = GitHubClient::caller_token_client();
     // Built by hand rather than via `RequestBuilder::form` so this doesn't
     // need reqwest's form-encoding feature enabled just for one call —
     // `urlencoding` is already a dependency used throughout `github.rs`.
@@ -37,7 +44,10 @@ async fn exchange_oauth_code(client_id: &str, client_secret: &str, code: &str, r
     let response = client
         .post("https://github.com/login/oauth/access_token")
         .header(reqwest::header::ACCEPT, "application/json")
-        .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(
+            reqwest::header::CONTENT_TYPE,
+            "application/x-www-form-urlencoded",
+        )
         .body(body)
         .send()
         .await
@@ -54,7 +64,7 @@ struct GitHubUserResponse {
 /// Who a token belongs to, per GitHub itself. Used only to tell the extension
 /// which GitHub account just logged in — never stored server-side.
 async fn fetch_github_login(token: &str) -> Option<String> {
-    let client = reqwest::Client::new();
+    let client = GitHubClient::caller_token_client();
     let response = client
         .get("https://api.github.com/user")
         .header(reqwest::header::USER_AGENT, "octocount-service/0.1")
@@ -66,7 +76,11 @@ async fn fetch_github_login(token: &str) -> Option<String> {
     if !response.status().is_success() {
         return None;
     }
-    response.json::<GitHubUserResponse>().await.ok().map(|body| body.login)
+    response
+        .json::<GitHubUserResponse>()
+        .await
+        .ok()
+        .map(|body| body.login)
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,15 +116,19 @@ pub async fn github_extension_token_exchange(
     headers: HeaderMap,
     Json(request): Json<ExtensionCodeExchangeRequest>,
 ) -> Result<Json<ExtensionCodeExchangeResponse>, ApiError> {
-    if let Some(ip) = client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)) {
+    if let Some(ip) = client_ip(
+        &headers,
+        connect_info.map(|Extension(ConnectInfo(addr))| addr),
+    ) {
         if let Err(seconds) = state.rate_limits.github_auth.check(&ip) {
             return Err(ApiError::rate_limited(seconds));
         }
     }
 
-    let (Some(client_id), Some(client_secret)) =
-        (state.github_extension_oauth_client_id.clone(), state.github_extension_oauth_client_secret.clone())
-    else {
+    let (Some(client_id), Some(client_secret)) = (
+        state.github_extension_oauth_client_id.clone(),
+        state.github_extension_oauth_client_secret.clone(),
+    ) else {
         return Err(ApiError::new(
             StatusCode::SERVICE_UNAVAILABLE,
             "oauth_not_configured",
@@ -118,12 +136,26 @@ pub async fn github_extension_token_exchange(
         ));
     };
 
-    let Some(token) = exchange_oauth_code(&client_id, &client_secret, &request.code, &request.redirect_uri).await
+    let Some(token) = exchange_oauth_code(
+        &client_id,
+        &client_secret,
+        &request.code,
+        &request.redirect_uri,
+    )
+    .await
     else {
-        return Err(ApiError::new(StatusCode::BAD_GATEWAY, "oauth_failed", "failed to exchange GitHub code"));
+        return Err(ApiError::new(
+            StatusCode::BAD_GATEWAY,
+            "oauth_failed",
+            "failed to exchange GitHub code",
+        ));
     };
     let Some(login) = fetch_github_login(&token).await else {
-        return Err(ApiError::new(StatusCode::BAD_GATEWAY, "oauth_failed", "failed to look up the GitHub account"));
+        return Err(ApiError::new(
+            StatusCode::BAD_GATEWAY,
+            "oauth_failed",
+            "failed to look up the GitHub account",
+        ));
     };
 
     Ok(Json(ExtensionCodeExchangeResponse { login, token }))
@@ -155,7 +187,10 @@ pub async fn github_auth_token(
     headers: HeaderMap,
     Json(request): Json<SubmitTokenRequest>,
 ) -> Result<Json<SubmitTokenResponse>, ApiError> {
-    if let Some(ip) = client_ip(&headers, connect_info.map(|Extension(ConnectInfo(addr))| addr)) {
+    if let Some(ip) = client_ip(
+        &headers,
+        connect_info.map(|Extension(ConnectInfo(addr))| addr),
+    ) {
         if let Err(seconds) = state.rate_limits.github_auth.check(&ip) {
             return Err(ApiError::rate_limited(seconds));
         }
@@ -169,20 +204,46 @@ pub async fn github_auth_token(
             "GitHub token connect is only available for GitHub repositories",
         ));
     }
+    if !is_repo_part(&request.owner) || !is_repo_part(&request.repo) {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "invalid_repository",
+            "owner and repo must be a GitHub repository name",
+        ));
+    }
     if request.token.trim().is_empty() {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "missing_token", "token is required"));
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "missing_token",
+            "token is required",
+        ));
     }
 
-    let response = match authorize_and_backfill(&state, provider, &request.owner, &request.repo, request.token).await
+    let response = match authorize_and_backfill(
+        &state,
+        provider,
+        &request.owner,
+        &request.repo,
+        request.token,
+    )
+    .await
     {
-        Ok(()) => SubmitTokenResponse { success: true, error: None },
-        Err(GitHubError::NotCollaborator) => {
-            SubmitTokenResponse { success: false, error: Some("not_collaborator".to_string()) }
-        }
-        Err(GitHubError::RateLimited) => {
-            SubmitTokenResponse { success: false, error: Some("rate_limited".to_string()) }
-        }
-        Err(_) => SubmitTokenResponse { success: false, error: Some("github_unavailable".to_string()) },
+        Ok(()) => SubmitTokenResponse {
+            success: true,
+            error: None,
+        },
+        Err(GitHubError::NotCollaborator) => SubmitTokenResponse {
+            success: false,
+            error: Some("not_collaborator".to_string()),
+        },
+        Err(GitHubError::RateLimited) => SubmitTokenResponse {
+            success: false,
+            error: Some("rate_limited".to_string()),
+        },
+        Err(_) => SubmitTokenResponse {
+            success: false,
+            error: Some("github_unavailable".to_string()),
+        },
     };
 
     Ok(Json(response))
@@ -204,29 +265,49 @@ async fn authorize_and_backfill(
     let store = state.coordinator.store();
     let github = state.coordinator.github();
 
-    // Guarantees a star_watch row exists to claim below, even for a repo
-    // nobody has viewed a report for yet.
-    let _ = store.watch_repo_for_stars(provider, owner, repo).await;
-
     let first_page = GitHubClient::verify_star_history_access(&token, owner, repo).await?;
+
+    // Guarantees a star_watch row exists to claim below, even for a repo
+    // nobody has viewed a report for yet. Only after verification: before it,
+    // any caller could add rows the daily snapshot task then polls forever.
+    let _ = store.watch_repo_for_stars(provider, owner, repo).await;
     let current_stars = github.repo_stars(&provider, owner, repo).await.unwrap_or(0);
 
-    if store.start_star_backfill_if_needed(provider, owner, repo).await.unwrap_or(false) {
+    if store
+        .start_star_backfill_if_needed(provider, owner, repo)
+        .await
+        .unwrap_or(false)
+    {
         let store = store.clone();
         let owner = owner.to_string();
         let repo = repo.to_string();
         tokio::spawn(async move {
-            let points =
-                GitHubClient::backfill_star_history(&token, &owner, &repo, current_stars, first_page).await;
+            let points = GitHubClient::backfill_star_history(
+                &token,
+                &owner,
+                &repo,
+                current_stars,
+                first_page,
+            )
+            .await;
             for (timestamp, stars_at_point) in points {
                 if let Err(error) = store
-                    .record_star_snapshot(provider, &owner, &repo, timestamp.date_naive(), stars_at_point as i64)
+                    .record_star_snapshot(
+                        provider,
+                        &owner,
+                        &repo,
+                        timestamp.date_naive(),
+                        stars_at_point as i64,
+                    )
                     .await
                 {
                     tracing::warn!(%error, %owner, %repo, "failed to record backfilled star snapshot");
                 }
             }
-            if let Err(error) = store.mark_star_backfill_completed(provider, &owner, &repo).await {
+            if let Err(error) = store
+                .mark_star_backfill_completed(provider, &owner, &repo)
+                .await
+            {
                 tracing::error!(%error, %owner, %repo, "failed to mark star backfill completed");
             }
         });

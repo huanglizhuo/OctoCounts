@@ -70,7 +70,12 @@ async fn main() -> anyhow::Result<()> {
         .acquire_timeout(config.database_acquire_timeout)
         .connect(&config.database_url)
         .await
-        .with_context(|| format!("failed to connect to {}", config.database_url))?;
+        .with_context(|| {
+            format!(
+                "failed to connect to {}",
+                without_password(&config.database_url)
+            )
+        })?;
 
     let store = Store::new(pool);
     store.migrate().await?;
@@ -146,12 +151,50 @@ async fn main() -> anyhow::Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(async {
-        let _ = tokio::signal::ctrl_c().await;
-    })
+    .with_graceful_shutdown(shutdown_signal())
     .await?;
 
     Ok(())
+}
+
+/// `DATABASE_URL` fit for an error message: startup errors land in container
+/// logs, which must not carry the database password.
+fn without_password(database_url: &str) -> String {
+    match url::Url::parse(database_url) {
+        Ok(mut url) => {
+            if url.password().is_some() {
+                let _ = url.set_password(Some("***"));
+            }
+            url.to_string()
+        }
+        Err(_) => "the configured DATABASE_URL".to_string(),
+    }
+}
+
+/// Resolves on Ctrl-C or SIGTERM. `docker stop` sends SIGTERM, and as PID 1
+/// with no handler for it this process used to ignore it until the SIGKILL at
+/// the end of the grace period, cutting off every in-flight request.
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(error) => {
+                tracing::warn!(%error, "cannot listen for SIGTERM");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        () = terminate => {}
+    }
+    tracing::info!("shutdown signal received; draining in-flight requests");
 }
 
 fn build_router(state: AppState) -> Router {
@@ -297,21 +340,26 @@ fn spawn_stats_refresh_task(state: AppState) {
 /// repo. `record_star_snapshot` upserts on (provider, owner, repo, date), so
 /// a slow tick that spills past midnight, or a restart that reruns the same
 /// day, both settle on one row instead of duplicating or skipping.
+///
+/// The first pass runs after a warmup, not a full interval: nodes restart on
+/// every deploy, far more often than daily, and a sleep-first loop went whole
+/// deploy-heavy stretches without recording anything. Repos already
+/// snapshotted today are skipped, so a restart repeats no GitHub calls.
 fn spawn_star_snapshot_task(store: Store, github: GitHubClient, interval_seconds: u64) {
     tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(600)).await;
         loop {
-            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
-
-            let repos = match store.watched_star_repos().await {
+            let today = chrono::Utc::now().date_naive();
+            let repos = match store.watched_star_repos(today).await {
                 Ok(repos) => repos,
                 Err(error) => {
                     tracing::warn!(%error, "failed to list watched repos for star snapshot");
+                    tokio::time::sleep(Duration::from_secs(60)).await;
                     continue;
                 }
             };
 
             let mut updated = 0u64;
-            let today = chrono::Utc::now().date_naive();
             for (provider, owner, repo) in repos {
                 let Some(stars) = github.repo_stars(&provider, &owner, &repo).await else {
                     continue;
@@ -327,6 +375,7 @@ fn spawn_star_snapshot_task(store: Store, github: GitHubClient, interval_seconds
                 }
             }
             tracing::info!(updated, "star snapshot task completed");
+            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
 }
@@ -341,6 +390,16 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+
+    #[test]
+    fn connection_errors_never_print_the_database_password() {
+        let shown = without_password(
+            "postgres://octo:s3cret@db.example:5432/octocounts?sslmode=verify-full",
+        );
+        assert!(!shown.contains("s3cret"), "{shown}");
+        assert!(shown.contains("db.example:5432/octocounts"), "{shown}");
+        assert!(!without_password("not a url s3cret").contains("s3cret"));
+    }
 
     /// Builds a router backed by a throwaway schema on `TEST_DATABASE_URL`.
     /// Returns `None` (and the test is skipped) when no test database is configured.

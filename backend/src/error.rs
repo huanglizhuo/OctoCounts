@@ -141,7 +141,9 @@ mod tests {
             Some("120")
         );
         let body: ApiErrorBody = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), 4096).await.unwrap(),
+            &axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(body.code, "github_unavailable");

@@ -15,8 +15,15 @@ async fn rejects_compromised_intermediates() {
         "dv-g3b-noct-emudhra.we-have-a-problem.com",
         "dv-g3b-aaa-noct-emudhra.we-have-a-problem.com",
     ] {
-        let error = client.get(format!("https://{host}/")).send().await.unwrap_err();
+        let error = client
+            .get(format!("https://{host}/"))
+            .send()
+            .await
+            .unwrap_err();
         let detail = format!("{error:?}").to_lowercase();
-        assert!(!error.is_timeout() && detail.contains("cert"), "{host}: {detail}");
+        assert!(
+            !error.is_timeout() && detail.contains("cert"),
+            "{host}: {detail}"
+        );
     }
 }

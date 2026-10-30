@@ -15,6 +15,9 @@ pub struct AnalyzeRequest {
     pub source: AnalysisSource,
 }
 
+// One short-lived value per response, serialized straight away: boxing the
+// report would buy nothing but an allocation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum AnalyzeResponse {

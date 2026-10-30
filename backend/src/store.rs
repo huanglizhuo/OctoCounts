@@ -464,9 +464,9 @@ impl Store {
         )
             .execute(&self.pool)
             .await?;
-        sqlx::query("DROP INDEX IF EXISTS idx_jobs_active_key_unique")
-            .execute(&self.pool)
-            .await?;
+        // No unconditional DROP first: rebuilding this on every boot left a
+        // window where the other node could insert duplicate active jobs, which
+        // would then fail this CREATE and the whole startup.
         sqlx::query(
             r#"
             CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_active_key_unique
@@ -840,13 +840,26 @@ impl Store {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Every watched repo, for the daily snapshot task to iterate.
+    /// Watched repos with no snapshot on `date` yet, for the daily snapshot
+    /// task to iterate: a restart, or the other node, that already covered a
+    /// repo today costs no second GitHub call for it.
     pub async fn watched_star_repos(
         &self,
+        date: NaiveDate,
     ) -> anyhow::Result<Vec<(RepositoryProvider, String, String)>> {
-        let rows = sqlx::query("SELECT provider, owner, repo FROM star_watch")
-            .fetch_all(&self.pool)
-            .await?;
+        let rows = sqlx::query(
+            r#"
+            SELECT provider, owner, repo FROM star_watch w
+            WHERE NOT EXISTS (
+                SELECT 1 FROM star_snapshots s
+                WHERE s.provider = w.provider AND s.owner = w.owner
+                AND s.repo = w.repo AND s.snapshot_date = $1
+            )
+            "#,
+        )
+        .bind(date)
+        .fetch_all(&self.pool)
+        .await?;
 
         rows.into_iter()
             .map(|row| {
@@ -1792,6 +1805,7 @@ impl Store {
     /// sample landing on the same day corrects rather than duplicates, and
     /// also revives a row the compaction task had superseded — a fresh write
     /// always beats a soft delete.
+    #[allow(clippy::too_many_arguments)]
     pub async fn record_sloc_snapshot(
         &self,
         provider: RepositoryProvider,
@@ -2356,6 +2370,7 @@ impl Store {
     /// - Size distance is relative (`|ln(code) - ln(source)|`) so a
     ///   1k-line source is not recommended a 300k-line monolith just because
     ///   the absolute difference to some tiny repo happened to be smaller.
+    #[allow(clippy::too_many_arguments)]
     pub async fn related_reports(
         &self,
         provider: RepositoryProvider,
@@ -3217,6 +3232,11 @@ impl Store {
         if let Some(job) = self.active_job(key).await? {
             return Ok((job, false));
         }
+        // A queued/running row that stopped heartbeating belongs to a process
+        // that died mid-job (deploy, OOM). Left alone it would hold the unique
+        // active key -- attaching every caller, forceRefresh included, to a job
+        // nobody runs -- until stale cleanup, hours later.
+        self.fail_abandoned_jobs(key).await?;
 
         match self.create_keyed_job(key).await {
             Ok(job) => Ok((job, true)),
@@ -3268,6 +3288,7 @@ impl Store {
             AND commit_sha = $4
             AND tokei_version = $5
             AND status IN ('queued', 'running')
+            AND updated_at >= $6
             ORDER BY created_at ASC
             LIMIT 1
             "#,
@@ -3277,10 +3298,50 @@ impl Store {
         .bind(key.repo)
         .bind(key.commit_sha)
         .bind(key.tokei_version)
+        .bind(abandoned_cutoff())
         .fetch_optional(&self.pool)
         .await?;
 
         row.map(row_to_job).transpose()
+    }
+
+    async fn fail_abandoned_jobs(&self, key: JobKey<'_>) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE jobs SET status = 'failed', error = $7::jsonb, updated_at = $8
+            WHERE provider = $1
+            AND owner = $2
+            AND repo = $3
+            AND commit_sha = $4
+            AND tokei_version = $5
+            AND status IN ('queued', 'running')
+            AND updated_at < $6
+            "#,
+        )
+        .bind(provider_to_str(&key.provider))
+        .bind(key.owner)
+        .bind(key.repo)
+        .bind(key.commit_sha)
+        .bind(key.tokei_version)
+        .bind(abandoned_cutoff())
+        .bind(serde_json::to_string(&abandoned_job_error())?)
+        .bind(Utc::now())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// The heartbeat of a job this process is working on: keeps it inside
+    /// [`JOB_ABANDONED_AFTER_SECONDS`] so it keeps counting as active.
+    pub async fn touch_job(&self, id: Uuid) -> anyhow::Result<()> {
+        sqlx::query(
+            "UPDATE jobs SET updated_at = $1 WHERE id = $2 AND status IN ('queued', 'running')",
+        )
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     pub async fn set_job_running(&self, id: Uuid) -> anyhow::Result<()> {
@@ -3328,7 +3389,35 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
 
-        row.map(row_to_job).transpose()
+        // An abandoned job reads as the failure it is, so pollers stop waiting
+        // on a process that no longer exists instead of timing out.
+        Ok(row.map(row_to_job).transpose()?.map(|mut job| {
+            if matches!(job.status, JobStatus::Queued | JobStatus::Running)
+                && job.updated_at < abandoned_cutoff()
+            {
+                job.status = JobStatus::Failed;
+                job.error = Some(abandoned_job_error());
+            }
+            job
+        }))
+    }
+}
+
+/// How long a queued/running job may go without a heartbeat (the coordinator
+/// touches its jobs every 30s) before it counts as abandoned: the process that
+/// owned it died mid-job.
+pub const JOB_ABANDONED_AFTER_SECONDS: i64 = 120;
+
+fn abandoned_cutoff() -> DateTime<Utc> {
+    Utc::now() - Duration::seconds(JOB_ABANDONED_AFTER_SECONDS)
+}
+
+fn abandoned_job_error() -> ApiErrorBody {
+    ApiErrorBody {
+        code: "internal".to_string(),
+        message: "the analysis worker stopped before finishing; retry to start a new analysis"
+            .to_string(),
+        request_accepted: None,
     }
 }
 
@@ -4856,6 +4945,47 @@ mod tests {
         store.drop_schema().await;
     }
 
+    /// A node that dies mid-job (deploy, OOM) leaves its row `running` with no
+    /// heartbeat. It must stop absorbing new requests for its key, and anyone
+    /// still polling it must see a failure rather than wait out their deadline.
+    #[tokio::test]
+    async fn abandoned_active_job_is_failed_and_replaced() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (orphan, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        store.set_job_running(orphan.id).await.unwrap();
+        sqlx::query("UPDATE jobs SET updated_at = NOW() - INTERVAL '10 minutes' WHERE id = $1")
+            .bind(orphan.id)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        let polled = store.job(orphan.id).await.unwrap().unwrap();
+        assert_eq!(polled.status, JobStatus::Failed);
+
+        let (next, created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        assert!(created, "a dead worker's job must not absorb new requests");
+        assert_ne!(next.id, orphan.id);
+
+        // A job that keeps heartbeating is still shared.
+        store.touch_job(next.id).await.unwrap();
+        let (again, created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        assert!(!created);
+        assert_eq!(again.id, next.id);
+        store.drop_schema().await;
+    }
+
     #[tokio::test]
     async fn cleanup_preserves_reports_younger_than_retention() {
         let Some(store) = test_store().await else {
@@ -5139,7 +5269,8 @@ mod tests {
         assert!(first, "the first call should start watching");
         assert!(!second, "the second call should find it already watched");
 
-        let watched = store.watched_star_repos().await.unwrap();
+        let today = Utc::now().date_naive();
+        let watched = store.watched_star_repos(today).await.unwrap();
         assert_eq!(
             watched,
             vec![(
@@ -5148,6 +5279,13 @@ mod tests {
                 "linux".to_string()
             )]
         );
+
+        // Once today's snapshot exists, a restarted task skips the repo.
+        store
+            .record_star_snapshot(RepositoryProvider::GitHub, "torvalds", "linux", today, 1)
+            .await
+            .unwrap();
+        assert!(store.watched_star_repos(today).await.unwrap().is_empty());
         store.drop_schema().await;
     }
 
@@ -6586,11 +6724,16 @@ mod tests {
             "the watch row must already exist under the new key, so this call starts nothing"
         );
         assert!(
-            store.watched_star_repos().await.unwrap().iter().any(
-                |(provider, owner, repo)| *provider == RepositoryProvider::GitHub
-                    && owner == "react"
-                    && repo == "react"
-            ),
+            store
+                .watched_star_repos(today)
+                .await
+                .unwrap()
+                .iter()
+                .any(
+                    |(provider, owner, repo)| *provider == RepositoryProvider::GitHub
+                        && owner == "react"
+                        && repo == "react"
+                ),
             "the merged watch row is the only one for the repository"
         );
 

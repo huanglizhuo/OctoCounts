@@ -28,9 +28,7 @@
 use flate2::{write::GzEncoder, Compression};
 
 use super::{analyze_blocking, AnalysisInput};
-use crate::models::{
-    AnalysisOptions, AnalysisProfile, RepoRef, Report, RepositoryProvider,
-};
+use crate::models::{AnalysisOptions, AnalysisProfile, RepoRef, Report, RepositoryProvider};
 
 /// Builds a gzipped tar shaped like a codeload archive: every path lives under a
 /// single generated root directory, which `strip_archive_root` peels off.
@@ -246,8 +244,14 @@ fn web_app() -> bytes::Bytes {
 /// repositories: images, fonts, archives, model weights, compiled objects.
 fn binary_assets() -> bytes::Bytes {
     tarball(&[
-        ("src/main.py", text("import sys\n\n\ndef main():\n    # go\n    print(sys.argv)\n")),
-        ("src/parse.go", text("package main\n\n// Parse does nothing.\nfunc Parse() {}\n")),
+        (
+            "src/main.py",
+            text("import sys\n\n\ndef main():\n    # go\n    print(sys.argv)\n"),
+        ),
+        (
+            "src/parse.go",
+            text("package main\n\n// Parse does nothing.\nfunc Parse() {}\n"),
+        ),
         ("assets/logo.png", binary_blob(0x89, 4096)),
         ("assets/photo.jpeg", binary_blob(0xD8, 8192)),
         ("assets/icon.ico", binary_blob(0x11, 1024)),
@@ -261,9 +265,15 @@ fn binary_assets() -> bytes::Bytes {
         ("assets/report.pdf", binary_blob(0x25, 4096)),
         ("assets/sheet.xlsx", binary_blob(0x50, 2048)),
         ("assets/cache.sqlite3", binary_blob(0x53, 4096)),
-        ("Cargo.lock", text("# auto-generated\n[[package]]\nname = \"demo\"\n")),
+        (
+            "Cargo.lock",
+            text("# auto-generated\n[[package]]\nname = \"demo\"\n"),
+        ),
         ("data/records.csv", text("id,name\n1,a\n2,b\n")),
-        ("public/bundle.min.js", text("!function(){var a=1;return a}();\n")),
+        (
+            "public/bundle.min.js",
+            text("!function(){var a=1;return a}();\n"),
+        ),
     ])
 }
 
@@ -272,18 +282,39 @@ fn binary_assets() -> bytes::Bytes {
 fn edge_cases() -> bytes::Bytes {
     tarball(&[
         ("Makefile", text("all:\n\t# build\n\techo hi\n")),
-        ("Dockerfile", text("FROM scratch\n\n# comment\nCMD [\"/app\"]\n")),
-        ("CMakeLists.txt", text("cmake_minimum_required(VERSION 3.0)\n\n# comment\n")),
+        (
+            "Dockerfile",
+            text("FROM scratch\n\n# comment\nCMD [\"/app\"]\n"),
+        ),
+        (
+            "CMakeLists.txt",
+            text("cmake_minimum_required(VERSION 3.0)\n\n# comment\n"),
+        ),
         ("meson.build", text("project('demo', 'c')\n\n# comment\n")),
-        ("scripts/deploy", text("#!/bin/bash\n\n# deploy\nset -eu\necho go\n")),
+        (
+            "scripts/deploy",
+            text("#!/bin/bash\n\n# deploy\nset -eu\necho go\n"),
+        ),
         ("scripts/run.sh", text("#!/bin/sh\necho run\n")),
-        ("scripts/tool.py", text("#!/usr/bin/env python3\nprint(1)\n")),
+        (
+            "scripts/tool.py",
+            text("#!/usr/bin/env python3\nprint(1)\n"),
+        ),
         ("LICENSE", text("MIT License\n\nCopyright (c) 2024\n")),
-        (".github/workflows/ci.yml", text("name: ci\non: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n")),
+        (
+            ".github/workflows/ci.yml",
+            text("name: ci\non: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n"),
+        ),
         (".hidden/secret.rs", text("fn hidden() {}\n")),
         ("visible.yml", text("name: visible\n# comment\n")),
-        ("src/utf16.rs", utf16le("fn wide() {\n    // wide comment\n\n    let _ = 1;\n}\n")),
-        ("a/b/c/d/e/f/g/h/deep.go", text("package deep\n\nfunc Deep() {}\n")),
+        (
+            "src/utf16.rs",
+            utf16le("fn wide() {\n    // wide comment\n\n    let _ = 1;\n}\n"),
+        ),
+        (
+            "a/b/c/d/e/f/g/h/deep.go",
+            text("package deep\n\nfunc Deep() {}\n"),
+        ),
         ("a/b/c/d/e/f/g/h/deeper.rs", text("pub fn deeper() {}\n")),
         ("vendor/lib/thing.c", text("int main(void) { return 0; }\n")),
         ("weird.unknownextension", text("this is not any language\n")),
@@ -338,7 +369,10 @@ fn analyze_fixture(archive: bytes::Bytes, options: AnalysisOptions) -> Report {
 #[test]
 fn repository_declarations_filter_the_real_counting_pipeline() {
     let archive = tarball(&[
-        (".gitattributes", text("*.rs linguist-generated\nexternal.js linguist-vendored\n")),
+        (
+            ".gitattributes",
+            text("*.rs linguist-generated\nexternal.js linguist-vendored\n"),
+        ),
         ("generated.rs", text("fn generated() {}\n")),
         ("src/.gitattributes", text("keep.rs -linguist-generated\n")),
         ("src/keep.rs", text("fn keep() {}\n")),
@@ -348,7 +382,10 @@ fn repository_declarations_filter_the_real_counting_pipeline() {
     ]);
     let baseline = analyze_fixture(archive.clone(), AnalysisOptions::canonical());
     assert_eq!((baseline.total.files, baseline.total.code), (3, 3));
-    let options = AnalysisOptions { respect_gitattributes: true, ..AnalysisOptions::canonical() };
+    let options = AnalysisOptions {
+        respect_gitattributes: true,
+        ..AnalysisOptions::canonical()
+    };
     let filtered = analyze_fixture(archive.clone(), options.clone());
     assert_eq!((filtered.total.files, filtered.total.code), (1, 1));
     let policy = filtered.counting_policy.as_ref().unwrap();
@@ -357,11 +394,17 @@ fn repository_declarations_filter_the_real_counting_pipeline() {
     assert!(policy.ignored_dirs.iter().any(|name| name == "docs"));
     assert_ne!(filtered.id, baseline.id);
     assert_eq!(filtered.id, analyze_fixture(archive.clone(), options).id);
-    let source_only = analyze_fixture(archive, AnalysisOptions {
-        profile: AnalysisProfile::SourceOnly,
-        include_docs: true, include_tests: true, include_generated: true,
-        respect_gitattributes: true, ..Default::default()
-    });
+    let source_only = analyze_fixture(
+        archive,
+        AnalysisOptions {
+            profile: AnalysisProfile::SourceOnly,
+            include_docs: true,
+            include_tests: true,
+            include_generated: true,
+            respect_gitattributes: true,
+            ..Default::default()
+        },
+    );
     let policy = source_only.counting_policy.unwrap();
     assert!(!policy.include_docs && !policy.include_tests && !policy.include_generated);
     assert_eq!(source_only.total.code, 1);
@@ -370,15 +413,29 @@ fn repository_declarations_filter_the_real_counting_pipeline() {
 #[test]
 fn oversized_repository_declarations_do_not_silently_disappear() {
     let archive = tarball(&[
-        (".gitattributes", vec![b'\n'; super::MAX_SINGLE_FILE_BYTES as usize + 1]),
+        (
+            ".gitattributes",
+            vec![b'\n'; super::MAX_SINGLE_FILE_BYTES as usize + 1],
+        ),
         ("src/lib.rs", text("pub fn keep() {}\n")),
     ]);
-    assert_eq!(analyze_fixture(archive.clone(), AnalysisOptions::canonical()).total.code, 1);
+    assert_eq!(
+        analyze_fixture(archive.clone(), AnalysisOptions::canonical())
+            .total
+            .code,
+        1
+    );
     let error = analyze_blocking(fixture_input(
         Box::new(std::io::Cursor::new(archive)),
-        AnalysisOptions { respect_gitattributes: true, ..AnalysisOptions::canonical() },
-    )).unwrap_err();
-    assert!(error.to_string().contains("repository attribute declarations are too large"));
+        AnalysisOptions {
+            respect_gitattributes: true,
+            ..AnalysisOptions::canonical()
+        },
+    ))
+    .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("repository attribute declarations are too large"));
 }
 
 /// Only the counting surface is snapshotted. `generated_at`, `duration_ms` and
@@ -695,7 +752,11 @@ fn concurrent_analyses_do_not_interfere() {
 
     for handle in handles {
         let (is_web, actual) = handle.join().expect("an analysis thread panicked");
-        let expected = if is_web { &expected_web } else { &expected_rust };
+        let expected = if is_web {
+            &expected_web
+        } else {
+            &expected_rust
+        };
         assert_eq!(&actual, expected);
     }
 }
@@ -809,12 +870,11 @@ async fn a_streamed_archive_counts_the_same_as_a_buffered_one() {
         .await
         .expect("streaming download failed");
 
-    let report = tokio::task::spawn_blocking(move || {
-        analyze_blocking(fixture_input(reader, api_options()))
-    })
-    .await
-    .unwrap()
-    .expect("streamed analysis failed");
+    let report =
+        tokio::task::spawn_blocking(move || analyze_blocking(fixture_input(reader, api_options())))
+            .await
+            .unwrap()
+            .expect("streamed analysis failed");
 
     assert_eq!(snapshot(&report), expected);
     server.await.unwrap();
@@ -856,7 +916,10 @@ fn an_archive_of_exactly_the_limit_is_accepted() {
     let expected = snapshot(&analyze_fixture(archive.clone(), api_options()));
 
     let report = super::analyze_blocking_with_limit(
-        fixture_input(Box::new(std::io::Cursor::new(archive.clone())), api_options()),
+        fixture_input(
+            Box::new(std::io::Cursor::new(archive.clone())),
+            api_options(),
+        ),
         archive.len() as u64,
     )
     .expect("an archive of exactly the limit must be accepted");
