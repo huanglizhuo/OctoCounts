@@ -41,7 +41,9 @@ jobs:
             context: ./backend
             dockerfile: ./backend/Dockerfile
             image_var: IMAGE_API
-            build_args: ""
+            # Served as the x-octocounts-build header (tag name on releases).
+            build_args: |
+              OCTOCOUNTS_BUILD=${{ github.ref_name }}
           - name: web
             context: .
             dockerfile: ./frontend/Dockerfile

@@ -3,6 +3,9 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY assets ./assets
 COPY src ./src
+# Release tag baked into the x-octocounts-build response header (see main.rs).
+ARG OCTOCOUNTS_BUILD=dev
+ENV OCTOCOUNTS_BUILD=$OCTOCOUNTS_BUILD
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim

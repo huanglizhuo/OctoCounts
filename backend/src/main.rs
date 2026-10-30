@@ -27,7 +27,10 @@ use axum::{
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
-use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    compression::CompressionLayer, cors::CorsLayer, set_header::SetResponseHeaderLayer,
+    trace::TraceLayer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
@@ -196,6 +199,15 @@ fn build_router(state: AppState) -> Router {
     apply_middleware(routes).with_state(state)
 }
 
+/// The release this binary was built from: the image tag CI passes as the
+/// `OCTOCOUNTS_BUILD` build arg, "dev" for local builds. Every response carries
+/// it as `x-octocounts-build`, so `make drift` (sloc-infra) can confirm which
+/// build answers behind the load-balanced tunnel.
+const BUILD: &str = match option_env!("OCTOCOUNTS_BUILD") {
+    Some(build) => build,
+    None => "dev",
+};
+
 /// Wraps the routes in the shared middleware stack.
 ///
 /// `Router::layer` applies layers outermost-last, so a request travels
@@ -212,6 +224,11 @@ where
     S: Clone + Send + Sync + 'static,
 {
     router
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::HeaderName::from_static("x-octocounts-build"),
+            axum::http::HeaderValue::from_str(BUILD)
+                .unwrap_or(axum::http::HeaderValue::from_static("unknown")),
+        ))
         .layer(CorsLayer::permissive().expose_headers([axum::http::header::RETRY_AFTER]))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
@@ -362,6 +379,19 @@ mod tests {
             .execute(pool)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn every_response_names_its_build() {
+        let app = apply_middleware(Router::new().route("/healthz", get(|| async { "ok" })));
+        for uri in ["/healthz", "/missing"] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.headers()["x-octocounts-build"], BUILD, "{uri}");
+        }
     }
 
     #[tokio::test]
