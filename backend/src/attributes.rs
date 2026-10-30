@@ -88,7 +88,10 @@ pub fn filter(root: &Path, options: &AnalysisOptions) -> anyhow::Result<Reposito
         if fields.len() != batch.len() * 6 + 1 || fields.last() != Some(&&b""[..]) {
             return Err(anyhow!("invalid Git attribute response"));
         }
-        for (path, attributes) in batch.iter().zip(fields[..fields.len() - 1].chunks_exact(6)) {
+        for (path, attributes) in batch
+            .iter()
+            .zip(fields[..fields.len() - 1].as_chunks::<6>().0)
+        {
             let bytes = path.as_os_str().as_encoded_bytes();
             if attributes[0] != bytes
                 || attributes[3] != bytes

@@ -1,6 +1,9 @@
-# One grouped PR per ecosystem per week, so updates arrive as a reviewable
-# batch instead of a PR per package. CLI, MCP and Action have no dependencies.
-# The github-actions entry also keeps the commit-pinned release actions current.
+# One grouped PR per ecosystem per week for minor and patch updates, so they
+# arrive as a reviewable batch. Major updates are left out of the groups and
+# open as PRs of their own: each needs a decision (tokei changes the counts,
+# TypeScript 7 drops the compiler API the tests use, a new Node line must move
+# CI too), and one blocked major must not hold the safe updates back.
+# CLI, MCP and Action have no dependencies.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -10,6 +13,7 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directories: ["/frontend", "/extension"]
@@ -18,6 +22,7 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -26,6 +31,7 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: docker
     directories: ["/backend", "/frontend", "/mcp"]
@@ -34,3 +40,4 @@ updates:
     groups:
       docker:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
