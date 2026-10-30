@@ -37,6 +37,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "Metrics snapshot is unchanged"
           else
-            git commit -m "chore: track extension store metrics"
+            # The site never reads this file, so don't spend a Cloudflare Pages
+            # build (and a deploy) on it every day.
+            git commit -m "chore: track extension store metrics [CF-Pages-Skip]"
             git push origin HEAD:main
           fi

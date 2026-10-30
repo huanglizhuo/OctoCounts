@@ -99,9 +99,12 @@ for (const { name, url } of CARD_PAGES) {
       // there, so a card that survives is mounted somewhere it was never
       // designed to be. Coming back must restore it — repo root and subfolder
       // share owner/repo@ref but are different mount contexts.
-      const folderLink = page.locator('a[href*="/tree/"]').first();
+      // `:visible`: GitHub renders a hidden small-screen copy of every file
+      // row first, and clicking it timed out while the swallowed error made
+      // the untouched card look like a mount regression.
+      const folderLink = page.locator('a[href*="/tree/"]:visible').first();
       if (await folderLink.count() > 0) {
-        await folderLink.click({ timeout: 15_000 }).catch(() => {});
+        await folderLink.click({ timeout: 15_000 });
         await page.waitForTimeout(3_000);
         await expect(card).toHaveCount(0);
 

@@ -73,6 +73,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # gh refuses to file an issue with a label the repo lacks, which
+          # silently swallowed every alert until the label existed.
+          gh label create dom-compat --force --color d93f0b \
+            --description "GitHub DOM changes that break the extension"
           title='[dom] scheduled smoke test failing'
           existing=$(gh issue list --state open --label dom-compat \
             --search "\"$title\" in:title" --json number --jq '.[0].number')

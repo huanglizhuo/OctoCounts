@@ -32,7 +32,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: node --test ../scripts/collect-research-sample.test.mjs
+      # Every scripts/ suite, including the CLI/MCP/Action API clients that
+      # nothing else tests and the ones scheduled workflows only run nightly.
+      - run: node --test ../scripts/*.test.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run test:qa
       - name: Upload browser diagnostics

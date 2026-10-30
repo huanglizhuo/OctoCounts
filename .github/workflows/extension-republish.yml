@@ -38,8 +38,9 @@ jobs:
           echo "edge=$(ls zips/*edge*.zip)" >> "$GITHUB_OUTPUT"
           echo "chrome=$(ls zips/*chrome*.zip)" >> "$GITHUB_OUTPUT"
 
+      # Pinned to commits for the same reason as extension-release.yml.
       - name: Publish Edge zip to Add-ons
-        uses: wdzeng/edge-addon@v2
+        uses: wdzeng/edge-addon@9881f57720358040d079eaa06a4596dc9c273eb6 # v2.1.1
         with:
           product-id: ${{ secrets.EDGE_PRODUCT_ID }}
           client-id: ${{ secrets.EDGE_CLIENT_ID }}
@@ -48,7 +49,7 @@ jobs:
 
       - name: Publish Chrome zip to the Web Store
         if: inputs.chrome
-        uses: wdzeng/chrome-extension@v1
+        uses: wdzeng/chrome-extension@ca3095bc8f067413cc0d06fcb4a5fea87229a787 # v1.3.2
         with:
           extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
           client-id: ${{ secrets.CHROME_CLIENT_ID }}

@@ -1,0 +1,36 @@
+# One grouped PR per ecosystem per week, so updates arrive as a reviewable
+# batch instead of a PR per package. CLI, MCP and Action have no dependencies.
+# The github-actions entry also keeps the commit-pinned release actions current.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      cargo:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directories: ["/frontend", "/extension"]
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories: ["/backend", "/frontend", "/mcp"]
+    schedule:
+      interval: monthly
+    groups:
+      docker:
+        patterns: ["*"]
