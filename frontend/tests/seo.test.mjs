@@ -2922,8 +2922,8 @@ test("zero-code comparisons never invent a size ratio in summaries or FAQ schema
   } finally { restore(); }
 });
 
-test("indexable file threshold stays consistent between the edge and backend", async () => {
-  const edge = await readFile(new URL("functions/[[path]].js", ROOT), "utf8");
+test("indexable file threshold stays consistent between the frontend and backend", async () => {
+  const edge = await readFile(new URL("functions/report-copy.js", ROOT), "utf8");
   const backend = await readFile(new URL("../backend/src/seo.rs", ROOT), "utf8");
   assert.equal(edge.match(/MIN_INDEXABLE_REPORT_FILES = (\d+)/)[1], backend.match(/MIN_INDEXABLE_REPORT_FILES: \w+ = (\d+)/)[1]);
 });

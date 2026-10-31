@@ -1,6 +1,6 @@
 # OctoCounts 代码行数统计方法与规则
 
-更新于 2026-10-18 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
+更新于 2026-10-30 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts 将公开 GitHub 仓库的分支、标签或提交解析为确定的提交 SHA，下载对应源码归档，再使用 [tokei](https://github.com/XAMPPRocky/tokei) 按语言统计文件、代码行、注释行和空白行。缓存键包含仓库、提交 SHA、tokei 版本及分析选项。复现或比较结果时，必须同时保留输入版本和实际统计规则。
 

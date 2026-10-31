@@ -1,5 +1,7 @@
 import type { AnalysisOptions, Stats } from "../src/types";
 
+export const MIN_INDEXABLE_REPORT_FILES = 5;
+
 type CopyLanguage = { name: string; stats: Pick<Stats, "code"> };
 type CopyReport = {
   repoFullName: string;
@@ -10,8 +12,8 @@ type CopyReport = {
 };
 
 // Pages Functions compiles every file under functions/ as a route module, so
-// this file must also be valid as plain TypeScript: function declarations
-// only (an uninitialized `export const` fails that build).
+// this file must also be valid as plain TypeScript: constants need literal
+// initializers (an uninitialized `export const` fails that build).
 export function isCanonicalAnalysisOptions(options: Partial<AnalysisOptions> | null | undefined): boolean;
 export function analysisOptionsLabel(options: Partial<AnalysisOptions> | null | undefined): string | null;
 export function primaryLanguage(languages: CopyLanguage[], totalCode: number): { name: string; code: number; percent: number; programming: boolean } | null;

@@ -1,6 +1,6 @@
 # OctoCounts vs tokei
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 30, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from [github.com/XAMPPRocky/tokei](https://github.com/XAMPPRocky/tokei) — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. [OctoCounts](https://octocounts.com/) is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.
 

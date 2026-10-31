@@ -1,5 +1,5 @@
 import { reportJsonLd } from "./report-schema.js";
-import { analysisOptionsLabel, isCanonicalAnalysisOptions, primaryLanguage, primaryLanguagePhrase, reportPageDescription, reportPageTitle } from "./report-copy.js";
+import { MIN_INDEXABLE_REPORT_FILES, analysisOptionsLabel, isCanonicalAnalysisOptions, primaryLanguage, primaryLanguagePhrase, reportPageDescription, reportPageTitle } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
 import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
 
@@ -37,11 +37,11 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-30" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-31" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-29" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-31" },
   { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-30" },
@@ -405,7 +405,7 @@ async function reportResponse(context, route, options = {}) {
     return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
   }
   if (result.state === "unavailable") {
-    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
+    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route), options);
   }
 
   const report = await result.response.json();
@@ -442,7 +442,7 @@ async function reportResponse(context, route, options = {}) {
   // flagged across /github/* pages. Fail closed: 503 + no-store (never
   // cached) asks crawlers to retry instead of indexing wrong content.
   if (!reportMatchesRoute(report, route)) {
-    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route));
+    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route), options);
   }
   if (route.refName && !report.isSnapshot) {
     const refPath = route.refName.split("/").map(encodeURIComponent).join("/");
@@ -628,6 +628,12 @@ async function listPageResponse(context, kind, url) {
   // sends conflicting signals (Google: pick one). A self-referencing
   // canonical with the page parameter keeps the URL shape unambiguous.
   const canonical = page === "1" ? pageMeta.canonical : `${pageMeta.canonical}?page=${encodeURIComponent(page)}`;
+  if (page !== "1" && payload.reports.length === 0) {
+    return htmlResponse(injectHeadAndNoscript(index, {
+      ...pageMeta, canonical, robots: "noindex,follow", ogImage: "https://octocounts.com/og-image.jpg",
+      bodyContent: `<section><h1>Report page not found</h1><p>There are no reports on this page. <a href="${escapeAttr(pageMeta.canonical)}">Browse the first page</a>.</p></section>`,
+    }), "public, max-age=60", { status: 404 });
+  }
   const title = pageMeta.title;
   const description = pageMeta.description;
   const rows = payload.reports
@@ -1469,7 +1475,7 @@ async function compareUnavailableResponse(context, entry, options = {}) {
     jsonLd: null,
     extraHead: `<script type="application/json" id="octocounts-compare-data">${escapeScriptJson(compareFallbackViewModel(entry, "unavailable"))}</script>`,
     bodyContent: `<section><h1>${escapeHtml(entry.name)}: source lines of code compared</h1><p>This comparison is temporarily unavailable. Please try again in a moment.</p></section>`,
-  });
+  }, options);
 }
 
 async function curatedCompareResponse(context, entry, options = {}) {
@@ -1847,7 +1853,12 @@ function snapshotSeoReport(report) {
 /// repo pages (and "missing <h1>") in Bing Webmaster Tools. `meta` gives
 /// each URL its own real title/description/H1 even while unavailable; the
 /// 503 + no-store still tell crawlers not to index or cache this response.
-function serviceUnavailableResponse(index, meta) {
+function serviceUnavailableResponse(index, meta, options = {}) {
+  if (options.markdown) {
+    const response = markdownResponse(`# ${meta.title}\n\n${meta.description}\n`, "no-store", { status: 503 });
+    response.headers.set("retry-after", "60");
+    return response;
+  }
   const html = meta ? injectHeadAndNoscript(index, meta) : index;
   return new Response(html, {
     status: 503,
@@ -2268,7 +2279,6 @@ const REPORT_SITEMAP_LOC_PATTERN = /^https:\/\/octocounts\.com\/github\/[A-Za-z0
 // reachable through the web app, and the floor is deliberately conservative:
 // real two-file gists are rare, and a repo that grows past the floor is
 // re-listed on its next analysis.
-const MIN_INDEXABLE_REPORT_FILES = 5;
 
 function filterReportSitemapEntries(entries) {
   if (!Array.isArray(entries)) return [];

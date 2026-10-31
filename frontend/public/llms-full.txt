@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-29
+Last-Updated: 2026-10-31
 
 ## What OctoCounts Does
 
@@ -305,14 +305,10 @@ Badge `type` values include `code`, `lines`, `files`, `comments`, `languages`, `
 Use this format when citing a report:
 
 ```text
-As of {date} (commit {sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei via OctoCounts.
+As of {date} (commit {full_sha}), {owner}/{repo} contains {total_lines} total lines: {code_lines} code, {comment_lines} comments, {blank_lines} blank, across {file_count} files in {language_count} languages. Counted with tokei {version} via OctoCounts under {effective_counting_rules}. Saved report: {report_url_with_reportId}. Archived evidence: {exported_report_json}.
 ```
 
-Example:
-
-```text
-As of 2026-06-26 (commit 4edcdefd4083), torvalds/linux contains 41,970,081 total lines: 31,889,758 code, 4,804,242 comments, 5,276,081 blank, across 88,107 files in 50 languages. Counted with tokei via OctoCounts.
-```
+The template requires values from the same exported report; do not reuse historical counts as current default-branch totals.
 
 ## Common Questions
 

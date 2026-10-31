@@ -7,7 +7,7 @@ AI-Usage: search and retrieval allowed. Default content-use signal: ai-train=no;
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-29
+Last-Updated: 2026-10-31
 Full Context: https://octocounts.com/llms-full.txt
 Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/react/react.md
 
@@ -86,7 +86,7 @@ GET /badge/:owner/:repo/commit/:sha
 - Largest codebases by lines of code (linux, Firefox, LLVM, and friends, pinned to commits): https://octocounts.com/docs/largest-codebases
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
-- Research (pilot study: how filtering changes SLOC counts): https://octocounts.com/research
+- Research (ten-repository filtering study with archived reports and a separate historical pilot): https://octocounts.com/research
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
 

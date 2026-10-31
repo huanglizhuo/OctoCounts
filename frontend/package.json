@@ -8,7 +8,7 @@
     "prebuild": "npm run copy-fonts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build --manifest && node scripts/prerender-home.mjs",
-    "test:seo": "npm run build && node --test tests/seo.test.mjs",
+    "test:seo": "npm run build && node --test tests/seo*.test.mjs",
     "test:unit": "node --test tests/github-status.test.mjs tests/analytics.test.mjs tests/growth-*.test.mjs tests/deployment.test.mjs",
     "test:facts": "node ../scripts/check-product-facts.mjs",
     "test:csp": "node scripts/check-csp-hash.mjs",

@@ -52,7 +52,7 @@
       "headline": "tokei online: run tokei on GitHub repositories",
       "description": "Run tokei online with no install: OctoCounts runs tokei server-side on public GitHub repos, returning files, code, comments, and blanks per language.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-31",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -109,7 +109,7 @@
           "name": "Is OctoCounts really running tokei?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the counting methodology page. That means an OctoCounts report and a local tokei run on the same commit at the same version produce matching numbers, which is what makes the online results citable in a pull request, README, or report."
+            "text": "Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the counting methodology page. Matching numbers require the same source tree, tokei version, and effective counting rules, including directory exclusions, ignored languages, and repository-declaration filtering. A local checkout can contain files absent from the downloaded archive. Keep the report's countingPolicy and exported JSON when reproducing or citing a count."
           }
         },
         {
@@ -153,7 +153,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / tokei online</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated October 31, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>tokei online: run tokei on GitHub repositories</h1>
       <p class="answer">tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.</p>
 
@@ -164,7 +164,7 @@
       <p>Paste a public GitHub repository URL (for example <code>https://github.com/react/react</code>) into the <a href="/">OctoCounts web app</a>. OctoCounts downloads the repository's source archive — pinned to an exact commit SHA; reproduction also requires the same source tree, engine version, and effective rules — runs tokei on it, and returns the full breakdown: files, total lines, code, comments, blanks, and per-language totals. You can also point the analysis at a specific branch, tag, or commit. No account, token, or installation is required, and results are cached by repository, commit, engine version, and effective rules, so matching retained entries can be reused. Try it with <a href="/github/react/react">react/react</a> or <a href="/github/torvalds/linux">torvalds/linux</a>.</p>
 
       <h2>Is OctoCounts really running tokei?</h2>
-      <p>Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the <a href="/docs/methodology">counting methodology page</a>. That means an OctoCounts report and a local tokei run on the same commit at the same version produce matching numbers, which is what makes the online results citable in a pull request, README, or report.</p>
+      <p>Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the <a href="/docs/methodology">counting methodology page</a>. Matching numbers require the same source tree, tokei version, and effective counting rules, including directory exclusions, ignored languages, and repository-declaration filtering. A local checkout can contain files absent from the downloaded archive. Keep the report's countingPolicy and exported JSON when reproducing or citing a count.</p>
 
       <h2>When should I use the tokei CLI instead?</h2>
       <p>Use the tokei CLI when your code is private or not hosted on GitHub: OctoCounts only analyzes <strong>public GitHub repositories</strong>, so private repositories, local-only projects, and other forges are CLI territory — clone or point tokei at the code on your machine. Use OctoCounts when the repository is public on GitHub and you want a shareable, commit-pinned report, a <a href="/badges">README badge</a>, or API access without setting up a toolchain.</p>

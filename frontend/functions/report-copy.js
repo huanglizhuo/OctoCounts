@@ -2,6 +2,8 @@
 // report-schema.js): one source for a report's <title>, meta description and
 // top-language wording, so server- and client-rendered metadata cannot drift.
 
+export const MIN_INDEXABLE_REPORT_FILES = 5;
+
 // Data and prose formats by tokei display name (GitHub Linguist's "data" and
 // "prose" types). They stay in every count and table; they are only skipped
 // when naming a report's top programming language, so a lockfile-heavy

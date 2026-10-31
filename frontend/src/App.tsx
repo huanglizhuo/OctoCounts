@@ -24,7 +24,8 @@ import { GrowthLoadingBars } from "./growth/GrowthSkeleton";
 import { usePrerenderedHome, useExtensionPromo } from "./prerenderContext";
 import { faqForLanguage, faqJsonLdScript } from "./homeFaq";
 import { reportJsonLd } from "../functions/report-schema.js";
-import { reportPageDescription, reportPageTitle } from "../functions/report-copy.js";
+import { isCanonicalAnalysisOptions, MIN_INDEXABLE_REPORT_FILES, reportPageDescription, reportPageTitle } from "../functions/report-copy.js";
+import { buildSnapshotReportUrl } from "./report/shared";
 import "./styles.css";
 import initialReportData from "./initialReport.json";
 import {
@@ -399,6 +400,11 @@ export function App() {
     params.delete("url");
     params.delete("ref");
     if (params.has("reportId")) return;
+    if (report.analysisOptions && !isCanonicalAnalysisOptions(report.analysisOptions)) {
+      const snapshot = new URL(buildSnapshotReportUrl(report));
+      snapshot.searchParams.forEach((value, key) => params.set(key, value));
+      canonical.pathname = snapshot.pathname;
+    }
     const query = params.toString();
     window.history.replaceState(null, "", canonical.pathname + (query ? `?${query}` : ""));
     setRoutePath(canonical.pathname);
@@ -1026,7 +1032,15 @@ function syncPageMetadata({
       ? buildCanonicalUrlForParsedRepo(parsed, repoUrl, effectiveRef)
       : window.location.origin + "/";
 
-  applyPageMetadata({ title, description, canonical, extraRobots: ",max-video-preview:-1" });
+  // Keep the edge's noindex while a missing/custom report is still loading.
+  const noindex = new URL(canonical).searchParams.has("reportId")
+    || new URLSearchParams(window.location.search).has("analysis")
+    || (report ? report.total.files < MIN_INDEXABLE_REPORT_FILES
+      : /\bnoindex\b/.test(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? ""));
+  const image = report && !noindex
+    ? `${import.meta.env.VITE_BADGE_API_BASE ?? "https://api.octocounts.com"}/og/${encodeURIComponent(normalizedProvider(report))}/${encodeURIComponent(report.repository.owner)}/${encodeURIComponent(report.repository.name)}`
+    : `${window.location.origin}/og-image.jpg`;
+  applyPageMetadata({ title, description, canonical, noindex, image, imageAlt: report && !noindex ? description : "OctoCounts", extraRobots: ",max-video-preview:-1" });
   // Replace shell/previous-report markup even when the title and totals are unchanged.
   document.head.querySelectorAll('script[type="application/ld+json"]').forEach((node) => node.remove());
   if (report) {
@@ -1048,9 +1062,10 @@ function syncPageMetadata({
 }
 
 function buildCanonicalReportUrl(report: Report, ref: string) {
-  if (new URLSearchParams(window.location.search).has("reportId")) {
-    const params = new URLSearchParams({ reportId: report.id, analysis: JSON.stringify(report.analysisOptions) });
-    return `${buildPublicReportUrl(report.repository.owner, report.repository.name, report.commitSha)}?${params}`;
+  // The edge seed already belongs to this public URL; legacy seeds can omit options.
+  if (new URLSearchParams(window.location.search).has("reportId")
+    || (report !== seedReport && report.analysisOptions && !isCanonicalAnalysisOptions(report.analysisOptions))) {
+    return buildSnapshotReportUrl(report);
   }
   return buildCanonicalUrlForParsedRepo({ owner: report.repository.owner, repo: report.repository.name }, report.repository.htmlUrl, ref);
 }
@@ -1071,21 +1086,20 @@ function buildCanonicalUrlForParsedRepo(parsed: { owner: string; repo: string },
 // Applies title/description/og/twitter/canonical in one call; the per-branch
 // og/twitter boilerplate used to be copy-pasted three times through this file.
 let lastMetaFingerprint = "";
-function applyPageMetadata({ title, description, canonical, extraRobots }: { title: string; description: string; canonical: string; extraRobots?: string }) {
+function applyPageMetadata({ title, description, canonical, extraRobots, noindex = false, image = `${window.location.origin}/og-image.jpg`, imageAlt = "OctoCounts" }: { title: string; description: string; canonical: string; extraRobots?: string; noindex?: boolean; image?: string; imageAlt?: string }) {
   // Fingerprint every value, not just the title: on report pages the title is
   // identical before and after the report arrives while the description (with
   // live line counts) and canonical change -- a title-only guard would skip
   // those updates entirely.
   const snapshot = new URLSearchParams(window.location.search).has("reportId");
-  const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? "", snapshot]);
+  const fingerprint = JSON.stringify([title, description, canonical, extraRobots ?? "", snapshot, noindex, image, imageAlt]);
   if (fingerprint === lastMetaFingerprint) return;
   lastMetaFingerprint = fingerprint;
   if (!["/", "/zh"].includes(new URL(canonical).pathname)) {
     document.querySelectorAll('link[hreflang], #octocounts-home-page').forEach((node) => node.remove());
   }
   document.title = title;
-  const robots = snapshot ? "noindex,follow" : `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
-  const image = `${window.location.origin}/og-image.jpg`;
+  const robots = snapshot || noindex ? "noindex,follow" : `index,follow,max-image-preview:large,max-snippet:-1${extraRobots ?? ""}`;
   const metas: Array<["name" | "property", string, string]> = [
     ["name", "description", description],
     ["name", "robots", robots],
@@ -1093,9 +1107,11 @@ function applyPageMetadata({ title, description, canonical, extraRobots }: { tit
     ["property", "og:description", description],
     ["property", "og:url", canonical],
     ["property", "og:image", image],
+    ["property", "og:image:alt", imageAlt],
     ["name", "twitter:title", title],
     ["name", "twitter:description", description],
     ["name", "twitter:image", image],
+    ["name", "twitter:image:alt", imageAlt],
   ];
   for (const [attr, key, content] of metas) setMeta(attr, key, content);
   setCanonical(canonical);
@@ -1124,8 +1140,14 @@ function setCanonical(href: string) {
     const markdown = new URL(canonical);
     if (canonical.searchParams.has("reportId")) markdown.searchParams.set("format", "md");
     else markdown.pathname += ".md";
-    document.head.querySelectorAll<HTMLLinkElement>('link[rel="alternate"][type="text/markdown"]')
-      .forEach((link) => { link.href = markdown.href; });
+    let alternate = document.head.querySelector<HTMLLinkElement>('link[rel="alternate"][type="text/markdown"]');
+    if (!alternate) {
+      alternate = document.createElement("link");
+      alternate.rel = "alternate";
+      alternate.type = "text/markdown";
+      document.head.appendChild(alternate);
+    }
+    alternate.href = markdown.href;
   }
 }
 

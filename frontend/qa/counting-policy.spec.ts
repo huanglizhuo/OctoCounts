@@ -96,7 +96,28 @@ test("report schema follows home analysis, repository switches and recounts with
     expect(source.dateModified).toBeUndefined();
     expect(graph.some((node: any) => ["WebApplication", "FAQPage"].includes(node["@type"]))).toBe(false);
     expect(dataset.url).toBe(await page.locator('link[rel="canonical"]').getAttribute("href"));
+    expect(new URL(dataset.url).searchParams.get("reportId")).toBe(`analysis-${index + 1}`);
+    expect(new URL(page.url()).searchParams.get("reportId")).toBe(`analysis-${index + 1}`);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
+    const markdown = new URL(dataset.url);
+    markdown.searchParams.set("format", "md");
+    await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", markdown.href);
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", `${baseURL}/og-image.jpg`);
   }
+  const canonicalReport = savedReport("canonical", 123, {
+    ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: false, includeTests: false, includeGenerated: false, respectGitattributes: false,
+  });
+  canonicalReport.total.files = 5;
+  await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: canonicalReport.id, report: canonicalReport } }));
+  await page.locator(".report-search > summary").click();
+  await page.locator("#repo-url").fill(canonicalReport.repository.htmlUrl);
+  await page.locator("#repo-url").press("Enter");
+  const canonical = `${baseURL}/github/example/repo/tree/main`;
+  await expect(page).toHaveURL(canonical);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonical);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /^index,follow/);
+  await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}.md`);
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", "https://api.octocounts.com/og/github/example/repo");
 });
 
 test("compare submits common rules, pins both results and handles zero baselines", async ({ page }) => {

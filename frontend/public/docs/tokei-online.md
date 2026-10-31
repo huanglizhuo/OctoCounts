@@ -1,6 +1,6 @@
 # tokei online: run tokei on GitHub repositories
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated October 31, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.
 
@@ -14,7 +14,7 @@ Paste a public GitHub repository URL (for example `https://github.com/react/reac
 
 ## Is OctoCounts really running tokei?
 
-Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the [counting methodology page](https://octocounts.com/docs/methodology). That means an OctoCounts report and a local tokei run on the same commit at the same version produce matching numbers, which is what makes the online results citable in a pull request, README, or report.
+Yes. tokei is the counting engine, and every OctoCounts report states the exact tokei version that produced it, alongside the commit SHA it counted. The counting pipeline — archive download, default ignored directories, and how code, comment, and blank lines are classified per language — is documented on the [counting methodology page](https://octocounts.com/docs/methodology). Matching numbers require the same source tree, tokei version, and effective counting rules, including directory exclusions, ignored languages, and repository-declaration filtering. A local checkout can contain files absent from the downloaded archive. Keep the report's countingPolicy and exported JSON when reproducing or citing a count.
 
 ## When should I use the tokei CLI instead?
 

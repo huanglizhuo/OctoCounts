@@ -1,9 +1,24 @@
 import { expect, test } from "@playwright/test";
 
 const commit = "abcdef1234567890abcdef1234567890abcdef1234";
-const totals = { files: 1, lines: 123, code: 123, comments: 0, blanks: 0 };
+const totals = { files: 5, lines: 123, code: 123, comments: 0, blanks: 0 };
 
-for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`]) {
+for (const robots of ["noindex,follow", "index,follow"]) {
+  test(`unavailable reports preserve the server indexing decision: ${robots}`, async ({ page }) => {
+    await page.route("**/api/**", (route) => route.fulfill({ status: 404, json: { code: "not_found", message: "Report unavailable" } }));
+    await page.route("**/github/example/unavailable", async (route) => {
+      const response = await page.request.get("/");
+      const html = (await response.text()).replace(/<meta name="robots"[^>]*>/, `<meta name="robots" content="${robots}">`);
+      await route.fulfill({ response, status: robots.startsWith("noindex") ? 404 : 503, body: html });
+    });
+    await page.goto("/github/example/unavailable");
+    await expect(page.locator(".error-state")).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", new RegExp(`^${robots}`));
+    await expect(page.locator('head script[type="application/ld+json"]')).toHaveCount(0);
+  });
+}
+
+for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`, "/tree/tiny"]) {
   test(`report seed preserves canonical and Dataset identity for ${suffix || "the default branch"}`, async ({ page, baseURL }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -18,7 +33,7 @@ for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`]) {
       generatedAt: "2026-09-08T01:02:03.000Z",
       tokeiVersion: "tokei-13.0.0",
       analysisKey: "seed-analysis",
-      totals,
+      totals: { ...totals, files: suffix === "/tree/tiny" ? 4 : totals.files },
       languages: [{ name: "TypeScript", stats: totals }],
     };
     let analyses = 0;
@@ -50,6 +65,10 @@ for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`]) {
     })).toMatchObject({ identifier: "seed-analysis", url: canonical, "@id": `${canonical}#dataset` });
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonical);
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", canonical);
+    const image = suffix === "/tree/tiny" ? `${baseURL}/og-image.jpg` : "https://api.octocounts.com/og/github/example/repository";
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", image);
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", image);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", suffix === "/tree/tiny" ? "noindex,follow" : /^index,follow/);
     await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}.md`);
     expect(new URL(page.url()).pathname).toBe(path);
     expect(analyses).toBe(0);
@@ -74,6 +93,7 @@ for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`]) {
       const nextCanonical = new URL("/github/other/project/tree/main", baseURL).href;
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", nextCanonical);
       await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${nextCanonical}.md`);
+      await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", "https://api.octocounts.com/og/github/other/project");
       expect(errors).toEqual([]);
     }
   });
