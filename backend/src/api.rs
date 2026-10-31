@@ -257,12 +257,14 @@ pub async fn stats(
         return Ok((stats_cache_headers(), Json(stats)));
     }
 
-    let stats = state
-        .coordinator
-        .store()
-        .growth_stats()
-        .await
-        .map_err(ApiError::internal)?;
+    // A cold cache (just booted, before the refresh task's first load): the
+    // shared copy, however old, beats a full-table scan inside the edge's
+    // budget. Only an empty database computes inline.
+    let store = state.coordinator.store();
+    let stats = match store.stored_growth_stats().await {
+        Ok(Some(stats)) => stats,
+        _ => store.growth_stats().await.map_err(ApiError::internal)?,
+    };
     state.caches.stats.insert(cache_key, stats.clone()).await;
 
     Ok((stats_cache_headers(), Json(stats)))

@@ -252,7 +252,7 @@ pub enum AnalysisSource {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthStats {
     pub totals: GrowthTotals,
@@ -263,7 +263,7 @@ pub struct GrowthStats {
     pub recent_repositories: Vec<GrowthRepositoryStat>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthTotals {
     pub reports_generated: i64,
@@ -273,7 +273,7 @@ pub struct GrowthTotals {
     pub languages_detected: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthWindows {
     pub reports_today: i64,
@@ -284,14 +284,14 @@ pub struct GrowthWindows {
     pub repositories_30d: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthSourceStat {
     pub source: AnalysisSource,
     pub reports: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthLanguageStat {
     pub language: String,
@@ -300,7 +300,7 @@ pub struct GrowthLanguageStat {
     pub reports: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrowthRepositoryStat {
     pub provider: RepositoryProvider,

@@ -17,20 +17,13 @@ use crate::{
         AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider,
     },
     seo::{cache_headers, parse_provider},
+    store::BACKGROUND_CHECK_EVERY,
 };
 
 /// Generous relative to the analyzer's own internal timeout (300s, see
 /// `analyzer::JOB_TIMEOUT`) so a legitimately slow backfill sample is not
 /// abandoned just short of the analyzer giving up on it too.
 const SLOC_BACKFILL_JOB_TIMEOUT: Duration = Duration::from_secs(320);
-
-/// The forward sampler's (and compaction's) first pass runs this soon after
-/// startup, so a deployment immediately refreshes stale charts instead of
-/// waiting a full `sloc_forward_interval_seconds`.
-const FORWARD_TASK_WARMUP_SECONDS: u64 = 120;
-
-/// How long a background task waits before retrying a failed listing query.
-const LIST_RETRY_SECONDS: u64 = 60;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -809,40 +802,35 @@ pub(crate) async fn run_sloc_forward_sample(
     Ok(())
 }
 
-/// The SLOC counterpart of `main.rs`'s star snapshot task: periodically walks
-/// every repo whose backfill completed and refreshes today's point when the
-/// repo has moved. Without it the recorded series freezes on the day of the
-/// first view — the exact bug that motivated the adaptive-sampling redesign.
-///
-/// The first pass runs after a short warmup rather than a full interval: a
-/// deployment of this feature is typically followed by stale-everywhere
-/// charts, and a two-minute catch-up beats waiting a day.
+/// The SLOC counterpart of `main.rs`'s star snapshot task: once per
+/// `interval_seconds` for the whole cluster (`Store::run_if_due`), walks every
+/// repo whose backfill completed and refreshes today's point when the repo has
+/// moved. Without it the recorded series freezes on the day of the first view
+/// — the exact bug that motivated the adaptive-sampling redesign.
 pub(crate) fn spawn_sloc_forward_task(state: AppState, interval_seconds: u64) {
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(FORWARD_TASK_WARMUP_SECONDS)).await;
+        let store = state.coordinator.store().clone();
+        let every = Duration::from_secs(interval_seconds);
         loop {
-            let repos = match state.coordinator.store().watched_sloc_repos().await {
-                Ok(repos) => repos,
-                Err(error) => {
-                    tracing::warn!(%error, "failed to list watched repos for sloc forward sampling");
-                    // Without a pause this spun as fast as the database could
-                    // refuse connections, for as long as it was down.
-                    tokio::time::sleep(Duration::from_secs(LIST_RETRY_SECONDS)).await;
-                    continue;
-                }
-            };
-
-            let mut updated = 0u64;
-            for (provider, owner, repo) in repos {
-                match run_sloc_forward_sample(&state, provider, &owner, &repo).await {
-                    Ok(()) => updated += 1,
-                    Err(error) => {
-                        tracing::warn!(%error, %owner, %repo, "sloc forward sample failed")
+            tokio::time::sleep(BACKGROUND_CHECK_EVERY).await;
+            let ran = store
+                .run_if_due("sloc-forward", every, || async {
+                    let mut updated = 0u64;
+                    for (provider, owner, repo) in store.watched_sloc_repos().await? {
+                        match run_sloc_forward_sample(&state, provider, &owner, &repo).await {
+                            Ok(()) => updated += 1,
+                            Err(error) => {
+                                tracing::warn!(%error, %owner, %repo, "sloc forward sample failed")
+                            }
+                        }
                     }
-                }
+                    tracing::info!(updated, "sloc forward sampling pass completed");
+                    Ok(())
+                })
+                .await;
+            if let Err(error) = ran {
+                tracing::warn!(%error, "sloc forward sampling pass failed");
             }
-            tracing::info!(updated, "sloc forward sampling pass completed");
-            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
 }
@@ -862,33 +850,31 @@ const SLOC_COMPACTION_MIN_POINTS: usize = 8;
 /// The most recent point is always kept (it is the chart's "current" value),
 /// and nothing is destroyed — see `supersede_sloc_snapshots`.
 ///
-/// Like the forward task it starts after a warmup instead of a full interval:
-/// deploys restart nodes more often than daily, so a sleep-first loop seldom
-/// reached a pass. Compaction is idempotent, so an extra pass costs only reads.
+/// Runs once per `interval_seconds` for the whole cluster (`Store::run_if_due`).
 pub(crate) fn spawn_sloc_compaction_task(state: AppState, interval_seconds: u64) {
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(FORWARD_TASK_WARMUP_SECONDS)).await;
+        let store = state.coordinator.store().clone();
+        let every = Duration::from_secs(interval_seconds);
         loop {
-            let repos = match state.coordinator.store().repos_with_sloc_snapshots().await {
-                Ok(repos) => repos,
-                Err(error) => {
-                    tracing::warn!(%error, "failed to list repos for sloc compaction");
-                    tokio::time::sleep(Duration::from_secs(LIST_RETRY_SECONDS)).await;
-                    continue;
-                }
-            };
-
-            let mut superseded = 0u64;
-            for (provider, owner, repo) in repos {
-                match compact_repo_sloc_history(&state, provider, &owner, &repo).await {
-                    Ok(dropped) => superseded += dropped,
-                    Err(error) => {
-                        tracing::warn!(%error, %owner, %repo, "sloc history compaction failed")
+            tokio::time::sleep(BACKGROUND_CHECK_EVERY).await;
+            let ran = store
+                .run_if_due("sloc-compaction", every, || async {
+                    let mut superseded = 0u64;
+                    for (provider, owner, repo) in store.repos_with_sloc_snapshots().await? {
+                        match compact_repo_sloc_history(&state, provider, &owner, &repo).await {
+                            Ok(dropped) => superseded += dropped,
+                            Err(error) => {
+                                tracing::warn!(%error, %owner, %repo, "sloc history compaction failed")
+                            }
+                        }
                     }
-                }
+                    tracing::info!(superseded, "sloc compaction pass completed");
+                    Ok(())
+                })
+                .await;
+            if let Err(error) = ran {
+                tracing::warn!(%error, "sloc compaction pass failed");
             }
-            tracing::info!(superseded, "sloc compaction pass completed");
-            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
 }

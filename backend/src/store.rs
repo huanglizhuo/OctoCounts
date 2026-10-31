@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use chrono::{DateTime, Duration, NaiveDate, Utc};
-use sqlx::{PgPool, Postgres, Row, Transaction};
+use sqlx::{Connection, PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use crate::models::{
@@ -477,8 +477,96 @@ impl Store {
         )
         .execute(&self.pool)
         .await?;
+        // Cluster-wide bookkeeping for `run_if_due`, and the growth statistics
+        // one process computes and every process serves.
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS background_runs (task TEXT PRIMARY KEY, completed_at TIMESTAMPTZ NOT NULL)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS growth_stats_snapshot (id SMALLINT PRIMARY KEY, body JSONB NOT NULL, computed_at TIMESTAMPTZ NOT NULL)",
+        )
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
+    }
+
+    /// Runs `pass` at most once per `every` across every API process sharing
+    /// this database, and returns whether it ran. Callers check about every
+    /// [`BACKGROUND_CHECK_EVERY`]. It skips while another
+    /// process holds `task`'s lock and while the last completed run is younger
+    /// than `every`; a failed pass is not recorded, so the next check retries.
+    ///
+    /// Both nodes used to run every background pass on their own schedules, so
+    /// the full-table statistics scan and each daily GitHub sweep ran twice, and
+    /// a restart re-ran passes regardless of when they last finished.
+    ///
+    /// The lock is session-level on a connection detached from the pool: a long
+    /// pass keeps no transaction open, and a crash or panic ends the session,
+    /// which releases the lock.
+    pub async fn run_if_due<Fut>(
+        &self,
+        task: &str,
+        every: std::time::Duration,
+        pass: impl FnOnce() -> Fut,
+    ) -> anyhow::Result<bool>
+    where
+        Fut: std::future::Future<Output = anyhow::Result<()>>,
+    {
+        let mut lock = self.pool.acquire().await?.detach();
+        let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock(hashtext($1))")
+            .bind(task)
+            .fetch_one(&mut lock)
+            .await?;
+        if !locked {
+            return Ok(false);
+        }
+        let due: bool = sqlx::query_scalar(
+            "SELECT NOT EXISTS (SELECT 1 FROM background_runs WHERE task = $1 AND completed_at > $2)",
+        )
+        .bind(task)
+        .bind(Utc::now() - Duration::from_std(every)?)
+        .fetch_one(&mut lock)
+        .await?;
+        if due {
+            pass().await?;
+            sqlx::query(
+                "INSERT INTO background_runs (task, completed_at) VALUES ($1, $2) \
+                 ON CONFLICT (task) DO UPDATE SET completed_at = EXCLUDED.completed_at",
+            )
+            .bind(task)
+            .bind(Utc::now())
+            .execute(&mut lock)
+            .await?;
+        }
+        // Ending the session releases the lock.
+        let _ = lock.close().await;
+        Ok(due)
+    }
+
+    /// Stores the growth statistics for every process to serve (see
+    /// `run_if_due`): the aggregates scan every report, so one process computes
+    /// them per interval and the others load this copy.
+    pub async fn save_growth_stats(&self, stats: &GrowthStats) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO growth_stats_snapshot (id, body, computed_at) VALUES (1, $1, $2) \
+             ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body, computed_at = EXCLUDED.computed_at",
+        )
+        .bind(sqlx::types::Json(stats))
+        .bind(Utc::now())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn stored_growth_stats(&self) -> anyhow::Result<Option<GrowthStats>> {
+        let row: Option<(sqlx::types::Json<GrowthStats>,)> =
+            sqlx::query_as("SELECT body FROM growth_stats_snapshot WHERE id = 1")
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(row.map(|(stats,)| stats.0))
     }
 
     /// Adds the materialized statistics columns, the trigger that keeps them in
@@ -2907,18 +2995,33 @@ impl Store {
         let mut over_limit = report_count.saturating_sub(config.report_max_rows);
         while over_limit > 0 {
             let batch_size = over_limit.min(config.report_cleanup_batch_size) as i64;
-            let deleted = sqlx::query(
+            // Never the report a repository's page shows (the one
+            // `latest_report_card` selects): evicting it took the page down,
+            // and once the table outgrew the cap that happened to every repo
+            // not re-analyzed within the 30-day minimum. When only such reports
+            // are left, the cap yields rather than the pages.
+            let deleted = sqlx::query(concat!(
                 r#"
                 DELETE FROM reports
                 WHERE id IN (
                     SELECT id
                     FROM reports
                     WHERE created_at < $1
+                    AND id NOT IN (
+                        SELECT DISTINCT ON (r.provider, lower(r.owner), lower(r.repo)) r.id
+                        FROM reports r
+                        WHERE "#,
+                canonical_options_sql!("r"),
+                " AND ",
+                latest_eligible!("r"),
+                r#"
+                        ORDER BY r.provider, lower(r.owner), lower(r.repo), r.created_at DESC
+                    )
                     ORDER BY last_accessed_at ASC, created_at ASC
                     LIMIT $2
                 )
                 "#,
-            )
+            ))
             .bind(report_cutoff)
             .bind(batch_size)
             .execute(&mut **tx)
@@ -3403,6 +3506,11 @@ impl Store {
         }))
     }
 }
+
+/// How often background tasks ask [`Store::run_if_due`] whether their pass is
+/// due. It bounds both the delay before a due pass starts and the retry delay
+/// after a failed one.
+pub const BACKGROUND_CHECK_EVERY: std::time::Duration = std::time::Duration::from_secs(600);
 
 /// How long a queued/running job may go without a heartbeat (the coordinator
 /// touches its jobs every 30s) before it counts as abandoned: the process that
@@ -5020,11 +5128,14 @@ mod tests {
                 .save_report(&report, AnalysisSource::Unknown)
                 .await
                 .unwrap();
+            // Distinct ages: report-cold-2 is the newest, the one the
+            // repository's page shows, which cleanup never evicts.
+            let age = 31 + i64::from(2 - index as i32);
             store
                 .force_report_timestamps(
                     &id,
-                    Utc::now() - Duration::days(31),
-                    Utc::now() - Duration::days(31 + i64::from(2 - index as i32)),
+                    Utc::now() - Duration::days(age),
+                    Utc::now() - Duration::days(age),
                 )
                 .await
                 .unwrap();
@@ -5046,6 +5157,161 @@ mod tests {
         assert!(store.report_exists("report-cold-1").await.unwrap());
         assert!(store.report_exists("report-cold-2").await.unwrap());
         store.drop_schema().await;
+    }
+
+    /// Evicting the report a repository's page shows took the page down; over
+    /// the cap, cleanup takes other reports and leaves each displayed one.
+    #[tokio::test]
+    async fn cleanup_never_evicts_the_report_a_repository_page_shows() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let lonely = unique_name("lonely");
+        let busy = unique_name("busy");
+        // The coldest row in the table, but its repository's only report.
+        let only = test_report("report-only", &lonely, 100);
+        store
+            .save_report(&only, AnalysisSource::Unknown)
+            .await
+            .unwrap();
+        store
+            .force_report_timestamps(
+                "report-only",
+                Utc::now() - Duration::days(40),
+                Utc::now() - Duration::days(40),
+            )
+            .await
+            .unwrap();
+        for (id, age) in [("report-busy-old", 35), ("report-busy-new", 31)] {
+            let mut report = test_report(id, &busy, 100);
+            report.commit_sha = format!("sha-{id}");
+            store
+                .save_report(&report, AnalysisSource::Unknown)
+                .await
+                .unwrap();
+            store
+                .force_report_timestamps(
+                    id,
+                    Utc::now() - Duration::days(age),
+                    Utc::now() - Duration::days(age),
+                )
+                .await
+                .unwrap();
+        }
+
+        let stats = cleanup(
+            &store,
+            CleanupConfig {
+                report_min_retention_days: 30,
+                report_max_rows: 1,
+                report_cleanup_batch_size: 10,
+                ..CleanupConfig::default()
+            },
+        )
+        .await;
+
+        assert_eq!(
+            stats.cold_reports_deleted, 1,
+            "the cap yields to displayed reports"
+        );
+        assert!(store.report_exists("report-only").await.unwrap());
+        assert!(!store.report_exists("report-busy-old").await.unwrap());
+        assert!(store.report_exists("report-busy-new").await.unwrap());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn growth_stats_snapshot_round_trips() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        assert!(store.stored_growth_stats().await.unwrap().is_none());
+        let stats = store.growth_stats().await.unwrap();
+        store.save_growth_stats(&stats).await.unwrap();
+        let loaded = store.stored_growth_stats().await.unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&loaded).unwrap(),
+            serde_json::to_value(&stats).unwrap()
+        );
+        store.drop_schema().await;
+    }
+
+    /// Both nodes run every background task; `run_if_due` is what makes a pass
+    /// happen once per interval for the pair of them.
+    #[tokio::test]
+    async fn background_passes_run_once_per_interval_across_processes() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let Ok(url) = std::env::var("TEST_DATABASE_URL") else {
+            return;
+        };
+        let admin = PgPoolOptions::new()
+            .max_connections(1)
+            .connect(&url)
+            .await
+            .unwrap();
+        let schema = unique_name("test_schema");
+        sqlx::query(&format!("CREATE SCHEMA {schema}"))
+            .execute(&admin)
+            .await
+            .unwrap();
+        // search_path in the connect options, not a one-off SET: run_if_due
+        // detaches a connection, and the pool's replacement must see the schema.
+        let options: sqlx::postgres::PgConnectOptions = url.parse().unwrap();
+        let pool = PgPoolOptions::new()
+            .max_connections(4)
+            .connect_with(options.options([("search_path", schema.as_str())]))
+            .await
+            .unwrap();
+        let store = Store::new(pool);
+        store.migrate().await.unwrap();
+        // Advisory locks are database-wide, so the task names are unique.
+        let task = unique_name("task");
+        let hour = std::time::Duration::from_secs(3_600);
+        let runs = AtomicUsize::new(0);
+        let pass = || async {
+            runs.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        };
+
+        assert!(store.run_if_due(&task, hour, pass).await.unwrap());
+        assert!(
+            !store.run_if_due(&task, hour, pass).await.unwrap(),
+            "not due again within the interval"
+        );
+
+        // Another process mid-pass holds the lock: skip even when due.
+        let mut other = admin.acquire().await.unwrap();
+        sqlx::query("SELECT pg_advisory_lock(hashtext($1))")
+            .bind(&task)
+            .execute(&mut *other)
+            .await
+            .unwrap();
+        assert!(!store
+            .run_if_due(&task, std::time::Duration::ZERO, pass)
+            .await
+            .unwrap());
+        sqlx::query("SELECT pg_advisory_unlock(hashtext($1))")
+            .bind(&task)
+            .execute(&mut *other)
+            .await
+            .unwrap();
+        drop(other);
+
+        // A failed pass is not recorded, so the next check retries it.
+        let flaky = unique_name("task");
+        assert!(store
+            .run_if_due(&flaky, hour, || async {
+                Err::<(), _>(anyhow::anyhow!("upstream down"))
+            })
+            .await
+            .is_err());
+        assert!(store.run_if_due(&flaky, hour, pass).await.unwrap());
+        assert_eq!(runs.load(Ordering::SeqCst), 2);
+
+        sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+            .execute(&admin)
+            .await
+            .unwrap();
     }
 
     #[test]

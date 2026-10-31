@@ -79,19 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     let store = Store::new(pool);
     store.migrate().await?;
-    // One idempotent pass folding the known renamed slugs (plus replaying any
-    // recorded redirects, which catches rows an old binary re-filed under a
-    // predecessor slug mid-deploy). Runs before serving so the first request
-    // after a deploy already sees one key per repository; a failure here is
-    // logged, not fatal — renames are still followed on the first resolution
-    // of the old slug.
-    match store.migrate_repo_renames().await {
-        Ok(moved) if moved > 0 => {
-            tracing::info!(moved, "startup rename pass folded stored rows")
-        }
-        Ok(_) => {}
-        Err(error) => tracing::warn!(%error, "startup rename pass failed"),
-    }
+    spawn_rename_task(store.clone());
     spawn_cleanup_task(
         store.clone(),
         config.cleanup_interval_seconds,
@@ -317,65 +305,98 @@ fn spawn_cleanup_task(store: Store, interval_seconds: u64, config: CleanupConfig
     });
 }
 
-/// The growth-stats aggregate scans every report (about ten seconds in
-/// production), longer than the edge's eight-second upstream budget, so
-/// `/api/stats` must never compute it inline on a cold cache. Recompute it in
-/// the background every five minutes, starting at boot; the cache TTL
-/// (`AppCaches::stats`) outlives two missed refreshes before the handler's own
-/// compute-on-miss path takes over again.
+/// The growth-stats aggregate scans every report, longer than the edge's
+/// eight-second upstream budget allows inline, and it grows with the table.
+/// One process recomputes it every five minutes (`Store::run_if_due`) and
+/// stores it; every process loads that shared copy each minute, starting at
+/// boot, so `/api/stats` answers from memory and the scan runs once per
+/// interval for the whole cluster rather than once per node.
 fn spawn_stats_refresh_task(state: AppState) {
     tokio::spawn(async move {
+        let store = state.coordinator.store().clone();
         loop {
-            match state.coordinator.store().growth_stats().await {
-                Ok(stats) => state.caches.stats.insert("stats".to_string(), stats).await,
-                Err(error) => tracing::warn!(%error, "growth stats refresh failed"),
+            let computed = store
+                .run_if_due("growth-stats", Duration::from_secs(300), || async {
+                    let stats = store.growth_stats().await?;
+                    store.save_growth_stats(&stats).await
+                })
+                .await;
+            if let Err(error) = computed {
+                tracing::warn!(%error, "growth stats refresh failed");
             }
-            tokio::time::sleep(Duration::from_secs(300)).await;
+            match store.stored_growth_stats().await {
+                Ok(Some(stats)) => state.caches.stats.insert("stats".to_string(), stats).await,
+                Ok(None) => {}
+                Err(error) => tracing::warn!(%error, "could not load the shared growth stats"),
+            }
+            tokio::time::sleep(Duration::from_secs(60)).await;
         }
     });
 }
 
-/// Once per `interval_seconds` (default daily), re-reads the current GitHub
-/// star count for every repo on the watch list and records one snapshot per
-/// repo. `record_star_snapshot` upserts on (provider, owner, repo, date), so
-/// a slow tick that spills past midnight, or a restart that reruns the same
-/// day, both settle on one row instead of duplicating or skipping.
-///
-/// The first pass runs after a warmup, not a full interval: nodes restart on
-/// every deploy, far more often than daily, and a sleep-first loop went whole
-/// deploy-heavy stretches without recording anything. Repos already
-/// snapshotted today are skipped, so a restart repeats no GitHub calls.
+/// Folds the known renamed slugs (plus replaying any recorded redirects, which
+/// catches rows an old binary re-filed under a predecessor slug mid-deploy),
+/// once an hour for the cluster and first at boot. Not before serving: it is
+/// ~2,000 sequential statements, seconds next to the database but about six
+/// minutes from ghost, which kept that node out of the rotation that long after
+/// every deploy. Until it finishes a repository may have two keys, latest row
+/// wins, the state a failed pass always left; resolutions follow renames anyway.
+fn spawn_rename_task(store: Store) {
+    tokio::spawn(async move {
+        loop {
+            let ran = store
+                .run_if_due("repo-renames", Duration::from_secs(3_600), || async {
+                    let moved = store.migrate_repo_renames().await?;
+                    if moved > 0 {
+                        tracing::info!(moved, "rename pass folded stored rows");
+                    }
+                    Ok(())
+                })
+                .await;
+            if let Err(error) = ran {
+                tracing::warn!(%error, "rename pass failed");
+            }
+            tokio::time::sleep(store::BACKGROUND_CHECK_EVERY).await;
+        }
+    });
+}
+
+/// Once per `interval_seconds` (default daily) for the whole cluster, re-reads
+/// the current GitHub star count for every repo on the watch list and records
+/// one snapshot per repo. `record_star_snapshot` upserts on (provider, owner,
+/// repo, date), so a pass that spills past midnight settles on one row, and
+/// repos already snapshotted today (by a view, say) are skipped.
 fn spawn_star_snapshot_task(store: Store, github: GitHubClient, interval_seconds: u64) {
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(600)).await;
+        let every = Duration::from_secs(interval_seconds);
         loop {
-            let today = chrono::Utc::now().date_naive();
-            let repos = match store.watched_star_repos(today).await {
-                Ok(repos) => repos,
-                Err(error) => {
-                    tracing::warn!(%error, "failed to list watched repos for star snapshot");
-                    tokio::time::sleep(Duration::from_secs(60)).await;
-                    continue;
-                }
-            };
-
-            let mut updated = 0u64;
-            for (provider, owner, repo) in repos {
-                let Some(stars) = github.repo_stars(&provider, &owner, &repo).await else {
-                    continue;
-                };
-                match store
-                    .record_star_snapshot(provider, &owner, &repo, today, stars as i64)
-                    .await
-                {
-                    Ok(()) => updated += 1,
-                    Err(error) => {
-                        tracing::warn!(%error, owner, repo, "failed to record star snapshot")
+            tokio::time::sleep(store::BACKGROUND_CHECK_EVERY).await;
+            let ran = store
+                .run_if_due("star-snapshots", every, || async {
+                    let today = chrono::Utc::now().date_naive();
+                    let repos = store.watched_star_repos(today).await?;
+                    let mut updated = 0u64;
+                    for (provider, owner, repo) in repos {
+                        let Some(stars) = github.repo_stars(&provider, &owner, &repo).await else {
+                            continue;
+                        };
+                        match store
+                            .record_star_snapshot(provider, &owner, &repo, today, stars as i64)
+                            .await
+                        {
+                            Ok(()) => updated += 1,
+                            Err(error) => {
+                                tracing::warn!(%error, owner, repo, "failed to record star snapshot")
+                            }
+                        }
                     }
-                }
+                    tracing::info!(updated, "star snapshot task completed");
+                    Ok(())
+                })
+                .await;
+            if let Err(error) = ran {
+                tracing::warn!(%error, "star snapshot pass failed");
             }
-            tracing::info!(updated, "star snapshot task completed");
-            tokio::time::sleep(Duration::from_secs(interval_seconds)).await;
         }
     });
 }
