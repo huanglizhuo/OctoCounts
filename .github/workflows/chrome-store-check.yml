@@ -25,11 +25,17 @@ jobs:
         run: |
           set -euo pipefail
           # Same token exchange and endpoint as the publish action.
-          token=$(curl -sS --fail-with-body https://oauth2.googleapis.com/token \
+          response=$(curl -sS https://oauth2.googleapis.com/token \
             --data-urlencode "client_id=$CLIENT_ID" \
             --data-urlencode "client_secret=$CLIENT_SECRET" \
             --data-urlencode "refresh_token=$REFRESH_TOKEN" \
-            --data-urlencode "grant_type=refresh_token" | jq -r .access_token)
+            --data-urlencode "grant_type=refresh_token")
+          token=$(jq -r '.access_token // empty' <<<"$response")
+          if [ -z "$token" ]; then
+            # Only Google's error code and description: no secret is echoed.
+            echo "token exchange failed: $(jq -c '{error, error_description}' <<<"$response")"
+            exit 1
+          fi
           echo "::add-mask::$token"
           curl -sS --fail-with-body -H "Authorization: Bearer $token" \
             "https://chromewebstore.googleapis.com/v2/publishers/$PUBLISHER_ID/items/$EXTENSION_ID:fetchStatus" | jq .
