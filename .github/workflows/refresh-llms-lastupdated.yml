@@ -28,7 +28,7 @@ jobs:
           ref: main
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "26"
       - name: Regenerate compare pages section
         run: node scripts/refresh-llms-lastupdated.mjs
       - name: Commit if changed
