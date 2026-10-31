@@ -726,6 +726,29 @@ mod tests {
         assert!(ignored.contains(&"generated".to_string()));
     }
 
+    /// `TOKEI_VERSION` is the label every report records and part of the cache
+    /// key, so it must name the tokei that actually counts. A crate bump that
+    /// leaves it behind (a Dependabot minor, say) would file new counts under
+    /// the old version and serve them alongside the old engine's results.
+    #[test]
+    fn tokei_version_names_the_locked_crate() {
+        let locked = include_str!("../Cargo.lock")
+            .split("[[package]]")
+            .find(|package| package.contains("\nname = \"tokei\"\n"))
+            .and_then(|package| {
+                package
+                    .lines()
+                    .find_map(|line| line.strip_prefix("version = \""))
+            })
+            .and_then(|version| version.strip_suffix('"'))
+            .expect("tokei is in Cargo.lock");
+        assert_eq!(
+            super::TOKEI_VERSION,
+            format!("tokei-{locked}"),
+            "bump TOKEI_VERSION, and the methodology docs, together with the tokei crate"
+        );
+    }
+
     #[test]
     fn analysis_key_changes_with_options() {
         let default_key = analysis_key(&AnalysisOptions::default());

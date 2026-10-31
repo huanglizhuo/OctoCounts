@@ -208,6 +208,31 @@ if (Array.isArray(ignoredDirs)) {
   note("product-facts.json: facts.defaultIgnoredDirs.value must be an array");
 }
 
+// ---------- the running tokei version ----------
+// These pages state which tokei production counts with. The locked crate is
+// what actually counts, so a tokei bump (Dependabot or not) cannot merge while
+// they still cite the previous version.
+
+const lock = await readFile(path.join(ROOT, "backend", "Cargo.lock"), "utf8");
+const lockedTokei = lock.match(/\[\[package\]\]\nname = "tokei"\nversion = "([^"]+)"/)?.[1];
+if (!lockedTokei) note("backend/Cargo.lock: no tokei package found");
+for (const [file, pattern] of [
+  ["frontend/public/docs/methodology.md", /currently runs \[tokei\]\([^)]*\) (\d+\.\d+\.\d+)/g],
+  ["frontend/public/docs/methodology.html", /currently runs <a [^>]*>tokei<\/a> (\d+\.\d+\.\d+)/g],
+  ["frontend/public/zh/docs/methodology.md", /生产代码使用 tokei (\d+\.\d+\.\d+)/g],
+  ["frontend/public/zh/docs/methodology.html", /生产代码使用 tokei (\d+\.\d+\.\d+)/g],
+  ["frontend/public/docs/octocounts-vs-tokei.md", /currently runs tokei (\d+\.\d+\.\d+)/g],
+  ["frontend/public/docs/octocounts-vs-tokei.html", /currently runs tokei (\d+\.\d+\.\d+)/g],
+]) {
+  const stated = [...(await readFile(path.join(ROOT, file), "utf8")).matchAll(pattern)].map((m) => m[1]);
+  if (stated.length === 0) note(`${file}: the "production runs tokei <version>" statement is missing`);
+  for (const version of stated) {
+    if (lockedTokei && version !== lockedTokei) {
+      note(`${file}: says production runs tokei ${version}, but backend/Cargo.lock has ${lockedTokei}`);
+    }
+  }
+}
+
 // ---------- report ----------
 
 if (failures.length > 0) {
