@@ -65,6 +65,12 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    let migrate_only = match args.as_slice() {
+        [] => false,
+        [arg] if arg == "--migrate-only" => true,
+        _ => anyhow::bail!("usage: octocount-service [--migrate-only]"),
+    };
     let config = Config::from_env()?;
     let pool = PgPoolOptions::new()
         .max_connections(config.database_max_connections)
@@ -79,7 +85,13 @@ async fn main() -> anyhow::Result<()> {
         })?;
 
     let store = Store::new(pool.clone());
-    store.migrate().await?;
+    if config.run_migrations || migrate_only {
+        store.migrate().await?;
+    }
+    if migrate_only {
+        pool.close().await;
+        return Ok(());
+    }
     spawn_rename_task(store.clone());
     spawn_cleanup_task(
         store.clone(),

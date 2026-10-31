@@ -240,6 +240,18 @@ with `frontend/functions`. The web preview image above intentionally sends
 
 ### Environment variables
 
+Production database privileges: run the release image with `--migrate-only`
+using the schema owner's credential before deploying either API node. Then
+serve with `RUN_MIGRATIONS=false` and the restricted `octocounts_app` role
+(table DML, sequence usage and function execution, no schema DDL or role
+administration). The infra repo's `scripts/migrate-db.sh` runs this on VPS-B
+and reapplies grants for new tables. Local development keeps startup migrations
+enabled by default. Never inject the migration credential into the serving API.
+
+The Caddy DNS-01 image is built separately by the manually dispatched
+`build-caddy.yml` workflow from `deploy/caddy/Dockerfile`; the private infra
+repo deploys its fixed GHCR tag. Its Docker build context contains no secrets.
+
 | Variable | Default | Notes |
 |---|---|---|
 | `GITHUB_TOKEN` | — | Strongly recommended |

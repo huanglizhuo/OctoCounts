@@ -10,6 +10,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
+    pub run_migrations: bool,
     pub database_max_connections: u32,
     pub database_acquire_timeout: Duration,
     pub bind_addr: String,
@@ -72,6 +73,7 @@ impl Config {
 
         Ok(Self {
             database_url,
+            run_migrations: env_bool("RUN_MIGRATIONS", true),
             // 5 was hardcoded and is low for a service where most handlers are a
             // single short query: with a network-attached Postgres, in-flight
             // requests are dominated by round-trip latency, so the pool caps

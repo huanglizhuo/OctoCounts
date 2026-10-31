@@ -490,6 +490,10 @@ impl Store {
         .execute(&self.pool)
         .await?;
 
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_sloc_live_latest_cover ON sloc_snapshots(provider,owner,repo,snapshot_date DESC) INCLUDE(commit_sha) WHERE superseded_at IS NULL")
+            .execute(&self.pool).await?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_reports_canonical_latest_cover ON reports(provider,owner,repo,created_at DESC) INCLUDE(source,commit_sha,top_language,total_code,total_lines) WHERE options_canonical")
+            .execute(&self.pool).await?;
         crate::edge_cache::migrate(&self.pool).await?;
         Ok(())
     }
@@ -2498,7 +2502,8 @@ impl Store {
             canonical_options_sql!("reports"),
             r#"
                       AND "#,
-            latest_eligible!("reports"),
+            // Build the latest live snapshot set once, rather than per history row.
+            "(reports.source <> 'sloc_backfill' OR (reports.provider, reports.owner, reports.repo, reports.commit_sha) IN (SELECT DISTINCT ON (provider, owner, repo) provider, owner, repo, commit_sha FROM sloc_snapshots WHERE superseded_at IS NULL AND provider = $1 ORDER BY provider, owner, repo, snapshot_date DESC))",
             r#"
                     ORDER BY provider, owner, repo, created_at DESC
                 ) filtered
@@ -6577,6 +6582,21 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(card.commit_sha, "sha-fresh");
+        let related = store
+            .related_reports(RepositoryProvider::GitHub, "other", "repo", None, 10, 20, 6)
+            .await
+            .unwrap();
+        assert_eq!(related.len(), 1);
+        assert_eq!(related[0].total_code, Some(1_200));
+        sqlx::query("UPDATE sloc_snapshots SET superseded_at = NOW()")
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        let related = store
+            .related_reports(RepositoryProvider::GitHub, "other", "repo", None, 10, 20, 6)
+            .await
+            .unwrap();
+        assert_eq!(related[0].total_code, Some(1_000));
         store.drop_schema().await;
     }
 

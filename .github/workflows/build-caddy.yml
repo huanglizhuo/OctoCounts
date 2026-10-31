@@ -1,0 +1,30 @@
+name: Build Caddy image
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  caddy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: deploy/caddy
+          load: true
+          tags: ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1
+          labels: org.opencontainers.image.source=https://github.com/huanglizhuo/OctoCounts
+          cache-from: type=gha,scope=caddy
+          cache-to: type=gha,mode=max,scope=caddy
+      - name: Verify DNS module before publishing
+        run: |
+          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 version
+          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 list-modules | grep -qx dns.providers.cloudflare
+          docker push ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1
