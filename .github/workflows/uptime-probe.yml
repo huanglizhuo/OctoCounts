@@ -1,0 +1,45 @@
+name: Uptime probe
+
+# Checks OctoCounts from outside both VPS nodes, so a whole-site outage still
+# alerts: each node's own healthcheck cannot run when that node is down, and a
+# lost database left both nodes' containers "running" while every request
+# failed. /readyz answers 503 when the serving node cannot reach Postgres.
+# Alerts go to the same ntfy topic as the node checks (secret NTFY_URL).
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe the API and the site
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+        run: |
+          failures=""
+          # Three tries 20 s apart, so a runner network blip is not an outage.
+          check() {
+            for _ in 1 2 3; do
+              code=$(curl -s -o /tmp/body -w '%{http_code}' -m 15 "$2" || true)
+              if [ "$code" = 200 ] && { [ -z "$3" ] || [ "$(cat /tmp/body)" = "$3" ]; }; then
+                return 0
+              fi
+              sleep 20
+            done
+            failures="$failures $1=HTTP${code:-none}"
+          }
+          check api https://api.octocounts.com/readyz ok
+          check site https://octocounts.com/ ""
+          [ -z "$failures" ] && exit 0
+          curl -s -m 10 -H "Title: octocounts down" -H "Priority: urgent" -H "Tags: rotating_light" \
+            -d "External probe (GitHub Actions) failed:$failures" "$NTFY_URL" || true
+          exit 1
