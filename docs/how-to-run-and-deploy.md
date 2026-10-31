@@ -309,6 +309,41 @@ and pushing the core pages after a deploy) — commands and caveats live in
 
 ### Cloudflare edge cache and Web Analytics
 
+Report caching (2026-10-31): enable Smart Tiered Cache and the zone's Tiered
+Cache switch. Cache Rules must include `/api/reports/` as well as the SEO,
+badge and OG routes, respecting origin TTLs and the full query-string key.
+The legacy AI crawler bypass is disabled: canonical HTML no longer varies by UA.
+
+Set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_CACHE_PURGE_TOKEN` on **both** API
+nodes before enabling long edge caching. The token needs only Cache Purge
+permission for this zone; keep it in an untracked, mode-600 secret file.
+Report JSON/SEO responses cache at the edge for seven days, live HTML/Markdown
+and mutable badges/OG for one day, and related lists for six hours. Browsers
+cache them for only 60–300 seconds. Fixed-ID page snapshots remain `no-store`.
+
+Startup migration installs a transactional PostgreSQL purge queue. Report
+inserts/replacements, renames, deletions, redirects and changed ref mappings
+enqueue repository/report tags. Tags cover URL casing, query/ref variants and
+related-report dependencies; newly eligible peers appear within the related
+list/page TTL. LISTEN/NOTIFY clears origin memory caches on both nodes.
+Purging starts after 45 seconds and runs every 30 seconds in batches of 100;
+failures remain queued with capped retries, including across process restarts.
+This is asynchronous invalidation, not an immediate global read-after-write guarantee.
+
+After a successful backend deployment, purge `octo-api`; after a successful
+Pages deployment, purge `octo-html` so template changes reach cached reports:
+
+```sh
+rtk proxy cf cache purge -z octocounts.com --body '{"tags":["octo-api","octo-html"]}' --force
+```
+
+For the first rollout, deploy the backend and Pages Functions before adding
+the `/api/reports/` Cache Rule, then purge the affected URL prefixes once:
+older cache entries do not yet carry tags. Keep the database triggers/queue
+on rollback; purging the affected prefixes prevents old long-lived entries
+outliving the reverted application. Check `cache_purge_queue` age/count and
+the API's `Cloudflare cache purged` / `cache purge failed` logs after rollout.
+
 The dashboard observations below were recorded on 2026-09-27; they are not a
 new production verification. These settings live outside this repository;
 a code deployment does not recreate them. The format guidance was updated

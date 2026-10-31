@@ -161,9 +161,10 @@ pub async fn related(
     // `related:v2:` — the v2 ranking (case-insensitive self-exclusion, mirror
     // and size-signature dedupe, relative size distance) must not be served
     // from entries cached under the v1 ordering.
-    let cache_key = format!("related:v2:{}", seo_report_cache_key(&query));
+    let generation = state.caches.generation();
+    let cache_key = format!("related:v2:{generation}:{}", seo_report_cache_key(&query));
     if let Some(list) = state.caches.seo_related.get(&cache_key).await {
-        return Ok((related_cache_headers(), Json(list)));
+        return Ok((related_cache_headers(&list), Json(list)));
     }
 
     let provider = parse_provider(&query.provider)?;
@@ -200,11 +201,13 @@ pub async fn related(
             .map(related_report)
             .collect();
         let list = RelatedList { reports };
-        state
-            .caches
-            .seo_related
-            .insert(cache_key, list.clone())
-            .await;
+        if generation == state.caches.generation() {
+            state
+                .caches
+                .seo_related
+                .insert(cache_key, list.clone())
+                .await;
+        }
         anyhow::Ok(Some(list))
     })
     .await
@@ -217,7 +220,7 @@ pub async fn related(
         ));
     };
 
-    Ok((related_cache_headers(), Json(list)))
+    Ok((related_cache_headers(&list), Json(list)))
 }
 
 fn related_report(row: RelatedReportRow) -> RelatedReport {
@@ -237,7 +240,8 @@ pub async fn report(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
 ) -> Result<(HeaderMap, Json<SeoReport>), ApiError> {
-    let cache_key = seo_report_cache_key(&query);
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{}", seo_report_cache_key(&query));
     if let Some(report) = state.caches.seo_report.get(&cache_key).await {
         return Ok((seo_report_cache_headers(), Json(report)));
     }
@@ -262,11 +266,13 @@ pub async fn report(
     };
 
     let report = seo_report(&card, canonical_slug);
-    state
-        .caches
-        .seo_report
-        .insert(cache_key, report.clone())
-        .await;
+    if generation == state.caches.generation() {
+        state
+            .caches
+            .seo_report
+            .insert(cache_key, report.clone())
+            .await;
+    }
 
     Ok((seo_report_cache_headers(), Json(report)))
 }
@@ -654,12 +660,24 @@ fn sitemap_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=900, s-maxage=900, stale-while-revalidate=3600")
 }
 
-fn related_cache_headers() -> HeaderMap {
-    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
+fn related_cache_headers(list: &RelatedList) -> HeaderMap {
+    let mut headers =
+        cache_headers("public, max-age=60, s-maxage=21600, stale-while-revalidate=3600");
+    let tags = list
+        .reports
+        .iter()
+        .map(|r| crate::edge_cache::repo_tag(&r.provider, &r.owner, &r.repo))
+        .collect::<Vec<_>>()
+        .join(",");
+    headers.insert(
+        "cache-tag",
+        HeaderValue::from_str(&tags).expect("hex cache tags"),
+    );
+    headers
 }
 
 fn seo_report_cache_headers() -> HeaderMap {
-    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
+    cache_headers("public, max-age=60, s-maxage=604800, stale-while-revalidate=3600")
 }
 
 pub(crate) fn cache_headers(cache_control: &'static str) -> HeaderMap {

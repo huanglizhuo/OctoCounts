@@ -59,6 +59,8 @@ pub struct Config {
     pub github_extension_oauth_client_id: Option<String>,
     pub github_extension_oauth_client_secret: Option<String>,
     pub indexnow: IndexNowConfig,
+    pub cloudflare_cache_purge_token: Option<String>,
+    pub cloudflare_zone_id: Option<String>,
 }
 
 impl Config {
@@ -116,6 +118,8 @@ impl Config {
                 report_max_rows: env_i64("REPORT_MAX_ROWS", 20_000).max(1),
                 report_cleanup_batch_size: env_i64("REPORT_CLEANUP_BATCH_SIZE", 1_000).max(1),
             },
+            cloudflare_cache_purge_token: env_string("CLOUDFLARE_CACHE_PURGE_TOKEN"),
+            cloudflare_zone_id: env_string("CLOUDFLARE_ZONE_ID"),
             indexnow: IndexNowConfig {
                 enabled: env_bool("INDEXNOW_ENABLED", true),
                 key: env_string("INDEXNOW_KEY"),

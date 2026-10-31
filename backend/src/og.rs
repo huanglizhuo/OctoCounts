@@ -110,6 +110,7 @@ fn og_cache_key(
 /// so it is handed to the blocking pool instead — and, once rendered, the bytes
 /// are memoized so repeat traffic for the same commit never rasterizes again.
 async fn og_response(caches: &AppCaches, cache_key: String, report: Option<Report>) -> Response {
+    let generation = caches.generation();
     if let Some(png) = caches.og_png.get(&cache_key).await {
         return png_response(png);
     }
@@ -125,7 +126,7 @@ async fn og_response(caches: &AppCaches, cache_key: String, report: Option<Repor
     let png = Bytes::from(png);
 
     // An empty body means the render failed; never memoize a failure.
-    if !png.is_empty() {
+    if !png.is_empty() && generation == caches.generation() {
         caches.og_png.insert(cache_key, png.clone()).await;
     }
 
@@ -139,7 +140,7 @@ fn png_response(png: Bytes) -> Response {
             (header::CONTENT_TYPE, "image/png"),
             (
                 header::CACHE_CONTROL,
-                "public, s-maxage=86400, stale-while-revalidate=604800",
+                "public, max-age=300, s-maxage=86400, stale-while-revalidate=3600",
             ),
         ],
         png,

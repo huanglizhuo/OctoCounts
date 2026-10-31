@@ -67,6 +67,29 @@ const REPORT_CONTENT_LASTMOD = "2026-10-29";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
+  const response = await routeRequest(context);
+  const url = new URL(context.request.url);
+  if (!url.pathname.startsWith("/github/")) return response;
+  let route;
+  try {
+    route = parseGitHubRoute(url.pathname.replace(/\.md$/, "").split("/").filter(Boolean).map(decodeURIComponent));
+  } catch {
+    return response;
+  }
+  if (!route) return response;
+  // One tag covers HTML, Markdown, refs and query variants of the repository.
+  const headers = new Headers(response.headers);
+  const existing = headers.get("cache-tag");
+  headers.set("cache-tag", ["octo-html", await repositoryCacheTag(route.provider, route.owner, route.repo), existing].filter(Boolean).join(","));
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+async function repositoryCacheTag(provider, owner, repo) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${provider}:${owner}/${repo}`.toLowerCase()));
+  return "octo-repo-" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function routeRequest(context) {
   const url = new URL(context.request.url);
   // The launch kit is an internal repository resource. Preserve a legacy
   // language query while directing both historic public paths to the stable
@@ -480,12 +503,13 @@ async function reportResponse(context, route, options = {}) {
     const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
     return Response.redirect(new URL(report.publicPath + suffix + requestUrl.search, requestUrl.origin), 308);
   }
-  // Keep live HTML and Markdown on the same freshness window. A report only
-  // changes when it is re-analyzed, so an hour at the edge (a day of stale
-  // serving while revalidating) lets most crawler hits skip the API round trip.
-  const cacheControl = "public, s-maxage=3600, stale-while-revalidate=86400";
+  // Writes purge repository tags; template deployments purge octo-html.
+  const cacheControl = "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600";
+  const dependencyTags = (await Promise.all([report, ...relatedReports].map(r => repositoryCacheTag(r.provider || "github", r.owner, r.repo)))).join(",");
   if (options.markdown) {
-    return markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : cacheControl, options);
+    const response = markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : cacheControl, options);
+    response.headers.set("cache-tag", dependencyTags);
+    return response;
   }
   const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
   if (report.isSnapshot) {
@@ -498,11 +522,12 @@ async function reportResponse(context, route, options = {}) {
   if (validators.some((value) => value.trim() === "*" || value.trim().replace(/^W\//, "") === etag.slice(2))) {
     return new Response(null, {
       status: 304,
-      headers: { "cache-control": cacheControl, etag, ...securityHeaders() },
+      headers: { "cache-control": cacheControl, "cache-tag": dependencyTags, etag, ...securityHeaders() },
     });
   }
   const response = htmlResponse(html, cacheControl);
   response.headers.set("etag", etag);
+  response.headers.set("cache-tag", dependencyTags);
   return response;
 }
 

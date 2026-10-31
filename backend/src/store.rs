@@ -490,6 +490,7 @@ impl Store {
         .execute(&self.pool)
         .await?;
 
+        crate::edge_cache::migrate(&self.pool).await?;
         Ok(())
     }
 

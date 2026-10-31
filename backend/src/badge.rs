@@ -202,10 +202,11 @@ async fn serve_badge(
     is_immutable: bool,
     params: BadgeParams,
 ) -> Response {
+    let generation = state.caches.generation();
     let cache = if is_immutable {
-        "public, max-age=31536000, immutable"
+        "public, max-age=300, s-maxage=604800"
     } else {
-        "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400"
+        "public, max-age=300, s-maxage=86400, stale-while-revalidate=3600"
     };
 
     // Tags and commits cannot move, so their rendered SVG is cached for much
@@ -215,7 +216,10 @@ async fn serve_badge(
     } else {
         &state.caches.badge_svg
     };
-    let cache_key = badge_cache_key(&owner, &repo, ref_name.as_deref(), &params);
+    let cache_key = format!(
+        "{generation}:{}",
+        badge_cache_key(&owner, &repo, ref_name.as_deref(), &params)
+    );
     if let Some(svg) = svg_cache.get(&cache_key).await {
         return svg_response(svg, cache);
     }
@@ -249,7 +253,9 @@ async fn serve_badge(
     };
 
     let svg = render_for_params(&report, &params);
-    svg_cache.insert(cache_key, svg.clone()).await;
+    if generation == state.caches.generation() {
+        svg_cache.insert(cache_key, svg.clone()).await;
+    }
     svg_response(svg, cache)
 }
 

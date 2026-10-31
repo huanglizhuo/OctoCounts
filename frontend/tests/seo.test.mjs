@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { transform } from "esbuild";
@@ -461,7 +462,7 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     assert.doesNotMatch(html, /"@type":"WebApplication"/);
     assert.doesNotMatch(html, /OctoCounts: count lines of code in GitHub repositories<\/h1>/);
     assert.match(html, /\/compare\/rust-vs-go/);
-    assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+    assert.equal(response.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1326,7 +1327,7 @@ test("a report without canonicalSlug renders 200 in place (no redirect regressio
   }
 
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600");
   assert.match(html, /<h1>react\/react<\/h1>/);
 });
 
@@ -1632,7 +1633,7 @@ test("report HTML and Markdown survive a stalled optional related request", { ti
     for (const suffix of ["", ".md"]) {
       const response = await onRequest(await renderedContext(`/github/octo-org/octo-repo${suffix}`));
       assert.equal(response.status, 200);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+      assert.equal(response.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600");
       const body = await response.text();
       assert.match(body, /octo-org\/octo-repo/);
       assert.match(body, /15,000/);
@@ -1957,6 +1958,29 @@ function docsAssetContext(pathname, userAgent) {
   };
 }
 
+test("HTML, conditional responses and query variants share the repository purge tag", async () => {
+  const restore = stubReportAndRelatedFetch({ reports: [] });
+  const expected = "octo-repo-" + createHash("sha256").update("github:octo-org/octo-repo").digest("hex");
+  try {
+    for (const path of ["/github/octo-org/octo-repo", "/github/Octo-Org/Octo-Repo?ref=main"]) {
+      const context = await renderedContext(path);
+      const response = await onRequest(context);
+      assert.ok(response.headers.get("cache-tag").split(",").includes(expected));
+      if (path.includes("Octo-Org")) {
+        assert.equal(response.status, 308);
+        continue;
+      }
+      context.request = new Request(context.request, { headers: { "if-none-match": response.headers.get("etag") } });
+      const conditional = await onRequest(context);
+      assert.equal(conditional.status, 304);
+      assert.equal(conditional.body, null);
+      assert.ok(conditional.headers.get("cache-tag").split(",").includes(expected));
+    }
+  } finally {
+    restore();
+  }
+});
+
 test("report markdown twins mirror the SSR report via ?format=md and the .md suffix", async () => {
   const restore = stubReportAndRelatedFetch({
     reports: [
@@ -1972,7 +1996,12 @@ test("report markdown twins mirror the SSR report via ?format=md and the .md suf
       const response = await onRequest(await renderedContext(path));
       assert.equal(response.status, 200, path);
       assert.match(response.headers.get("content-type") ?? "", /^text\/markdown; charset=utf-8/, path);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", path);
+      assert.equal(response.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600", path);
+      const tags = response.headers.get("cache-tag").split(",");
+      assert.ok(tags.includes("octo-html"));
+      for (const repository of ["octo-org/octo-repo", "tokio-rs/axum"]) {
+        assert.ok(tags.includes("octo-repo-" + createHash("sha256").update(`github:${repository}`).digest("hex")));
+      }
       const md = await response.text();
       assert.match(md, /^# octo-org\/octo-repo SLOC report\n/, path);
       assert.ok(md.includes(`> ${RELATED_REPORT_FIXTURE.citation}`), path);
@@ -2234,7 +2263,7 @@ test("canonical reports serve indexable HTML to AI, search and training crawlers
     ]) {
       const response = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo"), ua));
       assert.match(response.headers.get("content-type") ?? "", /^text\/html/, ua);
-      assert.equal(response.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400", ua);
+      assert.equal(response.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600", ua);
       assert.equal(response.headers.get("vary"), null, ua);
     }
     // Explicit markdown URLs have their own cache key, so they keep the shared
@@ -2242,7 +2271,7 @@ test("canonical reports serve indexable HTML to AI, search and training crawlers
     const explicit = await onRequest(withUserAgent(await renderedContext("/github/octo-org/octo-repo?format=md"), "PerplexityBot/1.0"));
     assert.match(explicit.headers.get("content-type") ?? "", /^text\/markdown/);
     assert.equal(explicit.headers.get("x-robots-tag"), "noindex, follow");
-    assert.equal(explicit.headers.get("cache-control"), "public, s-maxage=3600, stale-while-revalidate=86400");
+    assert.equal(explicit.headers.get("cache-control"), "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600");
     assert.equal(explicit.headers.get("vary"), null);
   } finally {
     restore();

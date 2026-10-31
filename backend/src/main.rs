@@ -5,6 +5,7 @@ mod badge;
 mod cache;
 mod config;
 mod coordinator;
+mod edge_cache;
 mod error;
 mod github;
 #[cfg(test)]
@@ -77,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    let store = Store::new(pool);
+    let store = Store::new(pool.clone());
     store.migrate().await?;
     spawn_rename_task(store.clone());
     spawn_cleanup_task(
@@ -125,6 +126,19 @@ async fn main() -> anyhow::Result<()> {
         state.clone(),
         config.sloc_compaction_interval_seconds,
     );
+    let _cache_listener = edge_cache::listen(&pool, state.caches.clone()).await?;
+    match (
+        config.cloudflare_cache_purge_token,
+        config.cloudflare_zone_id,
+    ) {
+        (Some(token), Some(zone)) => edge_cache::start_purger(pool, token, zone)?,
+        (None, None) => tracing::warn!(
+            "Cloudflare purge disabled: configure token and zone before using long edge TTLs"
+        ),
+        _ => anyhow::bail!(
+            "CLOUDFLARE_CACHE_PURGE_TOKEN and CLOUDFLARE_ZONE_ID must be set together"
+        ),
+    }
     spawn_stats_refresh_task(state.clone());
 
     let app = build_router(state);
@@ -269,6 +283,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     router
+        .layer(axum::middleware::from_fn(edge_cache::tag_response))
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::HeaderName::from_static("x-octocounts-build"),
             axum::http::HeaderValue::from_str(BUILD)

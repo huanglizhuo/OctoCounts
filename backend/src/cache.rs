@@ -1,4 +1,10 @@
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use bytes::Bytes;
 use moka::{future::Cache, policy::EvictionPolicy};
@@ -11,6 +17,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppCaches {
+    generation: Arc<AtomicU64>,
     pub stats: Cache<String, GrowthStats>,
     pub seo_report: Cache<String, SeoReport>,
     pub seo_recent: Cache<String, SeoList>,
@@ -38,8 +45,27 @@ pub struct AppCaches {
 }
 
 impl AppCaches {
+    pub fn generation(&self) -> u64 {
+        self.generation.load(Ordering::SeqCst)
+    }
+
+    pub fn invalidate_reports(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        self.seo_report.invalidate_all();
+        self.seo_related.invalidate_all();
+        self.seo_recent.invalidate_all();
+        self.seo_popular.invalidate_all();
+        self.seo_monoliths.invalidate_all();
+        self.seo_sitemap.invalidate_all();
+        self.seo_repo_history.invalidate_all();
+        self.og_png.invalidate_all();
+        self.badge_svg.invalidate_all();
+        self.badge_svg_immutable.invalidate_all();
+    }
+
     pub fn new() -> Self {
         Self {
+            generation: Arc::new(AtomicU64::new(0)),
             // Refreshed every 5 minutes by main::spawn_stats_refresh_task.
             stats: ttl_cache(1, Duration::from_secs(900)),
             seo_report: ttl_cache(5_000, Duration::from_secs(3_600)),

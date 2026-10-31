@@ -1129,7 +1129,7 @@ async fn report_by_id_is_served_as_json() {
             .headers()
             .get(axum::http::header::CACHE_CONTROL)
             .and_then(|value| value.to_str().ok()),
-        Some("public, max-age=31536000, immutable"),
+        Some("public, max-age=300, s-maxage=604800"),
     );
 
     harness.drop_schema().await;

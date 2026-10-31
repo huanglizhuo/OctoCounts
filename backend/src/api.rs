@@ -177,7 +177,10 @@ pub async fn report(
     Ok((
         [
             (header::CONTENT_TYPE, "application/json"),
-            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+            (
+                header::CACHE_CONTROL,
+                "public, max-age=300, s-maxage=604800",
+            ),
         ],
         body,
     )
