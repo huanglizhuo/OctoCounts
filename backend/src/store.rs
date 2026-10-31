@@ -444,8 +444,9 @@ impl Store {
         // Plain, not CONCURRENTLY: `migrate()` runs statement-by-statement outside an
         // explicit transaction so CONCURRENTLY would be legal, but a failed
         // CONCURRENTLY build leaves an INVALID index behind that `IF NOT EXISTS`
-        // then refuses to retry. `reports` is capped at REPORT_MAX_ROWS (20k by
-        // default), so a blocking build is milliseconds.
+        // then refuses to retry. `reports` stays small (about 70k rows in October
+        // 2026: cleanup evicts reports past the 30-day minimum once over
+        // REPORT_MAX_ROWS), so a blocking build is still quick.
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_reports_total_lines ON reports (total_lines DESC)",
         )
