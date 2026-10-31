@@ -53,7 +53,11 @@ export default defineConfig({
           // react-dom/server is only reachable through dynamic imports (the
           // growth GIF/PNG exporters). Keep it out of vendor-react — merged
           // there, every visitor pays ~20 kB gzip for an exporter-only module.
-          if (/[\\/]node_modules[\\/]react-dom[\\/](server\.(browser|node)\.js|cjs[\\/]react-dom-server)/.test(id)) return "react-dom-server";
+          // No named group for it either: Rolldown (vite 8) pulls a group's
+          // dependencies into the group, so a "react-dom-server" group
+          // swallowed React itself and every page imported it statically.
+          // Ungrouped, it gets the lazy chunk its dynamic imports imply.
+          if (/[\\/]node_modules[\\/]react-dom[\\/](server\.(browser|node)\.js|cjs[\\/]react-dom-server)/.test(id)) return undefined;
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "vendor-react";
           if (id.includes("i18next")) return "vendor-i18n";
           if (id.includes("@tanstack")) return "vendor-query";
