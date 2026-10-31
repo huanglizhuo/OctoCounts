@@ -49,9 +49,11 @@ jobs:
 
       - name: Publish Chrome zip to the Web Store
         if: inputs.chrome
-        uses: wdzeng/chrome-extension@ca3095bc8f067413cc0d06fcb4a5fea87229a787 # v1.3.2
+        uses: wdzeng/chrome-extension@37f4f9cdc664959bafef36b1f4da03dec5141620 # v2.0.0
         with:
           extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          # Chrome Web Store API v2 addresses items under their publisher.
+          publisher-id: ${{ secrets.CHROME_PUBLISHER_ID }}
           client-id: ${{ secrets.CHROME_CLIENT_ID }}
           client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
           refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
