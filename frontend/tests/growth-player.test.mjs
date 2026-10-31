@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
+import { transform } from "esbuild";
 
 // Same transpile-to-node_modules-cache pattern as github-status.test.mjs: a
 // data: URL has no parent directory to resolve bare specifiers from, and the
@@ -13,12 +13,10 @@ import ts from "typescript";
 // these functions.
 const cacheDir = new URL("../node_modules/.cache/octocounts-tests/", import.meta.url);
 const source = await readFile(new URL("../src/growth/useGrowthPlayer.ts", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
-});
+const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });
 await mkdir(cacheDir, { recursive: true });
 const modulePath = new URL("growth-player.mjs", cacheDir);
-await writeFile(modulePath, compiled.outputText);
+await writeFile(modulePath, compiled.code);
 const { createPlayerState, step, seekState, replayState, LOOP_HOLD_MS, IDLE_POSTER_PROGRESS } = await import(modulePath.href);
 
 // A fresh playing clock over a convenient 1s timeline. These tests exercise

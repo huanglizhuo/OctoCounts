@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
+import { transform } from "esbuild";
 
 // Same transpile-to-node_modules-cache pattern as github-status.test.mjs, but
 // exportGif imports the real GrowthAnimation (which imports ../reportUtils),
@@ -12,21 +12,24 @@ import ts from "typescript";
 // ("react", "react/jsx-runtime", "react-dom/server") resolve from
 // node_modules exactly as in the sibling growth tests.
 const cacheDir = new URL("../node_modules/.cache/octocounts-tests/growth-exportgif/", import.meta.url);
-const compile = async (sourceRel, outRel, extraOptions = {}) => {
+const compile = async (sourceRel, outRel) => {
   const source = await readFile(new URL(`../src/${sourceRel}`, import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020, ...extraOptions },
+  const compiled = await transform(source, {
+    loader: sourceRel.endsWith(".tsx") ? "tsx" : "ts",
+    format: "esm",
+    target: "es2020",
+    jsx: "automatic",
   });
   // The sources use bundler-style extensionless relative imports; Node ESM
   // requires the extension, so append .mjs to every relative specifier.
-  const output = compiled.outputText.replace(/(from\s+["'])(\.[^"']+)(["'])/g, "$1$2.mjs$3");
+  const output = compiled.code.replace(/(from\s+["'])(\.[^"']+)(["'])/g, "$1$2.mjs$3");
   const target = new URL(outRel, cacheDir);
   await mkdir(new URL(".", target), { recursive: true });
   await writeFile(target, output);
   return target;
 };
 await compile("growth/exportGif.ts", "growth/exportGif.mjs");
-await compile("growth/GrowthAnimation.tsx", "growth/GrowthAnimation.mjs", { jsx: ts.JsxEmit.ReactJSX });
+await compile("growth/GrowthAnimation.tsx", "growth/GrowthAnimation.mjs");
 // fixture.ts builds its city layouts through buildScene's exported helpers.
 await compile("growth/buildScene.ts", "growth/buildScene.mjs");
 await compile("growth/languageLogos.ts", "growth/languageLogos.mjs");

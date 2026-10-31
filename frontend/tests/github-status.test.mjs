@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
+import { transform } from "esbuild";
 
 // seo.test.mjs imports its transpiled module from a data: URL, which works
 // there because colorContrast.ts imports nothing. githubStatus.ts imports React
@@ -10,12 +10,10 @@ import ts from "typescript";
 // somewhere "react" resolves from, and somewhere git already ignores.
 const cacheDir = new URL("../node_modules/.cache/octocounts-tests/", import.meta.url);
 const source = await readFile(new URL("../src/githubStatus.ts", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
-});
+const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });
 await mkdir(cacheDir, { recursive: true });
 const modulePath = new URL("github-status.mjs", cacheDir);
-await writeFile(modulePath, compiled.outputText);
+await writeFile(modulePath, compiled.code);
 const { isHostDegraded } = await import(modulePath.href);
 
 // The exact payload https://www.githubstatus.com/api/v2/status.json serves when
