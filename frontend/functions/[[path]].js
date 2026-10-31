@@ -2507,7 +2507,10 @@ function listPageMeta(kind) {
   }
   return {
     title: "Popular SLOC reports | OctoCounts",
-    description: "Popular OctoCounts source line count reports for public GitHub repositories.",
+    // /popular ranks by real access counts, not star counts — say so, and
+    // name the metrics a reader gets (SEO audit: 76 chars wasted half the
+    // SERP snippet).
+    description: "Most-opened OctoCounts reports: file, code, comment, and blank line counts for popular public GitHub repositories, ranked by reader traffic.",
     canonical: "https://octocounts.com/popular",
     breadcrumbLabel: "Popular reports",
   };

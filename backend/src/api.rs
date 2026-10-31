@@ -275,9 +275,12 @@ pub async fn stats(
 
 fn stats_cache_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
+    // The refresh task keeps the origin copy warm, so the edge can hold the
+    // aggregate longer (SEO audit M13: 60s had every /stats render racing the
+    // origin on busy isolates); SWR covers the refresh gap.
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=60, s-maxage=60, stale-while-revalidate=300"),
+        HeaderValue::from_static("public, max-age=60, s-maxage=600, stale-while-revalidate=1800"),
     );
     headers
 }
