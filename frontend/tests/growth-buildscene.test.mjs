@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
+import { transform } from "esbuild";
 
 // Same transpile-to-node_modules-cache pattern as github-status.test.mjs: a
 // data: URL has no parent directory to resolve relative specifiers from, so
@@ -16,12 +16,10 @@ for (const [name, target] of [
   ["fixture", "growth-fixture.mjs"],
 ]) {
   const source = await readFile(new URL(`../src/growth/${name}.ts`, import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
-  });
+  const compiled = await transform(source, { loader: "ts", format: "esm", target: "es2020" });
   await writeFile(
     new URL(target, cacheDir),
-    compiled.outputText
+    compiled.code
       .replace('"./languageLogos"', '"./languageLogos.mjs"')
       .replace('"./buildScene"', '"./growth-buildscene.mjs"'),
   );
