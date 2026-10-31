@@ -25,6 +25,6 @@ jobs:
           cache-to: type=gha,mode=max,scope=caddy
       - name: Verify DNS module before publishing
         run: |
-          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 version
-          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 list-modules | grep -qx dns.providers.cloudflare
+          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 caddy version
+          docker run --rm ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1 caddy list-modules | grep -qx dns.providers.cloudflare
           docker push ghcr.io/huanglizhuo/caddy-cloudflare:v2.11.7-infra1
