@@ -24,7 +24,7 @@ tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 mimalloc = { version = "0.1", default-features = false }
 moka = { version = "0.12", features = ["future"] }
-tower-http = { version = "0.6", features = ["compression-br", "compression-gzip", "cors", "set-header", "trace"] }
+tower-http = { version = "0.7", features = ["compression-br", "compression-gzip", "cors", "set-header", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
