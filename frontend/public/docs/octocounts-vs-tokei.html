@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs tokei: web vs CLI SLOC counting",
       "description": "OctoCounts vs tokei: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos, pinned to commits.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-10-30",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -109,7 +109,7 @@
           "name": "Which tokei version does OctoCounts run?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Production currently runs tokei 14.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work."
+            "text": "Production currently runs tokei 15.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work."
           }
         },
         {
@@ -227,7 +227,7 @@
       <p>Matching counts require the same actual source tree, tokei version, and effective counting rules, including extraction exclusions and repository attributes. A local checkout at the same commit may differ from an archive: export-ignore can omit paths and export-subst can change file contents. Record the full commit SHA, engine version, options, effective policy, and measurement date; retain the exported JSON and a saved-report link while available. Older reports may lack a complete policy. The filtering pilot measures option effects, not local-versus-server parity. See <a href="https://git-scm.com/docs/git-archive">Git archive attribute semantics</a>.</p>
 
       <h3>Which tokei version does OctoCounts run?</h3>
-      <p>Production currently runs tokei 14.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work.</p>
+      <p>Production currently runs tokei 15.0.0, and every report displays the exact tokei version that produced its numbers next to the commit SHA. Because the version is pinned per report, an old report keeps describing the version that actually counted it, and a citation from OctoCounts names both the commit and the engine version without extra work.</p>
 
       <h3>When is the tokei CLI the only option?</h3>
       <p>Four cases belong to the CLI: code that is private or not hosted on GitHub (OctoCounts analyzes public GitHub repositories only), machines without reliable network access, counting a working tree mid-edit before anything is committed, and scripted pipelines that must run on your own infrastructure. OctoCounts covers the public-GitHub, share-the-result side of that split.</p>

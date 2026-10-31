@@ -19,7 +19,7 @@ sqlx = { version = "0.8", default-features = false, features = ["chrono", "json"
 tar = "0.4"
 tempfile = "3.27"
 thiserror = "2.0"
-tokei = "14.0"
+tokei = "15.0"
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 mimalloc = { version = "0.1", default-features = false }

@@ -35,7 +35,7 @@ use crate::models::{
 /// cached report claim the wrong engine *and* keeps serving cache entries that
 /// were keyed under the old engine's name. Changing it (correctly) invalidates
 /// the analysis cache once — every report is re-analyzed on its next request.
-const TOKEI_VERSION: &str = "tokei-14.0.0";
+const TOKEI_VERSION: &str = "tokei-15.0.0";
 const MAX_ARCHIVE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const MAX_EXTRACTED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_FILES: usize = 240_000;

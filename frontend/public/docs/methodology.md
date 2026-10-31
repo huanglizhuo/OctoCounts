@@ -21,7 +21,7 @@ SLOC, or source lines of code, is a measure of software size counted as the numb
 5. **Count:** [tokei](https://github.com/XAMPPRocky/tokei) detects languages and counts files, total lines, code lines, comments, and blank lines.
 6. **Cache:** The report is stored by repository, commit SHA, tokei version, and analysis options.
 
-OctoCounts currently runs [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (pinned in the backend's `Cargo.lock`, checked 2026-10-15). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions.
+OctoCounts currently runs [tokei](https://github.com/XAMPPRocky/tokei) 15.0.0 (pinned in the backend's `Cargo.lock`, upgraded from 14.0.0 on 2026-10-30). Because the cache key includes the tokei version, any report generated after an upgrade is recounted rather than reused, so counts never silently mix results from two tokei versions. tokei 15 recognizes C3, Djot, Godot text scene (`.tscn`) and `.blade` files, which 14.0.0 skipped; each report keeps the version that counted it.
 
 ## Cache Key
 

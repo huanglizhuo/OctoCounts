@@ -58,7 +58,7 @@
   "description": "了解 OctoCounts 如何使用 tokei 统计代码行数：提交 SHA、源码归档、目录排除、.gitattributes 声明、缓存规则、版本比较和结果引用。",
   "inLanguage": "zh-Hans",
   "datePublished": "2026-10-18",
-  "dateModified": "2026-10-18",
+  "dateModified": "2026-10-30",
   "author": {
     "@type": "Person",
     "@id": "https://github.com/huanglizhuo",
@@ -133,7 +133,7 @@
     <nav aria-label="主导航"><a href="/zh">OctoCounts 中文首页</a> · <a href="/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="/zh/docs/methodology">计数方法</a> · <a href="/docs/methodology" hreflang="en" lang="en">English</a></nav>
     <main>
       <h1>OctoCounts 代码行数统计方法与规则</h1>
-      <p>更新于 2026-10-18 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p>更新于 2026-10-30 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <p>OctoCounts 将公开 GitHub 仓库的分支、标签或提交解析为确定的提交 SHA，下载对应源码归档，再使用 <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 按语言统计文件、代码行、注释行和空白行。缓存键包含仓库、提交 SHA、tokei 版本及分析选项。复现或比较结果时，必须同时保留输入版本和实际统计规则。</p>
       <p>规范页面：https://octocounts.com/zh/docs/methodology</p>
       <p><a href="https://octocounts.com/zh">中文首页</a> · <a href="https://octocounts.com/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="https://octocounts.com/docs/methodology">English version</a> · <a href="https://octocounts.com/zh/docs/methodology.md">Markdown 版本</a></p>
@@ -141,7 +141,7 @@
       <p>SLOC 是源代码行数，用于描述源码规模。OctoCounts 将代码、注释和空白分别统计，总行数等于三者相加。代码行由语言解析规则识别，不等于可执行语句数，也不能直接衡量代码质量、生产力或开发投入。</p>
       <h2>统计流程</h2>
       <ol><li>校验地址：只接受公开 <code>github.com</code> 仓库。</li><li>解析版本：将所选分支、标签或提交解析为确定的提交 SHA。</li><li>下载归档：获取该提交的源码树，不克隆完整 Git 历史。</li><li>解压和过滤：在临时目录解压，应用目录及其他有效过滤规则。</li><li>运行 tokei：识别语言与支持的文件类型，计算文件、代码、注释和空白。</li><li>保存结果：按仓库、提交、引擎版本和选项缓存报告。</li></ol>
-      <p>生产代码使用 tokei 14.0.0，版本锁定在后端 Cargo.lock 中（核对日期：2026-10-15）。引擎版本参与缓存键，因此升级后新请求不会复用旧引擎版本的缓存计数。历史报告应按自身记录的版本解读。</p>
+      <p>生产代码使用 tokei 15.0.0，版本锁定在后端 Cargo.lock 中（2026-10-30 由 14.0.0 升级）。引擎版本参与缓存键，因此升级后新请求不会复用旧引擎版本的缓存计数。tokei 15 能识别 C3、Djot、Godot 文本场景（.tscn）和 .blade 文件，14.0.0 会跳过它们。历史报告应按自身记录的版本解读。</p>
       <h2>缓存键与复现条件</h2>
       <p>缓存键包含仓库提供方、所有者、仓库名、提交 SHA、tokei 版本和实际分析选项。在缓存仍可用时，对同一提交和同一组选项的重复请求可复用报告。分支和标签可能移动；记录 ref 名称不能替代记录提交 SHA。</p>
       <p>报告的 countingPolicy 记录生效的包含开关、排除目录、忽略语言及仓库声明模式。缺少此元数据的旧报告应显示规则未知。比较前还需核对策略版本和 tokei 版本，不能将未知规则当作兼容。</p>
