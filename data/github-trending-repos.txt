@@ -1,16 +1,15 @@
-# GitHub Trending daily snapshot generated 2026-10-31T08:23:25.465Z
+# GitHub Trending daily snapshot generated 2026-11-01T09:12:22.424Z
 thedotmack/claude-mem
+mattpocock/skills
+Donchitos/Claude-Code-Game-Studios
+pingdotgg/t3code
+Renhuai123/ziwei-doushu
 milind-soni/OpenMausBot
 pbakaus/impeccable
-CopilotKit/OpenBot
-Renhuai123/ziwei-doushu
-expo/skills
-macro-inc/macro
-mattpocock/skills
-pingdotgg/t3code
-HKUDS/DeepTutor
-anthropics/skills
-JetBrains/thinkrail
-togg53192-cmd/jailbreaks
 obra/superpowers
 lightpanda-io/browser
+HKUDS/DeepTutor
+Orkas-AI/Orkas
+THU-MAIC/OpenMAIC
+bregman-arie/devops-exercises
+vorssaint/vorssaint-utils
