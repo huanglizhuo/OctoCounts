@@ -1,7 +1,7 @@
 import { reportJsonLd } from "./report-schema.js";
-import { MIN_INDEXABLE_REPORT_FILES, analysisOptionsLabel, isCanonicalAnalysisOptions, primaryLanguage, primaryLanguagePhrase, reportPageDescription, reportPageTitle } from "./report-copy.js";
+import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
-import { COMPARE_REGISTRY, findCuratedComparison } from "./compare-registry.js";
+import { COMPARE_REGISTRY, findCuratedComparison, relatedComparisons } from "./compare-registry.js";
 
 // The editorial corpus (~150 KB) is only read on curated /compare/* routes,
 // so load it on first use instead of parsing it on every isolate boot for
@@ -23,15 +23,15 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-10-18" },
   { loc: "https://octocounts.com/zh", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/compare", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/compare", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/recent", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/popular", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/trending", lastmod: "2026-09-05" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/badges", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/extension", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/recent", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/popular", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/trending", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/badges", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/extension", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
@@ -63,7 +63,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
 const COMPARE_CONTENT_LASTMOD = "2026-10-29";
-const REPORT_CONTENT_LASTMOD = "2026-10-29";
+const REPORT_CONTENT_LASTMOD = "2026-11-01";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
@@ -546,7 +546,7 @@ function reportMarkdown(report, relatedReports = []) {
   const faq = reportFaq(report)
     .map((item) => `### ${item.question}\n\n${item.answer}`)
     .join("\n\n");
-  const relatedCompare = relatedComparisons(report);
+  const relatedCompare = reportComparisons(report);
   const links = [
     "- [Recently analyzed repositories](https://octocounts.com/recent)",
     "- [Popular SLOC reports](https://octocounts.com/popular)",
@@ -605,13 +605,6 @@ function reportMissingMarkdown(route) {
   return `# ${fullName} SLOC report\n\nNo cached report exists yet for ${fullName}. Open https://octocounts.com/${route.provider}/${route.owner}/${route.repo} with JavaScript enabled to run an analysis.\n`;
 }
 
-// Peers below this many code lines are the junk tail of the similarity
-// ranking (placeholder and toy repositories surfaced as size-peers of large
-// ones). RelatedReport carries only totals — no stars — so an absolute code
-// floor is the simplest honest filter; when fewer peers qualify the section
-// renders fewer links, and at zero it omits (both renderers already do).
-const MIN_RELATED_PEER_CODE_LINES = 10_000;
-
 async function fetchRelatedReports(context, route) {
   try {
     const params = new URLSearchParams({
@@ -648,7 +641,7 @@ async function listPageResponse(context, kind, url) {
   const index = await indexHtml(context);
   const payload = await apiResponse;
   const pageMeta = listPageMeta(kind);
-  if (!Array.isArray(payload?.reports) || !payload.reports.every((report) => ["repoFullName", "publicPath", "description"].every((key) => typeof report?.[key] === "string"))) return serviceUnavailableResponse(index, pageMeta);
+  if (!Array.isArray(payload?.reports) || !payload.reports.every((report) => ["repoFullName", "publicPath", "description"].every((key) => typeof report?.[key] === "string"))) return collectionUnavailableResponse(context, new URL(pageMeta.canonical).pathname, pageMeta.title);
   // Page >1 is noindex,follow; pairing that with a canonical back to page 1
   // sends conflicting signals (Google: pick one). A self-referencing
   // canonical with the page parameter keeps the URL shape unambiguous.
@@ -661,7 +654,11 @@ async function listPageResponse(context, kind, url) {
   }
   const title = pageMeta.title;
   const description = pageMeta.description;
-  const rows = payload.reports
+  // Reports below the indexable floor answer 404 and stay out of the sitemap;
+  // never link them. Paging still follows the API's unfiltered page length.
+  const listed = payload.reports.filter(sitemapEntryMeasuredAnything);
+  const rotating = await rotatingPromise;
+  const rows = listed
     .map(
       (report, index) =>
         `<li><span>${index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
@@ -669,7 +666,7 @@ async function listPageResponse(context, kind, url) {
     .join("");
   // A successful empty inventory still explains the collection; failures return 503 above.
   const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
-  const moreReports = moreReportsHtml(await rotatingPromise);
+  const moreReports = moreReportsHtml(rotating);
   const pagination = `<nav aria-label="Report pages">${Number(page) > 1 ? `<a href="${escapeAttr(pageMeta.canonical)}${page === "2" ? "" : `?page=${Number(page) - 1}`}">Previous page</a>` : ""}${payload.reports.length === 36 ? ` <a href="${escapeAttr(pageMeta.canonical)}?page=${Number(page) + 1}">Next page</a>` : ""}</nav>`;
 
   return htmlResponse(
@@ -688,7 +685,7 @@ async function listPageResponse(context, kind, url) {
         breadcrumb: breadcrumbItemList(pageMeta.breadcrumbLabel, pageMeta.canonical),
         mainEntity: {
           "@type": "ItemList",
-          itemListElement: payload.reports.map((report, index) => ({
+          itemListElement: listed.map((report, index) => ({
             "@type": "ListItem",
             position: index + 1,
             url: report.canonicalUrl,
@@ -696,7 +693,8 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
+      extraHead: moreReportsData(rotating),
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -782,6 +780,18 @@ function moreReportsHtml(locs) {
   return `<section><h2>More repository reports</h2><ul>${items}</ul></section>`;
 }
 
+/// The same rotating links as data in <head>, outside #root: createRoot()
+/// discards the server markup, so the client list and trending pages render
+/// these links again and Google's rendered DOM keeps them.
+function moreReportsData(locs) {
+  return locs.length ? `<script type="application/json" id="octocounts-more-reports">${escapeScriptJson(locs)}</script>` : "";
+}
+
+/// Visible heading for a page whose <title> ends in the " | OctoCounts" brand.
+function pageHeading(title) {
+  return title.replace(/ \| OctoCounts$/, "");
+}
+
 function moreReportsMarkdown(locs) {
   if (!locs.length) return "";
   return `\n## More repository reports\n\n${locs.map((loc) => `- [${reportLocName(loc)}](${loc})`).join("\n")}\n`;
@@ -818,7 +828,8 @@ async function trendingPageResponse(context, options = {}) {
   const body = snapshot.repositories
     .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
     .join("");
-  const moreReports = moreReportsHtml(await rotatingPromise);
+  const rotating = await rotatingPromise;
+  const moreReports = moreReportsHtml(rotating);
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -827,7 +838,7 @@ async function trendingPageResponse(context, options = {}) {
       canonical: "https://octocounts.com/trending",
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
-      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />`,
+      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}`,
       mdAlternate: "https://octocounts.com/trending.md",
       jsonLd: {
         "@context": "https://schema.org",
@@ -856,7 +867,7 @@ async function trendingPageResponse(context, options = {}) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>${moreReports}`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1043,7 +1054,7 @@ async function statsPageResponse(context, options = {}) {
           variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
     }),
     cacheControl
   );
@@ -1087,7 +1098,7 @@ async function comparePageResponse(context, pathname) {
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
   const curatedLinks = isCompare
-    ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul><p>OctoCounts also publishes original research on how measurement choices affect line counts: <a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a> (pilot study, September 2026).</p></section>`
+    ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul><p>OctoCounts also publishes original research on how measurement choices affect line counts: <a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a> (10-repository study, October 2026).</p></section>`
     : "";
 
   return htmlResponse(
@@ -1129,7 +1140,7 @@ async function comparePageResponse(context, pathname) {
           },
         ],
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1186,18 +1197,29 @@ async function badgesPageResponse(context) {
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
+  // The badge page's visible FAQ (src/locales/en.json badgesPage.faq, rendered
+  // by the client page) word for word: FAQPage schema must describe the Q&As
+  // a reader can see, and Google indexes the client-rendered page.
   const badgeFaq = [
     {
+      question: "What is an OctoCounts badge?",
+      answer: "A small live image you embed in a README that shows repository SLOC stats and links to the live OctoCounts report page.",
+    },
+    {
+      question: "How do I add a badge to my README?",
+      answer: "Pick a badge type above, copy the Markdown snippet, and paste it into your README.md where you want the badge to appear.",
+    },
+    {
       question: "Will the badge slow down my README?",
-      answer: "No. Default-branch and branch badges are served with a 1-hour edge cache and a 24-hour stale-while-revalidate window, and tag or commit badges are cached forever as immutable. GitHub's own image proxy (camo) caches the response again on top of that, so repeat views rarely reach the OctoCounts API at all.",
+      answer: "No. Badges are small SVG images served through a CDN: branch badges stay cached at the edge for up to a day and tag or commit badges for up to a week, and GitHub's image proxy caches them as well, so most views never reach the OctoCounts API.",
     },
     {
-      question: "Can I badge a single language instead of the whole repository?",
-      answer: 'Yes. Add a `?lang=<language>` query parameter to any badge URL, for example `?lang=rust`, to get a per-language line-count badge instead of the full summary. Language names are case-insensitive.',
+      question: "Can I show a single language instead of the whole repo?",
+      answer: "Yes. Select 'Single language' in the badge builder and enter the language name, for example Rust or TypeScript, or add ?lang=rust to any badge URL. Language names are case-insensitive.",
     },
     {
-      question: "Does the badge update automatically as the repository changes?",
-      answer: "Default-branch and branch badges re-analyze on a cache miss, so they reflect new commits once the cache window expires. Tag and commit badges are pinned to that exact ref and never change, which is the right choice for a release README that should show historical numbers.",
+      question: "Does the badge update automatically?",
+      answer: "Branch badges do. A default-branch or branch badge picks up the ref's latest commit once its cached copy expires, within a day, and counts that commit if it has no report yet. Tag and commit badges stay pinned to that exact ref.",
     },
   ];
   const badgeFaqHtml = `<h2>Badge FAQ</h2>${badgeFaq
@@ -1232,7 +1254,7 @@ async function badgesPageResponse(context) {
           },
         ],
       },
-      bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a live SLOC report; saved report IDs and exports preserve the measured version subject to cache retention.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the interactive builder in your browser; this summary exists so the link preview and crawlers see a real page.</p><h2>How to add a badge</h2><ol><li>Open the badge builder above and choose a badge type: summary, code lines, total lines, files, comments, language count, top language, code share, or a single language.</li><li>Enter a public GitHub repository URL and copy the generated markdown snippet.</li><li>Paste the markdown into <code>README.md</code>. The badge renders live line counts from the OctoCounts badge API and links to a live SLOC report; saved report IDs and exports preserve the measured version subject to cache retention.</li></ol><h2>Badge types and URLs</h2><ul>${badgeTypeRows}</ul><h2>Example markdown</h2><pre><code>${escapeHtml(exampleMarkdown)}</code></pre><p>Badges can be pinned to a branch, tag, or commit: <code>${escapeHtml(`${badgeBase}/branch/:branch`)}</code>. Example report: <a href="/github/huanglizhuo/OctoCounts">huanglizhuo/OctoCounts</a>.</p>${badgeFaqHtml}${internalLinks}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1907,7 +1929,7 @@ async function collectionUnavailableResponse(context, path, title, options = {})
   return serviceUnavailableResponse(await indexHtml(context), {
     title, description: message, canonical: `https://octocounts.com${path}`,
     robots: "index,follow", ogImage: "https://octocounts.com/og-image.jpg",
-    bodyContent: `<section><h1>${escapeHtml(title)}</h1><p>${message}</p></section>`,
+    bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${message}</p></section>`,
   });
 }
 
@@ -2516,42 +2538,10 @@ function listPageMeta(kind) {
   };
 }
 
-/// Curated comparisons for a report page: first every comparison this
-/// repository is part of (react/react -> React vs Vue, ...), then ones
-/// matching its top programming language, so every long-tail /github/* page
-/// links into the compare corpus with topical anchors.
-function relatedComparisons(report) {
-  const fullName = String(report.repoFullName ?? "").toLowerCase();
-  const own = COMPARE_REGISTRY.filter((entry) => [entry.left, entry.right].some((side) => `${side.owner}/${side.repo}`.toLowerCase() === fullName));
-  const byLanguage = comparisonsForLanguage(primaryLanguage(report.languages, report.total?.code)?.name);
-  return [...new Set([...own, ...byLanguage])].slice(0, 4);
-}
-
-function comparisonsForLanguage(topLanguageName) {
-  const byLanguage = {
-    JavaScript: ["react-vs-vue", "nextjs-vs-vite", "vite-vs-webpack", "angular-vs-vue"],
-    TypeScript: ["nextjs-vs-vite", "angular-vs-vue", "svelte-vs-vue", "react-vs-vue"],
-    Rust: ["rust-vs-go", "electron-vs-tauri", "deno-vs-node"],
-    Go: ["rust-vs-go", "deno-vs-node", "kubernetes-vs-terraform"],
-    Python: ["tensorflow-vs-pytorch", "django-vs-rails", "laravel-vs-django"],
-    "C++": ["tensorflow-vs-pytorch", "electron-vs-tauri", "godot-vs-bevy"],
-    "C": ["neovim-vs-vscode", "mongodb-vs-postgres"],
-    Java: ["mongodb-vs-postgres", "kubernetes-vs-docker-compose", "kubernetes-vs-terraform"],
-    Kotlin: ["react-native-vs-flutter"],
-    Dart: ["react-native-vs-flutter"],
-    Ruby: ["django-vs-rails", "laravel-vs-django"],
-    PHP: ["laravel-vs-django", "django-vs-rails"],
-    Shell: ["deno-vs-node", "bun-vs-node"],
-    Zig: ["rust-vs-go", "bun-vs-deno"],
-    Lua: ["neovim-vs-vscode", "godot-vs-bevy"],
-    HTML: ["bootstrap-vs-tailwind"],
-    CSS: ["bootstrap-vs-tailwind"],
-  };
-  const slugs = byLanguage[topLanguageName] || [];
-  return slugs
-    .map((slug) => COMPARE_REGISTRY.find((entry) => entry.slug === slug))
-    .filter(Boolean)
-    .slice(0, 3);
+/// The curated comparisons a report page links to (compare-registry.js),
+/// keyed by the same top programming language the report copy names.
+function reportComparisons(report) {
+  return relatedComparisons(report.repoFullName, primaryLanguage(report.languages, report.total?.code)?.name);
 }
 
 function injectReport(index, report, apiBaseUrl, relatedReports = []) {
@@ -2568,7 +2558,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // Contextual links out of every report page: crawlers get a path from any
   // long-tail /github/* URL into the curated compare corpus (and vice versa),
   // led by the comparisons this repository itself appears in.
-  const relatedCompare = relatedComparisons(report);
+  const relatedCompare = reportComparisons(report);
   const relatedCompareHtml = relatedCompare.length
     ? `<li>${relatedCompare
         .map((entry) => `<a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a>`)
@@ -2639,37 +2629,11 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   });
 }
 
-/// Declarative answer capsule for report pages, rendered right after the h1
-/// in the SSR body and as the first body paragraph of the markdown twin.
-/// Every figure comes straight from the report payload so the capsule cannot
-/// disagree with the table, FAQ, or client summary it sits next to.
-function reportCapsuleText(report) {
-  return `${report.repoFullName} has ${formatNumber(report.total.code)} source lines of code out of ${formatNumber(report.total.lines)} total lines across ${formatNumber(report.total.files)} files, counted with tokei from the ${report.refName} ref at commit ${report.commitSha.slice(0, 12)} on ${readableDate(report.generatedAt)}.${reportRulesSentence(report)}`;
-}
-
-/// One sentence naming the counting rules behind the capsule's figures, so
-/// the quotable opening never implies a whole-repository count.
-function reportRulesSentence(report) {
-  if (!report.analysisOptions) return " The counting rules of this older report were not recorded.";
-  if (isCanonicalAnalysisOptions(report.analysisOptions)) return " Tests, docs and generated files are excluded under OctoCounts' canonical public options.";
-  const label = analysisOptionsLabel(report.analysisOptions);
-  return label ? ` Counting options: ${label}.` : " Tests, docs and generated files are included.";
-}
-
 /// "Top language: Go 98.5%." (or "Top programming language: …" when data or
 /// prose formats such as JSON hold a larger share), "" when nothing counted.
 function reportLanguageLine(report) {
   const phrase = primaryLanguagePhrase(report.languages, report.total.code);
   return phrase ? `${phrase[0].toUpperCase()}${phrase.slice(1)}.` : "";
-}
-
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-/// "October 23, 2026" for an RFC 3339 instant: the UTC calendar date its
-/// prefix names, the same day the docs pages' "Updated" lines use.
-function readableDate(value) {
-  const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
-  return MONTH_NAMES[month - 1] && day ? `${MONTH_NAMES[month - 1]} ${day}, ${year}` : String(value).slice(0, 10);
 }
 
 /// Plain-text core of the report lead, shared by the HTML page and the
@@ -2703,45 +2667,12 @@ function reportInsights(report) {
   return `<section><h2>Repository size insights</h2><p>${escapeHtml(reportInsightsText(report))}</p></section>`;
 }
 
-function reportInsightsText(report) {
-  const lines = Math.max(Number(report.total.lines) || 0, 1);
-  const files = Math.max(Number(report.total.files) || 0, 1);
-  const codeRatio = ((Number(report.total.code) || 0) / lines) * 100;
-  const commentRatio = ((Number(report.total.comments) || 0) / lines) * 100;
-  const codePerFile = (Number(report.total.code) || 0) / files;
-  const scale = report.total.code >= 1_000_000 ? "very large" : report.total.code >= 100_000 ? "large" : report.total.code >= 10_000 ? "medium-sized" : "small";
-  const primary = primaryLanguage(report.languages, report.total.code);
-  const concentration = !primary
-    ? "No single top language was identified"
-    : primaryLanguagePhrase(report.languages, report.total.code).startsWith("top programming")
-      ? `${primary.name} is the largest programming language at ${primary.percent.toFixed(1)}% of counted code; data and prose formats such as JSON or YAML hold a larger share`
-      : `${primary.name} accounts for ${primary.percent.toFixed(1)}% of counted code`;
-  return `This is a ${scale} codebase by counted code lines. Code represents ${codeRatio.toFixed(1)}% of all lines, comments represent ${commentRatio.toFixed(1)}%, and the repository averages ${formatNumber(Math.round(codePerFile))} code lines per file. ${concentration}.`;
-}
-
 /// The report's full language count: SEO payloads list only their first
 /// twelve languages and state the total separately (older backends did not).
 function languageCount(report) {
   return Number.isSafeInteger(report.languageCount) ? report.languageCount : report.languages.length;
 }
 
-function reportFaq(report) {
-  const shortSha = report.commitSha.slice(0, 12);
-  return [
-    {
-      question: `How many lines of code does ${report.repoFullName} have?`,
-      answer: `${report.repoFullName} has ${formatNumber(report.total.code)} lines of code, plus ${formatNumber(report.total.comments)} comment lines and ${formatNumber(report.total.blanks)} blank lines, for ${formatNumber(report.total.lines)} total lines at commit ${shortSha} on ${readableDate(report.generatedAt)}.${reportRulesSentence(report)}`,
-    },
-    {
-      question: `How was the ${report.repoFullName} line count measured?`,
-      answer: `OctoCounts resolved the public GitHub repository to commit ${shortSha}, downloaded the source archive, counted it with tokei, and cached the report by commit, tokei version, and analysis options.`,
-    },
-    {
-      question: `What commit was counted for ${report.repoFullName}?`,
-      answer: `This OctoCounts report was generated from ${report.refName} at commit ${shortSha} on ${readableDate(report.generatedAt)}.`,
-    },
-  ];
-}
 
 function reportSummaryJson(report) {
   return {

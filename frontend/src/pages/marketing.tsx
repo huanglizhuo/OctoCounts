@@ -10,6 +10,8 @@ import { Topbar } from "../Topbar";
 import { StoreLink } from "../StoreLink";
 import { formatCompactNumber, formatNumber } from "../reportUtils";
 import i18n from "../i18n";
+import { MIN_INDEXABLE_REPORT_FILES } from "../../functions/report-copy.js";
+import { COMPARE_REGISTRY } from "../../functions/compare-registry.js";
 import type { GrowthRepositoryStat, GrowthStats } from "../types";
 
 // Marketing/growth pages (stats, recent, popular, trending, hall of
@@ -25,7 +27,7 @@ export type SeoReportSummary = {
   publicPath: string;
   generatedAt: string;
   refName: string;
-  total: { code: number };
+  total: { code: number; files?: number };
   topLanguage?: { name: string; code: number; percent: number };
 };
 
@@ -112,6 +114,48 @@ function trendingRepoCards(repositories: TrendingRepository[]): RepoCard[] {
     footer: i18n.t("growth.repoCard.starsToday", { count: repo.starsToday, total: formatNumber(repo.totalStars) }),
     href: repo.publicPath,
   }));
+}
+
+// The edge renders a rotating slice of report links into the hub pages and
+// repeats it as data in <head> (#octocounts-more-reports): createRoot()
+// discards the server copy, so the client renders the same links again and
+// they stay in the DOM Google indexes.
+const REPORT_URL_PREFIX = "https://octocounts.com/github/";
+
+function readMoreReportLocs(): string[] {
+  try {
+    const locs: unknown = JSON.parse(document.getElementById("octocounts-more-reports")?.textContent || "[]");
+    return Array.isArray(locs) ? locs.filter((loc): loc is string => typeof loc === "string" && loc.startsWith(REPORT_URL_PREFIX)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function reportLocName(loc: string): string {
+  const name = loc.slice(REPORT_URL_PREFIX.length);
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
+function MoreReports() {
+  const { t } = useTranslation();
+  const [locs] = useState(readMoreReportLocs);
+  if (!locs.length) return null;
+  return (
+    <section aria-label={t("growth.moreReports")}>
+      <div className="section-h">
+        <h2>{t("growth.moreReports")}</h2>
+      </div>
+      <ul className="link-columns">
+        {locs.map((loc) => (
+          <li key={loc}><a href={loc}>{reportLocName(loc)}</a></li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function MarketingShell({ children }: { children: React.ReactNode }) {
@@ -230,12 +274,15 @@ export function ReportListPage({ kind }: { kind: "recent" | "popular" | "monolit
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {query.data ? <RepoCardGrid cards={seoReportCards(query.data.reports)} /> : null}
+      {/* Reports below the indexable floor answer 404 (the edge list skips
+          them too); paging still follows the API's unfiltered page length. */}
+      {query.data ? <RepoCardGrid cards={seoReportCards(query.data.reports.filter((report) => !(typeof report.total.files === "number" && report.total.files < MIN_INDEXABLE_REPORT_FILES)))} /> : null}
       <nav className="list-pagination" aria-label={t("growth.pagination.ariaLabel")}>
         {page > 1 ? <a className="copybtn" href={`?page=${page - 1}`}>{t("growth.pagination.previous")}</a> : <span />}
         <span>{t("growth.pagination.page", { page })}</span>
         {hasNext ? <a className="copybtn" href={`?page=${page + 1}`}>{t("growth.pagination.next")}</a> : <span />}
       </nav>
+      <MoreReports />
     </MarketingShell>
   );
 }
@@ -263,6 +310,7 @@ export function TrendingPage() {
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
       {query.data ? <RepoCardGrid cards={trendingRepoCards(query.data.repositories)} /> : null}
+      <MoreReports />
     </MarketingShell>
   );
 }
@@ -277,6 +325,18 @@ export function ComparePage() {
         <p>{t("compare.help")}</p>
       </section>
       <CompareRepos showHelp={false} />
+      {/* The same curated list the edge renders into /compare's server HTML. */}
+      <section aria-label={t("compare.curatedTitle")}>
+        <div className="section-h">
+          <h2>{t("compare.curatedTitle")}</h2>
+          <span className="sub">{t("compare.curatedSubtitle")}</span>
+        </div>
+        <ul className="link-columns">
+          {COMPARE_REGISTRY.map((entry) => (
+            <li key={entry.slug}><a href={`/compare/${entry.slug}`}>{entry.name}</a></li>
+          ))}
+        </ul>
+      </section>
     </MarketingShell>
   );
 }
@@ -503,6 +563,20 @@ export function ExtensionPage() {
         <p>{t("extensionLanding.permissions")}</p>
         <h2>{t("extensionLanding.scopeTitle")}</h2>
         <p>{t("extensionLanding.scope")}</p>
+      </section>
+      {/* The edge page publishes these Q&As as FAQPage schema; they must be visible. */}
+      <section aria-label={t("extensionLanding.faqTitle")}>
+        <div className="section-h">
+          <h2>{t("extensionLanding.faqTitle")}</h2>
+        </div>
+        <div className="how">
+          {(t("extensionLanding.faq", { returnObjects: true }) as Array<{ question: string; answer: string }>).map((item) => (
+            <div className="step" key={item.question}>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </div>
+          ))}
+        </div>
       </section>
     </MarketingShell>
   );

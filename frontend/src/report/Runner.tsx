@@ -48,6 +48,7 @@ const GrowthSection = React.lazy(() => import("./GrowthSection").then((m) => ({ 
 const ShareSection = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareSection })));
 const ShareTickerCard = React.lazy(() => import("./Share").then((m) => ({ default: m.ShareTickerCard })));
 const SimilarRepos = React.lazy(() => import("./SimilarRepos").then((m) => ({ default: m.SimilarRepos })));
+const ReportAbout = React.lazy(() => import("./ReportAbout").then((m) => ({ default: m.ReportAbout })));
 const Insights = React.lazy(() => import("./Insights").then((m) => ({ default: m.Insights })));
 
 // The share-card chunk is lazy, so "mounted" is no longer two frames after
@@ -299,6 +300,9 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
                 whenever a later chunk resolved). */}
             <Suspense fallback={null}>
               <SimilarRepos report={report} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <ReportAbout report={report} />
             </Suspense>
             <TechnicalDetails
               report={report}

@@ -535,7 +535,7 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
     assert.doesNotMatch(staticXml, /<changefreq>|<priority>/);
 
     const reportsXml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml", snapshot))).text();
-    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-10-29<\/lastmod>/);
+    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-11-01<\/lastmod>/);
     assert.doesNotMatch(reportsXml, /<changefreq>|<priority>/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -674,7 +674,7 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
     const expectedStaticMax = staticDates.reduce((a, b) => (b > a ? b : a));
     assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-static\\.xml</loc>\\s*<lastmod>${expectedStaticMax}</lastmod>`));
     assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<\/sitemap>/);
-    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-10-29<\/lastmod>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-01<\/lastmod>/);
 
     for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
       const xml = await (await onRequest(await renderedContext(path, {

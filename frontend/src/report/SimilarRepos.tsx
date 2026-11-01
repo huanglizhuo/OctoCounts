@@ -1,6 +1,6 @@
-// Pure move from main.tsx — behavior unchanged.
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { MIN_RELATED_PEER_CODE_LINES } from "../../functions/report-copy.js";
 import { fetchJson } from "../api";
 import { trackEvent } from "../analytics";
 import { formatCompactNumber, normalizedProvider } from "../reportUtils";
@@ -24,7 +24,9 @@ export function SimilarRepos({ report }: { report: Report }) {
     staleTime: 60 * 60 * 1000,
     retry: 0,
   });
-  const related = (query.data?.reports ?? []).slice(0, 6);
+  // Same peer floor as the edge's SSR list, so the rendered page links the
+  // same quality of peers the pre-render HTML does.
+  const related = (query.data?.reports ?? []).filter((item) => item.totalCode >= MIN_RELATED_PEER_CODE_LINES).slice(0, 6);
   if (related.length === 0) return null;
 
   return (

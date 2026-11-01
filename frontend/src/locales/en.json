@@ -419,15 +419,15 @@
       },
       {
         "question": "Will the badge slow down my README?",
-        "answer": "No. Badges are lightweight SVG images served by the OctoCounts badge API and are cached by CDN."
+        "answer": "No. Badges are small SVG images served through a CDN: branch badges stay cached at the edge for up to a day and tag or commit badges for up to a week, and GitHub's image proxy caches them as well, so most views never reach the OctoCounts API."
       },
       {
         "question": "Can I show a single language instead of the whole repo?",
-        "answer": "Yes. Select 'Single language' in the badge builder and enter the language name, for example Rust or TypeScript."
+        "answer": "Yes. Select 'Single language' in the badge builder and enter the language name, for example Rust or TypeScript, or add ?lang=rust to any badge URL. Language names are case-insensitive."
       },
       {
         "question": "Does the badge update automatically?",
-        "answer": "The badge reflects the latest cached report for the requested ref. Re-analyze the repository or visit its OctoCounts report to refresh the cache."
+        "answer": "Branch badges do. A default-branch or branch badge picks up the ref's latest commit once its cached copy expires, within a day, and counts that commit if it has no report yet. Tag and commit badges stay pinned to that exact ref."
       }
     ],
     "repoLabel": "Repository URL",
@@ -512,7 +512,9 @@
       "ignoredDirs": "Excluded directories",
       "ignoredLanguages": "Excluded languages",
       "respectGitattributes": "Repository declarations"
-    }
+    },
+    "curatedTitle": "Curated comparisons",
+    "curatedSubtitle": "Source line counts for popular frameworks and tools"
   },
   "curatedCompare": {
     "savedReport": "{{repo}} saved report",
@@ -698,7 +700,8 @@
       "otherBlock_other": "Other ({{count}} more)",
       "dipNote": "LOC dropped {{percent}}% · {{month}}",
       "codeLines": "code lines"
-    }
+    },
+    "moreReports": "More repository reports"
   },
   "textReport": {
     "language": "Language",
@@ -764,7 +767,22 @@
     "permissionsTitle": "Permissions and data handling",
     "permissions": "The extension reads the public GitHub repository page you are viewing to detect the owner and repository name, and runs the count against public data through the OctoCounts API. Counting public repositories needs no GitHub login or API token. Chrome builds also offer optional GitHub sign-in for star history; the extension stores the login and token locally and uses the backend during token exchange. See the privacy policy for details. Retained local results for the repository and ref can be reused on repeat visits; a missing or expired entry requires a new request.",
     "scopeTitle": "Supported repositories",
-    "scope": "Public GitHub repositories. Private repositories and source-code uploads are not supported; to count private code, run tokei locally."
+    "scope": "Public GitHub repositories. Private repositories and source-code uploads are not supported; to count private code, run tokei locally.",
+    "faqTitle": "Extension FAQ",
+    "faq": [
+      {
+        "question": "Why does the SLOC card not appear on a repository page?",
+        "answer": "The card renders on public GitHub repository pages. It does not appear on private repositories (OctoCounts analyzes public repositories only), non-repository pages, or while GitHub ships layout changes. Reload the page first; if the card is still missing on a public repository, check the extension is enabled and report the GitHub URL via the OctoCounts repository."
+      },
+      {
+        "question": "Are the numbers live or cached?",
+        "answer": "Local counts are cached by repository and ref, and each report identifies the exact commit counted. A retained entry can be reused; missing or expired entries need a new request. A refreshed count can change when the commit, engine, or effective counting rules change. The full panel shows the measured commit."
+      },
+      {
+        "question": "Which browsers are supported?",
+        "answer": "Chrome, Edge, and Firefox, via their official extension stores. The extension source code is open and publicly available."
+      }
+    ]
   },
   "countingPolicy": {
     "title": "Counting policy",

@@ -1171,8 +1171,16 @@ body.embed-mode {
   text-decoration: none;
 }
 
+/* Badge SVGs vary in width with their text: fix one dimension only so the
+   width/height attributes (kept to reserve space) never distort them. */
 .badge-wall-row img {
   height: 20px;
+  width: auto;
+  max-width: 100%;
+}
+
+.report-badge img {
+  height: auto;
   max-width: 100%;
 }
 
@@ -2214,6 +2222,43 @@ table.report tr.totals td.lang {
 
 .report-details[open] > summary::before {
   content: "▾";
+}
+
+/* Plain link lists the edge also renders (rotating reports, curated comparisons). */
+.link-columns {
+  columns: 3 14rem;
+  column-gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: 1.9;
+}
+
+.link-columns li {
+  break-inside: avoid;
+  overflow-wrap: anywhere;
+}
+
+/* Report prose shared word for word with the edge pre-render. */
+.report-about {
+  margin: 0;
+  padding: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--fg-dim);
+}
+
+.report-about p {
+  margin: 0 0 var(--space-2);
+  max-width: 78ch;
+}
+
+.report-about h3 {
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--fg);
 }
 
 /* Technical details: the collapsed-by-default pile of verification facts at

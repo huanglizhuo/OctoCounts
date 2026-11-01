@@ -45,4 +45,4 @@ Export the report JSON and retain its full commit SHA, tokei version, generatedA
 - [Can the GitHub API count lines of code?](https://octocounts.com/docs/github-api-count-lines)
 - [GitHub repository size checker: check before cloning](https://octocounts.com/docs/github-repository-size-checker)
 - [Counting methodology](https://octocounts.com/docs/methodology)
-- [Pilot study: filtering effects on SLOC counts](https://octocounts.com/research)
+- [SLOC filtering study: 10 repositories](https://octocounts.com/research)

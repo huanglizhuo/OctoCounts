@@ -57,4 +57,8 @@ test("a temporary collection failure stays retryable rather than becoming a miss
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("retry-after"), "60");
+  // The outage page is a complete page, not a template with holes.
+  const html = await response.text();
+  assert.doesNotMatch(html, /undefined/);
+  assert.match(html, /<h1>Recently analyzed repositories<\/h1>/);
 });

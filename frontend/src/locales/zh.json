@@ -406,15 +406,15 @@
       },
       {
         "question": "徽章会拖慢 README 加载吗？",
-        "answer": "不会。徽章是由 OctoCounts 徽章 API 提供的轻量 SVG 图片，并通过 CDN 缓存加速。"
+        "answer": "不会。徽章是通过 CDN 提供的小尺寸 SVG 图片：分支徽章在边缘缓存最长一天，标签或 commit 徽章最长一周，GitHub 的图片代理也会再缓存，因此大多数访问不会到达 OctoCounts API。"
       },
       {
         "question": "可以只展示某一种语言吗？",
-        "answer": "可以。在生成器中选择“单语言”，然后输入语言名称，例如 Rust 或 TypeScript。"
+        "answer": "可以。在生成器中选择“单语言”并输入语言名称，例如 Rust 或 TypeScript；也可以在任意徽章 URL 后加 ?lang=rust。语言名称不区分大小写。"
       },
       {
         "question": "徽章会自动更新吗？",
-        "answer": "徽章反映的是请求引用最新缓存报告的数据。重新分析仓库或访问其 OctoCounts 报告即可刷新缓存。"
+        "answer": "分支徽章会。默认分支或指定分支的徽章在缓存过期后（一天之内）读取该 ref 的最新 commit；若该 commit 还没有报告，会先统计。标签和 commit 徽章固定在对应的 ref，不会变化。"
       }
     ],
     "repoLabel": "仓库链接",
@@ -499,7 +499,9 @@
       "ignoredDirs": "排除目录",
       "ignoredLanguages": "排除语言",
       "respectGitattributes": "仓库声明过滤"
-    }
+    },
+    "curatedTitle": "精选对比",
+    "curatedSubtitle": "热门框架与工具的代码行数对比"
   },
   "curatedCompare": {
     "savedReport": "{{repo}} 固定报告",
@@ -685,7 +687,8 @@
       "otherBlock_other": "其他（{{count}} 门）",
       "dipNote": "LOC 下降 {{percent}}% · {{month}}",
       "codeLines": "行代码"
-    }
+    },
+    "moreReports": "更多仓库报告"
   },
   "textReport": {
     "language": "语言",
@@ -762,7 +765,22 @@
     "permissionsTitle": "权限与数据处理",
     "permissions": "扩展只读取你正在浏览的公开 GitHub 仓库页面以识别仓库和所有者，并通过 OctoCounts API 对公开数据计数。统计公开仓库无需 GitHub 登录或 API 令牌。Chrome 构建还提供用于星标历史的可选 GitHub 登录，在本地保存账号与令牌，令牌交换经过后端；详情见隐私政策。结果按仓库和 ref 本地缓存；重复访问可复用仍保留的结果，缓存缺失或过期后需要重新请求。",
     "scopeTitle": "支持的仓库",
-    "scope": "公开 GitHub 仓库。不支持私有仓库和源码上传；如需统计私有代码，请在本地运行 tokei。"
+    "scope": "公开 GitHub 仓库。不支持私有仓库和源码上传；如需统计私有代码，请在本地运行 tokei。",
+    "faqTitle": "扩展常见问题",
+    "faq": [
+      {
+        "question": "为什么仓库页面上没有出现 SLOC 卡片？",
+        "answer": "卡片只在公开 GitHub 仓库页面显示。私有仓库（OctoCounts 只分析公开仓库）、非仓库页面，或 GitHub 调整页面布局期间都不会出现。请先刷新页面；如果公开仓库上仍然没有卡片，请确认扩展已启用，并通过 OctoCounts 仓库反馈对应的 GitHub 链接。"
+      },
+      {
+        "question": "数字是实时的还是缓存的？",
+        "answer": "本地计数按仓库和 ref 缓存，每份报告都标明实际统计的 commit。仍保留的结果可以复用，缺失或过期时需要重新请求。commit、引擎或实际计数规则变化时，刷新后的数字可能不同。完整面板会显示统计所用的 commit。"
+      },
+      {
+        "question": "支持哪些浏览器？",
+        "answer": "Chrome、Edge 和 Firefox，均通过官方扩展商店安装。扩展源代码公开。"
+      }
+    ]
   },
   "countingPolicy": {
     "title": "统计口径",

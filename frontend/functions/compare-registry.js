@@ -114,3 +114,38 @@ export const COMPARE_REGISTRY = [
 export function findCuratedComparison(slug) {
   return COMPARE_REGISTRY.find((entry) => entry.slug === slug) || null;
 }
+
+const COMPARISONS_BY_LANGUAGE = {
+  JavaScript: ["react-vs-vue", "nextjs-vs-vite", "vite-vs-webpack", "angular-vs-vue"],
+  TypeScript: ["nextjs-vs-vite", "angular-vs-vue", "svelte-vs-vue", "react-vs-vue"],
+  Rust: ["rust-vs-go", "electron-vs-tauri", "deno-vs-node"],
+  Go: ["rust-vs-go", "deno-vs-node", "kubernetes-vs-terraform"],
+  Python: ["tensorflow-vs-pytorch", "django-vs-rails", "laravel-vs-django"],
+  "C++": ["tensorflow-vs-pytorch", "electron-vs-tauri", "godot-vs-bevy"],
+  "C": ["neovim-vs-vscode", "mongodb-vs-postgres"],
+  Java: ["mongodb-vs-postgres", "kubernetes-vs-docker-compose", "kubernetes-vs-terraform"],
+  Kotlin: ["react-native-vs-flutter"],
+  Dart: ["react-native-vs-flutter"],
+  Ruby: ["django-vs-rails", "laravel-vs-django"],
+  PHP: ["laravel-vs-django", "django-vs-rails"],
+  Shell: ["deno-vs-node", "bun-vs-node"],
+  Zig: ["rust-vs-go", "bun-vs-deno"],
+  Lua: ["neovim-vs-vscode", "godot-vs-bevy"],
+  HTML: ["bootstrap-vs-tailwind"],
+  CSS: ["bootstrap-vs-tailwind"],
+};
+
+/// Curated comparisons for a report page: first every comparison this
+/// repository is part of (react/react -> React vs Vue, ...), then up to three
+/// matching its top programming language, so every long-tail /github/* page
+/// links into the compare corpus with topical anchors. Shared by the edge
+/// report page and the client report page.
+export function relatedComparisons(repoFullName, topLanguageName) {
+  const fullName = String(repoFullName ?? "").toLowerCase();
+  const own = COMPARE_REGISTRY.filter((entry) => [entry.left, entry.right].some((side) => `${side.owner}/${side.repo}`.toLowerCase() === fullName));
+  const byLanguage = (COMPARISONS_BY_LANGUAGE[topLanguageName] || [])
+    .map((slug) => findCuratedComparison(slug))
+    .filter(Boolean)
+    .slice(0, 3);
+  return [...new Set([...own, ...byLanguage])].slice(0, 4);
+}

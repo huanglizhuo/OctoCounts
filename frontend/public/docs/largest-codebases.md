@@ -64,5 +64,5 @@ Use the same engine and effective counting rules, then preserve the exported rep
 - [GitHub repository size checker: check before cloning](https://octocounts.com/docs/github-repository-size-checker)
 - [tokei vs cloc vs scc](https://octocounts.com/docs/tokei-vs-cloc-vs-scc)
 - [Counting methodology](https://octocounts.com/docs/methodology)
-- [Pilot study: how filtering changes SLOC counts](https://octocounts.com/research)
+- [SLOC filtering study: 10 repositories](https://octocounts.com/research)
 - [SLOC glossary](https://octocounts.com/docs/glossary)

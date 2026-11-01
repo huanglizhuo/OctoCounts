@@ -27,7 +27,6 @@ Install the extension for instant stats directly on GitHub, or use the web app f
 | [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |
 | [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
 | [README badges](#badges) | Add a live SLOC badge that links to a permanent report page. |
-| [Launch kit](https://octocounts.com/launch-kit) | Copy product descriptions, launch posts, links, screenshots, and badges. |
 | [Research](https://octocounts.com/research) | Original research: a pilot study on how test/doc/generated file filtering affects SLOC counts. |
 
 ## Preview
@@ -70,10 +69,10 @@ Drop a live SLOC badge into any README:
 <!-- Specific branch -->
 [![SLOC](https://api.octocounts.com/badge/:owner/:repo/branch/:branch)](https://octocounts.com/github/:owner/:repo/tree/:branch)
 
-<!-- Specific tag (immutable, cached forever) -->
+<!-- Specific tag (pinned to that tag) -->
 [![SLOC](https://api.octocounts.com/badge/:owner/:repo/tag/:tag)](https://octocounts.com/github/:owner/:repo/tree/:tag)
 
-<!-- Specific commit SHA (immutable, cached forever) -->
+<!-- Specific commit SHA (pinned to that commit) -->
 [![SLOC](https://api.octocounts.com/badge/:owner/:repo/commit/:sha)](https://octocounts.com/github/:owner/:repo/commit/:sha)
 ```
 
@@ -89,8 +88,8 @@ Language names are case-insensitive (`rust`, `Rust`, and `RUST` all work). If a 
 
 | Cache behaviour | Header |
 |---|---|
-| Default branch / branch | `s-maxage=3600, stale-while-revalidate=86400` |
-| Tag / commit | `max-age=31536000, immutable` |
+| Default branch / branch | `max-age=300, s-maxage=86400, stale-while-revalidate=3600` |
+| Tag / commit | `max-age=300, s-maxage=604800` |
 
 ## API
 
