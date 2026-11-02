@@ -625,14 +625,16 @@
       },
       "trending": {
         "kicker": "GitHub 每日趋势",
-        "title": "今日 GitHub Trending 仓库",
-        "subtitle": "查看今日热门项目及其代码规模，点击项目可查看完整 SLOC 报告。",
+        "title": "GitHub Trending 仓库",
+        "subtitle": "查看热门项目及其代码规模，点击项目可查看对应的已保存 SLOC 报告。",
         "updated": "榜单快照更新于 {{date}}",
         "counted": "统计于",
         "unavailable": "暂无统计",
+        "analyze": "查看并分析",
+        "stale": "榜单更新延迟，当前展示 {{date}} 的榜单。",
         "starsToday": "今日新增 Stars",
         "totalStars": "共 {{total}} Stars",
-        "policy": "按 GitHub Trending 原始排名展示。SLOC 采用最近可用的公开报告，排除测试、文档及生成文件目录；统计日期可能与榜单日期不同。",
+        "policy": "按 GitHub Trending 原始排名展示。SLOC 链接到本次快照对应的已保存公开报告，排除测试、文档及生成文件目录。统计日期可能与榜单日期不同；已保存报告可能过期。",
         "methodology": "计数方法"
       },
       "hall": {

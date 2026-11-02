@@ -17,7 +17,8 @@
       "publicPath": "/github/thedotmack/claude-mem",
       "sloc": {
         "code": 219725,
-        "generatedAt": "2026-11-02T11:15:54.005Z"
+        "generatedAt": "2026-11-02T11:15:54.005Z",
+        "reportId": "628dfa18022667292d1b1342fe9696b455c94e86948c419921ec407ed18fbb0c"
       }
     },
     {
@@ -33,7 +34,8 @@
       "publicPath": "/github/lightpanda-io/browser",
       "sloc": {
         "code": 239144,
-        "generatedAt": "2026-11-02T12:29:46.593Z"
+        "generatedAt": "2026-11-02T12:29:46.593Z",
+        "reportId": "0d86c80ecbddf7869c8dbc04a4c9cff537b53db68c950cde904f059c91f6a357"
       }
     },
     {
@@ -49,7 +51,8 @@
       "publicPath": "/github/shiyu-coder/Kronos",
       "sloc": {
         "code": 73688,
-        "generatedAt": "2026-11-01T16:22:22.608Z"
+        "generatedAt": "2026-11-01T16:22:22.608Z",
+        "reportId": "69e606b1fc1f4bba4f3c188fef8791bc58527978edc1002424c5439c3dc78ae7"
       }
     },
     {
@@ -65,7 +68,8 @@
       "publicPath": "/github/pingdotgg/t3code",
       "sloc": {
         "code": 1837011,
-        "generatedAt": "2026-11-02T09:22:23.147Z"
+        "generatedAt": "2026-11-02T09:22:23.147Z",
+        "reportId": "e6c04cb07b804951047ea66b267fa9e0db0d2c4777914ddc09f899297dee921e"
       }
     },
     {
@@ -80,8 +84,9 @@
       "htmlUrl": "https://github.com/milind-soni/OpenMausBot",
       "publicPath": "/github/milind-soni/OpenMausBot",
       "sloc": {
-        "code": 1034099,
-        "generatedAt": "2026-11-02T11:25:12.741Z"
+        "code": 1043194,
+        "generatedAt": "2026-11-02T13:15:42.505Z",
+        "reportId": "44d559ce14663aa72cd19366b2272f4b4a34a875c0d71131bdbf73e86c6741a9"
       }
     },
     {
@@ -97,7 +102,8 @@
       "publicPath": "/github/public-apis/public-apis",
       "sloc": {
         "code": 413,
-        "generatedAt": "2026-11-01T19:44:58.091Z"
+        "generatedAt": "2026-11-01T19:44:58.091Z",
+        "reportId": "7f0da9f3dccf3f55b0e674a6231b58753c92a0653d1c0118b66fac38378b641e"
       }
     },
     {
@@ -112,8 +118,9 @@
       "htmlUrl": "https://github.com/cjpais/Handy",
       "publicPath": "/github/cjpais/Handy",
       "sloc": {
-        "code": 82721,
-        "generatedAt": "2026-11-02T11:13:21.709Z"
+        "code": 82747,
+        "generatedAt": "2026-11-02T13:02:29.419Z",
+        "reportId": "787540da7e994f27d18cd60652fe9883ea983d8dd1e310fd653686dca899fb71"
       }
     },
     {
@@ -129,7 +136,8 @@
       "publicPath": "/github/Donchitos/Claude-Code-Game-Studios",
       "sloc": {
         "code": 1097,
-        "generatedAt": "2026-11-01T09:11:42.120Z"
+        "generatedAt": "2026-11-01T09:11:42.120Z",
+        "reportId": "4e321fcde88ca38351da72d06e23320a9727c60dfce8f4e16940626e0c8a7da2"
       }
     },
     {
@@ -145,7 +153,8 @@
       "publicPath": "/github/kornia/kornia",
       "sloc": {
         "code": 233433,
-        "generatedAt": "2026-11-02T12:37:38.564Z"
+        "generatedAt": "2026-11-02T12:37:38.564Z",
+        "reportId": "eafbdcf0c2ecd34621d7692789208b92302ef73a1a0bde589c98874913d544ee"
       }
     },
     {
@@ -161,7 +170,8 @@
       "publicPath": "/github/beenuar/AiSOC",
       "sloc": {
         "code": 1916697,
-        "generatedAt": "2026-11-02T09:26:18.250Z"
+        "generatedAt": "2026-11-02T09:26:18.250Z",
+        "reportId": "5a8fc3be4325ba10daff36c4dce69acbce8dc9eee19f4c4fd8af85d2887a3feb"
       }
     },
     {
@@ -176,8 +186,9 @@
       "htmlUrl": "https://github.com/anomalyco/hex",
       "publicPath": "/github/anomalyco/hex",
       "sloc": {
-        "code": 280541,
-        "generatedAt": "2026-11-02T11:02:22.316Z"
+        "code": 282470,
+        "generatedAt": "2026-11-02T13:11:49.388Z",
+        "reportId": "2fc8d171720a6fc5e08581b22a05ead24ac7f278fd68039a0115a8359566299d"
       }
     },
     {
@@ -193,7 +204,8 @@
       "publicPath": "/github/CopilotKit/OpenBot",
       "sloc": {
         "code": 628795,
-        "generatedAt": "2026-10-31T17:33:21.737Z"
+        "generatedAt": "2026-10-31T17:33:21.737Z",
+        "reportId": "acabacfef6223ba255501954935a9f8f26c756d8398800b4d26871291fbfcc2a"
       }
     },
     {
@@ -209,7 +221,8 @@
       "publicPath": "/github/togg53192-cmd/jailbreaks",
       "sloc": {
         "code": 0,
-        "generatedAt": "2026-11-01T12:52:19.532Z"
+        "generatedAt": "2026-11-01T12:52:19.532Z",
+        "reportId": "142c55611de7cd6b6724109f96dcb261140ccbf922ad88201d363d9bd5511d6a"
       }
     },
     {
@@ -225,7 +238,8 @@
       "publicPath": "/github/patchy631/ai-engineering-hub",
       "sloc": {
         "code": 157926,
-        "generatedAt": "2026-11-02T05:24:53.887Z"
+        "generatedAt": "2026-11-02T05:24:53.887Z",
+        "reportId": "ac26afc51c4946e29a2fbc65ec65628ddba5c241927d41fe7073f647757378f8"
       }
     },
     {
@@ -241,7 +255,8 @@
       "publicPath": "/github/FlashML-org/FreeToken",
       "sloc": {
         "code": 127141,
-        "generatedAt": "2026-11-01T16:22:38.359Z"
+        "generatedAt": "2026-11-01T16:22:38.359Z",
+        "reportId": "bd2a1333c04ec620583b2626143886ad54878704240a3ad10ab85e037e883fab"
       }
     },
     {
@@ -256,8 +271,9 @@
       "htmlUrl": "https://github.com/hyprwm/Hyprland",
       "publicPath": "/github/hyprwm/Hyprland",
       "sloc": {
-        "code": 128005,
-        "generatedAt": "2026-11-01T18:35:30.417Z"
+        "code": 128049,
+        "generatedAt": "2026-11-02T13:14:06.835Z",
+        "reportId": "d37985c7a90003873cb4175150a8e3707a61f0e0fe60f29707fea287c872d9dc"
       }
     }
   ]

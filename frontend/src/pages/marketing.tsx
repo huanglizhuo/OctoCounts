@@ -12,7 +12,8 @@ import { formatCompactNumber, formatNumber } from "../reportUtils";
 import i18n from "../i18n";
 import { MIN_INDEXABLE_REPORT_FILES } from "../../functions/report-copy.js";
 import { COMPARE_REGISTRY } from "../../functions/compare-registry.js";
-import { trendingSloc } from "../../functions/trending-sloc.js";
+import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnapshot } from "../../functions/trending-sloc.js";
+import type { TrendingRepository } from "../../functions/trending-sloc.js";
 import type { GrowthRepositoryStat, GrowthStats } from "../types";
 
 // Marketing/growth pages (stats, recent, popular, trending, hall of
@@ -36,28 +37,6 @@ type SeoListResponse = {
   page: number;
   limit: number;
   reports: SeoReportSummary[];
-};
-
-type TrendingRepository = {
-  rank: number;
-  owner: string;
-  name: string;
-  fullName: string;
-  description: string;
-  language: string | null;
-  starsToday: number;
-  totalStars: number;
-  htmlUrl: string;
-  publicPath: string;
-  sloc?: { code: number; generatedAt: string } | null;
-};
-
-type TrendingSnapshot = {
-  source: string;
-  period: "daily";
-  generatedAt: string;
-  date: string;
-  repositories: TrendingRepository[];
 };
 
 type RepoCard = {
@@ -117,7 +96,7 @@ function TrendingList({ repositories }: { repositories: TrendingRepository[] }) 
         const sloc = trendingSloc(repo.sloc);
         return (
           <li key={repo.fullName} value={repo.rank}>
-            <a className="trending-row" href={repo.publicPath}>
+            <a className="trending-row" href={trendingReportPath(repo)}>
               <span className="trending-rank" aria-hidden="true">{repo.rank}</span>
               <div className="trending-project">
                 <strong>{repo.fullName}</strong>
@@ -129,12 +108,15 @@ function TrendingList({ repositories }: { repositories: TrendingRepository[] }) 
                 {sloc ? <>
                   <strong title={formatNumber(sloc.code)}><span aria-hidden="true">{formatCompactNumber(sloc.code)}</span><span className="visually-hidden">{formatNumber(sloc.code)}</span></strong>
                   <span className="trending-detail">{t("growth.pages.trending.counted")} <time dateTime={sloc.generatedAt} title={sloc.generatedAt}>{sloc.generatedAt.slice(0, 10)}</time></span>
-                </> : <span className="trending-missing">{t("growth.pages.trending.unavailable")}</span>}
+                </> : <>
+                  <span className="trending-missing">{t("growth.pages.trending.unavailable")}</span>
+                  <span className="trending-action">{t("growth.pages.trending.analyze")}</span>
+                </>}
               </div>
               <div className="trending-metric">
                 <span className="trending-label">{t("growth.pages.trending.starsToday")}</span>
                 <strong>+{formatNumber(repo.starsToday)}</strong>
-                <span className="trending-detail">{t("growth.pages.trending.totalStars", { total: formatCompactNumber(repo.totalStars) })}</span>
+                {repo.totalStars !== undefined ? <span className="trending-detail">{t("growth.pages.trending.totalStars", { total: formatCompactNumber(repo.totalStars) })}</span> : null}
               </div>
             </a>
           </li>
@@ -315,24 +297,38 @@ export function ReportListPage({ kind }: { kind: "recent" | "popular" | "monolit
   );
 }
 
+function readTrendingSnapshot() {
+  try {
+    return validateTrendingSnapshot(JSON.parse(document.getElementById("octocounts-trending-data")?.textContent || "null")) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function TrendingPage() {
   const { t } = useTranslation();
   const query = useQuery({
     queryKey: ["github-trending", "daily"],
+    initialData: readTrendingSnapshot,
     queryFn: async () => {
       const response = await fetch("/github-trending.json");
       if (!response.ok) throw new Error(`Trending snapshot returned ${response.status}`);
-      return response.json() as Promise<TrendingSnapshot>;
+      const snapshot = validateTrendingSnapshot(await response.json());
+      if (!snapshot) throw new Error("Invalid Trending snapshot");
+      return snapshot;
     },
     staleTime: 60 * 60 * 1000,
   });
+  const stale = query.data && trendingIsStale(query.data);
+  const title = t("growth.pages.trending.title");
 
   return (
     <MarketingShell>
-      <section className="growth-hero list-hero" aria-label={t("growth.pages.trending.title")}>
-        <h1>{t("growth.pages.trending.title")}</h1>
+      <section className="growth-hero list-hero" aria-label={title}>
+        <h1>{title}</h1>
         <p>{t("growth.pages.trending.subtitle")}</p>
         {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
+        {stale ? <p className="trending-stale" role="status">{t("growth.pages.trending.stale", { date: query.data.date })}</p> : null}
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}

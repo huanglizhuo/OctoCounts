@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { enrichTrending, parseTrendingHtml } from "./refresh-github-trending.mjs";
-import { trendingSloc } from "../frontend/functions/trending-sloc.js";
+import { trendingSloc, trendingIsStale, trendingReportPath, validateTrendingSnapshot } from "../frontend/functions/trending-sloc.js";
+
+const reportId = "a".repeat(64);
 
 test("parses GitHub Trending repository metadata", () => {
   const html = `
@@ -46,10 +48,10 @@ test("enriches cached reports without changing order, counting zero as a valid r
     assert.equal(request.searchParams.get("owner"), "octo");
     assert.ok(options.signal instanceof AbortSignal);
     const name = request.searchParams.get("repo");
-    return Response.json({ provider: "github", repoFullName: `octo/${name}`, total: { code: name === "one" ? 24800 : 0 }, generatedAt: "2026-11-01T23:00:00-01:00" });
+    return Response.json({ provider: "github", reportId, repoFullName: `octo/${name}`, total: { code: name === "one" ? 24800 : 0 }, generatedAt: "2026-11-01T23:00:00-01:00" });
   }, "https://api.test/");
   assert.deepEqual(enriched.map((repo) => repo.fullName), ["octo/one", "octo/zero"]);
-  assert.deepEqual(enriched.map((repo) => repo.sloc), [24800, 0].map((code) => ({ code, generatedAt: "2026-11-02T00:00:00.000Z" })));
+  assert.deepEqual(enriched.map((repo) => repo.sloc), [24800, 0].map((code) => ({ code, generatedAt: "2026-11-02T00:00:00.000Z", reportId })));
   assert.ok(repositories.every((repo) => !("sloc" in repo)));
 });
 
@@ -59,9 +61,9 @@ test("missing, failed, mismatched and malformed reports do not block the remaini
     () => new Response(null, { status: 503 }),
     () => { throw new DOMException("Timed out", "TimeoutError"); },
     () => new Response("not json"),
-    () => Response.json({ provider: "github", repoFullName: "wrong/repo", total: { code: 10 }, generatedAt: "2026-11-01" }),
-    () => Response.json({ provider: "github", repoFullName: "octo/5", total: { code: -1 }, generatedAt: "2026-11-01" }),
-    () => Response.json({ provider: "github", repoFullName: "octo/6", total: { code: 10 }, generatedAt: "2026-11-01" }),
+    () => Response.json({ provider: "github", reportId, repoFullName: "wrong/repo", total: { code: 10 }, generatedAt: "2026-11-01" }),
+    () => Response.json({ provider: "github", reportId, repoFullName: "octo/5", total: { code: -1 }, generatedAt: "2026-11-01" }),
+    () => Response.json({ provider: "github", reportId, repoFullName: "octo/6", total: { code: 10 }, generatedAt: "2026-11-01" }),
   ];
   const repos = outcomes.map((_, index) => ({ owner: "octo", name: String(index), fullName: `octo/${index}` }));
   const result = await enrichTrending(repos, async (url) => outcomes[Number(new URL(url).searchParams.get("repo"))]());
@@ -74,6 +76,36 @@ test("SLOC validation handles old snapshots and rejects invalid counts or dates"
     { code: 1.5, generatedAt: "2026-11-01" }, { code: -1, generatedAt: "2026-11-01" },
     { code: Number.MAX_SAFE_INTEGER + 1, generatedAt: "2026-11-01" },
     { code: 1, generatedAt: "bad-date" }, { code: 1, generatedAt: null }]) {
+    assert.equal(trendingSloc(value && { reportId, ...value }), null);
+  }
+});
+
+
+test("snapshot SLOC requires a saved report ID and links to that result", () => {
+  const sloc = { code: 42, generatedAt: "2026-11-02T00:00:00Z", reportId };
+  const repo = { publicPath: "/github/octo/repo", sloc };
+  assert.equal(trendingReportPath(repo), `/github/octo/repo?reportId=${reportId}`);
+  for (const invalid of [undefined, "", "javascript:alert(1)", "a&reportId=b"]) {
+    const value = { ...sloc, reportId: invalid };
     assert.equal(trendingSloc(value), null);
+    assert.equal(trendingReportPath({ ...repo, sloc: value }), repo.publicPath);
+  }
+});
+
+test("Trending freshness uses the snapshot date with a 36-hour grace window", () => {
+  const snapshot = { generatedAt: "2026-11-02T00:00:00Z" };
+  assert.equal(trendingIsStale(snapshot, Date.parse("2026-11-03T12:00:00Z")), false);
+  assert.equal(trendingIsStale(snapshot, Date.parse("2026-11-03T12:00:01Z")), true);
+  assert.equal(trendingIsStale(snapshot, Date.parse("2026-11-01T23:59:00Z")), false);
+});
+
+test("shared snapshot validation rejects corrupt dates and unsafe links", () => {
+  const snapshot = { source: "https://github.com/trending", generatedAt: "2026-11-02T00:00:00Z", date: "2026-11-02", repositories: [{ fullName: "octo/repo", description: "", language: null, rank: 1, starsToday: 0, publicPath: "/github/octo/repo" }] };
+  assert.equal(validateTrendingSnapshot(snapshot), snapshot);
+  for (const change of [{ source: "javascript:alert(1)" }, { generatedAt: "bad" }, { date: "2026-11-01" }, { repositories: null }]) {
+    assert.equal(validateTrendingSnapshot({ ...snapshot, ...change }), null);
+  }
+  for (const publicPath of ["//evil.test", "javascript:alert(1)", "/github/octo/repo?reportId=x"]) {
+    assert.equal(validateTrendingSnapshot({ ...snapshot, repositories: [{ ...snapshot.repositories[0], publicPath }] }), null);
   }
 });

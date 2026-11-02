@@ -75,8 +75,8 @@ export async function enrichTrending(repositories, fetchImpl = fetch, apiBase = 
       if (report.provider !== "github" || report.repoFullName?.toLowerCase() !== repo.fullName.toLowerCase()) {
         throw new Error("Report repository does not match");
       }
-      sloc = trendingSloc({ code: report.total?.code, generatedAt: report.generatedAt });
-      if (!sloc) throw new Error("Report has invalid SLOC or timestamp");
+      sloc = trendingSloc({ code: report.total?.code, generatedAt: report.generatedAt, reportId: report.reportId });
+      if (!sloc) throw new Error("Report has invalid SLOC, timestamp or ID");
     } catch (error) {
       console.warn(`No SLOC for ${repo.fullName}: ${error.message}`);
     }

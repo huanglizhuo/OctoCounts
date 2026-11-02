@@ -1,4 +1,4 @@
-import { trendingSloc } from "./trending-sloc.js";
+import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnapshot } from "./trending-sloc.js";
 import { reportJsonLd } from "./report-schema.js";
 import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
@@ -725,7 +725,7 @@ function listPageFallback(kind) {
       <li><a href="/popular">Popular SLOC reports</a></li>
       <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
       ${kind === "monoliths" ? '<li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>' : ""}
-      <li><a href="/trending">Trending GitHub repositories today</a></li>
+      <li><a href="/trending">Trending GitHub repositories</a></li>
       <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
     </ul></nav>`;
 }
@@ -798,7 +798,11 @@ function moreReportsMarkdown(locs) {
   return `\n## More repository reports\n\n${locs.map((loc) => `- [${reportLocName(loc)}](${loc})`).join("\n")}\n`;
 }
 
-const TRENDING_TITLE = "Trending GitHub repositories today | OctoCounts";
+const TRENDING_TITLE = "Trending GitHub repositories | OctoCounts";
+
+function trendingStaleText(snapshot) {
+  return trendingIsStale(snapshot) ? `Trending update delayed. Showing the ${snapshot.date} snapshot.` : "";
+}
 
 function trendingDescription(snapshot) {
   return `Daily GitHub Trending repositories discovered on ${snapshot.date || "the latest snapshot"}, with stable OctoCounts source line count report links.`;
@@ -815,10 +819,10 @@ function trendingMarkdown(snapshot) {
   const items = snapshot.repositories
     .map(
       (repo) =>
-        `${repo.rank}. [${repo.fullName}](https://octocounts.com${repo.publicPath}) — ${repo.description || "GitHub Trending repository"} — ${trendingSlocText(repo)} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""})`
+        `${repo.rank}. [${repo.fullName}](https://octocounts.com${trendingReportPath(repo)}) — ${repo.description || "GitHub Trending repository"} — ${trendingSlocText(repo)} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""})`
     )
     .join("\n");
-  return `# Trending GitHub repositories today\n\n${trendingDescription(snapshot)}\n\nSource: [GitHub Trending](https://github.com/trending). Snapshot updated ${snapshot.date}.\n\n${items}\n`;
+  return `# Trending GitHub repositories\n\n${trendingDescription(snapshot)}\n\nSource: [GitHub Trending](https://github.com/trending). Snapshot updated ${snapshot.date}.\n\n${trendingStaleText(snapshot)}\n\n${items}\n`;
 }
 
 async function trendingPageResponse(context, options = {}) {
@@ -832,7 +836,7 @@ async function trendingPageResponse(context, options = {}) {
   const title = TRENDING_TITLE;
   const description = trendingDescription(snapshot);
   const body = snapshot.repositories
-    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} — ${escapeHtml(trendingSlocText(repo))} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
+    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(trendingReportPath(repo))}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} — ${escapeHtml(trendingSlocText(repo))} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
     .join("");
   const rotating = await rotatingPromise;
   const moreReports = moreReportsHtml(rotating);
@@ -844,7 +848,7 @@ async function trendingPageResponse(context, options = {}) {
       canonical: "https://octocounts.com/trending",
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
-      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}`,
+      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}<script type="application/json" id="octocounts-trending-data">${escapeScriptJson(snapshot)}</script>`,
       mdAlternate: "https://octocounts.com/trending.md",
       jsonLd: {
         "@context": "https://schema.org",
@@ -868,21 +872,18 @@ async function trendingPageResponse(context, options = {}) {
           itemListElement: snapshot.repositories.map((repo) => ({
             "@type": "ListItem",
             position: repo.rank,
-            url: `https://octocounts.com${repo.publicPath}`,
+            url: `https://octocounts.com${trendingReportPath(repo)}`,
             name: repo.fullName,
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p><ol>${body}</ol></section>${moreReports}`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p>${trendingIsStale(snapshot) ? `<p role="status">${escapeHtml(trendingStaleText(snapshot))}</p>` : ""}<ol>${body}</ol></section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
 }
 
-/// RSS 2.0 rendering of the same daily trending snapshot the /trending page
-/// serves. The snapshot carries no SLOC figures of its own, so each item's
-/// description leads with the repository summary and links the stable
-/// OctoCounts report page, where the counted lines live.
+// RSS links the saved result while retaining the repository GUID across daily updates.
 async function trendingFeedResponse(context) {
   const snapshot = await trendingSnapshot(context);
   if (!snapshot) return collectionUnavailableResponse(context, "/trending", TRENDING_TITLE, { feed: true });
@@ -894,7 +895,7 @@ async function trendingFeedResponse(context) {
       const detail = `+${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""}. ${trendingSlocText(repo)}.`;
       return `  <item>
     <title>${escapeXml(repo.fullName)}</title>
-    <link>https://octocounts.com${escapeXml(repo.publicPath)}</link>
+    <link>https://octocounts.com${escapeXml(trendingReportPath(repo))}</link>
     <guid isPermaLink="true">https://octocounts.com${escapeXml(repo.publicPath)}</guid>
     <description>${escapeXml(`${summary} (${detail})`)}</description>
     <pubDate>${pubDate}</pubDate>${repo.language ? `\n    <category>${escapeXml(repo.language)}</category>` : ""}
@@ -949,7 +950,7 @@ function statsMarkdown(stats) {
     ? `\n## Largest repositories measured\n\n${stats.topRepositories
         .map(
           (repo, index) =>
-            `${index + 1}. [${repo.owner}/${repo.repo}](https://octocounts.com${repo.publicPath}) — ${formatNumber(repo.total.lines)} total lines (${formatNumber(repo.total.code)} code)`
+            `${index + 1}. [${repo.owner}/${repo.repo}](https://octocounts.com${trendingReportPath(repo)}) — ${formatNumber(repo.total.lines)} total lines (${formatNumber(repo.total.code)} code)`
         )
         .join("\n")}\n`
     : "";
@@ -2475,17 +2476,7 @@ async function trendingSnapshot(context) {
   const response = await context.env.ASSETS.fetch(new Request(url.toString(), { method: "GET", signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS) })).catch(() => null);
   if (!response?.ok) return null;
   const snapshot = await response.json().catch(() => null);
-  return snapshot && snapshot.source === "https://github.com/trending"
-    && typeof snapshot.generatedAt === "string" && Number.isFinite(Date.parse(snapshot.generatedAt))
-    && /^\d{4}-\d{2}-\d{2}$/.test(snapshot.date) && new Date(snapshot.generatedAt).toISOString().slice(0, 10) === snapshot.date
-    && Array.isArray(snapshot.repositories) && snapshot.repositories.every((repo) =>
-      typeof repo?.fullName === "string" && typeof repo.description === "string"
-      && (repo.language === null || typeof repo.language === "string")
-      && Number.isSafeInteger(repo.rank) && repo.rank > 0
-      && Number.isSafeInteger(repo.starsToday) && repo.starsToday >= 0
-      && REPORT_SITEMAP_LOC_PATTERN.test(`https://octocounts.com${repo.publicPath}`))
-    ? snapshot
-    : null;
+  return validateTrendingSnapshot(snapshot);
 }
 
 // The SPA shell is immutable for a deployment, so memoize its text per

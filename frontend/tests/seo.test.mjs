@@ -502,8 +502,8 @@ test("trending HTML, markdown and RSS share validated SLOC and report dates", as
   const snapshot = {
     ...EMPTY_TRENDING,
     repositories: [
-      { code: 24800, generatedAt: "2026-10-27T02:17:00Z" },
-      { code: 0, generatedAt: "2026-10-26T02:17:00Z" },
+      { code: 24800, generatedAt: "2026-10-27T02:17:00Z", reportId: "a".repeat(64) },
+      { code: 0, generatedAt: "2026-10-26T02:17:00Z", reportId: "b".repeat(64) },
       null,
       { code: -1, generatedAt: "2026-10-27T02:17:00Z" },
       { code: 42, generatedAt: "invalid" },
@@ -521,6 +521,7 @@ test("trending HTML, markdown and RSS share validated SLOC and report dates", as
       const body = await response.text();
       assert.match(body, /24,800 SLOC; counted 2026-10-27/);
       assert.match(body, /0 SLOC; counted 2026-10-26/);
+      assert.ok(body.includes(`/github/octo/repo-0?reportId=${"a".repeat(64)}`));
       assert.equal((body.match(/SLOC: no count available/g) ?? []).length, 3);
       assert.doesNotMatch(body, /-1 SLOC|42 SLOC|counted invalid/);
       assert.ok(body.indexOf("octo/repo-0") < body.indexOf("octo/repo-1"));
@@ -528,6 +529,27 @@ test("trending HTML, markdown and RSS share validated SLOC and report dates", as
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("trending bootstrap safely embeds the same snapshot and labels stale data", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ reports: [] }));
+  t.mock.method(Date, "now", () => Date.parse("2026-11-04T00:00:00Z"));
+  const snapshot = { ...EMPTY_TRENDING, repositories: [{
+    rank: 1, fullName: "octo/repo", publicPath: "/github/octo/repo", starsToday: 1, language: null,
+    description: '</script><script>alert("unsafe")</script>',
+  }] };
+  const html = await (await onRequest(await renderedContext("/trending", snapshot))).text();
+  const data = html.match(/<script type="application\/json" id="octocounts-trending-data">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(JSON.parse(data), snapshot);
+  assert.ok(data.includes("\\u003c/script>"));
+  assert.ok(!html.includes('<script>alert("unsafe")</script>'));
+  assert.match(html, /role="status">Trending update delayed/);
+  assert.doesNotMatch(html, /<h1>[^<]*today/);
+  const markdown = await (await onRequest(await renderedContext("/trending.md", snapshot))).text();
+  assert.match(markdown, /Trending update delayed/);
+  const fresh = { ...snapshot, generatedAt: "2026-11-03T20:00:00Z", date: "2026-11-03" };
+  const freshHtml = await (await onRequest(await renderedContext("/trending", fresh))).text();
+  assert.doesNotMatch(freshHtml, /Trending update delayed/);
 });
 
 // Repository owners write Trending descriptions; String.replace would read
@@ -1729,7 +1751,7 @@ test("the trending page head advertises the RSS feed", async () => {
     repositories: [],
   }));
   const html = await response.text();
-  assert.ok(html.includes('<link rel="alternate" type="application/rss+xml" title="Trending GitHub repositories today | OctoCounts" href="https://octocounts.com/trending.xml" />'));
+  assert.ok(html.includes('<link rel="alternate" type="application/rss+xml" title="Trending GitHub repositories | OctoCounts" href="https://octocounts.com/trending.xml" />'));
 });
 
 test("embed routes are frameable by any site, noindexed, and link to the report", async () => {
@@ -2379,7 +2401,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
     assert.match(response.headers.get("content-type") ?? "", /^text\/markdown/, path);
     assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", path);
     const md = await response.text();
-    assert.match(md, /^# Trending GitHub repositories today\n/, path);
+    assert.match(md, /^# Trending GitHub repositories\n/, path);
     assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. — SLOC: no count available (1,234 stars today, Rust)"), path);
   }
   // Canonical collection URLs are HTML for every user agent.

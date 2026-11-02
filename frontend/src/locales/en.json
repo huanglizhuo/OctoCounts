@@ -637,14 +637,16 @@
       },
       "trending": {
         "kicker": "GitHub daily",
-        "title": "Trending GitHub repositories today",
-        "subtitle": "Explore today's trending projects and their codebase sizes. Open a project for the full SLOC report.",
+        "title": "Trending GitHub repositories",
+        "subtitle": "Explore trending projects and their codebase sizes. Open a project for the saved SLOC report.",
         "updated": "Trending snapshot updated {{date}}",
         "counted": "Counted",
         "unavailable": "No count available",
+        "analyze": "View and analyze",
+        "stale": "Trending update delayed. Showing the {{date}} snapshot.",
         "starsToday": "Stars today",
         "totalStars": "{{total}} total",
-        "policy": "GitHub Trending order. SLOC uses the latest available public report, excluding tests, docs and generated directories; report dates may differ from the trending snapshot.",
+        "policy": "GitHub Trending order. SLOC links to the saved public report used for this snapshot, excluding tests, docs and generated directories. Report dates may differ from the trending snapshot; saved reports may expire.",
         "methodology": "Counting methodology"
       },
       "hall": {

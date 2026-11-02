@@ -3757,6 +3757,18 @@ td.lang .row-share {
   font-size: var(--text-sm);
 }
 
+.trending-action {
+  color: var(--link);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.growth-hero .trending-stale {
+  color: var(--warn);
+  font-size: var(--text-sm);
+}
+
 .trending-policy {
   margin: var(--space-4) 0 0;
 }
