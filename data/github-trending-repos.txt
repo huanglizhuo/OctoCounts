@@ -1,15 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-11-01T09:12:22.424Z
+# GitHub Trending daily snapshot generated 2026-11-02T09:25:39.453Z
 thedotmack/claude-mem
-mattpocock/skills
-Donchitos/Claude-Code-Game-Studios
-pingdotgg/t3code
-Renhuai123/ziwei-doushu
-milind-soni/OpenMausBot
-pbakaus/impeccable
-obra/superpowers
 lightpanda-io/browser
-HKUDS/DeepTutor
-Orkas-AI/Orkas
-THU-MAIC/OpenMAIC
-bregman-arie/devops-exercises
-vorssaint/vorssaint-utils
+shiyu-coder/Kronos
+pingdotgg/t3code
+milind-soni/OpenMausBot
+public-apis/public-apis
+cjpais/Handy
+Donchitos/Claude-Code-Game-Studios
+kornia/kornia
+beenuar/AiSOC
+anomalyco/hex
+CopilotKit/OpenBot
+togg53192-cmd/jailbreaks
+patchy631/ai-engineering-hub
+FlashML-org/FreeToken
+hyprwm/Hyprland
