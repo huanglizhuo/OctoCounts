@@ -30,25 +30,15 @@ jobs:
           node-version: "26"
 
       - name: Fetch and validate GitHub Trending
+        id: snapshot
         env:
           LIMIT: ${{ github.event.inputs.limit || '20' }}
         run: |
           node --test scripts/refresh-github-trending.test.mjs
           node scripts/refresh-github-trending.mjs --limit "$LIMIT"
 
-      - name: Publish daily snapshot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/public/github-trending.json data/github-trending-repos.txt
-          if git diff --cached --quiet; then
-            echo "Trending snapshot is unchanged"
-          else
-            git commit -m "chore: refresh GitHub Trending snapshot"
-            git push origin HEAD:main
-          fi
-
       - name: Cache Trending SLOC reports
+        timeout-minutes: 100
         env:
           LIMIT: ${{ github.event.inputs.limit || '20' }}
         run: |
@@ -59,3 +49,21 @@ jobs:
             --concurrency 2 \
             --delay-ms 750 \
             --max-polls 180
+
+      - name: Add cached SLOC to the snapshot
+        id: enrich
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' }}
+        run: node scripts/refresh-github-trending.mjs --enrich-only
+
+      - name: Publish daily snapshot
+        if: ${{ !cancelled() && steps.enrich.outcome == 'success' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/github-trending.json data/github-trending-repos.txt
+          if git diff --cached --quiet; then
+            echo "Trending snapshot is unchanged"
+          else
+            git commit -m "chore: refresh GitHub Trending snapshot"
+            git push origin HEAD:main
+          fi

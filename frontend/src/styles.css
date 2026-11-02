@@ -3676,6 +3676,119 @@ td.lang .row-share {
 .growth-metric,
 .growth-panel,
 .growth-repo-card,
+.trending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.trending-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 12rem 9rem;
+  align-items: start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.trending-row:hover {
+  background: var(--panel);
+}
+
+.trending-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.trending-rank,
+.trending-metric {
+  font-variant-numeric: tabular-nums;
+}
+
+.trending-rank {
+  color: var(--fg-dim);
+  padding-top: var(--space-1);
+}
+
+.trending-project {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.trending-project > strong {
+  font-size: var(--text-lg);
+}
+
+.trending-project p {
+  margin: var(--space-2) 0;
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.trending-language,
+.trending-label,
+.trending-detail,
+.trending-policy {
+  color: var(--fg-dim);
+  font-size: var(--text-xs);
+}
+
+.trending-metric {
+  display: grid;
+  gap: var(--space-1);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.trending-metric > strong {
+  font-size: var(--text-xl);
+}
+
+.trending-sloc > strong {
+  color: var(--accent);
+}
+
+.trending-missing {
+  color: var(--fg-dim);
+  font-size: var(--text-sm);
+}
+
+.trending-policy {
+  margin: var(--space-4) 0 0;
+}
+
+@media (max-width: 760px) {
+  .trending-list {
+    display: grid;
+    gap: var(--space-3);
+    border-top: 0;
+  }
+
+  .trending-row {
+    grid-template-columns: 1.5rem repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    background: var(--panel);
+  }
+
+  .trending-project {
+    grid-column: 2 / -1;
+  }
+
+  .trending-sloc {
+    grid-column: 2;
+  }
+
+  .trending-metric {
+    text-align: left;
+  }
+}
+
 .growth-state {
   border: 1px solid var(--rule);
   background: var(--panel);

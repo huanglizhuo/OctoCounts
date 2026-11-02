@@ -1,3 +1,4 @@
+import { trendingSloc } from "./trending-sloc.js";
 import { reportJsonLd } from "./report-schema.js";
 import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
@@ -803,13 +804,18 @@ function trendingDescription(snapshot) {
   return `Daily GitHub Trending repositories discovered on ${snapshot.date || "the latest snapshot"}, with stable OctoCounts source line count report links.`;
 }
 
+function trendingSlocText(repo) {
+  const sloc = trendingSloc(repo.sloc);
+  return sloc ? `${formatNumber(sloc.code)} SLOC; counted ${sloc.generatedAt.slice(0, 10)}` : "SLOC: no count available";
+}
+
 /// Markdown twin of the /trending SSR body: same daily snapshot, serialized
 /// as a ranked list of absolute report links.
 function trendingMarkdown(snapshot) {
   const items = snapshot.repositories
     .map(
       (repo) =>
-        `${repo.rank}. [${repo.fullName}](https://octocounts.com${repo.publicPath}) — ${repo.description || "GitHub Trending repository"} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""})`
+        `${repo.rank}. [${repo.fullName}](https://octocounts.com${repo.publicPath}) — ${repo.description || "GitHub Trending repository"} — ${trendingSlocText(repo)} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""})`
     )
     .join("\n");
   return `# Trending GitHub repositories today\n\n${trendingDescription(snapshot)}\n\nSource: [GitHub Trending](https://github.com/trending). Snapshot updated ${snapshot.date}.\n\n${items}\n`;
@@ -826,7 +832,7 @@ async function trendingPageResponse(context, options = {}) {
   const title = TRENDING_TITLE;
   const description = trendingDescription(snapshot);
   const body = snapshot.repositories
-    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
+    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(repo.publicPath)}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} — ${escapeHtml(trendingSlocText(repo))} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
     .join("");
   const rotating = await rotatingPromise;
   const moreReports = moreReportsHtml(rotating);
@@ -885,7 +891,7 @@ async function trendingFeedResponse(context) {
   const items = snapshot.repositories
     .map((repo) => {
       const summary = repo.description || "GitHub Trending repository";
-      const detail = `+${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""}. Source line count: OctoCounts report.`;
+      const detail = `+${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${repo.language}` : ""}. ${trendingSlocText(repo)}.`;
       return `  <item>
     <title>${escapeXml(repo.fullName)}</title>
     <link>https://octocounts.com${escapeXml(repo.publicPath)}</link>

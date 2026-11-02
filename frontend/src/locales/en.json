@@ -638,8 +638,14 @@
       "trending": {
         "kicker": "GitHub daily",
         "title": "Trending GitHub repositories today",
-        "subtitle": "Daily GitHub Trending projects with stable OctoCounts source line count report links.",
-        "updated": "Snapshot updated {{date}}"
+        "subtitle": "Explore today's trending projects and their codebase sizes. Open a project for the full SLOC report.",
+        "updated": "Trending snapshot updated {{date}}",
+        "counted": "Counted",
+        "unavailable": "No count available",
+        "starsToday": "Stars today",
+        "totalStars": "{{total}} total",
+        "policy": "GitHub Trending order. SLOC uses the latest available public report, excluding tests, docs and generated directories; report dates may differ from the trending snapshot.",
+        "methodology": "Counting methodology"
       },
       "hall": {
         "kicker": "leaderboard",

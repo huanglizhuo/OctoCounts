@@ -498,6 +498,38 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600");
 });
 
+test("trending HTML, markdown and RSS share validated SLOC and report dates", async () => {
+  const snapshot = {
+    ...EMPTY_TRENDING,
+    repositories: [
+      { code: 24800, generatedAt: "2026-10-27T02:17:00Z" },
+      { code: 0, generatedAt: "2026-10-26T02:17:00Z" },
+      null,
+      { code: -1, generatedAt: "2026-10-27T02:17:00Z" },
+      { code: 42, generatedAt: "invalid" },
+    ].map((sloc, index) => ({
+      rank: index + 1, fullName: `octo/repo-${index}`, publicPath: `/github/octo/repo-${index}`,
+      description: "A repository.", language: "Rust", starsToday: 1234, sloc,
+    })),
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ reports: [] });
+  try {
+    for (const path of ["/trending", "/trending.md", "/trending.xml"]) {
+      const response = await onRequest(await renderedContext(path, snapshot));
+      assert.equal(response.status, 200);
+      const body = await response.text();
+      assert.match(body, /24,800 SLOC; counted 2026-10-27/);
+      assert.match(body, /0 SLOC; counted 2026-10-26/);
+      assert.equal((body.match(/SLOC: no count available/g) ?? []).length, 3);
+      assert.doesNotMatch(body, /-1 SLOC|42 SLOC|counted invalid/);
+      assert.ok(body.indexOf("octo/repo-0") < body.indexOf("octo/repo-1"));
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 // Repository owners write Trending descriptions; String.replace would read
 // these as splice directives if the SSR passed them as replacement strings.
 test("trending SSR renders dollar patterns in third-party descriptions literally", async () => {
@@ -2348,7 +2380,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
     assert.equal(response.headers.get("cache-control"), "public, s-maxage=300, stale-while-revalidate=600", path);
     const md = await response.text();
     assert.match(md, /^# Trending GitHub repositories today\n/, path);
-    assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. (1,234 stars today, Rust)"), path);
+    assert.ok(md.includes("1. [octo-org/octo-repo](https://octocounts.com/github/octo-org/octo-repo) — A useful repository. — SLOC: no count available (1,234 stars today, Rust)"), path);
   }
   // Canonical collection URLs are HTML for every user agent.
   const bot = await onRequest(withUserAgent(await renderedContext("/trending", snapshot), "PerplexityBot/1.0"));

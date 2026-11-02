@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { trendingSloc } from "../frontend/functions/trending-sloc.js";
 
 const TRENDING_URL = "https://github.com/trending?since=daily";
 const DEFAULT_OUTPUT = new URL("../frontend/public/github-trending.json", import.meta.url);
 const DEFAULT_REPO_FILE = new URL("../data/github-trending-repos.txt", import.meta.url);
+const DEFAULT_API_BASE = "https://api.octocounts.com";
 
 export function parseTrendingHtml(html, limit = 20) {
   const articles = [...String(html).matchAll(/<article\s+class="Box-row">([\s\S]*?)<\/article>/gi)];
@@ -57,11 +59,44 @@ export async function fetchTrending(fetchImpl = fetch, limit = 20) {
   return repositories;
 }
 
+export async function enrichTrending(repositories, fetchImpl = fetch, apiBase = DEFAULT_API_BASE) {
+  const enriched = [];
+  for (const repo of repositories) {
+    let sloc = null;
+    try {
+      const params = new URLSearchParams({ provider: "github", owner: repo.owner, repo: repo.name });
+      const response = await fetchImpl(`${apiBase.replace(/\/$/, "")}/api/seo/report?${params}`, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`Report returned ${response.status}`);
+      const report = await response.json();
+      // The SEO endpoint selects the canonical counting profile, shared by public reports.
+      if (report.provider !== "github" || report.repoFullName?.toLowerCase() !== repo.fullName.toLowerCase()) {
+        throw new Error("Report repository does not match");
+      }
+      sloc = trendingSloc({ code: report.total?.code, generatedAt: report.generatedAt });
+      if (!sloc) throw new Error("Report has invalid SLOC or timestamp");
+    } catch (error) {
+      console.warn(`No SLOC for ${repo.fullName}: ${error.message}`);
+    }
+    enriched.push({ ...repo, sloc });
+  }
+  return enriched;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const limit = numberArg(args.limit, 20);
   const output = args.output ?? DEFAULT_OUTPUT;
   const repoFile = args["repo-file"] ?? DEFAULT_REPO_FILE;
+  if (args["enrich-only"]) {
+    const snapshot = JSON.parse(await readFile(output, "utf8"));
+    snapshot.repositories = await enrichTrending(snapshot.repositories, fetch, args["api-base"] ?? process.env.OCTOCOUNTS_API_BASE ?? DEFAULT_API_BASE);
+    await writeFile(output, `${JSON.stringify(snapshot, null, 2)}\n`);
+    console.log(`Added SLOC to ${snapshot.repositories.filter((repo) => repo.sloc).length}/${snapshot.repositories.length} Trending repositories`);
+    return;
+  }
   const repositories = await fetchTrending(fetch, limit);
   const generatedAt = new Date().toISOString();
   const snapshot = {

@@ -12,6 +12,7 @@ import { formatCompactNumber, formatNumber } from "../reportUtils";
 import i18n from "../i18n";
 import { MIN_INDEXABLE_REPORT_FILES } from "../../functions/report-copy.js";
 import { COMPARE_REGISTRY } from "../../functions/compare-registry.js";
+import { trendingSloc } from "../../functions/trending-sloc.js";
 import type { GrowthRepositoryStat, GrowthStats } from "../types";
 
 // Marketing/growth pages (stats, recent, popular, trending, hall of
@@ -48,6 +49,7 @@ type TrendingRepository = {
   totalStars: number;
   htmlUrl: string;
   publicPath: string;
+  sloc?: { code: number; generatedAt: string } | null;
 };
 
 type TrendingSnapshot = {
@@ -106,14 +108,40 @@ function seoReportCards(reports: SeoReportSummary[]): RepoCard[] {
   }));
 }
 
-function trendingRepoCards(repositories: TrendingRepository[]): RepoCard[] {
-  return repositories.map((repo) => ({
-    key: repo.fullName,
-    title: repo.fullName,
-    line: `#${repo.rank} · ${repo.language ?? i18n.t("growth.repoCard.mixed")} — ${repo.description || i18n.t("growth.repoCard.trendingFallback")}`,
-    footer: i18n.t("growth.repoCard.starsToday", { count: repo.starsToday, total: formatNumber(repo.totalStars) }),
-    href: repo.publicPath,
-  }));
+function TrendingList({ repositories }: { repositories: TrendingRepository[] }) {
+  const { t } = useTranslation();
+  if (!repositories.length) return <p className="growth-empty">{t("growth.empty")}</p>;
+  return (
+    <ol className="trending-list" role="list" aria-label={t("growth.pages.trending.title")}>
+      {repositories.map((repo) => {
+        const sloc = trendingSloc(repo.sloc);
+        return (
+          <li key={repo.fullName} value={repo.rank}>
+            <a className="trending-row" href={repo.publicPath}>
+              <span className="trending-rank" aria-hidden="true">{repo.rank}</span>
+              <div className="trending-project">
+                <strong>{repo.fullName}</strong>
+                <p>{repo.description || t("growth.repoCard.trendingFallback")}</p>
+                {repo.language ? <span className="trending-language">{repo.language}</span> : null}
+              </div>
+              <div className="trending-metric trending-sloc">
+                <span className="trending-label">SLOC</span>
+                {sloc ? <>
+                  <strong title={formatNumber(sloc.code)}><span aria-hidden="true">{formatCompactNumber(sloc.code)}</span><span className="visually-hidden">{formatNumber(sloc.code)}</span></strong>
+                  <span className="trending-detail">{t("growth.pages.trending.counted")} <time dateTime={sloc.generatedAt} title={sloc.generatedAt}>{sloc.generatedAt.slice(0, 10)}</time></span>
+                </> : <span className="trending-missing">{t("growth.pages.trending.unavailable")}</span>}
+              </div>
+              <div className="trending-metric">
+                <span className="trending-label">{t("growth.pages.trending.starsToday")}</span>
+                <strong>+{formatNumber(repo.starsToday)}</strong>
+                <span className="trending-detail">{t("growth.pages.trending.totalStars", { total: formatCompactNumber(repo.totalStars) })}</span>
+              </div>
+            </a>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 // The edge renders a rotating slice of report links into the hub pages and
@@ -302,14 +330,14 @@ export function TrendingPage() {
   return (
     <MarketingShell>
       <section className="growth-hero list-hero" aria-label={t("growth.pages.trending.title")}>
-        <span className="chart-tag">{t("growth.pages.trending.kicker")}</span>
         <h1>{t("growth.pages.trending.title")}</h1>
         <p>{t("growth.pages.trending.subtitle")}</p>
         {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {query.data ? <RepoCardGrid cards={trendingRepoCards(query.data.repositories)} /> : null}
+      {query.data ? <TrendingList repositories={query.data.repositories} /> : null}
+      <p className="trending-policy">{t("growth.pages.trending.policy")} <a href="/docs/methodology">{t("growth.pages.trending.methodology")}</a></p>
       <MoreReports />
     </MarketingShell>
   );
