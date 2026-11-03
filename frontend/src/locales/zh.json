@@ -716,7 +716,10 @@
       "loading": "正在加载仓库与统计数据…",
       "refreshFailed": "刷新失败，仍显示上次可用的数据。",
       "moduleFailed": "交互页面加载失败，请重新加载页面再试。",
-      "reload": "重新加载页面"
+      "reload": "重新加载页面",
+      "countedCode": "累计统计代码行：{{value}}。",
+      "totalLines": "{{value}} 总行数",
+      "reports": "{{count}} 份报告"
     },
     "sources": {
       "sloc_backfill": "历史数据补录",

@@ -9,11 +9,13 @@ import { COMPARE_REGISTRY } from "../functions/compare-registry.js";
 import { comparePolicies } from "../functions/counting-policy.js";
 
 const ROOT = new URL("../", import.meta.url);
+const visibleText = (html) => html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
 const EXTENSION_PACKAGE = new URL("../../extension/package.json", import.meta.url);
 const EDGE_ADD_ON_URL = "https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim";
 const EMPTY_STATS = {
   totals: { reportsGenerated: 0, repositoriesAnalyzed: 0, linesCounted: 0, codeLinesCounted: 0, languagesDetected: 0 },
-  sources: [], languages: [], topRepositories: [],
+  windows: { reportsToday: 0, reports7d: 0, reports30d: 0, repositoriesToday: 0, repositories7d: 0, repositories30d: 0 },
+  sources: [], languages: [], topRepositories: [], recentRepositories: [],
 };
 const EMPTY_TRENDING = {
   source: "https://github.com/trending", generatedAt: "2026-10-28T08:25:02.941Z", date: "2026-10-28", repositories: [],
@@ -236,7 +238,8 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const fontPreloads = html.match(/<link rel="preload" as="font"[^>]*>/g) ?? [];
   assert.equal(fontPreloads.length, 1, `expected exactly the 700 font preload, got: ${fontPreloads.join(" ")}`);
   assert.match(fontPreloads[0] ?? "", /\/fonts\/jetbrains-mono-700-latin\.woff2/);
-  assert.match(html, /<script>\{let t=null;try\{t=localStorage\.getItem\("octocounts\.theme"\)\}catch\{\}document\.documentElement\.dataset\.scheme=/);
+  assert.match(html, /new URLSearchParams\(location.search\).get\("theme"\)/);
+  assert.match(html, /localStorage\.getItem\("octocounts\.theme"\)/);
   assert.doesNotMatch(html, /\/boot\.js/);
   assert.doesNotMatch(html, /octocounts-(?:light|dark)-card\.webp" as="image"/);
   assert.doesNotMatch(styles, /data:font/);
@@ -491,7 +494,7 @@ test("trending SSR publishes a stable canonical collection from the daily snapsh
   const html = await response.text();
   assert.match(html, /<link rel="canonical" href="https:\/\/octocounts.com\/trending"/);
   assert.match(html, /octo-org\/octo-repo/);
-  assert.match(html, /1,234 stars today/);
+  assert.match(visibleText(html), /Stars today \+ 1,234/);
   assert.match(html, /"@type":"CollectionPage"/);
   assert.match(html, /"datePublished":"2026-07-15"/);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
@@ -519,10 +522,15 @@ test("trending HTML, markdown and RSS share validated SLOC and report dates", as
       const response = await onRequest(await renderedContext(path, snapshot));
       assert.equal(response.status, 200);
       const body = await response.text();
-      assert.match(body, /24,800 SLOC; counted 2026-10-27/);
-      assert.match(body, /0 SLOC; counted 2026-10-26/);
+      if (path === "/trending") {
+        assert.match(visibleText(body), /SLOC 24,800 24,800 Counted 2026-10-27/);
+        assert.match(visibleText(body), /SLOC 0 0 Counted 2026-10-26/);
+      } else {
+        assert.match(body, /24,800 SLOC; counted 2026-10-27/);
+        assert.match(body, /0 SLOC; counted 2026-10-26/);
+      }
       assert.ok(body.includes(`/github/octo/repo-0?reportId=${"a".repeat(64)}`));
-      assert.equal((body.match(/SLOC: no count available/g) ?? []).length, 3);
+      assert.equal((body.match(path === "/trending" ? /class="trending-missing"/g : /SLOC: no count available/g) ?? []).length, 3);
       assert.doesNotMatch(body, /-1 SLOC|42 SLOC|counted invalid/);
       assert.ok(body.indexOf("octo/repo-0") < body.indexOf("octo/repo-1"));
     }
@@ -568,9 +576,9 @@ test("trending SSR renders dollar patterns in third-party descriptions literally
     }],
   };
   const html = await (await onRequest(await renderedContext("/trending", snapshot))).text();
-  assert.ok(html.includes("Costs $` to run, $&amp; more, $&#39; less, $$ total"), "description must survive verbatim");
+  assert.ok(html.includes("Costs $` to run, $&amp; more, $&#x27; less, $$ total"), "description must survive verbatim");
   assert.equal((html.match(/<\/head>/g) ?? []).length, 1);
-  assert.equal((html.match(/<div id="root" data-oc-ssr="explore">/g) ?? []).length, 1);
+  assert.equal((html.match(/<div id="root" data-oc-ssr="explore" data-oc-hydrate="explore"[^>]*>/g) ?? []).length, 1);
 });
 
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
@@ -1921,17 +1929,21 @@ test("stats SSR renders the full citable aggregates and Dataset datePublished", 
     globalThis.fetch = originalFetch;
   }
 
-  assert.match(html, /<h2>Where analyses come from<\/h2>/);
-  assert.ok(html.includes("Web app: 2,000 reports"));
-  assert.ok(html.includes("GitHub Action: 700 reports"));
-  assert.match(html, /<h2>Language coverage<\/h2>/);
-  assert.ok(html.includes("Rust: 5,000,000 code lines across 300 reports"));
-  assert.match(html, /<h2>Largest repositories measured<\/h2>/);
-  assert.ok(html.includes('<a href="/github/torvalds/linux">torvalds/linux</a> — 30,000,000 code lines (40,000,000 total lines)'));
+  const text = visibleText(html);
+  assert.match(html, /<h2>Source breakdown<\/h2>/);
+  assert.match(text, /Website 2,000/);
+  assert.match(text, /GitHub Action 700/);
+  assert.match(html, /<h2>Language SLOC<\/h2>/);
+  assert.match(text, /Rust · 300 reports 5M 5,000,000/);
+  assert.match(text, /Counted code lines: 98,765,432/);
+  assert.match(html, /<h2>Largest public repositories<\/h2>/);
+  assert.match(html, /href="\/github\/torvalds\/linux"/);
+  assert.match(text, /30,000,000/);
+  assert.match(text, /40,000,000 total lines/);
   assert.match(html, /"@type":"Dataset"/);
   assert.match(html, /"datePublished":"2026-07-10"/);
   assert.deepEqual(JSON.parse(html.match(/id="octocounts-stats-data">([^<]*)<\/script>/)[1]), stats);
-  assert.match(html, /<div id="root" data-oc-ssr="explore">/);
+  assert.match(html, /<div id="root" data-oc-ssr="explore" data-oc-hydrate="explore"[^>]*>/);
 });
 
 test("docs dateModified and sitemap lastmod follow the per-page content manifest", async () => {
@@ -2417,6 +2429,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
   assert.match(browser.headers.get("content-type") ?? "", /^text\/html/);
 
   const stats = {
+    ...EMPTY_STATS,
     totals: { reportsGenerated: 4200, repositoriesAnalyzed: 3100, linesCounted: 123456789, codeLinesCounted: 98765432, languagesDetected: 87 },
     sources: [{ source: "web", reports: 2000 }],
     languages: [{ language: "Rust", code: 5000000, lines: 6500000, reports: 300 }],
@@ -2425,6 +2438,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
       owner: "torvalds",
       repo: "linux",
       publicPath: "/github/torvalds/linux",
+      generatedAt: "2026-11-03T00:00:00Z",
       total: { files: 80000, lines: 40000000, code: 30000000, comments: 5000000, blanks: 5000000 },
     }],
   };
@@ -2973,7 +2987,7 @@ test("SSR list pagination uses the client's page size and exposes crawlable navi
     const url = new URL(raw);
     if (url.pathname === "/api/seo/recent") {
       requested = url;
-      return Response.json({ reports: Array.from({ length: 36 }, (_, i) => ({ ...RELATED_REPORT_FIXTURE, repoFullName: `org/repo-${i + 37}`, publicPath: `/github/org/repo-${i + 37}` })) });
+      return Response.json({ reports: Array.from({ length: 36 }, (_, i) => ({ ...RELATED_REPORT_FIXTURE, owner: "org", repo: `repo-${i + 37}`, repoFullName: `org/repo-${i + 37}`, publicPath: `/github/org/repo-${i + 37}` })) });
     }
     return Response.json([]);
   };
@@ -2983,8 +2997,8 @@ test("SSR list pagination uses the client's page size and exposes crawlable navi
     assert.equal(requested.searchParams.get("limit"), "36");
     assert.equal(requested.searchParams.get("page"), "2");
     const html = await response.text();
-    assert.match(html, /href="https:\/\/octocounts.com\/recent">Previous page/);
-    assert.match(html, /href="https:\/\/octocounts.com\/recent\?page=3">Next page/);
+    assert.match(html, /href="\/recent">Previous/);
+    assert.match(html, /href="\/recent\?page=3">Next/);
     assert.match(html, /org\/repo-72/);
     assert.equal((await onRequest(await renderedContext("/recent?page=NaN"))).status, 404);
   } finally { globalThis.fetch = originalFetch; }
@@ -3007,12 +3021,12 @@ test("SSR list snapshots preserve final-page boundaries, global ranks and safe J
     assert.equal(seed.payload.page, 2);
     assert.equal(seed.payload.hasNext, false);
     assert.equal(seed.payload.reports.length, 36);
-    assert.match(html, /<div id="root" data-oc-ssr="explore">/);
+    assert.match(html, /<div id="root" data-oc-ssr="explore" data-oc-hydrate="explore"[^>]*>/);
     assert.deepEqual(seed.payload.reports[0].languages, reports[0].languages);
     assert.equal(seed.payload.reports[0].citationText, undefined);
-    assert.doesNotMatch(html, /Next page|<script>alert\(1\)/);
+    assert.doesNotMatch(html, />Next<|<script>alert\(1\)/);
     assert.match(html, /"position":37/);
-    assert.match(html, /Previous page/);
+    assert.match(html, />Previous</);
     for (const invalid of [
       { hasNext: "false", reports },
       { reports: [{ ...reports[0], languages: {} }] },
@@ -3106,7 +3120,7 @@ test("stats failures are retryable in HTML and Markdown, including invalid rows 
   for (const path of ["/stats", "/stats.md"]) {
     const response = await onRequest(await renderedContext(path));
     assert.equal(response.status, 200);
-    assert.match(await response.text(), /0 reports generated/);
+    assert.match(visibleText(await response.text()), path === "/stats" ? /reports generated 0/ : /0 reports generated/);
   }
 });
 
@@ -3236,7 +3250,7 @@ test("stats keep serving the last validated totals briefly when the upstream fai
     const stale = await onRequest({ ...first, request: new Request(`https://octocounts.com${path}`) });
     assert.equal(stale.status, 200, path);
     assert.equal(stale.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=600", path);
-    assert.match(await stale.text(), /7 reports generated/, path);
+    assert.match(visibleText(await stale.text()), path === "/stats" ? /reports generated 7/ : /7 reports generated/, path);
   }
 });
 

@@ -16,7 +16,7 @@ on:
     inputs:
       vite_api_base:
         description: "VITE_API_BASE baked into the frontend build"
-        default: "/api"
+        default: "https://api.octocounts.com"
 
 permissions:
   contents: read
@@ -28,7 +28,7 @@ env:
   IMAGE_API: ${{ github.repository_owner }}/octocounts-api
   IMAGE_WEB: ${{ github.repository_owner }}/octocounts-web
   IMAGE_MCP: ${{ github.repository_owner }}/octocounts-mcp
-  VITE_API_BASE: ${{ github.event.inputs.vite_api_base || '/api' }}
+  VITE_API_BASE: ${{ github.event.inputs.vite_api_base || 'https://api.octocounts.com' }}
 
 jobs:
   build:
@@ -49,7 +49,7 @@ jobs:
             dockerfile: ./frontend/Dockerfile
             image_var: IMAGE_WEB
             build_args: |
-              VITE_API_BASE=${{ github.event.inputs.vite_api_base || '/api' }}
+              VITE_API_BASE=${{ github.event.inputs.vite_api_base || 'https://api.octocounts.com' }}
           - name: mcp
             context: ./mcp
             dockerfile: ./mcp/Dockerfile

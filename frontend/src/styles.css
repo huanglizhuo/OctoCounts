@@ -5549,3 +5549,8 @@ button.expand::before {
   .explore-skeleton > [aria-hidden] { animation: explore-loading 1.8s ease-in-out .15s infinite alternate; }
   @keyframes explore-loading { from { opacity: 1; } to { opacity: .6; } }
 }
+
+/* The boot-selected theme also owns the icon before hydration. */
+.theme-icon-moon { display: none; }
+[data-scheme="paper"] .theme-icon-sun { display: none; }
+[data-scheme="paper"] .theme-icon-moon { display: block; }

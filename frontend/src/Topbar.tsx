@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { sourceRepoUrl } from "./constants";
+import { ExploreContext, exploreHref } from "./growth/ExploreContext";
 import { ThemeSwitch } from "./scheme";
 import { StoreLink } from "./StoreLink";
 
@@ -17,13 +18,14 @@ type MenuId = "explore" | "tools" | "install" | "site";
 
 export function Topbar() {
   const { t, i18n } = useTranslation();
-  const path = window.location.pathname;
+  const { pathname, search } = useContext(ExploreContext);
+  const path = pathname || window.location.pathname;
   const isHome = path === "/" || path === "/zh";
   const homePath = i18n.language === "zh" ? "/zh" : "/";
   const languageControls = (["en", "zh"] as const).map((language) => isHome ? (
     <a key={language} className="lang-btn" href={language === "zh" ? "/zh" : "/"} hrefLang={language === "zh" ? "zh-Hans" : "en"} aria-current={i18n.language === language ? "true" : undefined}>{language === "zh" ? "中文" : "EN"}</a>
   ) : (
-    <button key={language} type="button" className="lang-btn" aria-current={i18n.language === language ? "true" : undefined} onClick={() => i18n.changeLanguage(language)}>{language === "zh" ? "中文" : "EN"}</button>
+    <button key={language} type="button" className="lang-btn" aria-current={i18n.language === language ? "true" : undefined} onClick={() => void import("./i18n").then(({ setLanguageForRender }) => setLanguageForRender(language))}>{language === "zh" ? "中文" : "EN"}</button>
   ));
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const menuRefs = useRef<Record<MenuId, HTMLDetailsElement | null>>({ explore: null, tools: null, install: null, site: null });
@@ -36,6 +38,8 @@ export function Topbar() {
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, []);
+
+  useEffect(() => { setOpenMenu(null); }, [path, search]);
 
   const closeOnEscape = (event: React.KeyboardEvent<HTMLDetailsElement>) => {
     if (event.key !== "Escape") return;
@@ -79,7 +83,7 @@ export function Topbar() {
       <nav className="topbar-nav" aria-label={t("topbar.navigation")}>
         <a href={homePath} aria-current={isHome ? "page" : undefined}>{t("topbar.analyze")}</a>
         {menu("explore", t("topbar.explore"), publicReportLinks.map((item) => (
-          <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
+          <a key={item.href} href={exploreHref(item.href, i18n.language)} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
         )))}
         {menu("tools", t("topbar.tools"), <>
           <a href="/compare" aria-current={isActive("/compare") ? "page" : undefined}>{t("topbar.compare")}</a>
@@ -115,7 +119,7 @@ export function Topbar() {
           <summary>{t("topbar.explore")}<ChevronDown size={14} aria-hidden="true" /></summary>
           <div className="site-menu-group">
             {publicReportLinks.map((item) => (
-              <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
+              <a key={item.href} href={exploreHref(item.href, i18n.language)} aria-current={isActive(item.href) ? "page" : undefined}>{t(`growth.nav.${item.key}.label`)}</a>
             ))}
           </div>
         </details>

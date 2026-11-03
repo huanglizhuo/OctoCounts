@@ -1,3 +1,4 @@
+import { renderExplore, explorePreloads, validateExploreList, validateExploreStats } from "../.generated/explore-ssr.js";
 import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnapshot } from "./trending-sloc.js";
 import { reportJsonLd } from "./report-schema.js";
 import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle } from "./report-copy.js";
@@ -15,7 +16,7 @@ function loadCompareEditorial() {
 }
 
 const API_BASE = "https://api.octocounts.com";
-const BOOT_SCRIPT_HASH = "'sha256-2mUsir+xXgBNxPOKDMVv/T0CDFNTPTwA4NyqXmyIU4Y='";
+const BOOT_SCRIPT_HASH = "'sha256-bxjDuI3BgSvpGnuokvaivsaybH6c0rfAlo87mfb9ZcU='";
 // Per-URL content lastmod, mirroring frontend/content/content-manifest.json
 // (seo.test.mjs asserts the two stay in sync). A date moves ONLY when that
 // page's content really changes — never blanket-refresh all of them (SG-07).
@@ -670,17 +671,11 @@ async function listPageResponse(context, kind, url) {
     languageCount: report.languageCount,
     languages: report.languages?.map((language) => ({ name: language.name, stats: { code: language.stats.code } })),
   })) } };
+  if (!validateExploreList(listData.payload)) return collectionUnavailableResponse(context, new URL(pageMeta.canonical).pathname, pageMeta.title);
   const rotating = await rotatingPromise;
-  const rows = listed
-    .map(
-      (report, index) =>
-        `<li><span>${(Number(page) - 1) * 36 + index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
-    )
-    .join("");
-  // A successful empty inventory still explains the collection; failures return 503 above.
-  const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
-  const moreReports = moreReportsHtml(rotating);
-  const pagination = `<nav aria-label="Report pages">${Number(page) > 1 ? `<a href="${escapeAttr(pageMeta.canonical)}${page === "2" ? "" : `?page=${Number(page) - 1}`}">Previous page</a>` : ""}${hasNext ? ` <a href="${escapeAttr(pageMeta.canonical)}?page=${Number(page) + 1}">Next page</a>` : ""}</nav>`;
+  const explore = await exploreMarkup(context, {
+    "octocounts-list-data": listData, "octocounts-more-reports": rotating,
+  });
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -706,9 +701,9 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
-      explore: true,
-      extraHead: `${moreReportsData(rotating)}<script type="application/json" id="octocounts-list-data">${escapeScriptJson(listData)}</script>`,
-      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
+      explore: explore.locale,
+      extraHead: `${explore.head}${moreReportsData(rotating)}<script type="application/json" id="octocounts-list-data">${escapeScriptJson(listData)}</script>`,
+      bodyContent: explore.html,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -848,11 +843,10 @@ async function trendingPageResponse(context, options = {}) {
   const index = await indexHtml(context);
   const title = TRENDING_TITLE;
   const description = trendingDescription(snapshot);
-  const body = snapshot.repositories
-    .map((repo) => `<li><span>${repo.rank}.</span> <a href="${escapeAttr(trendingReportPath(repo))}">${escapeHtml(repo.fullName)}</a> — ${escapeHtml(repo.description || "GitHub Trending repository")} — ${escapeHtml(trendingSlocText(repo))} (${formatNumber(repo.starsToday)} stars today${repo.language ? `, ${escapeHtml(repo.language)}` : ""})</li>`)
-    .join("");
   const rotating = await rotatingPromise;
-  const moreReports = moreReportsHtml(rotating);
+  const explore = await exploreMarkup(context, {
+    "octocounts-trending-data": snapshot, "octocounts-more-reports": rotating,
+  });
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -861,8 +855,8 @@ async function trendingPageResponse(context, options = {}) {
       canonical: "https://octocounts.com/trending",
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
-      explore: true,
-      extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}<script type="application/json" id="octocounts-trending-data">${escapeScriptJson(snapshot)}</script>`,
+      explore: explore.locale,
+      extraHead: `${explore.head}<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}<script type="application/json" id="octocounts-trending-data">${escapeScriptJson(snapshot)}</script>`,
       mdAlternate: "https://octocounts.com/trending.md",
       jsonLd: {
         "@context": "https://schema.org",
@@ -891,7 +885,7 @@ async function trendingPageResponse(context, options = {}) {
           })),
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>Source: <a href="https://github.com/trending">GitHub Trending</a>. Snapshot updated <time datetime="${escapeAttr(snapshot.generatedAt)}">${escapeHtml(snapshot.date)}</time>.</p>${trendingIsStale(snapshot) ? `<p role="status">${escapeHtml(trendingStaleText(snapshot))}</p>` : ""}<ol>${body}</ol></section>${moreReports}`,
+      bodyContent: explore.html,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );
@@ -1009,41 +1003,7 @@ async function statsPageResponse(context, options = {}) {
   const index = await indexHtml(context);
   const title = STATS_TITLE;
   const description = STATS_DESCRIPTION;
-  const totals = `<ul>
-      <li>${formatNumber(stats.totals.reportsGenerated)} reports generated</li>
-      <li>${formatNumber(stats.totals.repositoriesAnalyzed)} public repositories analyzed</li>
-      <li>${formatNumber(stats.totals.linesCounted)} total lines counted (${formatNumber(stats.totals.codeLinesCounted)} code)</li>
-      <li>${formatNumber(stats.totals.languagesDetected)} languages detected</li>
-    </ul>`;
-  // The aggregate sections below are the citable payload of this page; they
-  // mirror the /api/stats fields the JS dashboard charts, as plain HTML.
-  const sources = stats?.sources?.length
-    ? `<section><h2>Where analyses come from</h2><ul>${stats.sources
-        .map((row) => `<li>${escapeHtml(STATS_SOURCE_LABELS[row.source] ?? row.source)}: ${formatNumber(row.reports)} reports</li>`)
-        .join("")}</ul></section>`
-    : "";
-  const languages = stats?.languages?.length
-    ? `<section><h2>Language coverage</h2><ul>${stats.languages
-        .map((row) => `<li>${escapeHtml(row.language)}: ${formatNumber(row.code)} code lines across ${formatNumber(row.reports)} reports</li>`)
-        .join("")}</ul></section>`
-    : "";
-  const largest = stats?.topRepositories?.length
-    ? `<section><h2>Largest repositories measured</h2><ol>${stats.topRepositories
-        .map(
-          (repo) =>
-            `<li><a href="${escapeAttr(repo.publicPath)}">${escapeHtml(`${repo.owner}/${repo.repo}`)}</a> — ${formatNumber(repo.total.code)} code lines (${formatNumber(repo.total.lines)} total lines)</li>`
-        )
-        .join("")}</ol></section>`
-    : "";
-  const body = `<p>This page publishes OctoCounts' own operating totals: how many source line count reports have been generated, how many distinct public GitHub repositories have been analyzed, how many lines have been counted in total, how many programming languages have been detected, which client each analysis arrived from, and the largest repositories measured so far. The figures are aggregate only and contain no user-level analytics.</p>
-    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. The same underlying reports are browsable directly:</p>
-    <nav aria-label="Related OctoCounts pages"><ul>
-      <li><a href="/recent">Recently analyzed repositories</a></li>
-      <li><a href="/popular">Popular SLOC reports</a></li>
-      <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
-      <li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>
-      <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
-    </ul></nav>`;
+  const explore = await exploreMarkup(context, { "octocounts-stats-data": stats });
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -1076,9 +1036,9 @@ async function statsPageResponse(context, options = {}) {
           variableMeasured: ["reports", "repositories", "lines", "languages", "sources"],
         },
       },
-      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
-      explore: true,
-      extraHead: `<script type="application/json" id="octocounts-stats-data">${escapeScriptJson(stats)}</script>`,
+      bodyContent: explore.html,
+      explore: explore.locale,
+      extraHead: `${explore.head}<script type="application/json" id="octocounts-stats-data">${escapeScriptJson(stats)}</script>`,
     }),
     cacheControl
   );
@@ -1959,7 +1919,7 @@ async function collectionUnavailableResponse(context, path, title, options = {})
 
 function validStats(stats) {
   const count = (value) => Number.isSafeInteger(value) && value >= 0;
-  return stats && ["reportsGenerated", "repositoriesAnalyzed", "linesCounted", "codeLinesCounted", "languagesDetected"].every((key) => count(stats.totals?.[key]))
+  return validateExploreStats(stats) && ["reportsGenerated", "repositoriesAnalyzed", "linesCounted", "codeLinesCounted", "languagesDetected"].every((key) => count(stats.totals?.[key]))
     && Array.isArray(stats.sources) && stats.sources.every((row) => typeof row?.source === "string" && count(row.reports))
     && Array.isArray(stats.languages) && stats.languages.every((row) => typeof row?.language === "string" && count(row.code) && count(row.reports))
     && Array.isArray(stats.topRepositories) && stats.topRepositories.every((repo) => typeof repo?.owner === "string" && typeof repo.repo === "string"
@@ -2757,6 +2717,16 @@ async function growthPageResponse(context, owner, repo) {
 // `$&`, `` $` `` and `$'` in a string replacement as splice directives, and the
 // inserted text includes third-party prose (GitHub Trending descriptions).
 // escapeHtml leaves `$` and backticks alone, so it cannot defuse them.
+async function exploreMarkup(context, seeds) {
+  const url = new URL(context.request.url);
+  const locale = url.searchParams.get("lng") === "zh" ? "zh" : "en";
+  const bootstrap = { pathname: url.pathname, search: url.search, locale, now: Date.now(), seeds };
+  const html = await renderExplore(bootstrap);
+  const head = `<script type="application/json" id="octocounts-explore-bootstrap">${escapeScriptJson(bootstrap)}</script>`
+    + explorePreloads.map((file) => `<link rel="modulepreload" href="/${escapeAttr(file)}" crossorigin />`).join("");
+  return { html, head, locale };
+}
+
 function injectHeadAndNoscript(index, meta) {
   let html = index
     .replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi, "")
@@ -2786,13 +2756,10 @@ function injectHeadAndNoscript(index, meta) {
   if (meta.extraHead) {
     html = html.replace("</head>", () => `${meta.extraHead}\n</head>`);
   }
-  // Server-rendered facts go INSIDE #root as regular visible HTML, not into a
-  // <noscript> after it. Several AI fetchers (Perplexity's reader, some ChatGPT
-  // fetch paths) strip or de-prioritize noscript, and Google weights noscript
-  // content lower. React mounts with createRoot().render(), which discards the
-  // container's existing children, so the app replaces this block on hydration
-  // while no-JS crawlers keep the full facts, table, FAQ, and links.
-  html = html.replace('<div id="root"></div>', () => `<div id="root"${meta.explore ? ' data-oc-ssr="explore"' : ""}>${meta.bodyContent}</div>`);
+  // Explore hydrates the shared React tree. Other routes keep readable facts
+  // inside #root for no-JS clients until createRoot replaces their fallback.
+  html = html.replace('<div id="root"></div>', () => `<div id="root"${meta.explore ? ` data-oc-ssr="explore" data-oc-hydrate="explore" data-oc-locale="${meta.explore}"` : ""}>${meta.bodyContent}</div>`);
+  if (meta.explore) html = html.replace(/<html lang="[^"]*"/, `<html lang="${meta.explore}"`);
   return html;
 }
 

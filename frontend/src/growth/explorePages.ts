@@ -10,7 +10,7 @@ export function exploreKind(path: string): ExploreKind | undefined {
   }
 }
 
-type Pages = typeof import("../pages/marketing");
+type Pages = typeof import("./ExploreApp");
 let pages: Pages | undefined;
 let pending: Promise<Pages> | undefined;
 
@@ -20,7 +20,7 @@ export function loadExplorePages(): Promise<Pages> {
   if (!pending) {
     pending = new Promise<Pages>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Page module timed out")), 15_000);
-      import("../pages/marketing").then(resolve, reject).finally(() => clearTimeout(timer));
+      import("./ExploreApp").then(resolve, reject).finally(() => clearTimeout(timer));
     }).then((module) => { pages = module; return module; });
   }
   return pending;

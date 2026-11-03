@@ -5,7 +5,7 @@ export type ExploreRepository = {
   repo: string;
   publicPath: string;
   generatedAt: string;
-  total: { code: number; files?: number };
+  total: { code: number; files?: number; lines?: number };
   topLanguage?: string | { name: string; code: number; percent: number } | null;
   languageCount?: number;
   languages?: Array<{ name: string; stats: { code: number } }>;
@@ -22,7 +22,7 @@ function validRepository(value: unknown): value is ExploreRepository {
   return typeof value.owner === "string" && typeof value.repo === "string"
     && typeof value.publicPath === "string" && /^\/github\/[^/?#]+\/[^/?#]+$/.test(value.publicPath)
     && typeof value.generatedAt === "string" && Number.isFinite(Date.parse(value.generatedAt))
-    && count(value.total.code) && (value.total.files === undefined || count(value.total.files))
+    && count(value.total.code) && (value.total.lines === undefined || count(value.total.lines)) && (value.total.files === undefined || count(value.total.files))
     && (value.languageCount === undefined || count(value.languageCount))
     && (value.topLanguage == null || typeof value.topLanguage === "string" || (record(value.topLanguage) && typeof value.topLanguage.name === "string"))
     && (value.languages === undefined || (Array.isArray(value.languages) && value.languages.every((row) => record(row) && typeof row.name === "string" && record(row.stats) && count(row.stats.code))));

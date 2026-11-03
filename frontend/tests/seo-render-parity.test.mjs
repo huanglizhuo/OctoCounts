@@ -1,7 +1,5 @@
-// The client replaces the edge's server markup (createRoot), and Google
-// indexes the rendered DOM. These checks pin the server half of each
-// server/client pair: what the client re-renders must be published as data
-// it can read, and schema must describe what the client page shows.
+// Explore hydrates the shared React tree. Facts, discovery links and schema
+// must remain available in both the server HTML and the client bootstrap.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -35,6 +33,7 @@ function context(path) {
 }
 
 const report = (name, files) => ({
+  owner: "octo", repo: name, generatedAt: "2026-11-03T00:00:00Z",
   repoFullName: `octo/${name}`,
   publicPath: `/github/octo/${name}`,
   canonicalUrl: `https://octocounts.com/github/octo/${name}`,
@@ -58,7 +57,7 @@ test("hub lists never link reports below the indexable floor and keep paging on 
     const html = await (await onRequest(context(`/${collection}`))).text();
     assert.doesNotMatch(html, /octo\/tiny/, collection);
     assert.match(html, /href="\/github\/octo\/repo0"/);
-    assert.ok(html.includes(`href="https://octocounts.com/${collection}?page=2">Next page</a>`), collection);
+    assert.ok(html.includes(`href="/${collection}?page=2">Next</a>`), collection);
   }
 });
 
@@ -68,7 +67,8 @@ test("hub pages repeat their rotating report links as head data the client rende
     const html = await (await onRequest(context(path))).text();
     const head = html.slice(0, html.indexOf("</head>"));
     const data = JSON.parse(head.match(/<script type="application\/json" id="octocounts-more-reports">([^<]*)<\/script>/)?.[1] ?? "null");
-    const visible = [...html.slice(html.indexOf("<h2>More repository reports</h2>")).matchAll(/<li><a href="([^"]+)">/g)].map((match) => match[1]);
+    const directory = html.match(/<details class="explore-directory">([\s\S]*?)<\/details>/)?.[1] ?? "";
+    const visible = [...directory.matchAll(/<li><a href="([^"]+)">/g)].map((match) => match[1]);
     assert.equal(data.length, 3, path);
     assert.deepEqual(data, visible, path);
   }
@@ -78,11 +78,34 @@ test("server h1s name the page without the title's brand suffix", async (t) => {
   mockApi(t, [report("listed", 50)]);
   for (const path of ["/recent", "/popular", "/hall-of-monoliths", "/trending", "/compare", "/diff", "/badges"]) {
     const html = await (await onRequest(context(path))).text();
-    const h1 = html.match(/<h1>([^<]*)<\/h1>/)?.[1];
+    const h1 = html.match(/<h1[^>]*>([^<]*)<\/h1>/)?.[1];
     assert.ok(h1, path);
     assert.doesNotMatch(h1, /\| OctoCounts/, path);
     assert.match(html, /<title>[^<]*\| OctoCounts<\/title>/, path);
   }
+});
+
+test("parallel Explore SSR requests isolate locale and preload the matching client entry", async (t) => {
+  mockApi(t, [report("listed", 50)]);
+  const locales = ["en", "zh", "zh", "en", "zh", "en"];
+  const pages = await Promise.all(locales.map(async (locale) => {
+    const response = await onRequest(context(`/popular?lng=${locale}`));
+    assert.equal(response.status, 200);
+    return response.text();
+  }));
+  pages.forEach((html, index) => {
+    const locale = locales[index];
+    const copy = locale === "zh" ? zh : en;
+    assert.ok(html.includes(`<h1 tabindex="-1">${copy.growth.pages.popular.title}</h1>`));
+    assert.ok(html.includes(`data-oc-locale="${locale}"`));
+    assert.match(html, /rel="modulepreload" href="\/assets\/ExploreApp-[^"]+\.js"/);
+    assert.match(html, /class="explore-nav"/);
+    assert.match(html, /class="explore-repo"/);
+    assert.doesNotMatch(html, /class="explore-skeleton/);
+    const bootstrap = JSON.parse(html.match(/id="octocounts-explore-bootstrap">([^<]*)<\/script>/)[1]);
+    assert.equal(bootstrap.locale, locale);
+    assert.equal(bootstrap.seeds["octocounts-list-data"].payload.reports[0].repo, "listed");
+  });
 });
 
 test("FAQPage schema on /badges and /extension states the FAQ the client page shows", async (t) => {

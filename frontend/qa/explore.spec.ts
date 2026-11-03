@@ -20,7 +20,7 @@ test("server content survives delayed page code and mounts without a loading fla
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   let requested = false;
-  await page.route("**/src/pages/marketing.tsx*", async (route) => { requested = true; await gate; await route.continue(); });
+  await page.route("**/src/growth/ExploreApp.tsx*", async (route) => { requested = true; await gate; await route.continue(); });
   await page.route("**/popular", async (route) => {
     const response = await page.request.get("/");
     const seed = { kind: "popular", payload: { page: 1, limit: 36, hasNext: false, reports } };
@@ -50,7 +50,7 @@ test("unseeded page code and data share a stable skeleton and header", async ({ 
   let releaseData!: () => void;
   const code = new Promise<void>((resolve) => { releaseCode = resolve; });
   const data = new Promise<void>((resolve) => { releaseData = resolve; });
-  await page.route("**/src/pages/marketing.tsx*", async (route) => { await code; await route.continue(); });
+  await page.route("**/src/growth/ExploreApp.tsx*", async (route) => { await code; await route.continue(); });
   await page.route("**/api/seo/popular?**", async (route) => { await data; await route.fulfill({ json: { page: 1, limit: 36, hasNext: false, reports } }); });
   try {
     await page.goto("/popular", { waitUntil: "commit" });
@@ -71,7 +71,7 @@ test("unseeded page code and data share a stable skeleton and header", async ({ 
 });
 
 test("page module failure keeps navigation and offers a reload", async ({ page }) => {
-  await page.route("**/src/pages/marketing.tsx*", (route) => route.abort("failed"));
+  await page.route("**/src/growth/ExploreApp.tsx*", (route) => route.abort("failed"));
   await page.goto("/popular");
   await expect(page.getByRole("button", { name: "Reload page" })).toBeVisible();
   await expect(page.locator(".topbar")).toBeVisible();
@@ -83,7 +83,7 @@ for (const failure of ["failed", "timed out"]) test(`${failure} page code preser
     const native = window.setTimeout.bind(window);
     window.setTimeout = ((callback: TimerHandler, delay?: number, ...args: any[]) => native(callback, delay === 15000 ? 200 : delay, ...args)) as typeof window.setTimeout;
   });
-  await page.route("**/src/pages/marketing.tsx*", (route) => failure === "failed" ? route.abort("failed") : undefined);
+  await page.route("**/src/growth/ExploreApp.tsx*", (route) => failure === "failed" ? route.abort("failed") : undefined);
   await page.route("**/popular", async (route) => {
     const response = await page.request.get("/");
     await route.fulfill({ response, body: (await response.text()).replace('<div id="root"></div>', '<div id="root" data-oc-ssr="explore"><h1>Saved reports</h1><a href="/recent">Browse recent</a></div>') });

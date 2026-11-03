@@ -64,11 +64,12 @@ const SchemeContext = createContext<{ scheme: Scheme; setScheme: (scheme: Scheme
 // html[data-scheme] before first paint, so there is no wrong-theme flash; on
 // mount React adopts the visitor's real preference and only then starts
 // writing dataset/persistence itself.
-export function SchemeProvider({ children }: { children: React.ReactNode }) {
+export function SchemeProvider({ children, hydrating = false }: { children: React.ReactNode; hydrating?: boolean }) {
   const { i18n } = useTranslation();
   const prerenderedHome = usePrerenderedHome();
-  const [scheme, setScheme] = useState<Scheme>(() => (prerenderedHome ? "matrix" : preferredScheme()));
-  const pendingAdoption = useRef(prerenderedHome);
+  const deterministic = prerenderedHome || hydrating;
+  const [scheme, setScheme] = useState<Scheme>(() => (deterministic ? "matrix" : preferredScheme()));
+  const pendingAdoption = useRef(deterministic);
 
   useEffect(() => {
     if (pendingAdoption.current) {
@@ -118,7 +119,8 @@ export function ThemeSwitch() {
       aria-pressed={isNight}
       title={`${label} — ${stateHint}`}
     >
-      {isNight ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+      <Sun className="theme-icon-sun" size={18} aria-hidden="true" />
+      <Moon className="theme-icon-moon" size={18} aria-hidden="true" />
       <span className="visually-hidden">{label}</span>
     </button>
   );

@@ -729,7 +729,11 @@
       "loading": "Loading repositories and measurements…",
       "refreshFailed": "Refresh failed. Showing the last available data.",
       "moduleFailed": "The interactive page could not load. Reload the page to try again.",
-      "reload": "Reload page"
+      "reload": "Reload page",
+      "countedCode": "Counted code lines: {{value}}.",
+      "totalLines": "{{value}} total lines",
+      "reports_one": "{{count}} report",
+      "reports_other": "{{count}} reports"
     },
     "sources": {
       "sloc_backfill": "History backfill",
