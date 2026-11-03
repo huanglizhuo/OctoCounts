@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { fetchGrowthStats, fetchJson } from "../api";
-import { initAnalytics } from "../analytics";
+import { fetchJson } from "../api";
 import { CompareRepos, DiffRefs } from "../compare";
 import { BadgeBuilder, BadgeWall, EmbedBuilder } from "../badges";
-import { GrowthLoadingBars } from "../growth/GrowthSkeleton";
-import { Topbar, publicReportLinks } from "../Topbar";
+import { MarketingShell } from "../growth/MarketingShell";
+import { ExploreSkeleton, ExploreDataError } from "../growth/ExploreLoading";
 import { StoreLink } from "../StoreLink";
 import { formatCompactNumber, formatNumber, formatPercent, formatRelativeTime, languageColor, visibleLanguageColor } from "../reportUtils";
 import { useScheme } from "../scheme";
@@ -144,41 +143,17 @@ function MoreReports() {
   );
 }
 
-function MarketingShell({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation();
-
-  useEffect(() => {
-    initAnalytics();
-  }, []);
-
-  return (
-    <>
-      <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
-      <main id="main" className="page growth-page">
-        <Topbar />
-        {publicReportLinks.some((link) => link.href === window.location.pathname) ? <nav className="explore-nav" aria-label={t("growth.index.navAria")}>
-          {publicReportLinks.map((link) => <a key={link.href} href={link.href} aria-current={window.location.pathname === link.href ? "page" : undefined}>{t(`growth.nav.${link.key}.label`)}</a>)}
-        </nav> : null}
-        {children}
-        <footer>
-          <span>{t("growth.footerTagline")}</span>
-          <span>
-            <a href="/stats">{t("growth.nav.stats.label")}</a> &middot; <a href="/recent">{t("growth.nav.recent.label")}</a> &middot; <a href="/popular">{t("growth.nav.popular.label")}</a> &middot; <a href="/trending">{t("growth.nav.trending.label")}</a> &middot; <a href="/hall-of-monoliths">{t("growth.nav.hall.label")}</a> &middot; <a href="/extension">{t("footer.extension")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
-          </span>
-        </footer>
-      </main>
-    </>
-  );
-}
 
 export function StatsPage() {
-  const { t } = useTranslation();
   const query = useQuery({
     queryKey: ["growth-stats"],
     initialData: () => validateExploreStats(readExploreSeed("octocounts-stats-data")),
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const stats = validateExploreStats(await fetchGrowthStats());
+    retry: false,
+    networkMode: "always",
+    refetchOnReconnect: true,
+    queryFn: async ({ signal }) => {
+      const stats = validateExploreStats(await fetchJson<unknown>("/api/stats", { signal }, { deadline: Date.now() + 15_000 }));
       if (!stats) throw new Error("Invalid stats response");
       return stats;
     },
@@ -186,16 +161,11 @@ export function StatsPage() {
   const stats = query.data;
 
   return (
-    <MarketingShell>
-      <section className="growth-hero" aria-label={t("growth.stats.ariaLabel")}>
-        <h1>{t("growth.stats.title")}</h1>
-        <p>{t("growth.stats.subtitle")}</p>
-      </section>
-
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
+    <div className="explore-data" aria-busy={query.isLoading}>
+      {query.isLoading ? <ExploreSkeleton kind="stats" /> : null}
+      {query.isError ? <ExploreDataError stale={!!query.data} onRetry={() => void query.refetch()} /> : null}
       {stats ? <StatsDashboard stats={stats} /> : null}
-    </MarketingShell>
+    </div>
   );
 }
 
@@ -266,25 +236,23 @@ export function ReportListPage({ kind }: { kind: CollectionKind }) {
       return data?.page === page && data.limit === 36 ? data : undefined;
     },
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const data = validateExploreList(await fetchJson<unknown>(`${endpoint}?limit=36&page=${page}`));
+    retry: false,
+    networkMode: "always",
+    refetchOnReconnect: true,
+    queryFn: async ({ signal }) => {
+      const data = validateExploreList(await fetchJson<unknown>(`${endpoint}?limit=36&page=${page}`, { signal }, { deadline: Date.now() + 15_000 }));
       if (!data || data.page !== page || data.limit !== 36) throw new Error("Invalid report list response");
       return data;
     },
   });
-  const copy = listPageCopy(kind, t);
   const hasNext = query.data?.hasNext ?? (query.data?.reports.length === 36);
   const reports = query.data?.reports.filter((report) => report.total.files === undefined || report.total.files >= MIN_INDEXABLE_REPORT_FILES) ?? [];
 
   return (
-    <MarketingShell>
-      <section className="growth-hero list-hero" aria-label={copy.title}>
-        <h1>{copy.title}</h1>
-        <p>{copy.subtitle}</p>
-        <p className="explore-policy">{t(`growth.explore.${kind}Policy`)} <a href="/docs/methodology">{t("growth.pages.trending.methodology")}</a></p>
-      </section>
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
+    <div className="explore-data" aria-busy={query.isLoading}>
+
+      {query.isLoading ? <ExploreSkeleton kind={kind} /> : null}
+      {query.isError ? <ExploreDataError stale={!!query.data} onRetry={() => void query.refetch()} /> : null}
       {query.data ? <RepositoryList reports={reports} kind={kind} start={(page - 1) * query.data.limit + 1} /> : null}
       {query.data && !reports.length ? <a className="explore-view-all" href={page > 1 ? window.location.pathname : "/"}>{t(page > 1 ? "growth.explore.firstPage" : "growth.actions.analyze")}</a> : null}
       {query.data ? <nav className="list-pagination" aria-label={t("growth.pagination.ariaLabel")}>
@@ -293,7 +261,7 @@ export function ReportListPage({ kind }: { kind: CollectionKind }) {
         {hasNext ? <a className="copybtn" href={`?page=${page + 1}`}>{t("growth.pagination.next")}</a> : <span />}
       </nav> : null}
       <MoreReports />
-    </MarketingShell>
+    </div>
   );
 }
 
@@ -310,8 +278,11 @@ export function TrendingPage() {
   const query = useQuery({
     queryKey: ["github-trending", "daily"],
     initialData: readTrendingSnapshot,
-    queryFn: async () => {
-      const response = await fetch("/github-trending.json");
+    retry: false,
+    networkMode: "always",
+    refetchOnReconnect: true,
+    queryFn: async ({ signal }) => {
+      const response = await fetch("/github-trending.json", { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) });
       if (!response.ok) throw new Error(`Trending snapshot returned ${response.status}`);
       const snapshot = validateTrendingSnapshot(await response.json());
       if (!snapshot) throw new Error("Invalid Trending snapshot");
@@ -320,23 +291,19 @@ export function TrendingPage() {
     staleTime: 60 * 60 * 1000,
   });
   const stale = query.data && trendingIsStale(query.data);
-  const title = t("growth.pages.trending.title");
 
   return (
-    <MarketingShell>
-      <section className="growth-hero list-hero" aria-label={title}>
-        <h1>{title}</h1>
-        <p>{t("growth.pages.trending.subtitle")}</p>
+    <div className="explore-data" aria-busy={query.isLoading}>
+      {query.data ? <div className="explore-trending-meta">
         {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
         {stale ? <p className="trending-stale" role="status">{t("growth.pages.trending.stale", { date: query.data.date })}</p> : null}
-        <p className="explore-policy">{t("growth.explore.trendingOrder")}</p>
-      </section>
-      {query.isLoading ? <GrowthLoading /> : null}
-      {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
+      </div> : null}
+      {query.isLoading ? <ExploreSkeleton kind="trending" /> : null}
+      {query.isError ? <ExploreDataError stale={!!query.data} onRetry={() => void query.refetch()} /> : null}
       {query.data ? <TrendingList repositories={query.data.repositories} /> : null}
       <p className="trending-policy">{t("growth.pages.trending.policy")} <a href="/docs/methodology">{t("growth.pages.trending.methodology")}</a></p>
       <MoreReports />
-    </MarketingShell>
+    </div>
   );
 }
 
@@ -706,26 +673,6 @@ function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> })
   );
 }
 
-function GrowthLoading() {
-  const { t } = useTranslation();
-  return (
-    <section className="growth-state">
-      <GrowthLoadingBars />
-      {t("growth.loading")}
-    </section>
-  );
-}
-
-function GrowthError({ onRetry }: { onRetry?: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <section className="growth-state">
-      {t("growth.error")}
-      {onRetry ? <button type="button" className="copybtn retry-btn" onClick={onRetry}>{t("error.retry")}</button> : null}
-    </section>
-  );
-}
-
 function sourceLabel(source: string) {
   const labels: Record<string, string> = {
     github_action: "GitHub Action",
@@ -739,26 +686,4 @@ function sourceLabel(source: string) {
     unknown: "Unknown",
   };
   return labels[source] ?? source;
-}
-
-function listPageCopy(kind: "recent" | "popular" | "monoliths", t: (key: string) => string) {
-  if (kind === "popular") {
-    return {
-      kicker: t("growth.pages.popular.kicker"),
-      title: t("growth.pages.popular.title"),
-      subtitle: t("growth.pages.popular.subtitle"),
-    };
-  }
-  if (kind === "monoliths") {
-    return {
-      kicker: t("growth.pages.hall.kicker"),
-      title: t("growth.pages.hall.title"),
-      subtitle: t("growth.pages.hall.subtitle"),
-    };
-  }
-  return {
-    kicker: t("growth.pages.recent.kicker"),
-    title: t("growth.pages.recent.title"),
-    subtitle: t("growth.pages.recent.subtitle"),
-  };
 }

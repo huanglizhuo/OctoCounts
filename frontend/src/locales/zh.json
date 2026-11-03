@@ -712,7 +712,11 @@
       "recentPolicy": "按报告生成时间排序。最近分析不代表仓库最近有代码更新。",
       "popularPolicy": "根据 OctoCounts 报告访问活跃度排序，不代表 GitHub Star 排名或独立访客数。",
       "monolithsPolicy": "代码行不含注释和空行。报告采用公开统计口径，各仓库的分析日期可能不同。",
-      "trendingOrder": "沿用 GitHub Trending 原始顺序，不按新增 Star 或代码规模排序。"
+      "trendingOrder": "沿用 GitHub Trending 原始顺序，不按新增 Star 或代码规模排序。",
+      "loading": "正在加载仓库与统计数据…",
+      "refreshFailed": "刷新失败，仍显示上次可用的数据。",
+      "moduleFailed": "交互页面加载失败，请重新加载页面再试。",
+      "reload": "重新加载页面"
     },
     "sources": {
       "sloc_backfill": "历史数据补录",

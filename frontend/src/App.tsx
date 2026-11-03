@@ -21,6 +21,8 @@ import { Topbar, publicReportLinks } from "./Topbar";
 import { buildPublicReportUrl, parsePublicRepo } from "./badges";
 import { Runner } from "./report/Runner";
 import { GrowthLoadingBars } from "./growth/GrowthSkeleton";
+import { ExploreRoute } from "./growth/ExploreRoute";
+import { exploreKind } from "./growth/explorePages";
 import { usePrerenderedHome, useExtensionPromo } from "./prerenderContext";
 import { faqForLanguage, faqJsonLdScript } from "./homeFaq";
 import { reportJsonLd } from "../functions/report-schema.js";
@@ -42,9 +44,6 @@ import { AnalysisOptionsPanel, defaultAnalysisOptions, parseAnalysisOptions } fr
 // prerenderContext.ts): lazy on plain SPA loads, eager on the prerendered
 // home so the served markup and the hydration render are identical.
 // Marketing/tool pages are separate chunks; the home bundle no longer carries them.
-const StatsPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.StatsPage })));
-const ReportListPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ReportListPage })));
-const TrendingPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.TrendingPage })));
 const ComparePage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ComparePage })));
 const CuratedComparePage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.CuratedComparePage })));
 const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.DiffPage })));
@@ -284,11 +283,8 @@ export function App() {
       window.removeEventListener("hashchange", scrollToLandingAnchor);
     };
   }, []);
-  if (routePath === "/stats") return <RoutedPage><StatsPage /></RoutedPage>;
-  if (routePath === "/recent") return <RoutedPage><ReportListPage kind="recent" /></RoutedPage>;
-  if (routePath === "/popular") return <RoutedPage><ReportListPage kind="popular" /></RoutedPage>;
-  if (routePath === "/trending") return <RoutedPage><TrendingPage /></RoutedPage>;
-  if (routePath === "/hall-of-monoliths") return <RoutedPage><ReportListPage kind="monoliths" /></RoutedPage>;
+  const explore = exploreKind(routePath);
+  if (explore) return <ExploreRoute kind={explore} />;
   // Two page contracts (SG-01): /compare is the generic tool; /compare/:slug
   // is a curated comparison whose facts the Pages Function server-renders and
   // re-injects as #octocounts-compare-data. The curated page renders from that

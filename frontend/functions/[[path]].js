@@ -706,6 +706,7 @@ async function listPageResponse(context, kind, url) {
           })),
         },
       },
+      explore: true,
       extraHead: `${moreReportsData(rotating)}<script type="application/json" id="octocounts-list-data">${escapeScriptJson(listData)}</script>`,
       bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
     }),
@@ -860,6 +861,7 @@ async function trendingPageResponse(context, options = {}) {
       canonical: "https://octocounts.com/trending",
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
+      explore: true,
       extraHead: `<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}<script type="application/json" id="octocounts-trending-data">${escapeScriptJson(snapshot)}</script>`,
       mdAlternate: "https://octocounts.com/trending.md",
       jsonLd: {
@@ -1075,6 +1077,7 @@ async function statsPageResponse(context, options = {}) {
         },
       },
       bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
+      explore: true,
       extraHead: `<script type="application/json" id="octocounts-stats-data">${escapeScriptJson(stats)}</script>`,
     }),
     cacheControl
@@ -2789,7 +2792,7 @@ function injectHeadAndNoscript(index, meta) {
   // content lower. React mounts with createRoot().render(), which discards the
   // container's existing children, so the app replaces this block on hydration
   // while no-JS crawlers keep the full facts, table, FAQ, and links.
-  html = html.replace('<div id="root"></div>', () => `<div id="root">${meta.bodyContent}</div>`);
+  html = html.replace('<div id="root"></div>', () => `<div id="root"${meta.explore ? ' data-oc-ssr="explore"' : ""}>${meta.bodyContent}</div>`);
   return html;
 }
 

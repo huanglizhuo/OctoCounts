@@ -725,7 +725,11 @@
       "recentPolicy": "Ordered by report generation time. A recent analysis does not necessarily mean the repository was recently updated.",
       "popularPolicy": "Ranked by report access activity on OctoCounts, not GitHub stars or unique visitors.",
       "monolithsPolicy": "Code lines exclude comments and blank lines. Reports use the public counting profile and may have different analysis dates.",
-      "trendingOrder": "GitHub Trending order, not sorted by stars gained or codebase size."
+      "trendingOrder": "GitHub Trending order, not sorted by stars gained or codebase size.",
+      "loading": "Loading repositories and measurements…",
+      "refreshFailed": "Refresh failed. Showing the last available data.",
+      "moduleFailed": "The interactive page could not load. Reload the page to try again.",
+      "reload": "Reload page"
     },
     "sources": {
       "sloc_backfill": "History backfill",

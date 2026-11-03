@@ -3683,7 +3683,7 @@ td.lang .row-share {
   border-top: 1px solid var(--rule);
 }
 
-.trending-row {
+:is(.trending-row, .explore-trending-placeholder) {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) 12rem 9rem;
   align-items: start;
@@ -3768,7 +3768,7 @@ td.lang .row-share {
   text-underline-offset: 0.2em;
 }
 
-.growth-hero .trending-stale {
+.trending-stale {
   color: var(--warn);
   font-size: var(--text-sm);
 }
@@ -3784,7 +3784,7 @@ td.lang .row-share {
     border-top: 0;
   }
 
-  .trending-row {
+  :is(.trending-row, .explore-trending-placeholder) {
     grid-template-columns: 1.5rem repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
     padding: var(--space-4);
@@ -4031,7 +4031,7 @@ td.lang .row-share {
   border-top: 1px solid var(--rule);
 }
 .explore-repos > li { min-width: 0; }
-.explore-repo {
+:is(.explore-repo, .explore-placeholder-row) {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) 10rem;
   gap: var(--space-3) var(--space-4);
@@ -4080,14 +4080,14 @@ td.lang .row-share {
   font-size: var(--text-sm);
 }
 .explore-report-link { color: var(--fg); text-decoration: underline; text-underline-offset: .2em; }
-.explore-repos--recent .explore-repo { grid-template-columns: minmax(0, 1fr) 10rem; }
+.explore-repos--recent :is(.explore-repo, .explore-placeholder-row) { grid-template-columns: minmax(0, 1fr) 10rem; }
 .explore-repos--recent .explore-languages, .explore-repos--recent .explore-repo-footer { grid-column: 1 / -1; }
 .explore-repos--recent time { color: var(--fg); }
 .explore-repos--popular { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); border: 0; }
-.explore-repos--popular .explore-repo { border-top: 1px solid var(--rule); border-bottom: 0; height: 100%; }
+.explore-repos--popular :is(.explore-repo, .explore-placeholder-row) { border-top: 1px solid var(--rule); border-bottom: 0; height: 100%; }
 .explore-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
-.explore-repos--compact .explore-repo { grid-template-columns: 2rem minmax(0, 1fr) 7rem; align-items: center; }
-.explore-repos--compact.explore-repos--recent .explore-repo { grid-template-columns: minmax(0, 1fr) 7rem; }
+.explore-repos--compact :is(.explore-repo, .explore-placeholder-row) { grid-template-columns: 2rem minmax(0, 1fr) 7rem; align-items: center; }
+.explore-repos--compact.explore-repos--recent :is(.explore-repo, .explore-placeholder-row) { grid-template-columns: minmax(0, 1fr) 7rem; }
 .explore-repos--compact .explore-size > strong { font-size: var(--text-lg); }
 .explore-directory { border-top: 1px solid var(--rule); }
 .explore-directory > summary {
@@ -4107,8 +4107,8 @@ td.lang .row-share {
   .growth-metric { padding: var(--space-3); }
   .growth-metric strong { font-size: clamp(1.5rem, 6vw, 2rem); overflow-wrap: anywhere; }
   .growth-metric em { overflow-wrap: anywhere; }
-  .explore-repo, .explore-repos--compact .explore-repo { grid-template-columns: 1.25rem minmax(0, 1fr) 6.5rem; gap: var(--space-2); padding-inline: 0; }
-  .explore-repos--recent .explore-repo, .explore-repos--compact.explore-repos--recent .explore-repo { grid-template-columns: minmax(0, 1fr) 6.5rem; }
+  :is(.explore-repo, .explore-placeholder-row), .explore-repos--compact :is(.explore-repo, .explore-placeholder-row) { grid-template-columns: 1.25rem minmax(0, 1fr) 6.5rem; gap: var(--space-2); padding-inline: 0; }
+  .explore-repos--recent :is(.explore-repo, .explore-placeholder-row), .explore-repos--compact.explore-repos--recent :is(.explore-repo, .explore-placeholder-row) { grid-template-columns: minmax(0, 1fr) 6.5rem; }
   .explore-repos--compact .explore-repo-footer { grid-row: auto; grid-column: 2 / -1; justify-content: flex-start; }
   .explore-repos--compact.explore-repos--recent .explore-repo-footer { grid-column: 1 / -1; }
   .explore-nav { gap: 0 var(--space-3); }
@@ -5511,4 +5511,41 @@ button.expand::before {
 /* "this report" divergence note appended to the subtitle line. */
 .growth-this-report {
   color: var(--fg-mute);
+}
+
+/* Explore loading keeps the same row geometry without interactive fake data. */
+.explore-data, .explore-skeleton > [aria-hidden] { display: grid; gap: var(--space-7); min-width: 0; }
+.explore-skeleton { min-width: 0; }
+.explore-placeholder {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 1em;
+  margin-block: .3em;
+  background: color-mix(in srgb, var(--fg) 15%, var(--bg));
+  border-radius: 2px;
+}
+.explore-placeholder--rank { width: 1.1rem; height: 1.1rem; }
+.explore-placeholder--owner { width: 40%; height: .85rem; }
+.explore-placeholder--name { width: 75%; height: 1.35rem; }
+.explore-placeholder--facts { width: 55%; height: .85rem; margin-top: .65rem; }
+.explore-placeholder--number { width: 85%; height: 1.65rem; margin-left: auto; }
+.explore-placeholder--label { width: 70%; height: .85rem; }
+.explore-size .explore-placeholder--label, .trending-metric .explore-placeholder { margin-left: auto; }
+.explore-placeholder--bar { height: 6px; }
+.explore-placeholder--date { width: 10rem; height: .85rem; }
+.explore-placeholder--description { height: 3.2rem; }
+.explore-placeholder--metric { height: clamp(1.9rem, 5vw, 3.8rem); width: 65%; }
+.explore-placeholder--metric-small { height: clamp(1.4rem, 4vw, 2.4rem); width: 50%; }
+.explore-placeholder-chart { border-top: 1px solid var(--rule); padding: var(--space-4); }
+.explore-placeholder--chart { height: .8rem; margin-block: var(--space-5); }
+.explore-placeholder--chart:nth-child(3) { width: 70%; }
+.explore-placeholder--chart:nth-child(4) { width: 45%; }
+.explore-trending-meta > p { margin: 0; }
+.explore-placeholder-row .explore-repo-footer { min-width: 0; }
+.explore-refresh-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--fg-dim); margin-bottom: var(--space-3); }
+.explore-bootstrap-error { max-width: 72rem; margin: var(--space-4) auto; flex-wrap: wrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .explore-skeleton > [aria-hidden] { animation: explore-loading 1.8s ease-in-out .15s infinite alternate; }
+  @keyframes explore-loading { from { opacity: 1; } to { opacity: .6; } }
 }

@@ -570,7 +570,7 @@ test("trending SSR renders dollar patterns in third-party descriptions literally
   const html = await (await onRequest(await renderedContext("/trending", snapshot))).text();
   assert.ok(html.includes("Costs $` to run, $&amp; more, $&#39; less, $$ total"), "description must survive verbatim");
   assert.equal((html.match(/<\/head>/g) ?? []).length, 1);
-  assert.equal((html.match(/<div id="root">/g) ?? []).length, 1);
+  assert.equal((html.match(/<div id="root" data-oc-ssr="explore">/g) ?? []).length, 1);
 });
 
 test("generated sitemap gives Trending and reports only truthful lastmod values", async () => {
@@ -1931,6 +1931,7 @@ test("stats SSR renders the full citable aggregates and Dataset datePublished", 
   assert.match(html, /"@type":"Dataset"/);
   assert.match(html, /"datePublished":"2026-07-10"/);
   assert.deepEqual(JSON.parse(html.match(/id="octocounts-stats-data">([^<]*)<\/script>/)[1]), stats);
+  assert.match(html, /<div id="root" data-oc-ssr="explore">/);
 });
 
 test("docs dateModified and sitemap lastmod follow the per-page content manifest", async () => {
@@ -3006,6 +3007,7 @@ test("SSR list snapshots preserve final-page boundaries, global ranks and safe J
     assert.equal(seed.payload.page, 2);
     assert.equal(seed.payload.hasNext, false);
     assert.equal(seed.payload.reports.length, 36);
+    assert.match(html, /<div id="root" data-oc-ssr="explore">/);
     assert.deepEqual(seed.payload.reports[0].languages, reports[0].languages);
     assert.equal(seed.payload.reports[0].citationText, undefined);
     assert.doesNotMatch(html, /Next page|<script>alert\(1\)/);
@@ -3017,7 +3019,9 @@ test("SSR list snapshots preserve final-page boundaries, global ranks and safe J
       { reports: [{ ...reports[0], languages: [{ name: "Rust" }] }] },
     ]) {
       globalThis.fetch = async (raw) => new URL(raw).pathname === "/api/seo/recent" ? Response.json(invalid) : Response.json([]);
-      assert.equal((await onRequest(await renderedContext("/recent"))).status, 503);
+      const response = await onRequest(await renderedContext("/recent"));
+      assert.equal(response.status, 503);
+      assert.doesNotMatch(await response.text(), /data-oc-ssr="explore"/);
     }
   } finally { globalThis.fetch = originalFetch; }
 });

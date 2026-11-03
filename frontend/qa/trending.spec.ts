@@ -25,7 +25,7 @@ test("trending displays cached SLOC, zero and missing results without starting a
   await expect(rows.nth(2).locator(".trending-action")).toHaveText("View and analyze");
   await expect(rows.nth(2)).toHaveAttribute("href", "/github/octo/repo-2");
   await expect(rows.nth(0).locator("time")).toHaveText("2026-11-01");
-  await expect(page.locator(".growth-hero")).toContainText("2026-11-02");
+  await expect(page.locator(".explore-trending-meta")).toContainText("2026-11-02");
   await expect(rows.nth(0)).toHaveAttribute("href", `/github/octo/repo-0?reportId=${"a".repeat(64)}`);
   await rows.nth(0).focus();
   await expect(rows.nth(0)).toBeFocused();
