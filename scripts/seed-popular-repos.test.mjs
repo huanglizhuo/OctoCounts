@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 
 const script = new URL("./seed-popular-repos.mjs", import.meta.url);
@@ -21,6 +23,23 @@ test("rotating batches cover the whole inventory including appended compare repo
   assert.deepEqual(batches.flat(), inventory);
   assert.deepEqual(plan("--limit", String(size), "--batch", String(count)), batches[0]);
   assert.ok(batches.every((batch) => batch.length > 0 && batch.length <= size));
+});
+
+test("dry-run flushes a large inventory to a pipe before exiting", { timeout: 5000 }, async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), "seed-output-test-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, "repos.txt");
+  const repos = Array.from({ length: 10_000 }, (_, index) => `octo/repository-${index}`);
+  await writeFile(file, repos.join("\n"));
+  const child = spawn(process.execPath, [script.pathname, "--dry-run", "--file", file], { stdio: ["ignore", "pipe", "ignore"] });
+  t.after(() => child.kill());
+  const exited = once(child, "exit");
+  await once(child.stdout, "readable");
+  await sleep(100); // Let pipe backpressure build up before the consumer starts reading.
+  let output = "";
+  for await (const chunk of child.stdout) output += chunk;
+  assert.equal((await exited)[0], 0);
+  assert.deepEqual(output.trim().split("\n").filter(line => line.startsWith("octo/")), repos);
 });
 
 test("invalid batch and limit values cannot silently change the scheduled scope", () => {

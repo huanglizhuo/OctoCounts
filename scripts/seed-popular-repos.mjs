@@ -43,9 +43,7 @@ if (repos.length === 0) {
 
 if (dryRun) {
   console.log(`Dry run: would seed ${repos.length} repositories against ${apiBase}`);
-  for (const repo of repos) {
-    console.log(formatRepo(repo));
-  }
+  await new Promise((resolve) => process.stdout.write(`${repos.map(formatRepo).join("\n")}\n`, resolve));
   process.exit(0);
 }
 
