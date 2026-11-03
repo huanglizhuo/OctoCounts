@@ -174,7 +174,7 @@ test.describe("analysis behavior regressions", () => {
       page: 2, limit: 36, reports: [{ provider: "github", owner: "example", repo: "last", repoFullName: "example/last", htmlUrl: "https://github.com/example/last", publicPath: "/github/example/last", generatedAt: "2026-09-08", refName: "main", total: { code: 2 } }],
     } }));
     await page.goto(`${BASE_URL}/popular?page=2`);
-    await expect(page.locator(".growth-repo-card")).toHaveCount(1);
+    await expect(page.locator('.explore-repos a[href="/github/example/last"]')).toHaveCount(1);
     await expect(page.locator('.list-pagination a[href="?page=3"]')).toHaveCount(0);
   });
 

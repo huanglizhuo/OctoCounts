@@ -548,7 +548,7 @@
     "navAria": "Public report pages",
     "footerTagline": "Source line counts and language statistics for public GitHub repositories.",
     "loading": "Loading public report stats...",
-    "error": "Stats are temporarily unavailable.",
+    "error": "Data is temporarily unavailable. Please try again.",
     "empty": "No reports yet.",
     "nav": {
       "stats": {
@@ -590,7 +590,7 @@
       "ariaLabel": "OctoCounts stats",
       "kicker": "public stats",
       "title": "OctoCounts growth dashboard",
-      "subtitle": "Aggregate activity from public repository reports. No extension user IDs, no DAU tracking, no browser history collection."
+      "subtitle": "Public report activity and the repositories we have measured."
     },
     "metrics": {
       "totalsAria": "Totals",
@@ -602,7 +602,7 @@
       "reportsToday": "reports today",
       "reports7d": "reports 7d",
       "reports30d": "reports 30d",
-      "newRepos30d": "new repos 30d"
+      "newRepos30d": "repos analyzed 30d"
     },
     "panels": {
       "sources": {
@@ -617,7 +617,7 @@
     "sections": {
       "largest": {
         "title": "Largest public repositories",
-        "subtitle": "ranked by latest counted lines"
+        "subtitle": "ranked by code lines"
       },
       "recent": {
         "title": "Recent public reports",
@@ -633,7 +633,7 @@
       "popular": {
         "kicker": "popular",
         "title": "Popular codebase reports",
-        "subtitle": "Frequently opened public repository reports, ready to cite and share."
+        "subtitle": "Reports frequently accessed on OctoCounts. Explore their codebase size and language mix."
       },
       "trending": {
         "kicker": "GitHub daily",
@@ -652,7 +652,7 @@
       "hall": {
         "kicker": "leaderboard",
         "title": "Hall of Monoliths",
-        "subtitle": "The largest public repositories OctoCounts has measured, ranked by counted lines."
+        "subtitle": "The largest repositories measured by OctoCounts, ranked by code lines."
       }
     },
     "pagination": {
@@ -709,7 +709,31 @@
       "dipNote": "LOC dropped {{percent}}% · {{month}}",
       "codeLines": "code lines"
     },
-    "moreReports": "More repository reports"
+    "moreReports": "More repository reports",
+    "explore": {
+      "rank": "Rank {{rank}}",
+      "files_one": "{{value}} file",
+      "files_other": "{{value}} files",
+      "languages_one": "{{count}} language",
+      "languages_other": "{{count}} languages",
+      "codeLines": "code lines",
+      "analyzed": "Analyzed",
+      "viewReport": "View report",
+      "viewAll": "View all",
+      "firstPage": "Back to first page",
+      "statsPolicy": "Counts aggregate stored reports, including repeat analyses and system backfills. They are not unique lines of code or visitor counts. Recent periods use UTC.",
+      "recentPolicy": "Ordered by report generation time. A recent analysis does not necessarily mean the repository was recently updated.",
+      "popularPolicy": "Ranked by report access activity on OctoCounts, not GitHub stars or unique visitors.",
+      "monolithsPolicy": "Code lines exclude comments and blank lines. Reports use the public counting profile and may have different analysis dates.",
+      "trendingOrder": "GitHub Trending order, not sorted by stars gained or codebase size."
+    },
+    "sources": {
+      "sloc_backfill": "History backfill",
+      "seed": "Inventory seeding",
+      "unknown": "Other / unknown",
+      "web": "Website",
+      "extension": "Browser extension"
+    }
   },
   "textReport": {
     "language": "Language",

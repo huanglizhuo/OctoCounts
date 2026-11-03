@@ -536,7 +536,7 @@
     "footerTagline": "查看公开 GitHub 仓库的代码行数与语言统计。",
     "launchKit": "发布素材",
     "loading": "正在加载公开报告统计...",
-    "error": "统计暂时不可用。",
+    "error": "数据暂时无法加载，请重试。",
     "empty": "暂无报告。",
     "nav": {
       "stats": {
@@ -578,7 +578,7 @@
       "ariaLabel": "OctoCounts 统计",
       "kicker": "公开统计",
       "title": "OctoCounts 增长面板",
-      "subtitle": "基于公开仓库报告的聚合数据。不记录插件用户 ID，不做 DAU 跟踪，也不收集浏览器历史。"
+      "subtitle": "查看公开报告的分析活动，以及已测量的仓库规模。"
     },
     "metrics": {
       "totalsAria": "总计",
@@ -590,7 +590,7 @@
       "reportsToday": "今日报告",
       "reports7d": "近 7 天报告",
       "reports30d": "近 30 天报告",
-      "newRepos30d": "近 30 天新仓库"
+      "newRepos30d": "近 30 天分析仓库"
     },
     "panels": {
       "sources": {
@@ -605,7 +605,7 @@
     "sections": {
       "largest": {
         "title": "最大公开仓库",
-        "subtitle": "按最近一次统计的代码行数排序"
+        "subtitle": "按代码行数排名"
       },
       "recent": {
         "title": "最新公开报告",
@@ -621,7 +621,7 @@
       "popular": {
         "kicker": "热门",
         "title": "热门代码库报告",
-        "subtitle": "被频繁打开的公开仓库报告，适合引用和分享。"
+        "subtitle": "OctoCounts 站内热门报告，了解项目的代码规模与语言构成。"
       },
       "trending": {
         "kicker": "GitHub 每日趋势",
@@ -640,7 +640,7 @@
       "hall": {
         "kicker": "排行榜",
         "title": "巨型仓库榜",
-        "subtitle": "OctoCounts 已统计过的最大公开仓库，按代码行数排序。"
+        "subtitle": "OctoCounts 已测量的最大仓库，按代码行数排名。"
       }
     },
     "pagination": {
@@ -696,7 +696,31 @@
       "dipNote": "LOC 下降 {{percent}}% · {{month}}",
       "codeLines": "行代码"
     },
-    "moreReports": "更多仓库报告"
+    "moreReports": "更多仓库报告",
+    "explore": {
+      "rank": "第 {{rank}} 名",
+      "files_one": "{{value}} 个文件",
+      "files_other": "{{value}} 个文件",
+      "languages_one": "{{count}} 种语言",
+      "languages_other": "{{count}} 种语言",
+      "codeLines": "代码行",
+      "analyzed": "分析于",
+      "viewReport": "查看报告",
+      "viewAll": "查看全部",
+      "firstPage": "返回第一页",
+      "statsPolicy": "统计汇总已保存的报告，包含重复分析与系统补录，不代表去重代码量或访客数。近期时间范围采用 UTC。",
+      "recentPolicy": "按报告生成时间排序。最近分析不代表仓库最近有代码更新。",
+      "popularPolicy": "根据 OctoCounts 报告访问活跃度排序，不代表 GitHub Star 排名或独立访客数。",
+      "monolithsPolicy": "代码行不含注释和空行。报告采用公开统计口径，各仓库的分析日期可能不同。",
+      "trendingOrder": "沿用 GitHub Trending 原始顺序，不按新增 Star 或代码规模排序。"
+    },
+    "sources": {
+      "sloc_backfill": "历史数据补录",
+      "seed": "仓库清单补录",
+      "unknown": "其他 / 未知",
+      "web": "网站",
+      "extension": "浏览器扩展"
+    }
   },
   "textReport": {
     "language": "语言",

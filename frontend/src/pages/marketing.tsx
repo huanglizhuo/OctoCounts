@@ -6,85 +6,63 @@ import { initAnalytics } from "../analytics";
 import { CompareRepos, DiffRefs } from "../compare";
 import { BadgeBuilder, BadgeWall, EmbedBuilder } from "../badges";
 import { GrowthLoadingBars } from "../growth/GrowthSkeleton";
-import { Topbar } from "../Topbar";
+import { Topbar, publicReportLinks } from "../Topbar";
 import { StoreLink } from "../StoreLink";
-import { formatCompactNumber, formatNumber } from "../reportUtils";
-import i18n from "../i18n";
+import { formatCompactNumber, formatNumber, formatPercent, formatRelativeTime, languageColor, visibleLanguageColor } from "../reportUtils";
+import { useScheme } from "../scheme";
+import { languageShares, readExploreSeed, validateExploreList, validateExploreStats } from "../growth/exploreData";
+import type { CollectionKind, ExploreRepository } from "../growth/exploreData";
 import { MIN_INDEXABLE_REPORT_FILES } from "../../functions/report-copy.js";
 import { COMPARE_REGISTRY } from "../../functions/compare-registry.js";
 import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnapshot } from "../../functions/trending-sloc.js";
 import type { TrendingRepository } from "../../functions/trending-sloc.js";
-import type { GrowthRepositoryStat, GrowthStats } from "../types";
+import type { GrowthStats } from "../types";
 
 // Marketing/growth pages (stats, recent, popular, trending, hall of
 // monoliths, compare, diff). main.tsx lazy-imports these so the home page
 // bundle does not carry them.
 
-export type SeoReportSummary = {
-  provider: "github";
-  owner: string;
-  repo: string;
-  repoFullName: string;
-  htmlUrl: string;
-  publicPath: string;
-  generatedAt: string;
-  refName: string;
-  total: { code: number; files?: number };
-  topLanguage?: { name: string; code: number; percent: number };
-};
-
-type SeoListResponse = {
-  page: number;
-  limit: number;
-  reports: SeoReportSummary[];
-};
-
-type RepoCard = {
-  key: string;
-  title: string;
-  line: string;
-  footer?: string;
-  href: string;
-};
-
-// One card grid for all repo listings; adapters below map each API shape.
-// owner/repo is the card's identity and its loudest line. The former
-// provider tag ("GITHUB") and uppercase date footer only restated the link
-// path — noise between the reader and the repo name.
-function RepoCardGrid({ cards }: { cards: RepoCard[] }) {
-  const { t } = useTranslation();
-  if (cards.length === 0) {
+function RepositoryList({ reports, kind, start = 1, compact = false }: { reports: ExploreRepository[]; kind: CollectionKind; start?: number; compact?: boolean }) {
+  const { t, i18n } = useTranslation();
+  const scheme = useScheme();
+  if (!reports.length) {
     return <p className="growth-empty">{t("growth.empty")}</p>;
   }
   return (
-    <div className="growth-repo-grid">
-      {cards.map((card) => (
-        <a className="growth-repo-card" href={card.href} key={card.key}>
-          <strong>{card.title}</strong>
-          <span>{card.line}</span>
-          {card.footer ? <em>{card.footer}</em> : null}
-        </a>
-      ))}
-    </div>
+    <ol className={`explore-repos explore-repos--${kind}${compact ? " explore-repos--compact" : ""}`} start={start} role="list">
+      {reports.map((repo, index) => {
+        const shares = compact ? [] : languageShares(repo);
+        const primary = typeof repo.topLanguage === "string" ? repo.topLanguage : repo.topLanguage?.name;
+        return (
+          <li key={`${repo.owner}/${repo.repo}`} value={start + index}>
+            <a className="explore-repo" href={repo.publicPath}>
+              {kind !== "recent" ? <span className="explore-rank" aria-label={t("growth.explore.rank", { rank: start + index })}>{start + index}</span> : null}
+              <div className="explore-identity">
+                <span className="explore-owner">{repo.owner} /</span>
+                <strong>{repo.repo}</strong>
+                <div className="explore-facts">
+                  {repo.total.files !== undefined ? <span>{t("growth.explore.files", { count: repo.total.files, value: formatNumber(repo.total.files) })}</span> : null}
+                  {repo.languageCount !== undefined ? <span>{t("growth.explore.languages", { count: repo.languageCount })}</span> : primary ? <span>{primary}</span> : null}
+                </div>
+              </div>
+              <div className="explore-size">
+                <strong title={formatNumber(repo.total.code)}><span aria-hidden="true">{formatCompactNumber(repo.total.code)}</span><span className="visually-hidden">{formatNumber(repo.total.code)}</span></strong>
+                <span>{t("growth.explore.codeLines")}</span>
+              </div>
+              {shares.length ? <div className="explore-languages">
+                <div className="explore-language-bar" aria-hidden="true">{shares.map((row) => <i key={row.name} style={{ width: `${row.code / repo.total.code * 100}%`, backgroundColor: row.name ? visibleLanguageColor(languageColor(row.name), scheme) : "var(--fg-dim)" }} />)}</div>
+                <div className="explore-language-labels">{shares.map((row) => <span key={row.name}>{row.name || t("charts.other")} <b>{formatPercent(row.code, repo.total.code)}</b></span>)}</div>
+              </div> : !compact && primary ? <span className="explore-languages">{primary}</span> : null}
+              <div className="explore-repo-footer">
+                <span>{t("growth.explore.analyzed")} <time dateTime={repo.generatedAt} title={new Date(repo.generatedAt).toLocaleString(i18n.language)}>{kind === "recent" ? formatRelativeTime(repo.generatedAt, i18n.language) : repo.generatedAt.slice(0, 10)}</time></span>
+                {!compact ? <span className="explore-report-link">{t("growth.explore.viewReport")}</span> : null}
+              </div>
+            </a>
+          </li>
+        );
+      })}
+    </ol>
   );
-}
-
-function growthRepoCards(reports: GrowthRepositoryStat[]): RepoCard[] {
-  return reports.map((report) => ({
-    key: `${report.provider}:${report.owner}/${report.repo}`,
-    title: `${report.owner}/${report.repo}`,
-    line: `${report.topLanguage ?? i18n.t("growth.repoCard.mixed")} · ${formatNumber(report.total.code)} ${i18n.t("growth.repoCard.code")}`,
-    href: report.publicPath,
-  }));
-}
-
-function seoReportCards(reports: SeoReportSummary[]): RepoCard[] {
-  return reports.map((report) => ({
-    key: `${report.provider}:${report.owner}/${report.repo}`,
-    title: report.repoFullName,
-    line: `${report.topLanguage?.name ?? i18n.t("growth.repoCard.mixed")} · ${formatNumber(report.total.code)} ${i18n.t("growth.repoCard.code")}`,
-    href: report.publicPath,
-  }));
 }
 
 function TrendingList({ repositories }: { repositories: TrendingRepository[] }) {
@@ -100,7 +78,7 @@ function TrendingList({ repositories }: { repositories: TrendingRepository[] }) 
               <span className="trending-rank" aria-hidden="true">{repo.rank}</span>
               <div className="trending-project">
                 <strong>{repo.fullName}</strong>
-                <p>{repo.description || t("growth.repoCard.trendingFallback")}</p>
+                <p title={repo.description || undefined}>{repo.description || t("growth.repoCard.trendingFallback")}</p>
                 {repo.language ? <span className="trending-language">{repo.language}</span> : null}
               </div>
               <div className="trending-metric trending-sloc">
@@ -155,16 +133,14 @@ function MoreReports() {
   const [locs] = useState(readMoreReportLocs);
   if (!locs.length) return null;
   return (
-    <section aria-label={t("growth.moreReports")}>
-      <div className="section-h">
-        <h2>{t("growth.moreReports")}</h2>
-      </div>
+    <details className="explore-directory">
+      <summary>{t("growth.moreReports")} <span>{locs.length}</span></summary>
       <ul className="link-columns">
         {locs.map((loc) => (
           <li key={loc}><a href={loc}>{reportLocName(loc)}</a></li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
 
@@ -180,6 +156,9 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#main">{t("common.skipToContent")}</a>
       <main id="main" className="page growth-page">
         <Topbar />
+        {publicReportLinks.some((link) => link.href === window.location.pathname) ? <nav className="explore-nav" aria-label={t("growth.index.navAria")}>
+          {publicReportLinks.map((link) => <a key={link.href} href={link.href} aria-current={window.location.pathname === link.href ? "page" : undefined}>{t(`growth.nav.${link.key}.label`)}</a>)}
+        </nav> : null}
         {children}
         <footer>
           <span>{t("growth.footerTagline")}</span>
@@ -194,13 +173,21 @@ function MarketingShell({ children }: { children: React.ReactNode }) {
 
 export function StatsPage() {
   const { t } = useTranslation();
-  const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats });
+  const query = useQuery({
+    queryKey: ["growth-stats"],
+    initialData: () => validateExploreStats(readExploreSeed("octocounts-stats-data")),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const stats = validateExploreStats(await fetchGrowthStats());
+      if (!stats) throw new Error("Invalid stats response");
+      return stats;
+    },
+  });
   const stats = query.data;
 
   return (
     <MarketingShell>
       <section className="growth-hero" aria-label={t("growth.stats.ariaLabel")}>
-        <span className="chart-tag">{t("growth.stats.kicker")}</span>
         <h1>{t("growth.stats.title")}</h1>
         <p>{t("growth.stats.subtitle")}</p>
       </section>
@@ -235,33 +222,36 @@ function StatsDashboard({ stats }: { stats: GrowthStats }) {
       <section className="growth-metrics compact" aria-label={t("growth.metrics.windowsAria")}>
         {windows.map((item) => <GrowthMetric key={item.label} label={item.label} value={item.value} />)}
       </section>
+      <p className="explore-policy">{t("growth.explore.statsPolicy")}</p>
       <section className="growth-grid">
         <GrowthPanel title={t("growth.panels.sources.title")} subtitle={t("growth.panels.sources.subtitle")}>
-          <RankedBars rows={stats.sources.map((row) => ({ label: sourceLabel(row.source), value: row.reports }))} />
+          <RankedBars rows={stats.sources.map((row) => ({ label: t(`growth.sources.${row.source}`, { defaultValue: sourceLabel(row.source) }), value: row.reports }))} />
         </GrowthPanel>
         <GrowthPanel title={t("growth.panels.languages.title")} subtitle={t("growth.panels.languages.subtitle")}>
           <RankedBars rows={stats.languages.map((row) => ({ label: row.language, value: row.code }))} />
         </GrowthPanel>
       </section>
-      <section>
-        <div className="section-h">
-          <h2>{t("growth.sections.largest.title")}</h2>
-          <span className="sub">{t("growth.sections.largest.subtitle")}</span>
-        </div>
-        <RepoCardGrid cards={growthRepoCards(stats.topRepositories)} />
-      </section>
-      <section>
-        <div className="section-h">
-          <h2>{t("growth.sections.recent.title")}</h2>
-          <span className="sub">{t("growth.sections.recent.subtitle")}</span>
-        </div>
-        <RepoCardGrid cards={growthRepoCards(stats.recentRepositories)} />
-      </section>
+      <div className="explore-preview-grid">
+        <section>
+          <div className="section-h">
+            <h2>{t("growth.sections.largest.title")}</h2>
+            <a className="explore-view-all" href="/hall-of-monoliths">{t("growth.explore.viewAll")}</a>
+          </div>
+          <RepositoryList reports={stats.topRepositories.slice(0, 6)} kind="monoliths" compact />
+        </section>
+        <section>
+          <div className="section-h">
+            <h2>{t("growth.sections.recent.title")}</h2>
+            <a className="explore-view-all" href="/recent">{t("growth.explore.viewAll")}</a>
+          </div>
+          <RepositoryList reports={stats.recentRepositories.slice(0, 6)} kind="recent" compact />
+        </section>
+      </div>
     </>
   );
 }
 
-export function ReportListPage({ kind }: { kind: "recent" | "popular" | "monoliths" }) {
+export function ReportListPage({ kind }: { kind: CollectionKind }) {
   const { t } = useTranslation();
   const endpoint = kind === "monoliths" ? "/api/seo/monoliths" : `/api/seo/${kind}`;
   // The edge function server-renders whichever ?page=N a deep link asks for;
@@ -270,28 +260,38 @@ export function ReportListPage({ kind }: { kind: "recent" | "popular" | "monolit
   const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const query = useQuery({
     queryKey: ["seo-list", kind, page],
-    queryFn: () => fetchJson<SeoListResponse>(`${endpoint}?limit=36&page=${page}`),
+    initialData: () => {
+      const seed = readExploreSeed("octocounts-list-data") as { kind?: unknown; payload?: unknown } | null;
+      const data = seed?.kind === kind ? validateExploreList(seed.payload) : undefined;
+      return data?.page === page && data.limit === 36 ? data : undefined;
+    },
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const data = validateExploreList(await fetchJson<unknown>(`${endpoint}?limit=36&page=${page}`));
+      if (!data || data.page !== page || data.limit !== 36) throw new Error("Invalid report list response");
+      return data;
+    },
   });
   const copy = listPageCopy(kind, t);
-  const hasNext = (query.data?.reports.length ?? 36) === 36;
+  const hasNext = query.data?.hasNext ?? (query.data?.reports.length === 36);
+  const reports = query.data?.reports.filter((report) => report.total.files === undefined || report.total.files >= MIN_INDEXABLE_REPORT_FILES) ?? [];
 
   return (
     <MarketingShell>
       <section className="growth-hero list-hero" aria-label={copy.title}>
-        <span className="chart-tag">{copy.kicker}</span>
         <h1>{copy.title}</h1>
         <p>{copy.subtitle}</p>
+        <p className="explore-policy">{t(`growth.explore.${kind}Policy`)} <a href="/docs/methodology">{t("growth.pages.trending.methodology")}</a></p>
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
-      {/* Reports below the indexable floor answer 404 (the edge list skips
-          them too); paging still follows the API's unfiltered page length. */}
-      {query.data ? <RepoCardGrid cards={seoReportCards(query.data.reports.filter((report) => !(typeof report.total.files === "number" && report.total.files < MIN_INDEXABLE_REPORT_FILES)))} /> : null}
-      <nav className="list-pagination" aria-label={t("growth.pagination.ariaLabel")}>
+      {query.data ? <RepositoryList reports={reports} kind={kind} start={(page - 1) * query.data.limit + 1} /> : null}
+      {query.data && !reports.length ? <a className="explore-view-all" href={page > 1 ? window.location.pathname : "/"}>{t(page > 1 ? "growth.explore.firstPage" : "growth.actions.analyze")}</a> : null}
+      {query.data ? <nav className="list-pagination" aria-label={t("growth.pagination.ariaLabel")}>
         {page > 1 ? <a className="copybtn" href={`?page=${page - 1}`}>{t("growth.pagination.previous")}</a> : <span />}
         <span>{t("growth.pagination.page", { page })}</span>
         {hasNext ? <a className="copybtn" href={`?page=${page + 1}`}>{t("growth.pagination.next")}</a> : <span />}
-      </nav>
+      </nav> : null}
       <MoreReports />
     </MarketingShell>
   );
@@ -329,6 +329,7 @@ export function TrendingPage() {
         <p>{t("growth.pages.trending.subtitle")}</p>
         {query.data ? <p className="sub">{t("growth.pages.trending.updated", { date: query.data.date })} · <a href={query.data.source} target="_blank" rel="noreferrer">GitHub Trending</a></p> : null}
         {stale ? <p className="trending-stale" role="status">{t("growth.pages.trending.stale", { date: query.data.date })}</p> : null}
+        <p className="explore-policy">{t("growth.explore.trendingOrder")}</p>
       </section>
       {query.isLoading ? <GrowthLoading /> : null}
       {query.isError ? <GrowthError onRetry={() => void query.refetch()} /> : null}
@@ -671,8 +672,8 @@ function GrowthMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="growth-metric">
       <span>{label}</span>
-      <strong>{formatCompactNumber(value)}</strong>
-      <em>{formatNumber(value)}</em>
+      <strong title={formatNumber(value)}>{formatCompactNumber(value)}</strong>
+      {formatCompactNumber(value) !== formatNumber(value) ? <em>{formatNumber(value)}</em> : null}
     </div>
   );
 }
@@ -697,7 +698,7 @@ function RankedBars({ rows }: { rows: Array<{ label: string; value: number }> })
       {rows.length ? rows.map((row) => (
         <div className="ranked-row" key={row.label}>
           <span>{row.label}</span>
-          <i><b style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} /></i>
+          <i aria-hidden="true"><b style={{ width: `${(row.value / max) * 100}%` }} /></i>
           <em>{formatCompactNumber(row.value)}</em>
         </div>
       )) : <p className="growth-empty">{t("growth.empty")}</p>}

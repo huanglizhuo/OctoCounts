@@ -99,23 +99,6 @@
   ],
   "recentRepositories": [
     {
-      "generatedAt": "2024-06-01T00:30:15Z",
-      "htmlUrl": "https://github.com/octocounts/empty",
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/empty",
-      "refName": "main",
-      "repo": "empty",
-      "topLanguage": null,
-      "total": {
-        "blanks": 0,
-        "code": 0,
-        "comments": 0,
-        "files": 0,
-        "lines": 0
-      }
-    },
-    {
       "generatedAt": "2024-05-20T17:30:15Z",
       "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
       "owner": "gitlab-org/ci-cd",
@@ -205,23 +188,6 @@
         "comments": 50000,
         "files": 2189,
         "lines": 431818
-      }
-    },
-    {
-      "generatedAt": "2024-06-01T00:30:15Z",
-      "htmlUrl": "https://github.com/octocounts/empty",
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/empty",
-      "refName": "main",
-      "repo": "empty",
-      "topLanguage": null,
-      "total": {
-        "blanks": 0,
-        "code": 0,
-        "comments": 0,
-        "files": 0,
-        "lines": 0
       }
     }
   ],

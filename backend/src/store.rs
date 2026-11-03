@@ -2911,6 +2911,7 @@ impl Store {
             .bind(limit.clamp(0, LEGACY_LIST_LIMIT))
             .bind(offset.max(0))
             .bind(SEO_CARD_LANGUAGES as i64)
+            .bind(crate::seo::MIN_INDEXABLE_REPORT_FILES as i64)
             .fetch_all(&self.pool)
             .await?;
 
@@ -3686,7 +3687,7 @@ impl ReportOrder {
                     FROM (
                         SELECT id, created_at
                         FROM (
-                            SELECT DISTINCT ON (provider, owner, repo) id, created_at
+                            SELECT DISTINCT ON (provider, owner, repo) id, created_at, total_files
                             FROM reports
                             WHERE "#,
                     canonical_options_sql!("reports"),
@@ -3696,11 +3697,12 @@ impl ReportOrder {
                     r#"
                             ORDER BY provider, owner, repo, created_at DESC
                         ) latest
-                        ORDER BY created_at DESC
+                        WHERE total_files >= $4
+                        ORDER BY created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
                     JOIN reports r ON r.id = page.id
-                    ORDER BY page.created_at DESC
+                    ORDER BY page.created_at DESC, page.id
                     "#
                 )
             }
@@ -3712,7 +3714,7 @@ impl ReportOrder {
                         SELECT id, access_count, last_accessed_at, created_at
                         FROM (
                             SELECT DISTINCT ON (provider, owner, repo)
-                                id, access_count, last_accessed_at, created_at
+                                id, access_count, last_accessed_at, created_at, total_files
                             FROM reports
                             WHERE "#,
                     canonical_options_sql!("reports"),
@@ -3722,11 +3724,12 @@ impl ReportOrder {
                     r#"
                             ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
                         ) popular
-                        ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC
+                        WHERE total_files >= $4
+                        ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
                     JOIN reports r ON r.id = page.id
-                    ORDER BY page.access_count DESC, page.last_accessed_at DESC, page.created_at DESC
+                    ORDER BY page.access_count DESC, page.last_accessed_at DESC, page.created_at DESC, page.id
                     "#
                 )
             }
@@ -3735,9 +3738,9 @@ impl ReportOrder {
                     card_projection!(),
                     r#"
                     FROM (
-                        SELECT id, total_lines, created_at
+                        SELECT id, total_code, created_at
                         FROM (
-                            SELECT DISTINCT ON (provider, owner, repo) id, total_lines, created_at
+                            SELECT DISTINCT ON (provider, owner, repo) id, total_code, total_files, created_at
                             FROM reports
                             WHERE "#,
                     canonical_options_sql!("reports"),
@@ -3747,11 +3750,12 @@ impl ReportOrder {
                     r#"
                             ORDER BY provider, owner, repo, created_at DESC
                         ) monoliths
-                        ORDER BY total_lines DESC, created_at DESC
+                        WHERE total_files >= $4
+                        ORDER BY total_code DESC, created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
                     JOIN reports r ON r.id = page.id
-                    ORDER BY page.total_lines DESC, page.created_at DESC
+                    ORDER BY page.total_code DESC, page.created_at DESC, page.id
                     "#
                 )
             }
@@ -4576,11 +4580,58 @@ mod tests {
             .await
             .unwrap();
 
-        let cards = store.recent_reports(10, 0).await.unwrap();
+        assert!(store.recent_reports(10, 0).await.unwrap().is_empty());
+        let card = store
+            .latest_report_card(RepositoryProvider::GitHub, &owner, "count")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(card.languages.is_empty());
+        assert_eq!(card.language_count, 0);
+        store.drop_schema().await;
+    }
 
-        assert_eq!(cards.len(), 1);
-        assert!(cards[0].languages.is_empty());
-        assert_eq!(cards[0].language_count, 0);
+    #[tokio::test]
+    async fn public_lists_filter_before_paging_and_rank_by_code() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let mut code = test_report("code-heavy", "code-heavy", 100);
+        code.total.files = 5;
+        let mut comments = test_report("comments-heavy", "comments-heavy", 50);
+        comments.total.files = 5;
+        comments.total.lines = 10_000;
+        let mut tiny = test_report("tiny", "tiny", 100_000);
+        tiny.total.files = 4;
+        for report in [&code, &comments, &tiny] {
+            store
+                .save_report(report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+        let monoliths = store.monolith_reports(1, 0).await.unwrap();
+        assert_eq!(monoliths[0].owner, "code-heavy");
+        assert_eq!(
+            store.monolith_reports(1, 1).await.unwrap()[0].owner,
+            "comments-heavy"
+        );
+        assert!(store.monolith_reports(1, 2).await.unwrap().is_empty());
+        for order in [super::ReportOrder::Recent, super::ReportOrder::Popular] {
+            let page = store.report_cards(order, 2, 0).await.unwrap();
+            assert_eq!(page.len(), 2);
+            assert!(page.iter().all(|card| card.total.files >= 5));
+        }
+        // A newer undersized snapshot must not revive the older eligible one.
+        let mut latest = code.clone();
+        latest.id = "code-heavy-small".to_string();
+        latest.commit_sha = "newer".to_string();
+        latest.generated_at += Duration::seconds(1);
+        latest.total.files = 1;
+        store
+            .save_report(&latest, AnalysisSource::Web)
+            .await
+            .unwrap();
+        assert_eq!(store.monolith_reports(10, 0).await.unwrap().len(), 1);
         store.drop_schema().await;
     }
 
@@ -7674,7 +7725,7 @@ mod tests {
             languages: vec![LanguageReport {
                 name: "Rust".to_string(),
                 stats: LanguageStats {
-                    files: 1,
+                    files: 5,
                     lines: code + 10,
                     code,
                     comments: 7,
@@ -7683,7 +7734,7 @@ mod tests {
                 children: Vec::new(),
             }],
             total: LanguageStats {
-                files: 1,
+                files: 5,
                 lines: code + 10,
                 code,
                 comments: 7,

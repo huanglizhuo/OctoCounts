@@ -26,11 +26,11 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/stats", lastmod: "2026-10-15" },
-  { loc: "https://octocounts.com/recent", lastmod: "2026-11-01" },
-  { loc: "https://octocounts.com/popular", lastmod: "2026-11-01" },
-  { loc: "https://octocounts.com/trending", lastmod: "2026-11-01" },
-  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-11-01" },
+  { loc: "https://octocounts.com/stats", lastmod: "2026-11-03" },
+  { loc: "https://octocounts.com/recent", lastmod: "2026-11-03" },
+  { loc: "https://octocounts.com/popular", lastmod: "2026-11-03" },
+  { loc: "https://octocounts.com/trending", lastmod: "2026-11-03" },
+  { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-11-03" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
@@ -642,7 +642,12 @@ async function listPageResponse(context, kind, url) {
   const index = await indexHtml(context);
   const payload = await apiResponse;
   const pageMeta = listPageMeta(kind);
-  if (!Array.isArray(payload?.reports) || !payload.reports.every((report) => ["repoFullName", "publicPath", "description"].every((key) => typeof report?.[key] === "string"))) return collectionUnavailableResponse(context, new URL(pageMeta.canonical).pathname, pageMeta.title);
+  if (!Array.isArray(payload?.reports)
+    || (payload.hasNext !== undefined && typeof payload.hasNext !== "boolean")
+    || !payload.reports.every((report) => ["repoFullName", "publicPath", "description"].every((key) => typeof report?.[key] === "string")
+      && (report.languages === undefined || (Array.isArray(report.languages) && report.languages.every((row) => typeof row?.name === "string" && Number.isSafeInteger(row?.stats?.code) && row.stats.code >= 0))))) {
+    return collectionUnavailableResponse(context, new URL(pageMeta.canonical).pathname, pageMeta.title);
+  }
   // Page >1 is noindex,follow; pairing that with a canonical back to page 1
   // sends conflicting signals (Google: pick one). A self-referencing
   // canonical with the page parameter keeps the URL shape unambiguous.
@@ -655,20 +660,27 @@ async function listPageResponse(context, kind, url) {
   }
   const title = pageMeta.title;
   const description = pageMeta.description;
-  // Reports below the indexable floor answer 404 and stay out of the sitemap;
-  // never link them. Paging still follows the API's unfiltered page length.
+  // Keep the display floor during rollouts with older API nodes, too.
   const listed = payload.reports.filter(sitemapEntryMeasuredAnything);
+  // Older API nodes may still serve the pre-hasNext payload during rollout.
+  const hasNext = payload.hasNext ?? payload.reports.length === 36;
+  const listData = { kind, payload: { page: Number(page), limit: 36, hasNext, reports: listed.map((report) => ({
+    owner: report.owner, repo: report.repo, publicPath: report.publicPath, generatedAt: report.generatedAt,
+    total: { code: report.total?.code, files: report.total?.files }, topLanguage: report.topLanguage,
+    languageCount: report.languageCount,
+    languages: report.languages?.map((language) => ({ name: language.name, stats: { code: language.stats.code } })),
+  })) } };
   const rotating = await rotatingPromise;
   const rows = listed
     .map(
       (report, index) =>
-        `<li><span>${index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
+        `<li><span>${(Number(page) - 1) * 36 + index + 1}.</span> <a href="${escapeAttr(report.publicPath)}">${escapeHtml(report.repoFullName)}</a> — ${escapeHtml(report.description)}</li>`
     )
     .join("");
   // A successful empty inventory still explains the collection; failures return 503 above.
   const body = rows ? `<ul>${rows}</ul>` : listPageFallback(kind);
   const moreReports = moreReportsHtml(rotating);
-  const pagination = `<nav aria-label="Report pages">${Number(page) > 1 ? `<a href="${escapeAttr(pageMeta.canonical)}${page === "2" ? "" : `?page=${Number(page) - 1}`}">Previous page</a>` : ""}${payload.reports.length === 36 ? ` <a href="${escapeAttr(pageMeta.canonical)}?page=${Number(page) + 1}">Next page</a>` : ""}</nav>`;
+  const pagination = `<nav aria-label="Report pages">${Number(page) > 1 ? `<a href="${escapeAttr(pageMeta.canonical)}${page === "2" ? "" : `?page=${Number(page) - 1}`}">Previous page</a>` : ""}${hasNext ? ` <a href="${escapeAttr(pageMeta.canonical)}?page=${Number(page) + 1}">Next page</a>` : ""}</nav>`;
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -688,13 +700,13 @@ async function listPageResponse(context, kind, url) {
           "@type": "ItemList",
           itemListElement: listed.map((report, index) => ({
             "@type": "ListItem",
-            position: index + 1,
+            position: (Number(page) - 1) * 36 + index + 1,
             url: report.canonicalUrl,
             name: report.repoFullName,
           })),
         },
       },
-      extraHead: moreReportsData(rotating),
+      extraHead: `${moreReportsData(rotating)}<script type="application/json" id="octocounts-list-data">${escapeScriptJson(listData)}</script>`,
       bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${body}${pagination}</section>${moreReports}`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
@@ -714,12 +726,12 @@ function listPageFallback(kind) {
     popular:
       "This page ranks the OctoCounts reports that are viewed most often. Each entry links to a full source line count for a public GitHub repository, giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
     monoliths:
-      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by total source lines. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by code lines, excluding comments and blank lines. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
   }[kind];
 
   return `<p>${intro}</p>
     <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. Counting any public GitHub repository is free and needs no account &mdash; paste a repository URL on the <a href="/">OctoCounts home page</a>.</p>
-    <p>The live ranking for this page is loading. In the meantime:</p>
+    <p>No eligible reports are available yet. Explore another collection or analyze a repository:</p>
     <nav aria-label="Related OctoCounts pages"><ul>
       <li><a href="/recent">Recently analyzed repositories</a></li>
       <li><a href="/popular">Popular SLOC reports</a></li>
@@ -923,7 +935,8 @@ const STATS_SOURCE_LABELS = {
   mcp: "MCP",
   api: "API",
   extension: "Browser extension",
-  seed: "Seed",
+  seed: "Inventory seeding",
+  sloc_backfill: "History backfill",
   github_trending: "GitHub Trending",
   web: "Web app",
   unknown: "Unknown",
@@ -950,7 +963,7 @@ function statsMarkdown(stats) {
     ? `\n## Largest repositories measured\n\n${stats.topRepositories
         .map(
           (repo, index) =>
-            `${index + 1}. [${repo.owner}/${repo.repo}](https://octocounts.com${trendingReportPath(repo)}) — ${formatNumber(repo.total.lines)} total lines (${formatNumber(repo.total.code)} code)`
+            `${index + 1}. [${repo.owner}/${repo.repo}](https://octocounts.com${trendingReportPath(repo)}) — ${formatNumber(repo.total.code)} code lines (${formatNumber(repo.total.lines)} total lines)`
         )
         .join("\n")}\n`
     : "";
@@ -1016,7 +1029,7 @@ async function statsPageResponse(context, options = {}) {
     ? `<section><h2>Largest repositories measured</h2><ol>${stats.topRepositories
         .map(
           (repo) =>
-            `<li><a href="${escapeAttr(repo.publicPath)}">${escapeHtml(`${repo.owner}/${repo.repo}`)}</a> — ${formatNumber(repo.total.lines)} total lines (${formatNumber(repo.total.code)} code)</li>`
+            `<li><a href="${escapeAttr(repo.publicPath)}">${escapeHtml(`${repo.owner}/${repo.repo}`)}</a> — ${formatNumber(repo.total.code)} code lines (${formatNumber(repo.total.lines)} total lines)</li>`
         )
         .join("")}</ol></section>`
     : "";
@@ -1062,6 +1075,7 @@ async function statsPageResponse(context, options = {}) {
         },
       },
       bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p>${totals}${sources}${languages}${largest}${body}</section>`,
+      extraHead: `<script type="application/json" id="octocounts-stats-data">${escapeScriptJson(stats)}</script>`,
     }),
     cacheControl
   );

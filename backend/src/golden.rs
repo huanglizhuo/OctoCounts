@@ -378,6 +378,38 @@ async fn seo_recent_matches_golden() {
 }
 
 #[tokio::test]
+async fn seo_lists_expose_exact_page_boundaries() {
+    let Some(harness) = harness().await else {
+        return;
+    };
+    for kind in ["recent", "popular", "monoliths"] {
+        let (_, body) = harness.get(&format!("/api/seo/{kind}?limit=100")).await;
+        let inventory: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let count = inventory["reports"].as_array().unwrap().len();
+        assert!(count > 0);
+        let (_, body) = harness.get(&format!("/api/seo/{kind}?limit={count}")).await;
+        let full_page: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(
+            full_page["hasNext"], false,
+            "a full final page has no successor"
+        );
+        let (_, body) = harness
+            .get(&format!("/api/seo/{kind}?limit={count}&page=2"))
+            .await;
+        let empty: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(empty["hasNext"], false);
+        assert!(empty["reports"].as_array().unwrap().is_empty());
+        if count > 1 {
+            let (_, body) = harness.get(&format!("/api/seo/{kind}?limit=1")).await;
+            let first: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(first["hasNext"], true);
+            assert_eq!(first["reports"].as_array().unwrap().len(), 1);
+        }
+    }
+    harness.drop_schema().await;
+}
+
+#[tokio::test]
 async fn saved_badges_read_exact_counts_and_never_start_missing_analyses() {
     let Some(harness) = harness().await else {
         return;

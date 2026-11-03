@@ -106,7 +106,23 @@ pub struct TopLanguage {
 pub struct SeoList {
     page: i64,
     limit: i64,
+    has_next: bool,
     reports: Vec<SeoReport>,
+}
+
+impl SeoList {
+    fn from_cards(page: i64, limit: i64, cards: Vec<ReportCard>) -> Self {
+        Self {
+            page,
+            limit,
+            has_next: cards.len() > limit as usize,
+            reports: cards
+                .iter()
+                .take(limit as usize)
+                .map(|card| seo_report(card, None))
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -408,17 +424,10 @@ pub async fn recent(
     let reports = state
         .coordinator
         .store()
-        .recent_reports(limit, offset)
+        .recent_reports(limit + 1, offset)
         .await
-        .map_err(ApiError::internal)?
-        .iter()
-        .map(|card| seo_report(card, None))
-        .collect();
-    let list = SeoList {
-        page,
-        limit,
-        reports,
-    };
+        .map_err(ApiError::internal)?;
+    let list = SeoList::from_cards(page, limit, reports);
     state
         .caches
         .seo_recent
@@ -441,17 +450,10 @@ pub async fn popular(
     let reports = state
         .coordinator
         .store()
-        .popular_reports(limit, offset)
+        .popular_reports(limit + 1, offset)
         .await
-        .map_err(ApiError::internal)?
-        .iter()
-        .map(|card| seo_report(card, None))
-        .collect();
-    let list = SeoList {
-        page,
-        limit,
-        reports,
-    };
+        .map_err(ApiError::internal)?;
+    let list = SeoList::from_cards(page, limit, reports);
     state
         .caches
         .seo_popular
@@ -474,17 +476,10 @@ pub async fn monoliths(
     let reports = state
         .coordinator
         .store()
-        .monolith_reports(limit, offset)
+        .monolith_reports(limit + 1, offset)
         .await
-        .map_err(ApiError::internal)?
-        .iter()
-        .map(|card| seo_report(card, None))
-        .collect();
-    let list = SeoList {
-        page,
-        limit,
-        reports,
-    };
+        .map_err(ApiError::internal)?;
+    let list = SeoList::from_cards(page, limit, reports);
     state
         .caches
         .seo_monoliths

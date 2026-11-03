@@ -1,4 +1,5 @@
 {
+  "hasNext": false,
   "limit": 24,
   "page": 1,
   "reports": [
@@ -252,44 +253,6 @@
         "comments": 50000,
         "files": 2189,
         "lines": 431818
-      }
-    },
-    {
-      "analysisKey": "tokei-14.0.0:default",
-      "analysisOptions": {
-        "ignoredDirs": [],
-        "ignoredLanguages": [],
-        "includeDocs": false,
-        "includeGenerated": false,
-        "includeTests": false,
-        "profile": "default"
-      },
-      "canonicalUrl": "https://octocounts.com/github/octocounts/empty",
-      "citation": "As of 2024-06-01 (commit ffffffffffff), octocounts/empty contains 0 total lines: 0 code, 0 comments, 0 blank, across 0 files in 0 languages. Canonical public options (tests, docs and generated files excluded). Counted with tokei via OctoCounts.",
-      "commitSha": "ffffffffffffffffffff",
-      "description": "octocounts/empty has 0 lines of code across 0 files and 0 languages.",
-      "durationMs": 7,
-      "generatedAt": "2024-06-01T00:30:15+00:00",
-      "htmlUrl": "https://github.com/octocounts/empty",
-      "languageCount": 0,
-      "languages": [],
-      "owner": "octocounts",
-      "provider": "github",
-      "publicPath": "/github/octocounts/empty",
-      "refName": "main",
-      "repo": "empty",
-      "repoFullName": "octocounts/empty",
-      "reportId": "report-empty",
-      "snapshotUrl": "https://octocounts.com/github/octocounts/empty/commit/ffffffffffffffffffff?analysis=%7B%22ignoredDirs%22%3A%5B%5D%2C%22ignoredLanguages%22%3A%5B%5D%2C%22profile%22%3A%22default%22%2C%22includeDocs%22%3Afalse%2C%22includeTests%22%3Afalse%2C%22includeGenerated%22%3Afalse%7D&reportId=report-empty",
-      "title": "octocounts/empty: 0 lines of code | OctoCounts",
-      "tokeiVersion": "tokei-14.0.0",
-      "topLanguage": null,
-      "total": {
-        "blanks": 0,
-        "code": 0,
-        "comments": 0,
-        "files": 0,
-        "lines": 0
       }
     }
   ]

@@ -1927,9 +1927,10 @@ test("stats SSR renders the full citable aggregates and Dataset datePublished", 
   assert.match(html, /<h2>Language coverage<\/h2>/);
   assert.ok(html.includes("Rust: 5,000,000 code lines across 300 reports"));
   assert.match(html, /<h2>Largest repositories measured<\/h2>/);
-  assert.ok(html.includes('<a href="/github/torvalds/linux">torvalds/linux</a> — 40,000,000 total lines (30,000,000 code)'));
+  assert.ok(html.includes('<a href="/github/torvalds/linux">torvalds/linux</a> — 30,000,000 code lines (40,000,000 total lines)'));
   assert.match(html, /"@type":"Dataset"/);
   assert.match(html, /"datePublished":"2026-07-10"/);
+  assert.deepEqual(JSON.parse(html.match(/id="octocounts-stats-data">([^<]*)<\/script>/)[1]), stats);
 });
 
 test("docs dateModified and sitemap lastmod follow the per-page content manifest", async () => {
@@ -2436,7 +2437,7 @@ test("trending and stats serve markdown twins on request but keep HTML for retri
     assert.match(md, /^# OctoCounts public growth stats\n/);
     assert.match(md, /## Where analyses come from\n\n- Web app: 2,000 reports/);
     assert.match(md, /## Language coverage\n\n- Rust: 5,000,000 code lines across 300 reports/);
-    assert.ok(md.includes("1. [torvalds/linux](https://octocounts.com/github/torvalds/linux) — 40,000,000 total lines (30,000,000 code)"));
+    assert.ok(md.includes("1. [torvalds/linux](https://octocounts.com/github/torvalds/linux) — 30,000,000 code lines (40,000,000 total lines)"));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -2985,6 +2986,39 @@ test("SSR list pagination uses the client's page size and exposes crawlable navi
     assert.match(html, /href="https:\/\/octocounts.com\/recent\?page=3">Next page/);
     assert.match(html, /org\/repo-72/);
     assert.equal((await onRequest(await renderedContext("/recent?page=NaN"))).status, 404);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("SSR list snapshots preserve final-page boundaries, global ranks and safe JSON", async () => {
+  const originalFetch = globalThis.fetch;
+  const reports = Array.from({ length: 36 }, (_, i) => ({
+    ...RELATED_REPORT_FIXTURE,
+    owner: "org", repo: `repo-${i + 37}`,
+    repoFullName: `org/repo-${i + 37}`, publicPath: `/github/org/repo-${i + 37}`,
+    languages: [{ name: "</script><script>alert(1)</script>", stats: { code: 100 } }],
+  }));
+  globalThis.fetch = async (raw) => new URL(raw).pathname === "/api/seo/recent"
+    ? Response.json({ page: 2, limit: 36, hasNext: false, reports }) : Response.json([]);
+  try {
+    const html = await (await onRequest(await renderedContext("/recent?page=2"))).text();
+    const seed = JSON.parse(html.match(/id="octocounts-list-data">([^<]*)<\/script>/)[1]);
+    assert.equal(seed.kind, "recent");
+    assert.equal(seed.payload.page, 2);
+    assert.equal(seed.payload.hasNext, false);
+    assert.equal(seed.payload.reports.length, 36);
+    assert.deepEqual(seed.payload.reports[0].languages, reports[0].languages);
+    assert.equal(seed.payload.reports[0].citationText, undefined);
+    assert.doesNotMatch(html, /Next page|<script>alert\(1\)/);
+    assert.match(html, /"position":37/);
+    assert.match(html, /Previous page/);
+    for (const invalid of [
+      { hasNext: "false", reports },
+      { reports: [{ ...reports[0], languages: {} }] },
+      { reports: [{ ...reports[0], languages: [{ name: "Rust" }] }] },
+    ]) {
+      globalThis.fetch = async (raw) => new URL(raw).pathname === "/api/seo/recent" ? Response.json(invalid) : Response.json([]);
+      assert.equal((await onRequest(await renderedContext("/recent"))).status, 503);
+    }
   } finally { globalThis.fetch = originalFetch; }
 });
 
