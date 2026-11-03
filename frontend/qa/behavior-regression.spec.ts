@@ -457,7 +457,9 @@ test.describe("responsive tap and type floors (T23)", () => {
   test("mobile 390x844 swaps install CTAs for the desktop-only note and keeps tap/type floors", async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await context.newPage();
+    await page.route("https://www.githubstatus.com/api/v2/status.json", (route) => route.fulfill({ json: { status: { indicator: "minor", description: "Degraded performance" } } }));
     await page.goto(BASE_URL);
+    await expect(page.locator(".host-status-hint a")).toBeVisible();
     await page.waitForSelector("#repo-url", { timeout: 10000 });
 
     // First screen: no Chrome install primary button; the coarse-pointer note replaces the CTAs.
@@ -637,6 +639,7 @@ test.describe("UI review fixes", () => {
   for (const locale of ["en", "zh"]) {
     test(`${locale}: mobile first screen exposes the example number and grouped menu preferences`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
+      await page.route("https://www.githubstatus.com/api/v2/status.json", (route) => route.fulfill({ json: { status: { indicator: "none", description: "All Systems Operational" } } }));
       await page.goto(`${BASE_URL}${locale === "zh" ? "/zh" : "/"}`);
       const value = page.locator(".summary .cell.accent .val");
       await expect(value).toBeVisible();
