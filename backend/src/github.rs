@@ -952,8 +952,20 @@ impl GitHubClient {
             urlencoding::encode(owner),
             urlencoding::encode(repo),
         );
+        let entries = Self::star_history_page(&client, &url, token).await?;
+        Ok(entries
+            .first()
+            .map(|first| vec![(first.starred_at, 1)])
+            .unwrap_or_default())
+    }
+
+    async fn star_history_page(
+        client: &Client,
+        url: &str,
+        token: &str,
+    ) -> Result<Vec<StarredEntry>, GitHubError> {
         let response = client
-            .get(&url)
+            .get(url)
             .header(header::USER_AGENT, "octocount-service/0.1")
             .header(header::ACCEPT, "application/vnd.github.star+json")
             .header(header::AUTHORIZATION, format!("Bearer {token}"))
@@ -961,13 +973,7 @@ impl GitHubClient {
             .await?;
 
         match response.status() {
-            StatusCode::OK => {
-                let entries = response.json::<Vec<StarredEntry>>().await?;
-                Ok(entries
-                    .first()
-                    .map(|first| vec![(first.starred_at, 1)])
-                    .unwrap_or_default())
-            }
+            StatusCode::OK => Ok(response.json::<Vec<StarredEntry>>().await?),
             StatusCode::FORBIDDEN | StatusCode::NOT_FOUND => Err(GitHubError::NotCollaborator),
             StatusCode::TOO_MANY_REQUESTS => Err(GitHubError::RateLimited),
             status if status.is_server_error() => Err(GitHubError::UpstreamUnavailable),
@@ -976,19 +982,20 @@ impl GitHubClient {
     }
 
     /// Continues the sampling `verify_star_history_access` started on page 1,
-    /// walking the remaining sampled pages with the same caller token. Only
-    /// ever called after verification has already proven access, so this is
-    /// best-effort throughout: a single bad page thins the sample rather than
-    /// failing the whole backfill.
+    /// walking the remaining sampled pages with the same caller token.
+    /// Failed pages must leave the backfill retryable, not silently complete.
     pub async fn backfill_star_history(
         token: &str,
         owner: &str,
         repo: &str,
         current_stars: u64,
         first_page: Vec<(DateTime<Utc>, u64)>,
-    ) -> Vec<(DateTime<Utc>, u64)> {
+    ) -> Result<Vec<(DateTime<Utc>, u64)>, GitHubError> {
         if current_stars == 0 {
-            return first_page;
+            return Ok(first_page);
+        }
+        if first_page.is_empty() {
+            return Err(GitHubError::UpstreamUnavailable);
         }
         let client = Self::caller_token_client();
         let total_pages = current_stars.div_ceil(STARGAZERS_PER_PAGE).max(1);
@@ -1003,29 +1010,16 @@ impl GitHubClient {
                 urlencoding::encode(owner),
                 urlencoding::encode(repo),
             );
-            let response = match client
-                .get(&url)
-                .header(header::USER_AGENT, "octocount-service/0.1")
-                .header(header::ACCEPT, "application/vnd.github.star+json")
-                .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                .send()
-                .await
-            {
-                Ok(response) if response.status().is_success() => response,
-                _ => continue,
-            };
-            let Ok(entries) = response.json::<Vec<StarredEntry>>().await else {
-                continue;
-            };
+            let entries = Self::star_history_page(&client, &url, token).await?;
             let Some(first) = entries.first() else {
-                continue;
+                return Err(GitHubError::UpstreamUnavailable);
             };
             let position = (page - 1) * STARGAZERS_PER_PAGE + 1;
             points.push((first.starred_at, position));
         }
 
         points.sort_by_key(|(date, _)| *date);
-        points
+        Ok(points)
     }
 
     /// Evenly spaced page numbers from 1..=total_pages, always including the
@@ -1534,6 +1528,45 @@ mod tests {
     fn sample_pages_covers_every_page_under_the_cap() {
         assert_eq!(GitHubClient::sample_pages(5, 30), vec![1, 2, 3, 4, 5]);
         assert_eq!(GitHubClient::sample_pages(1, 30), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn star_history_pages_propagate_upstream_and_decode_failures() {
+        use super::GitHubError;
+        use axum::{extract::Path, http::StatusCode, routing::get};
+        let app = axum::Router::new().route(
+            "/{case}",
+            get(|Path(case): Path<String>| async move {
+                match case.as_str() {
+                    "limited" => (StatusCode::TOO_MANY_REQUESTS, "slow down"),
+                    "unavailable" => (StatusCode::SERVICE_UNAVAILABLE, "unavailable"),
+                    "forbidden" => (StatusCode::FORBIDDEN, "forbidden"),
+                    "malformed" => (StatusCode::OK, "not json"),
+                    _ => (StatusCode::OK, r#"[{"starred_at":"2020-01-01T00:00:00Z"}]"#),
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = GitHubClient::caller_token_client();
+        for case in ["limited", "unavailable", "forbidden", "malformed"] {
+            assert!(
+                GitHubClient::star_history_page(&client, &format!("{base}/{case}"), "test-token")
+                    .await
+                    .is_err(),
+                "{case}"
+            );
+        }
+        let entries = GitHubClient::star_history_page(&client, &format!("{base}/ok"), "test-token")
+            .await
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(matches!(
+            GitHubClient::backfill_star_history("test-token", "octo", "repo", 100, vec![]).await,
+            Err(GitHubError::UpstreamUnavailable)
+        ));
+        server.abort();
     }
 
     #[test]

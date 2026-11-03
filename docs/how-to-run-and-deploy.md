@@ -252,10 +252,15 @@ The Caddy DNS-01 image is built separately by the manually dispatched
 `build-caddy.yml` workflow from `deploy/caddy/Dockerfile`; the private infra
 repo deploys its fixed GHCR tag. Its Docker build context contains no secrets.
 
+Star-history backfills have a 10-minute execution budget. An incomplete claim
+can be retried by a later authorized request 30 minutes after it was claimed;
+the backend never stores the caller's token. Failed requests or snapshot writes
+leave the backfill incomplete. Existing completed histories are not reset.
+
 | Variable | Default | Notes |
 |---|---|---|
 | `GITHUB_TOKEN` | — | Strongly recommended |
-| `ANALYSIS_CONCURRENCY` | `2` | Max parallel analysis jobs |
+| `ANALYSIS_CONCURRENCY` | `2` | Max parallel analysis jobs per instance; at most 8 additional jobs can wait |
 | `DATABASE_URL` | required | Postgres connection string, for example `postgres://user:password@host:5432/octocounts` |
 | `BIND_ADDR` | `127.0.0.1:8080` | Backend listen address; Docker Compose overrides this to `0.0.0.0:8080` |
 | `CLEANUP_INTERVAL_SECONDS` | `3600` | Storage cleanup cadence |

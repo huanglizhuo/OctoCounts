@@ -5,7 +5,7 @@ use std::{
 };
 
 use tokio::{
-    sync::{watch, Semaphore},
+    sync::{watch, OwnedSemaphorePermit, Semaphore},
     time::Instant,
 };
 use uuid::Uuid;
@@ -35,6 +35,7 @@ const JOB_POLL_INTERVAL: Duration = Duration::from_secs(2);
 /// fit inside [`crate::store::JOB_ABANDONED_AFTER_SECONDS`], so one slow write
 /// never makes a live job look abandoned.
 const JOB_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
+const MAX_QUEUED_ANALYSES: usize = 8;
 const _: () = assert!(
     JOB_HEARTBEAT_INTERVAL.as_secs() * 3 < crate::store::JOB_ABANDONED_AFTER_SECONDS as u64
 );
@@ -146,6 +147,7 @@ pub struct AnalysisCoordinator {
     store: Store,
     github: GitHubClient,
     semaphore: Arc<Semaphore>,
+    admission: Arc<Semaphore>,
     indexnow: Option<IndexNowService>,
     events: Arc<JobEvents>,
     metrics: Arc<Metrics>,
@@ -163,6 +165,7 @@ impl AnalysisCoordinator {
             store,
             github,
             semaphore: Arc::new(Semaphore::new(concurrency)),
+            admission: Arc::new(Semaphore::new(concurrency + MAX_QUEUED_ANALYSES)),
             indexnow,
             events: Arc::new(JobEvents::default()),
             metrics,
@@ -338,20 +341,39 @@ impl AnalysisCoordinator {
             self.metrics.record_cache_miss();
         }
 
+        let key = JobKey {
+            provider: repo_ref.provider,
+            owner: &repo_ref.owner,
+            repo: &repo_ref.repo,
+            commit_sha: &repo_ref.commit_sha,
+            tokei_version: &analysis_key,
+            source,
+        };
+        let admission = match self.admission.clone().try_acquire_owned() {
+            Ok(permit) => permit,
+            Err(_) => {
+                // Full locally still allows joining a job owned by any replica.
+                if let Some(job) = self
+                    .store
+                    .active_job(key)
+                    .await
+                    .map_err(ApiError::internal)?
+                {
+                    return Ok(AnalyzeResponse::Job {
+                        job_id: job.id,
+                        status: job.status,
+                    });
+                }
+                return Err(ApiError::queue_full());
+            }
+        };
         let (job, created) = self
             .store
-            .create_or_get_active_job(JobKey {
-                provider: repo_ref.provider,
-                owner: &repo_ref.owner,
-                repo: &repo_ref.repo,
-                commit_sha: &repo_ref.commit_sha,
-                tokei_version: &analysis_key,
-                source,
-            })
+            .create_or_get_active_job(key)
             .await
             .map_err(ApiError::internal)?;
         if created {
-            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key, source);
+            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key, source, admission);
         }
 
         Ok(AnalyzeResponse::Job {
@@ -367,9 +389,11 @@ impl AnalysisCoordinator {
         options: crate::models::AnalysisOptions,
         analysis_key: String,
         source: AnalysisSource,
+        admission: OwnedSemaphorePermit,
     ) {
         let coordinator = self.clone();
         tokio::spawn(async move {
+            let _admission = admission;
             // Heartbeat while this process owns the job -- queued on the
             // semaphore or running -- so that if the process dies the job stops
             // counting as active (`Store::active_job`) instead of blocking its
@@ -495,7 +519,7 @@ mod tests {
     use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 
     use super::*;
-    use crate::models::JobStatus;
+    use crate::models::{AnalysisOptions, JobStatus, Report, Repository, RepositoryProvider};
 
     /// Comfortably under the old 500ms polling floor, and an order of magnitude
     /// under [`JOB_POLL_INTERVAL`]: a waiter that returns this fast can only have
@@ -572,6 +596,136 @@ mod tests {
             admin,
             schema,
         })
+    }
+
+    #[tokio::test]
+    async fn admission_bounds_concurrent_jobs_but_allows_cache_hits_and_existing_jobs() {
+        let Some(harness) = harness().await else {
+            return;
+        };
+        let coordinator = &harness.coordinator;
+        let capacity = MAX_QUEUED_ANALYSES + 1;
+        let options = AnalysisOptions::default();
+        let analysis_key = analyzer::analysis_key(&options);
+        let reference = RepoRef {
+            provider: RepositoryProvider::GitHub,
+            owner: "octo".into(),
+            repo: "cached".into(),
+            ref_name: "main".into(),
+            commit_sha: "abc123".into(),
+            html_url: "https://github.com/octo/cached".into(),
+            stars: None,
+            renamed_from: None,
+        };
+        let report = Report {
+            id: "cached-report".into(),
+            repository: Repository {
+                provider: reference.provider,
+                owner: reference.owner.clone(),
+                name: reference.repo.clone(),
+                html_url: reference.html_url.clone(),
+                stars: None,
+            },
+            ref_name: reference.ref_name.clone(),
+            commit_sha: reference.commit_sha.clone(),
+            generated_at: chrono::Utc::now(),
+            duration_ms: 0,
+            cached: false,
+            tokei_version: "tokei-test".into(),
+            analysis_key: analysis_key.clone(),
+            analysis_options: options.clone(),
+            counting_policy: None,
+            languages: vec![],
+            total: Default::default(),
+        };
+        coordinator
+            .store
+            .save_report(&report, AnalysisSource::Web)
+            .await
+            .unwrap();
+        // Occupy the worker so accepted jobs wait without accessing GitHub.
+        let worker = coordinator.semaphore.acquire().await.unwrap();
+        let results = futures::future::join_all((0..capacity + 3).map(|i| {
+            let mut repo = reference.clone();
+            repo.repo = format!("queued-{i}");
+            let options = options.clone();
+            async move {
+                let result = coordinator
+                    .submit_resolved(repo.clone(), options, AnalysisSource::Web, false)
+                    .await;
+                (repo, result)
+            }
+        }))
+        .await;
+        let mut accepted = vec![];
+        for (repo, result) in results {
+            match result {
+                Ok(AnalyzeResponse::Job { job_id, .. }) => accepted.push((repo, job_id)),
+                Err(error) => {
+                    assert_eq!(error.body.code, "queue_full");
+                    assert_eq!(error.body.request_accepted, Some(false));
+                    assert!(coordinator
+                        .store
+                        .active_job(JobKey {
+                            provider: repo.provider,
+                            owner: &repo.owner,
+                            repo: &repo.repo,
+                            commit_sha: &repo.commit_sha,
+                            tokei_version: &analysis_key,
+                            source: AnalysisSource::Web,
+                        })
+                        .await
+                        .unwrap()
+                        .is_none());
+                }
+                _ => panic!("new repository must not hit the report cache"),
+            }
+        }
+        assert_eq!(accepted.len(), capacity);
+        assert_eq!(coordinator.admission.available_permits(), 0);
+        let (repo, job_id) = &accepted[0];
+        let reused = coordinator
+            .submit_resolved(repo.clone(), options.clone(), AnalysisSource::Web, true)
+            .await;
+        assert!(matches!(reused, Ok(AnalyzeResponse::Job { job_id: id, .. }) if id == *job_id));
+        let cached = coordinator
+            .submit_resolved(reference, options.clone(), AnalysisSource::Web, false)
+            .await;
+        assert!(matches!(cached, Ok(AnalyzeResponse::Cached { .. })));
+
+        coordinator.semaphore.close();
+        drop(worker);
+        for (_, id) in &accepted {
+            let job = coordinator
+                .await_job(*id, Duration::from_secs(5), |job| {
+                    job_is_finished(job.status)
+                })
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(job.status, JobStatus::Failed);
+        }
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while coordinator.admission.available_permits() != capacity {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        // A released slot accepts new work again; no stale queue entry remains.
+        let retry = coordinator
+            .submit_resolved(accepted[0].0.clone(), options, AnalysisSource::Web, true)
+            .await;
+        let Ok(AnalyzeResponse::Job { job_id, .. }) = retry else {
+            panic!("capacity was not released");
+        };
+        coordinator
+            .await_job(job_id, Duration::from_secs(5), |job| {
+                job_is_finished(job.status)
+            })
+            .await
+            .unwrap();
+        harness.drop_schema().await;
     }
 
     /// The lost-wakeup race, isolated from the database.

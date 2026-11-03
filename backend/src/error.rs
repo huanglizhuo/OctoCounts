@@ -59,6 +59,17 @@ impl ApiError {
         error
     }
 
+    pub(crate) fn queue_full() -> Self {
+        let mut error = Self::new(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "queue_full",
+            "analysis queue is full; please retry later",
+        )
+        .with_retry_after(30);
+        error.body.request_accepted = Some(false);
+        error
+    }
+
     pub(crate) fn body(&self) -> &ApiErrorBody {
         &self.body
     }
@@ -128,6 +139,21 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn full_queue_is_retryable_and_explicitly_not_accepted() {
+        let response = ApiError::queue_full().into_response();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["retry-after"], "30");
+        let body: ApiErrorBody = serde_json::from_slice(
+            &axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(body.code, "queue_full");
+        assert_eq!(body.request_accepted, Some(false));
+    }
 
     #[tokio::test]
     async fn upstream_unavailable_maps_to_503_with_retry_after() {

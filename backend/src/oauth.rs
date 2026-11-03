@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use axum::{
     extract::{ConnectInfo, Extension, State},
@@ -14,7 +14,11 @@ use crate::{
     models::RepositoryProvider,
     ratelimit::client_ip,
     seo::parse_provider,
+    store::STAR_BACKFILL_RECLAIM_AFTER_SECONDS,
 };
+
+const STAR_BACKFILL_TIMEOUT: Duration = Duration::from_secs(600);
+const _: () = assert!(STAR_BACKFILL_TIMEOUT.as_secs() < STAR_BACKFILL_RECLAIM_AFTER_SECONDS as u64);
 
 #[derive(Debug, Deserialize)]
 struct AccessTokenResponse {
@@ -270,45 +274,52 @@ async fn authorize_and_backfill(
     // Guarantees a star_watch row exists to claim below, even for a repo
     // nobody has viewed a report for yet. Only after verification: before it,
     // any caller could add rows the daily snapshot task then polls forever.
-    let _ = store.watch_repo_for_stars(provider, owner, repo).await;
-    let current_stars = github.repo_stars(&provider, owner, repo).await.unwrap_or(0);
+    store
+        .watch_repo_for_stars(provider, owner, repo)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%error, "failed to watch repository for star backfill");
+            GitHubError::UpstreamUnavailable
+        })?;
+    let current_stars = github
+        .repo_stars(&provider, owner, repo)
+        .await
+        .ok_or(GitHubError::UpstreamUnavailable)?;
 
     if store
         .start_star_backfill_if_needed(provider, owner, repo)
         .await
-        .unwrap_or(false)
+        .map_err(|error| {
+            tracing::warn!(%error, "failed to claim star backfill");
+            GitHubError::UpstreamUnavailable
+        })?
     {
         let store = store.clone();
         let owner = owner.to_string();
         let repo = repo.to_string();
         tokio::spawn(async move {
-            let points = GitHubClient::backfill_star_history(
-                &token,
-                &owner,
-                &repo,
-                current_stars,
-                first_page,
-            )
-            .await;
-            for (timestamp, stars_at_point) in points {
-                if let Err(error) = store
-                    .record_star_snapshot(
-                        provider,
-                        &owner,
-                        &repo,
-                        timestamp.date_naive(),
-                        stars_at_point as i64,
-                    )
+            let backfill = async {
+                let points = GitHubClient::backfill_star_history(
+                    &token,
+                    &owner,
+                    &repo,
+                    current_stars,
+                    first_page,
+                )
+                .await?;
+                store
+                    .complete_star_backfill(provider, &owner, &repo, &points)
                     .await
-                {
-                    tracing::warn!(%error, %owner, %repo, "failed to record backfilled star snapshot");
+            };
+            // A dropped token is never persisted; a later authorized request can reclaim the job.
+            match tokio::time::timeout(STAR_BACKFILL_TIMEOUT, backfill).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => {
+                    tracing::warn!(%error, %owner, %repo, "star backfill failed; retry after the reclaim cooldown")
                 }
-            }
-            if let Err(error) = store
-                .mark_star_backfill_completed(provider, &owner, &repo)
-                .await
-            {
-                tracing::error!(%error, %owner, %repo, "failed to mark star backfill completed");
+                Err(_) => {
+                    tracing::warn!(%owner, %repo, "star backfill timed out; retry after the reclaim cooldown")
+                }
             }
         });
     }

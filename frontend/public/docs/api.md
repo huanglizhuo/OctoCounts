@@ -54,6 +54,8 @@ Use GET /api/jobs/:jobId?wait=20 to long-poll. The server caps wait at 25 second
 
 Inspect both the HTTP status and JSON code. 429 and upstream 503 responses include Retry-After, in seconds or HTTP-date format. Read-only GET requests may retry 429, 500, 502, 503 and 504 with a bounded backoff; permanent 4xx errors should fail immediately. The bundled clients allow three retries. A POST may be retried only when the response explicitly contains requestAccepted: false. Never replay an analyze POST after an ambiguous network failure, or automatically replay a GitHub comment write.
 
+When the analysis queue is full, new work receives HTTP 503 with code queue_full, Retry-After: 30 and requestAccepted: false. Cached reports and existing jobs remain available. Each backend instance admits at most ANALYSIS_CONCURRENCY running jobs plus 8 waiting jobs.
+
 Keep jobId after submission. If polling fails or times out, resume with GET /api/jobs/:jobId rather than submitting again; a completed job supplies reportId. A 404 means that saved record is unavailable. Default analyze limits are 5 requests/minute per IP with burst 10; forceRefresh has an additional 2/minute limit with burst 2. Limits are configurable and apply per backend instance, not globally across instances.
 
 

@@ -3,7 +3,8 @@ import { getSettings } from '../shared/settings.js';
 const PREFIX = 'oc::';
 // A single small object mapping cacheKey -> cachedAt, so periodic prune and
 // count operations don't have to deserialize every cached report body.
-const INDEX_KEY = 'oc::__index__';
+// Rebuild once for installs whose previous index omitted successful writes.
+const INDEX_KEY = 'oc::__index_v2__';
 
 export { getSettings };
 
@@ -67,6 +68,7 @@ async function rebuildIndex() {
     }
   }
   await writeIndex(index);
+  await chrome.storage.local.remove('oc::__index__');
   return index;
 }
 
@@ -91,7 +93,7 @@ async function removeEntries(keys) {
 // Applies regardless of cacheTtlMs so "never expire" cannot grow unbounded.
 async function enforceCap(index) {
   const entries = Object.entries(index);
-  if (entries.length <= MAX_ENTRIES) return;
+  if (entries.length <= MAX_ENTRIES) return writeIndex(index);
   const toRemove = entries
     .sort(([, a], [, b]) => a - b)
     .slice(0, entries.length - MAX_ENTRIES)
@@ -144,7 +146,7 @@ export async function clearAll() {
   const all = await chrome.storage.local.get(null);
   const keys = Object.keys(all).filter(k => k.startsWith(PREFIX));
   if (keys.length) await chrome.storage.local.remove(keys);
-  return keys.filter(k => k !== INDEX_KEY).length;
+  return keys.filter(k => k !== INDEX_KEY && k !== 'oc::__index__').length;
 }
 
 export async function countEntries() {

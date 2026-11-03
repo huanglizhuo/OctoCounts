@@ -26,9 +26,13 @@ for (const client of clients) {
 
   test(`${client}: safe rejected POST retries; ambiguous POST never replays`, async (t) => {
     let calls = 0;
-    const mock = t.mock.method(globalThis, "fetch", async () => ++calls === 1 ? json({ code: "rate_limited", requestAccepted: false }, 429, { "retry-after": "0" }) : json({ ok: true }));
-    assert.deepEqual(await api.fetchJson("https://api.test/write", { method: "POST" }), { ok: true });
-    assert.equal(calls, 2);
+    const mock = t.mock.method(globalThis, "fetch");
+    for (const [status, code] of [[429, "rate_limited"], [503, "queue_full"]]) {
+      calls = 0;
+      mock.mock.mockImplementation(async () => ++calls === 1 ? json({ code, requestAccepted: false }, status, { "retry-after": "0" }) : json({ ok: true }));
+      assert.deepEqual(await api.fetchJson("https://api.test/write", { method: "POST" }), { ok: true });
+      assert.equal(calls, 2);
+    }
     for (const response of [() => json({ message: "busy" }, 503, { "retry-after": "0" }), () => { throw new TypeError("connection lost"); }]) {
       calls = 0;
       mock.mock.mockImplementation(async () => { calls++; return response(); });

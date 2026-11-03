@@ -10,6 +10,8 @@ use crate::models::{
     JobStatus, LanguageReport, LanguageStats, Report, ReportRefKind, RepositoryProvider,
 };
 
+pub const STAR_BACKFILL_RECLAIM_AFTER_SECONDS: i64 = 1800;
+
 /// The per-row projection shared by every card query. A macro rather than a
 /// `const` so `concat!` can splice it into each order's `&'static str`.
 /// `$3` is the language cap; see [`SEO_CARD_LANGUAGES`].
@@ -1671,24 +1673,32 @@ impl Store {
             UPDATE star_watch
             SET star_backfill_started_at = NOW()
             WHERE provider = $1 AND owner = $2 AND repo = $3
-              AND star_backfill_started_at IS NULL
+              AND star_backfill_completed_at IS NULL
+              AND (star_backfill_started_at IS NULL
+                   OR star_backfill_started_at < NOW() - make_interval(secs => $4))
             "#,
         )
         .bind(provider_to_str(&provider))
         .bind(owner)
         .bind(repo)
+        .bind(STAR_BACKFILL_RECLAIM_AFTER_SECONDS as f64)
         .execute(&self.pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn mark_star_backfill_completed(
+    pub async fn complete_star_backfill(
         &self,
         provider: RepositoryProvider,
         owner: &str,
         repo: &str,
+        points: &[(DateTime<Utc>, u64)],
     ) -> anyhow::Result<()> {
+        for (timestamp, stars) in points {
+            self.record_star_snapshot(provider, owner, repo, timestamp.date_naive(), *stars as i64)
+                .await?;
+        }
         sqlx::query(
             r#"
             UPDATE star_watch
@@ -1716,7 +1726,9 @@ impl Store {
     ) -> anyhow::Result<bool> {
         let row = sqlx::query(
             r#"
-            SELECT star_backfill_started_at IS NOT NULL AND star_backfill_completed_at IS NULL AS in_progress
+            SELECT star_backfill_started_at IS NOT NULL
+                AND star_backfill_started_at >= NOW() - make_interval(secs => $4)
+                AND star_backfill_completed_at IS NULL AS in_progress
             FROM star_watch
             WHERE provider = $1 AND owner = $2 AND repo = $3
             "#,
@@ -1724,6 +1736,7 @@ impl Store {
         .bind(provider_to_str(&provider))
         .bind(owner)
         .bind(repo)
+        .bind(STAR_BACKFILL_RECLAIM_AFTER_SECONDS as f64)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -3387,7 +3400,7 @@ impl Store {
         row_to_job(row)
     }
 
-    async fn active_job(&self, key: JobKey<'_>) -> anyhow::Result<Option<JobRecord>> {
+    pub(crate) async fn active_job(&self, key: JobKey<'_>) -> anyhow::Result<Option<JobRecord>> {
         let row = sqlx::query(
             r#"
             SELECT id, status, report_id, error::text AS error, created_at, updated_at
@@ -5873,7 +5886,7 @@ mod tests {
         );
 
         store
-            .mark_star_backfill_completed(RepositoryProvider::GitHub, "octo", "counts")
+            .complete_star_backfill(RepositoryProvider::GitHub, "octo", "counts", &[])
             .await
             .unwrap();
         assert!(
@@ -5882,6 +5895,110 @@ mod tests {
                 .await
                 .unwrap(),
             "completed"
+        );
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_backfill_reclaims_expired_claims_but_never_completed_work() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let provider = RepositoryProvider::GitHub;
+        store
+            .watch_repo_for_stars(provider, "octo", "counts")
+            .await
+            .unwrap();
+        assert!(store
+            .start_star_backfill_if_needed(provider, "octo", "counts")
+            .await
+            .unwrap());
+        assert!(!store
+            .start_star_backfill_if_needed(provider, "octo", "counts")
+            .await
+            .unwrap());
+        sqlx::query(
+            "UPDATE star_watch SET star_backfill_started_at = NOW() - INTERVAL '31 minutes'",
+        )
+        .execute(&store.pool)
+        .await
+        .unwrap();
+        assert!(!store
+            .star_backfill_in_progress(provider, "octo", "counts")
+            .await
+            .unwrap());
+        assert!(store
+            .start_star_backfill_if_needed(provider, "octo", "counts")
+            .await
+            .unwrap());
+        assert!(store
+            .star_backfill_in_progress(provider, "octo", "counts")
+            .await
+            .unwrap());
+        store
+            .complete_star_backfill(provider, "octo", "counts", &[])
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE star_watch SET star_backfill_started_at = NOW() - INTERVAL '31 minutes'",
+        )
+        .execute(&store.pool)
+        .await
+        .unwrap();
+        assert!(!store
+            .start_star_backfill_if_needed(provider, "octo", "counts")
+            .await
+            .unwrap());
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn star_backfill_write_failure_remains_incomplete_and_can_be_retried() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let provider = RepositoryProvider::GitHub;
+        store
+            .watch_repo_for_stars(provider, "octo", "counts")
+            .await
+            .unwrap();
+        store
+            .start_star_backfill_if_needed(provider, "octo", "counts")
+            .await
+            .unwrap();
+        sqlx::query("ALTER TABLE star_snapshots ADD CONSTRAINT fail_second_sample CHECK (star_count <> 101)")
+            .execute(&store.pool).await.unwrap();
+        let points = vec![
+            ("2020-01-01T00:00:00Z".parse().unwrap(), 1),
+            ("2021-01-01T00:00:00Z".parse().unwrap(), 101),
+        ];
+        assert!(store
+            .complete_star_backfill(provider, "octo", "counts", &points)
+            .await
+            .is_err());
+        assert!(!store
+            .star_history_is_backfilled(provider, "octo", "counts")
+            .await
+            .unwrap());
+        sqlx::query("ALTER TABLE star_snapshots DROP CONSTRAINT fail_second_sample")
+            .execute(&store.pool)
+            .await
+            .unwrap();
+        store
+            .complete_star_backfill(provider, "octo", "counts", &points)
+            .await
+            .unwrap();
+        assert!(store
+            .star_history_is_backfilled(provider, "octo", "counts")
+            .await
+            .unwrap());
+        assert_eq!(
+            store
+                .star_history(provider, "octo", "counts")
+                .await
+                .unwrap()
+                .len(),
+            2
         );
         store.drop_schema().await;
     }
@@ -5914,7 +6031,7 @@ mod tests {
         );
 
         store
-            .mark_star_backfill_completed(RepositoryProvider::GitHub, "octo", "counts")
+            .complete_star_backfill(RepositoryProvider::GitHub, "octo", "counts", &[])
             .await
             .unwrap();
         assert!(store
