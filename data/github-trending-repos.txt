@@ -1,16 +1,14 @@
-# GitHub Trending daily snapshot generated 2026-11-03T09:29:04.097Z
-vercel-labs/agent-desktop
+# GitHub Trending daily snapshot generated 2026-11-04T09:06:46.002Z
 thedotmack/claude-mem
-D4Vinci/Scrapling
-hyprwm/Hyprland
-Donchitos/Claude-Code-Game-Studios
-FlashML-org/FreeToken
-pingdotgg/t3code
-shiyu-coder/Kronos
-kornia/kornia
+vercel-labs/agent-desktop
+max-sixty/worktrunk
 JustVugg/colibri
 mattpocock/skills
-max-sixty/worktrunk
-paperclipai/paperclip
-karpathy/nanochat
 p-e-w/heretic
+spotify/portal-ai-plugins
+floci-io/floci
+Usagi-org/ai-goofish-monitor
+anomalyco/hex
+D4Vinci/Scrapling
+shiyu-coder/Kronos
+Donchitos/Claude-Code-Game-Studios
