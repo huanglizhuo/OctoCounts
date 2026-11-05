@@ -1,14 +1,17 @@
-# GitHub Trending daily snapshot generated 2026-11-04T09:06:46.002Z
+# GitHub Trending daily snapshot generated 2026-11-05T09:26:00.862Z
+NVIDIA/auto-ontology
+max-sixty/worktrunk
+mattpocock/skills
+floci-io/floci
 thedotmack/claude-mem
 vercel-labs/agent-desktop
-max-sixty/worktrunk
-JustVugg/colibri
-mattpocock/skills
-p-e-w/heretic
-spotify/portal-ai-plugins
-floci-io/floci
-Usagi-org/ai-goofish-monitor
-anomalyco/hex
+github/spec-kit
+The-PR-Agent/pr-agent
+harry0703/MoneyPrinterTurbo
+garrytan/gstack
+FareedKhan-dev/kimi-k3-in-c
+JiaFeiMiao-K-Cat/DiscImageStudio
+MichaelCade/90DaysOfDevOps
 D4Vinci/Scrapling
-shiyu-coder/Kronos
-Donchitos/Claude-Code-Game-Studios
+Thysrael/Horizon
+scenario-labs/skills
