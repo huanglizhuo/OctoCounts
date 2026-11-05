@@ -52,7 +52,7 @@
       "headline": "How to count lines of code in a GitHub repository",
       "description": "Four ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension, git commands, and cloc or tokei — commands included.",
       "datePublished": "2026-09-30",
-      "dateModified": "2026-10-27",
+      "dateModified": "2026-11-05",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -109,7 +109,7 @@
           "name": "How do I count lines of code in a cloned repository with git?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Inside an existing clone, count every tracked line with git ls-files | xargs wc -l. To count one language, filter the file list first. Two caveats: wc -l counts every line, including blanks, in every text file (and misbehaves on binaries), and git ls-files includes generated or vendored files unless you exclude them. So wc is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, run tokei or cloc on the same clone."
+            "text": "Inside an existing clone, count newline characters in tracked files with git ls-files -z | xargs -0 wc -l --. The NUL-separated file list preserves spaces and newlines in filenames. To count one language, filter the file list first. Limits: wc -l counts newline characters, including blank lines; it does not classify source code and a final line without a newline is not counted. Also, git ls-files can include binaries, generated files, or vendored files unless you exclude them. xargs may split a large file list into batches, producing a separate total for each batch. So wc is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, run tokei or cloc on the same clone."
           }
         },
         {
@@ -177,7 +177,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / Count lines of code in a GitHub repo</nav>
     <main>
-      <p class="meta">Updated October 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 5, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How to count lines of code in a GitHub repository</h1>
       <p class="answer">There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like <a href="https://github.com/AlDanial/cloc">cloc</a> or <a href="https://github.com/XAMPPRocky/tokei">tokei</a> on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.</p>
 
@@ -188,9 +188,9 @@
       <p>Install the OctoCounts browser extension for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a>. The extension adds a SLOC card to the GitHub repository sidebar — right next to the language bar — showing files, total lines, code, comments, blanks, and the top languages for the repository you are viewing, with a link to the full report. This is the closest thing to a line counter built into github.com itself, because GitHub's own sidebar shows byte-based language percentages, not line counts (see the <a href="/docs/github-language-bar-alternative">language bar alternative page</a> for why those differ).</p>
 
       <h2>How do I count lines of code in a cloned repository with git?</h2>
-      <p>Inside an existing clone, count every tracked line with <code>wc</code>:</p>
-      <pre><code>git ls-files | xargs wc -l</code></pre>
-      <p>To count one language, filter the file list first — for example <code>git ls-files '*.rs' | xargs wc -l</code> for Rust. Two caveats: <code>wc -l</code> counts every line, including blanks, in every text file (and misbehaves on binaries), and <code>git ls-files</code> includes generated or vendored files unless you exclude them. So <code>wc</code> is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, use a real SLOC counter like cloc or tokei on the same clone:</p>
+      <p>Inside an existing clone, count newline characters in tracked files with <code>wc</code>:</p>
+      <pre><code>git ls-files -z | xargs -0 wc -l --</code></pre>
+      <p>The NUL-separated file list preserves spaces and newlines in filenames. To count one language, filter the file list first — for example <code>git ls-files -z -- '*.rs' | xargs -0 wc -l --</code> for Rust. Limits: <code>wc -l</code> counts newline characters, including blank lines; it does not classify source code and a final line without a newline is not counted. Also, <code>git ls-files</code> can include binaries, generated files, or vendored files unless you exclude them. <code>xargs</code> may split a large file list into batches, producing a separate total for each batch. So <code>wc</code> is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, use a real SLOC counter like cloc or tokei on the same clone:</p>
       <pre><code>tokei .
 cloc .</code></pre>
       <p>Both classify each line as code, comment, or blank per language; the <a href="/docs/octocounts-vs-cloc">cloc, scc, and tokei comparison</a> covers how they differ on vendored-file detection and totals.</p>

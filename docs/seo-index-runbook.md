@@ -2,6 +2,8 @@
 
 > 配套计划:[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)。本手册是 sitemap 拆分 + llms 移出 sitemap + FAQ 强化上线后的**必须手动步骤**与验证清单。GSC/Bing Webmaster 需要账号权限,无法从仓库自动化(SG-10 遗留)。
 
+更新：2026-11-05。URL 数量以当次线上 sitemap 为准；下列检查不代表已经部署、提交或收录。
+
 ## 1. 部署后立即验证(无需任何账号)
 
 ```sh
@@ -32,27 +34,27 @@ curl -s -A "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.h
 # 验证 key 文件可达且内容一致(退出码 0 = 通过)
 INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --verify-key
 
-# 主动推送核心页(24 静态页 + 101 对比页)加速 Bing 发现/重抓
-INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
-
 # 先看会推什么(不实际发送)
 INDEXNOW_KEY=<key> DRY_RUN=1 node scripts/resubmit-urls-indexnow.mjs --core
+
+# 核对 URL 后，推送线上 static/compare sitemap 中的核心页
+INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
 ```
 
 注意:`--core` 依赖线上已部署拆分后的子 sitemap;若 404 会显式报错,不会静默截断。
 
 ## 3. Google Search Console(需账号)
 
-1. **Sitemaps**:重新提交 `https://octocounts.com/sitemap.xml`。现在是 sitemap index,GSC 会展开显示三个子 sitemap 及各自已发现 URL 数。
+1. **Sitemaps**:重新提交 `https://octocounts.com/sitemap.xml`。GSC 会展开显示 static、compare 和按数据量分页的 reports 子 sitemap；不要把发现的 URL 数当作收录数。
 2. **URL 检查**:对以下页面逐个"请求编入索引"(每 天有配额,优先级从上到下):
-   - `/`(确认仍已收录)
-   - `/docs/faq`(内容刚更新)
+   - `/`(核对当前收录状态)
+   - `/docs/faq`(部署本轮内容更新后检查)
    - `/compare/react-vs-vue`、`/compare/rust-vs-go`、`/compare/nextjs-vs-vite` 等头部对比页
    - `/research`、`/docs/best-sloc-counter-tools`、`/docs/github-sloc-counter`
 3. **2–4 周后核对**「索引 → 页面」报告:
-   - `sitemap-static.xml` 与 `sitemap-compare.xml` 的收录率应显著高于 `sitemap-reports-1.xml`;
-   - 对比页从 0 收录开始增长;
-   - 报告子片的 "Discovered - currently not indexed" 属预期(程序化页面,Google 择优收录),不再影响核心页。
+   - 分别记录 static、compare、reports 页组的收录数、未收录原因及样本 URL，与部署前同口径基线比较；
+   - 对“已发现/已抓取但未编入索引”的样本检查内容价值、重复页、canonical、响应状态和渲染后正文；不要仅因它是程序化页面就忽略；
+   - 未取得后台数据时标注 unknown，不假设对比页从 0 开始，也不承诺固定收录率。
 4. 若此前有旧 sitemap 提交记录指向 `/sitemap.xml`,无需删除(同一 URL 现在返回 index)。
 
 ## 4. Bing Webmaster Tools(需账号)
@@ -60,18 +62,21 @@ INDEXNOW_KEY=<key> DRY_RUN=1 node scripts/resubmit-urls-indexnow.mjs --core
 1. 确认 `octocounts.com` 已验证。仓库中没有 `msvalidate.01` meta,若未验证,用 DNS TXT/CNAME 方式(不要往页面加 meta,避免多一处维护)。
 2. **提交站点地图**:`https://octocounts.com/sitemap.xml`。
 3. 跑第 2 节的 `--verify-key` 与 `--core`。
-4. 用「URL 检查」对首页与 3–5 个核心页请求索引(Bing 的索引同时喂给 ChatGPT 检索,是 GEO 的一部分)。
+4. 用「URL 检查」核对首页与 3–5 个核心页并按需请求索引。Bing 收录和 IndexNow 接收均不保证 ChatGPT 或其他 AI 系统引用。
 5. 2–4 周后在「Site Explorer / URL 检查」看核心页收录状态。
 
 ## 5. 效果观察指标(建议每 2 周)
 
 | 指标 | 来源 | 期望方向 |
 |---|---|---|
-| `site:octocounts.com/compare` 结果数 | Google/Bing | 从 0 开始增长 |
-| docs 页收录数(8 页) | GSC 页面报告 | 全部已编入索引 |
-| 核心子片 vs 报告子片收录率 | GSC sitemap 报告 | 核心 > 80%,报告片预期低 |
-| umami 自然搜索会话 | umami | 上升 |
-| 10 个目标提示词的 AI 引用 | ChatGPT/Perplexity 手测 | 出现 OctoCounts 引用 |
+| 各页组收录数、未收录原因、Google 选择的 canonical | GSC 页面报告 / URL 检查 | 比较同口径基线，优先修复错误与不一致 |
+| 核心子片 vs 报告子片的收录比例 | GSC 页面报告，按 sitemap 筛选 | 记录分子与分母；不设没有历史依据的阈值 |
+| 各页组曝光、点击、CTR、查询 | GSC 效果报告 | 比较等长 28 天窗口，注明发布与季节因素 |
+| Google 生成式 AI 曝光（按页/国家/设备） | GSC Generative AI performance（若属性有该报告） | 单独比较 AI 曝光；缺失报告不当作零，不与 Web 总曝光相加 |
+| 自然搜索及可识别 AI 来源的访问、分析完成、商店点击 | umami | 区分访问、使用和商店点击；点击不是安装 |
+| 固定提示词集的品牌提及率与带链接引用率 | ChatGPT/Perplexity 等实际搜索回答 | 同平台/语言重复采样，记录次数、日期与回答证据 |
+
+`site:` 仅用于查找样例，不能作为完整收录数量或收录率；[Google 明确说明结果不一定完整](https://developers.google.com/search/docs/monitor-debug/search-operators/all-search-site)。具体事件定义和采样模板见 [SEO/GEO 测量规范](seo-geo-measurement.md)。
 
 ## 6. 回滚
 

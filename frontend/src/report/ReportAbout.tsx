@@ -18,6 +18,10 @@ export function ReportAbout({ report }: { report: Report }) {
       </div>
       <p>{reportCapsuleText(copy)}</p>
       <p>{reportInsightsText(copy)}</p>
+      <p>
+        See the <a href="/docs/glossary">SLOC and code metrics glossary</a> and{" "}
+        <a href="/research">how test, docs, and generated-file filtering changes SLOC counts</a>.
+      </p>
       {reportFaq(copy).map((item) => (
         <div key={item.question}>
           <h3>{item.question}</h3>

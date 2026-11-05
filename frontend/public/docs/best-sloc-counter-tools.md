@@ -1,6 +1,6 @@
 # Best Tools to Count Lines of Code (SLOC) in 2026
 
-Updated October 29, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories and one of six tools compared on this page. It counts files, total lines, code lines, comments, and blanks per language with tokei, run on a downloaded source archive instead of a git clone, and returns a shareable, commit-pinned report. The other tools — tokei, cloc, scc, sloccount, and GitHub's language bar — each measure size differently and suit different workflows.
 
@@ -14,7 +14,7 @@ Six tools compared for counting source lines of code — OctoCounts, tokei, cloc
 | [tokei](https://github.com/XAMPPRocky/tokei) | CLI | Rust | Fast local/private counts, CI pipelines | Free, open source |
 | [cloc](https://github.com/AlDanial/cloc) | CLI | Perl | Language coverage for legacy and unusual codebases | Free, open source |
 | [scc](https://github.com/boyter/scc) | CLI | Go | Fast counts plus complexity estimates in one pass | Free, open source |
-| [sloccount](https://www.dwheeler.com/sloccount/) | CLI | Perl / C | COCOMO cost estimates on older Unix-style codebases | Free, open source (unmaintained) |
+| [sloccount](https://www.dwheeler.com/sloccount/) | CLI | Perl / C | COCOMO cost estimates on older Unix-style codebases | Free, open source |
 | GitHub language bar | Built into GitHub | — | A quick, no-setup glance at language mix by bytes | Free (built in) |
 
 ### OctoCounts
@@ -44,7 +44,7 @@ tokei has no official web interface. OctoCounts runs tokei online, free, at comm
 cloc has been counting lines of code since 2006 and supports many languages and legacy file formats. Check its published language list against your files; speed and parser coverage depend on the tool version and source tree, so this page does not rank the tools by either measure.
 
 - **Pros:** Broad language support, two decades of edge-case fixes, well documented and widely trusted
-- **Cons:** Performance depends on the repository and tool version, requires a Perl runtime, no hosted/shareable report format
+- **Cons:** Performance depends on the repository and tool version, the source distribution requires Perl (the Windows executable does not), no hosted/shareable report format
 
 ### scc
 
@@ -53,16 +53,16 @@ cloc has been counting lines of code since 2006 and supports many languages and 
 scc (Sloc, Cloc and Code) is a Go-based counter that additionally estimates cyclomatic complexity and a COCOMO-style cost/effort figure per language. If a single command needs to produce both a line count and a rough complexity signal, scc covers both in one pass.
 
 - **Pros:** Fast, adds complexity and cost estimates tokei and cloc don't, single static binary, easy to install
-- **Cons:** Smaller community than cloc, complexity/cost estimates are rough heuristics, not precise measurements
+- **Cons:** Complexity/cost estimates are rough heuristics, not precise measurements
 
 ### sloccount
 
 **Best for:** COCOMO-style cost estimates on older Unix-style codebases
 
-sloccount is one of the original SLOC counters, dating to the early 2000s, known for its built-in COCOMO development-cost estimates. It's effectively unmaintained today, has weaker support for modern languages and tooling than tokei, cloc, or scc, and is included here mainly because it still surfaces in searches for SLOC history and legacy build pipelines.
+sloccount is one of the original SLOC counters, dating to the early 2000s, known for its built-in COCOMO development-cost estimates. Its upstream site lists supported languages and installation instructions; check those against your source tree and operating system before choosing it.
 
 - **Pros:** Built-in COCOMO cost estimate, long history, well known in the SLOC-metrics literature
-- **Cons:** Unmaintained, weak modern-language support, harder to install on current systems than any other tool here
+- **Cons:** Language coverage must fit the project; cost estimates need calibration
 
 ### GitHub's language bar
 
@@ -87,7 +87,7 @@ Yes. OctoCounts downloads a repository's source archive for a specific commit in
 
 ## Is SLOC count a good measure of code quality?
 
-No. Every tool in this comparison measures size, not quality, complexity, or maintainability. A larger SLOC count can mean more features, more generated or vendored code, more verbose language idioms, or simply more tests. Use SLOC counts to gauge the scale of a codebase, not to judge whether it is well written. See the [counting methodology](https://octocounts.com/docs/methodology) for how OctoCounts specifically defines code, comment, and blank lines.
+No. SLOC measures size, not quality, complexity, or maintainability. Some tools also offer separate complexity or cost estimates. A larger SLOC count can mean more features, more generated or vendored code, more verbose language idioms, or simply more tests. Use SLOC counts to gauge the scale of a codebase, not to judge whether it is well written. See the [counting methodology](https://octocounts.com/docs/methodology) for how OctoCounts specifically defines code, comment, and blank lines.
 
 ## Related OctoCounts pages
 

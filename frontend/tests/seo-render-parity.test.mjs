@@ -74,6 +74,31 @@ test("hub pages repeat their rotating report links as head data the client rende
   }
 });
 
+test("daily report links advance a full batch and cover the eligible inventory", async (t) => {
+  const inventory = Array.from({ length: 130 }, (_, i) => ({
+    loc: `https://octocounts.com/github/octo/repo-${i}`, lastmod: "2026-11-01", total: { files: 9, code: 90, lines: 100 },
+  }));
+  t.mock.method(globalThis, "fetch", async () => Response.json(inventory));
+  let day = Date.parse("2026-11-01T12:00:00Z");
+  t.mock.method(Date, "now", () => day);
+  const links = async () => {
+    const markdown = await (await onRequest(context("/trending.md"))).text();
+    return [...markdown.matchAll(/\]\((https:\/\/octocounts\.com\/github\/octo\/repo-\d+)\)/g)].map((match) => match[1]);
+  };
+  const visited = new Set();
+  let previous = [];
+  for (let i = 0; i < 3; i += 1) {
+    const batch = await links();
+    assert.equal(new Set(batch).size, 64);
+    assert.deepEqual(await links(), batch, "one UTC day has a stable link batch");
+    assert.ok(batch.every((url) => !previous.includes(url)), "adjacent days expose a new batch");
+    batch.forEach((url) => visited.add(url));
+    previous = batch;
+    day += 86_400_000;
+  }
+  assert.deepEqual(visited, new Set(inventory.map((entry) => entry.loc)));
+});
+
 test("server h1s name the page without the title's brand suffix", async (t) => {
   mockApi(t, [report("listed", 50)]);
   for (const path of ["/recent", "/popular", "/hall-of-monoliths", "/trending", "/compare", "/diff", "/badges"]) {

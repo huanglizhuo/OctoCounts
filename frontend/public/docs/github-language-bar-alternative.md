@@ -1,6 +1,6 @@
 # GitHub Language Bar Alternative: Real Line Counts
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free alternative to GitHub's language bar for public GitHub repositories. GitHub's bar shows byte-based language percentages; OctoCounts downloads the source archive at a pinned commit, counts lines with [tokei](https://github.com/XAMPPRocky/tokei), and reports actual files, total lines, code lines, comments, and blanks per language, with exportable results and a browser extension that shows the same counts on GitHub repository pages.
 
@@ -24,7 +24,7 @@ OctoCounts reports files, total lines, code lines, comment lines, and blank line
 
 ## Why doesn't GitHub just show line counts instead of the language bar?
 
-GitHub has not added a line-count view to the repository sidebar. The language bar is a lightweight summary computed from the same Linguist byte-classification data GitHub already uses for syntax highlighting, which is cheaper to compute than an actual line-by-line count across every file. OctoCounts fills that gap as a browser extension and web app rather than a GitHub feature.
+GitHub's repository language statistics measure bytes, not source lines. That describes the published metric; it does not establish why GitHub chose it or whether it is cheaper to compute. For a code/comment/blank breakdown, count the source tree with a line counter such as tokei, locally or through OctoCounts. See the [GitHub REST languages endpoint](https://docs.github.com/en/rest/repos/repos#list-repository-languages) and [Linguist counting rules](https://github.com/github-linguist/linguist/blob/main/docs/how-linguist-works.md).
 
 ## Can I see line counts directly on GitHub's repository page?
 

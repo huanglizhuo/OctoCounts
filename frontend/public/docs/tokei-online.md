@@ -1,6 +1,6 @@
 # tokei online: run tokei on GitHub repositories
 
-Updated October 31, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust — but it is a command-line tool you install on your own machine. OctoCounts runs tokei server-side on public GitHub repositories: paste a repository URL and get files, total lines, code lines, comments, and blanks per language, without installing anything. This page explains when an online tokei run makes sense and how it compares with the CLI.
 
@@ -31,7 +31,7 @@ Use the tokei CLI when your code is private or not hosted on GitHub: OctoCounts 
 
 ## Can I get tokei counts as a badge, API, or export?
 
-Yes. From any OctoCounts report you can export plain text, JSON, or a shareable PNG card. [Live badges](https://octocounts.com/badges) put SLOC, code lines, files, comment share, or a single language's count into your README, refreshed from the cached report. The [report API](https://octocounts.com/docs/api) returns the same tokei-derived numbers as JSON for automation, and the [Chrome, Edge, and Firefox extension](https://octocounts.com/extension) shows a SLOC card right in the GitHub repository sidebar, next to the language bar.
+Yes. From any OctoCounts report you can export plain text, JSON, or a shareable PNG card. [Live badges](https://octocounts.com/badges) put SLOC, code lines, files, comment lines, code share, or a single language's count into your README, refreshed from the cached report. The [report API](https://octocounts.com/docs/api) returns the same tokei-derived numbers as JSON for automation, and the [Chrome, Edge, and Firefox extension](https://octocounts.com/extension) shows a SLOC card right in the GitHub repository sidebar, next to the language bar.
 
 ## Related OctoCounts pages
 

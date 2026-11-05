@@ -1,6 +1,6 @@
 # OctoCounts vs tokei
 
-Updated October 30, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from [github.com/XAMPPRocky/tokei](https://github.com/XAMPPRocky/tokei) — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. [OctoCounts](https://octocounts.com/) is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.
 
@@ -31,7 +31,7 @@ OctoCounts takes a public GitHub repository URL, resolves the requested branch, 
 
 ## The CLI side: what tokei does on its own
 
-[tokei](https://github.com/XAMPPRocky/tokei) is the counting engine itself. It is written in Rust, recognizes hundreds of languages, and reports files, code, comment, and blank lines grouped by language. Installed with `cargo install tokei`, a system package manager, or a prebuilt release binary, it runs against any directory — a git checkout, a tarball, a folder with no version control at all.
+[tokei](https://github.com/XAMPPRocky/tokei) is the counting engine itself. It is written in Rust, recognizes hundreds of languages, and reports files, code, comment, and blank lines grouped by language. Installed with `cargo install tokei`, a system package manager, or a prebuilt release binary, it runs against any directory — a git checkout, an extracted source archive, or a folder with no version control at all.
 
 - **Private and local code:** the only path of the two for closed-source projects, local-only experiments, and non-GitHub forges.
 - **Works offline:** once installed, counting needs no network at all.
@@ -57,7 +57,7 @@ Matching counts require the same actual source tree, tokei version, and effectiv
 | Step in a pipeline on your own CI runners | tokei CLI (or the OctoCounts [API](https://octocounts.com/docs/api)/[GitHub Action](https://octocounts.com/docs/faq) for public repos) |
 | Code hosted outside github.com | tokei CLI |
 
-**Bottom line:** the code's location decides. On GitHub and public → OctoCounts gives you the same tokei numbers with sharing, pinning, and badges for free; on your machine, private, or mid-edit → install the CLI. Using both is normal: many projects count locally with tokei during development and cite an OctoCounts report when the number needs to travel.
+**Bottom line:** the code's location decides. On GitHub and public → OctoCounts gives you the same tokei numbers with sharing, pinning, and badges for free; on your machine, private, or mid-edit → install the CLI. You can count locally during development and use an OctoCounts report when you need a public link.
 
 ## Frequently Asked Questions
 

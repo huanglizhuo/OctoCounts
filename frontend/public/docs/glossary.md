@@ -1,6 +1,6 @@
 # SLOC Glossary
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories, and this glossary defines the terms its reports use. Every count comes from [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust, run against the source archive of a pinned commit, and every report separates code lines, comment lines, and blank lines per language so totals reconcile.
 
@@ -30,7 +30,7 @@ Blank lines are source lines that contain nothing but whitespace and carry no co
 
 ## Comment ratio
 
-Comment ratio is the share of a codebase made up of comment lines, usually expressed as comment lines divided by total lines. It is a rough proxy for documentation density, though heavy generated comments or license headers can inflate it. Some reports instead track code share, the complementary figure of code lines over total lines. OctoCounts' `type=ratio` badge displays code share: code lines as a percentage of total lines for the repository.
+Comment ratio is the share of a codebase made up of comment lines, usually expressed as comment lines divided by total lines. It is a rough proxy for documentation density, though heavy generated comments or license headers can inflate it. Code share is code lines divided by total lines. It is not the complement of comment ratio: blank lines make up a third share of the total. OctoCounts' `type=ratio` badge displays code share: code lines as a percentage of total lines for the repository.
 
 ## tokei
 

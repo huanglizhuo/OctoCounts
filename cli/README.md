@@ -20,7 +20,7 @@ Options:
 
 ## Related
 
-- [Web app](https://octocounts.com) — analyze any public repo and share a permanent report
+- [Web app](https://octocounts.com) — analyze public GitHub repos and share live reports or saved results
 - [Browser extension](https://octocounts.com) — SLOC directly inside GitHub's sidebar
 - [README badges](https://octocounts.com#badges) — live SLOC badge for any repo
 - [MCP server](https://www.npmjs.com/package/octocounts-mcp) — give AI assistants access to SLOC reports

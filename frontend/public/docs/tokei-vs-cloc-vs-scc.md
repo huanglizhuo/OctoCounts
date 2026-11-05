@@ -1,8 +1,8 @@
 # tokei vs cloc vs scc: which line counter?
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
-[tokei](https://github.com/XAMPPRocky/tokei), [cloc](https://github.com/AlDanial/cloc), and [scc](https://github.com/boyter/scc) are three open-source line counters, and all three split a local source tree into code, comment, and blank lines. The differences: **tokei** (Rust) is built for fast counting with compact output; **cloc** (Perl) has a long history and a diff mode; **scc** (Go) adds cyclomatic complexity estimates, COCOMO effort projections, and license detection on top of the counts.
+[tokei](https://github.com/XAMPPRocky/tokei), [cloc](https://github.com/AlDanial/cloc), and [scc](https://github.com/boyter/scc) are three open-source line counters, and all three split a local source tree into code, comment, and blank lines. The differences: **tokei** (Rust) is built for fast counting with compact output; **cloc** (Perl) has a long history and a diff mode; **scc** (Go) adds cyclomatic complexity estimates, COCOMO effort projections, and duplicate-file filtering on top of the counts.
 
 ## What is the difference between tokei, cloc, and scc?
 
@@ -10,13 +10,13 @@ Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huang
 | --- | --- | --- | --- |
 | **Written in** | Rust | Perl | Go |
 | **Counts** | code, comments, blanks per language | code, comments, blanks per language | code, comments, blanks per language |
-| **Extras** | compact terminal output, JSON via serde, configuration file | broad language coverage, `--diff` between two trees, many export formats (CSV, JSON, markdown, …) | cyclomatic complexity, COCOMO effort/cost estimates, license detection, byte estimates |
-| **Speed profile** | fast on large trees (Rust) | measure on your tree (Perl) | fast on large trees (Go) |
+| **Extras** | compact terminal output, JSON via serde, configuration file | broad language coverage, `--diff` between two trees, many export formats (CSV, JSON, markdown, …) | cyclomatic complexity, COCOMO effort/cost estimates, duplicate-file filtering, byte estimates |
+| **Speed profile** | measure on your tree (Rust) | measure on your tree (Perl) | measure on your tree (Go) |
 | **Typical install** | `cargo install tokei`, brew, package managers | cpan/brew/apt packaging of the Perl script | `go install`, brew, release binaries |
 | **Private repos** | Yes (local checkout) | Yes (local checkout) | Yes (local checkout) |
 | **Shareable web reports** | No | No | No |
 
-All three run on Linux, macOS, and Windows, and all three read a local checkout — none of them talks to a hosted repository by URL.
+All three run on Linux, macOS, and Windows and count local source files. A clone is optional: tokei and scc can scan an extracted archive, and cloc also accepts supported archive files directly.
 
 ## tokei
 
@@ -28,7 +28,7 @@ All three run on Linux, macOS, and Windows, and all three read a local checkout 
 
 ## scc
 
-[scc](https://github.com/boyter/scc) counts like the other two but reports more: per-file cyclomatic complexity, COCOMO effort and cost projections, license detection, and byte estimates, across a wide range of output formats. If your report needs "how big *and* how tangled," scc produces both in one pass. The extras come with a caveat: complexity figures are estimates and measure something different from code-line totals; compare line counts separately under matching rules — the [OctoCounts vs scc page](https://octocounts.com/docs/octocounts-vs-scc) has details.
+[scc](https://github.com/boyter/scc) counts like the other two but reports more: per-file cyclomatic complexity, COCOMO effort and cost projections, duplicate-file filtering, and byte estimates, across a wide range of output formats. If your report needs "how big *and* how tangled," scc produces both in one pass. The extras come with a caveat: complexity figures are estimates and measure something different from code-line totals; compare line counts separately under matching rules — the [OctoCounts vs scc page](https://octocounts.com/docs/octocounts-vs-scc) has details.
 
 ## Which is faster: tokei, cloc, or scc?
 
@@ -48,11 +48,11 @@ Yes — [OctoCounts](https://octocounts.com/) runs tokei server-side on public G
 | --- | --- |
 | Fast, clean counting of a local checkout or CI step | tokei |
 | Rare languages, or diffing two trees with `--diff` | cloc |
-| Counts plus complexity, COCOMO, or license detection | scc |
+| Counts plus complexity, COCOMO, or duplicate-file filtering | scc |
 | Public GitHub repo, no install, shareable commit-pinned report | [OctoCounts](https://octocounts.com/) (runs tokei server-side) |
 | Private or sensitive code | tokei, cloc, or scc locally |
 
-**Bottom line:** for local counting the three tools overlap far more than they differ — pick by extras (scc), language coverage and diffing (cloc), or Rust speed and clean output (tokei). When the tree is a public GitHub repository and the goal is a number you can share and cite, running tokei online through [OctoCounts](https://octocounts.com/) skips the install and pins the result to a commit.
+**Bottom line:** for local counting the three tools overlap far more than they differ — pick by extras (scc), language coverage and diffing (cloc), or output formats and configuration (tokei). When the tree is a public GitHub repository and the goal is a number you can share and cite, running tokei online through [OctoCounts](https://octocounts.com/) skips the install and pins the result to a commit.
 
 ## Related OctoCounts pages
 

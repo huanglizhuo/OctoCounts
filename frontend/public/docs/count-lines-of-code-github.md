@@ -1,6 +1,6 @@
 # How to count lines of code in a GitHub repository
 
-Updated October 27, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.
 
@@ -14,13 +14,13 @@ Install the OctoCounts browser extension for [Chrome](https://chromewebstore.goo
 
 ## How do I count lines of code in a cloned repository with git?
 
-Inside an existing clone, count every tracked line with `wc`:
+Inside an existing clone, count newline characters in tracked files with `wc`:
 
 ```sh
-git ls-files | xargs wc -l
+git ls-files -z | xargs -0 wc -l --
 ```
 
-To count one language, filter the file list first — for example `git ls-files '*.rs' | xargs wc -l` for Rust. Two caveats: `wc -l` counts every line, including blanks, in every text file (and misbehaves on binaries), and `git ls-files` includes generated or vendored files unless you exclude them. So `wc` is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, use a real SLOC counter like cloc or tokei on the same clone:
+The NUL-separated file list preserves spaces and newlines in filenames. To count one language, filter the file list first — for example `git ls-files -z -- '*.rs' | xargs -0 wc -l --` for Rust. Limits: `wc -l` counts newline characters, including blank lines; it does not classify source code and a final line without a newline is not counted. Also, `git ls-files` can include binaries, generated files, or vendored files unless you exclude them. `xargs` may split a large file list into batches, producing a separate total for each batch. So `wc` is fine for a quick ballpark of total lines, but it cannot split code from comments and blanks — for that, use a real SLOC counter like cloc or tokei on the same clone:
 
 ```sh
 tokei .

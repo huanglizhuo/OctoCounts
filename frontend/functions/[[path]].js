@@ -38,19 +38,19 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-30" },
-  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-10-31" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-10-29" },
-  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-10-31" },
-  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-10-27" },
+  { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-10-30" },
-  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
-  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/research", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
@@ -65,7 +65,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
 const COMPARE_CONTENT_LASTMOD = "2026-10-29";
-const REPORT_CONTENT_LASTMOD = "2026-11-01";
+const REPORT_CONTENT_LASTMOD = "2026-11-05";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
@@ -738,17 +738,15 @@ function listPageFallback(kind) {
     </ul></nav>`;
 }
 
-/// Rotating "More repository reports" block for the hub pages: roughly 4,400
-/// of the ~4,500 report pages are orphans (no internal link reaches them), so
-/// each hub page carries a crawlable slice of the report corpus that rotates
-/// by UTC day. The slice is a pure function of (entries, day), so the whole
-/// day serves the same links and the edge cache stays coherent.
+/// Hub pages expose a crawlable slice of the report inventory, advancing a
+/// full batch each UTC day so reports outside the ranked lists also get links.
+/// The same inventory and day produce the same links for a coherent cache.
 const ROTATING_REPORT_LINK_COUNT = 64;
 
 function rotatingReportLocs(entries, dayNumber) {
   const locs = entries.map((entry) => entry.loc).sort();
   if (!locs.length) return [];
-  const start = dayNumber % locs.length;
+  const start = (dayNumber * ROTATING_REPORT_LINK_COUNT) % locs.length;
   const picked = [];
   for (let i = 0; i < Math.min(ROTATING_REPORT_LINK_COUNT, locs.length); i++) {
     picked.push(locs[(start + i) % locs.length]);
@@ -1769,12 +1767,12 @@ async function redirectConfirmedSlug(context, target) {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
     });
+    if (!response.ok && response.status !== 404) return null;
     let slug = null;
     if (response.ok) {
       const payload = await response.json().catch(() => null);
-      slug = typeof payload?.redirectSlug === "string" && payload.redirectSlug.includes("/")
-        ? payload.redirectSlug
-        : null;
+      if (typeof payload?.redirectSlug !== "string" || !/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(payload.redirectSlug)) return null;
+      slug = payload.redirectSlug;
     }
     compareRedirectCache.set(key, { slug, checkedAt: Date.now() });
     return slug;
@@ -1799,6 +1797,7 @@ async function resolveRenamedCompareEntry(context, entry, left, right) {
     const repo = slug.slice(slash + 1);
     if (!owner || !repo) return null;
     healed[key] = { ...target, owner, repo };
+    if (!reportMatchesRoute(report, healed[key])) return null;
   }
   return healed;
 }

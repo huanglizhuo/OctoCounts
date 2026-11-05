@@ -11,7 +11,7 @@
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="OctoCounts" />
     <meta property="og:title" content="OctoCounts vs scc: web reports vs the Go CLI | OctoCounts" />
-    <meta property="og:description" content="scc counts local checkouts with complexity estimates and license-style extras; OctoCounts counts public GitHub repositories from a URL with commit-pinned, shareable reports." />
+    <meta property="og:description" content="scc counts local checkouts with complexity estimates and COCOMO estimates; OctoCounts counts public GitHub repositories from a URL with commit-pinned, shareable reports." />
     <meta property="og:url" content="https://octocounts.com/docs/octocounts-vs-scc" />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs scc: web reports vs the Go CLI",
       "description": "OctoCounts vs scc: scc is a Go CLI that counts local checkouts with complexity estimates; OctoCounts counts public GitHub repos with no install required.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-11-05",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -93,7 +93,7 @@
           "name": "What is the difference between OctoCounts and scc?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "scc is a free, open-source command-line counter written in Go and distributed from github.com/boyter/scc. It counts files, lines, and comments per language and adds metrics OctoCounts does not produce: cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-code detection. OctoCounts is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs tokei, and returns a commit-pinned, shareable report with badges and an API. Neither tool requires an account."
+            "text": "scc is a free, open-source command-line counter written in Go and distributed from github.com/boyter/scc. It counts files, lines, and comments per language and adds metrics OctoCounts does not produce: cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-file filtering. OctoCounts is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs tokei, and returns a commit-pinned, shareable report with badges and an API. Neither tool requires an account."
           }
         },
         {
@@ -125,7 +125,7 @@
           "name": "Can scc count a GitHub repository without cloning it?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. scc counts directories on local disk, so a repository has to be on your machine first — via clone, shallow clone, or an extracted archive download. OctoCounts is the option that skips that step for public GitHub repositories: it fetches the source archive server-side and publishes the counts, so nothing lands on your disk. If the code is private or local, clone it and run scc or tokei on the checkout."
+            "text": "Yes, if you download and extract a source archive instead of cloning. scc still needs the source files on local disk. OctoCounts is the option that skips that step for public GitHub repositories: it fetches the source archive server-side and publishes the counts, so nothing lands on your disk. For private or local code, run scc or tokei on a source directory you control."
           }
         }
       ]
@@ -154,10 +154,10 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / vs scc</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 5, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs scc</h1>
-      <p class="answer"><a href="https://github.com/boyter/scc">scc</a> is a free, open-source command-line counter written in Go: point it at a directory on your machine and it reports files, lines, and comments per language, plus extras no web counter produces — cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-code detection. <a href="/">OctoCounts</a> is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns a report pinned to an exact commit SHA with sharing, badges, and an API. The short version: scc for deep local analysis of code you already have; OctoCounts for a no-install, shareable count of a public GitHub repository.</p>
-      <p class="note">These are different engines, not the same counter in two wrappers — OctoCounts runs tokei, not scc. Expect the tools to agree on the big picture and disagree on exact line totals for the same repository.</p>
+      <p class="answer"><a href="https://github.com/boyter/scc">scc</a> is a free, open-source command-line counter written in Go: point it at a directory on your machine and it reports files, lines, and comments per language, plus features OctoCounts does not provide — cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-file filtering. <a href="/">OctoCounts</a> is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and returns a report pinned to an exact commit SHA with sharing, badges, and an API. The short version: scc for deep local analysis of code you already have; OctoCounts for a no-install, shareable count of a public GitHub repository.</p>
+      <p class="note">These are different engines, not the same counter in two wrappers — OctoCounts runs tokei, not scc. Their totals can differ because the parsers and effective counting rules differ.</p>
 
       <h2>Quick comparison</h2>
       <table>
@@ -170,21 +170,21 @@
           <tr><td>Input</td><td>Any directory on local disk</td><td>Public github.com repositories, any branch/tag/commit</td></tr>
           <tr><td>Private code</td><td>Yes</td><td>No</td></tr>
           <tr><td>Line counts</td><td>Files, code, comments, blanks per language</td><td>Files, code, comments, blanks per language (tokei)</td></tr>
-          <tr><td>Extra metrics</td><td>Cyclomatic complexity, COCOMO estimate, duplicate detection</td><td>Language mix, comment share, <a href="/compare">two-repo comparison</a>, <a href="/diff">branch diff</a></td></tr>
+          <tr><td>Extra metrics</td><td>Cyclomatic complexity, COCOMO estimate, duplicate-file filtering</td><td>Language mix, comment share, <a href="/compare">two-repo comparison</a>, <a href="/diff">branch diff</a></td></tr>
           <tr><td>Commit pinning</td><td>Whatever checkout you scan</td><td>Every report pinned to an exact commit SHA</td></tr>
           <tr><td>Sharing</td><td>Terminal table; many output formats (CSV, JSON, HTML, SQL)</td><td>Stable report URL, PNG card, <a href="/badges">README badges</a>, <a href="/docs/api">API</a></td></tr>
         </tbody>
       </table>
 
       <h2>Where scc wins</h2>
-      <p>scc's pitch is more than raw counts. Its README describes it as a fast, accurate code counter with complexity calculations and COCOMO estimation, built as a dependency-free Go binary that runs on Windows, macOS, and Linux. Three capabilities separate it from plain line counters:</p>
+      <p>scc's pitch is more than raw counts. Its README describes it as a fast, accurate code counter with complexity calculations and COCOMO estimation, built as a dependency-free Go binary that runs on Windows, macOS, and Linux. Its documented capabilities include:</p>
       <ul>
         <li><strong>Cyclomatic complexity estimates</strong> per language and file — a rough signal of branchy, hard-to-test code that pure line counts cannot express.</li>
         <li><strong>COCOMO estimates</strong> — the classic Constructive Cost Model arithmetic applied to the count, producing an effort/schedule guess. Treat it as a conversation starter, not an estimate of what the code actually cost.</li>
-        <li><strong>Duplicate-code detection</strong> — flagging identical blocks across the tree, useful in audits and refactoring triage.</li>
+        <li><strong>Duplicate-file filtering</strong> — the --no-duplicates option excludes identical files from counts; this is not a general detector for repeated code blocks.</li>
         <li><strong>Output plumbing</strong> — scc renders results in many formats (including CSV, JSON, HTML, and SQL), which makes it a good citizen in local scripts and reporting pipelines.</li>
       </ul>
-      <p>Like every CLI in this space, scc needs the code on disk first: clone (or shallow-clone) the repository, then scan it. That is the right shape for private code, air-gapped machines, and any workflow where the analysis lives next to the code.</p>
+      <p>Like every CLI in this space, scc needs the code on disk first: use a checkout, an extracted source archive, or an existing source directory, then scan it. That is the right shape for private code, air-gapped machines, and any workflow where the analysis lives next to the code.</p>
 
       <h2>Where OctoCounts wins</h2>
       <p>OctoCounts removes the setup and the clone. Paste a public GitHub repository URL — optionally with a branch, tag, or commit — and the analysis runs server-side: OctoCounts downloads that revision's compressed source archive (not the full git history), counts it with tokei, and caches the result.</p>
@@ -196,8 +196,8 @@
         <li><strong>Limitation:</strong> public GitHub repositories only. Private code and non-GitHub forges stay in CLI territory.</li>
       </ul>
 
-      <h2>Why the totals will not match</h2>
-      <p>Run scc and OctoCounts over the same repository and the headline numbers will usually be close but rarely identical, for structural reasons. They are different programs with different language-detection heuristics: which extension maps to which language, how comments are recognized per syntax, how generated or minified files are treated, and which files are classified out entirely. Add commit drift (each tool may have looked at a different revision) and different option sets, and exact agreement was never on the table. The practical rule: compare a tool against itself over time, and when a number needs to be defended publicly, cite one tool's output with its engine, version, and revision — an OctoCounts report does this by carrying the commit SHA and tokei version on the page.</p>
+      <h2>Why the totals can differ</h2>
+      <p>scc and OctoCounts can return different totals for the same repository; this page does not measure a typical difference. They are different programs with different language-detection heuristics: which extension maps to which language, how comments are recognized per syntax, how generated or minified files are treated, and which files are classified out entirely. Different commits and option sets can also change the result. Exact agreement is possible, but must be checked rather than assumed. The practical rule: compare a tool against itself over time, and when a number needs to be defended publicly, cite one tool's output with its engine, version, and revision — an OctoCounts report does this by carrying the commit SHA and tokei version on the page.</p>
 
       <h2>Which one should I use?</h2>
       <table>
@@ -210,7 +210,7 @@
           <tr><td>README badge that tracks the cached report</td><td>OctoCounts <a href="/badges">badges</a></td></tr>
           <tr><td>Side-by-side comparison of two public repos</td><td>OctoCounts <a href="/compare">/compare</a></td></tr>
           <tr><td>Complexity or COCOMO estimates alongside counts</td><td>scc</td></tr>
-          <tr><td>Duplicate-code detection</td><td>scc</td></tr>
+          <tr><td>Duplicate-file filtering</td><td>scc</td></tr>
           <tr><td>CSV/JSON/SQL output piped into local reporting</td><td>scc</td></tr>
           <tr><td>Private repositories or non-GitHub code</td><td>scc (or tokei, or cloc)</td></tr>
           <tr><td>Air-gapped machine</td><td>scc</td></tr>
@@ -221,7 +221,7 @@
       <h2>Frequently Asked Questions</h2>
 
       <h3>What is the difference between OctoCounts and scc?</h3>
-      <p>scc is a free, open-source command-line counter written in Go and distributed from <a href="https://github.com/boyter/scc">github.com/boyter/scc</a>. It counts files, lines, and comments per language and adds metrics OctoCounts does not produce: cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-code detection. OctoCounts is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs tokei, and returns a commit-pinned, shareable report with badges and an API. Neither tool requires an account.</p>
+      <p>scc is a free, open-source command-line counter written in Go and distributed from <a href="https://github.com/boyter/scc">github.com/boyter/scc</a>. It counts files, lines, and comments per language and adds metrics OctoCounts does not produce: cyclomatic complexity estimates, COCOMO effort estimates, and duplicate-file filtering. OctoCounts is a web service for public GitHub repositories: paste a URL and it downloads the source archive, runs tokei, and returns a commit-pinned, shareable report with badges and an API. Neither tool requires an account.</p>
 
       <h3>Why do scc and OctoCounts give different numbers for the same repository?</h3>
       <p>They run different counting engines with different language-detection and classification rules: scc identifies and counts files its own way, while OctoCounts runs tokei. Line counters disagree on edge cases — how a file extension maps to a language, which lines count as code versus comments, and which files count at all. Totals can also differ because they were taken at different commits or with different options. Compare a tool against itself across time; do not expect two engines to match to the line.</p>
@@ -233,7 +233,7 @@
       <p>There is no published benchmark comparing the two, so this page makes no speed claim. What can be stated is mechanism: scc scans a directory already on your disk as a compiled Go binary, while OctoCounts downloads a repository's compressed source archive server-side instead of cloning the full git history, then runs tokei on it. Which path feels faster depends on your network, your machine, and whether a clone is needed at all.</p>
 
       <h3>Can scc count a GitHub repository without cloning it?</h3>
-      <p>No. scc counts directories on local disk, so a repository has to be on your machine first — via clone, shallow clone, or an extracted archive download. OctoCounts is the option that skips that step for public GitHub repositories: it fetches the source archive server-side and publishes the counts, so nothing lands on your disk. If the code is private or local, clone it and run scc or tokei on the checkout.</p>
+      <p>Yes, if you download and extract a source archive instead of cloning. scc still needs the source files on local disk. OctoCounts is the option that skips that step for public GitHub repositories: it fetches the source archive server-side and publishes the counts, so nothing lands on your disk. For private or local code, run scc or tokei on a source directory you control.</p>
 
       <h2>Related reading</h2>
       <ul>

@@ -1,6 +1,6 @@
 # Can the GitHub API count lines of code?
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 No — neither the GitHub REST API nor the GraphQL API has an endpoint that returns line counts. The closest signal, `GET /repos/{owner}/{repo}/languages`, returns **bytes** per language, and the GraphQL `Repository.diskUsage` field returns kilobytes. For actual line counts over an API, use the [OctoCounts API](https://octocounts.com/docs/api): it downloads a public repository's source archive, counts it with tokei, and returns files, code lines, comment lines, blank lines, and per-language totals as JSON, pinned to a commit SHA.
 
@@ -10,7 +10,7 @@ GitHub's language API reports bytes per detected language, not source lines. Lin
 
 ## Which API returns line counts for a public GitHub repository?
 
-The OctoCounts API does it in three calls, with no token:
+Use three endpoint types, with no token. Poll the job endpoint until completed; queued or running responses require another poll, and failed jobs must not be fetched as reports:
 
 ```sh
 curl -s -X POST https://api.octocounts.com/api/analyze \
@@ -25,25 +25,35 @@ curl -s https://api.octocounts.com/api/reports/:reportId
 # => totals for files, lines, code, comments, blanks + per-language rows
 ```
 
-The long-poll form `GET /api/jobs/:jobId?wait=20` holds the request until a status change (capped at 25 seconds), which is usually one round trip for a small repository. Reports are cached by repository, commit SHA, tokei version, and analysis options, so a warm repository can return `completed` from cache. The full request body — including `refName` for a branch, tag, or commit and the analysis options — is documented in the [OctoCounts API docs](https://octocounts.com/docs/api).
+The long-poll form `GET /api/jobs/:jobId?wait=20` holds the request until a status change or timeout (capped at 25 seconds). It may return queued or running; repeat the poll until the job completes or fails. Reports are cached by repository, commit SHA, tokei version, and analysis options, so a warm repository can return `completed` from cache. The full request body — including `refName` for a branch, tag, or commit and the analysis options — is documented in the [OctoCounts API docs](https://octocounts.com/docs/api).
 
-## How do I count lines of code in Python or JavaScript?
+## How do I count lines of code in Python?
 
-The same three calls in Python:
+A minimal Python client uses a five-minute polling deadline and fails explicitly on analysis errors. Keep the printed job ID to resume polling after a timeout or HTTP error:
 
 ```python
-import json, time, urllib.request
+import json, sys, time, urllib.request
 
 API = "https://api.octocounts.com/api"
-body = json.dumps({"repoUrl": "https://github.com/torvalds/linux"}).encode()
+body = json.dumps({"repoUrl": "https://github.com/react/react"}).encode()
 job = json.load(urllib.request.urlopen(urllib.request.Request(
-    f"{API}/analyze", data=body, headers={"Content-Type": "application/json"})))
+    f"{API}/analyze", data=body, headers={"Content-Type": "application/json"}), timeout=30))
+print(f"Job ID: {job['jobId']}", file=sys.stderr)
 
-while True:
-    status = json.load(urllib.request.urlopen(f"{API}/jobs/{job['jobId']}?wait=20"))
-    if status["status"] in ("completed", "failed"):
+deadline = time.monotonic() + 300
+while time.monotonic() < deadline:
+    status = json.load(urllib.request.urlopen(
+        f"{API}/jobs/{job['jobId']}?wait=20", timeout=30))
+    if status["status"] == "failed":
+        raise RuntimeError(status.get("error") or "Analysis failed")
+    if status["status"] == "completed":
         break
-report = json.load(urllib.request.urlopen(f"{API}/reports/{status['reportId']}"))
+    time.sleep(1)
+else:
+    raise TimeoutError(f"Resume polling job {job['jobId']} instead of submitting again")
+
+report = json.load(urllib.request.urlopen(
+    f"{API}/reports/{status['reportId']}", timeout=30))
 print(report["totals"])  # {"files": ..., "lines": ..., "code": ..., ...}
 ```
 

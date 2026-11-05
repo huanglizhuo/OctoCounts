@@ -52,7 +52,7 @@
       "headline": "GitHub Language Bar Alternative: Real Line Counts",
       "description": "GitHub's language bar shows byte percentages, not line counts. OctoCounts is a free alternative showing real files, lines, code, comments, and blanks.",
       "datePublished": "2026-08-29",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-11-05",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -109,7 +109,7 @@
           "name": "Why doesn't GitHub just show line counts instead of the language bar?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "GitHub has not added a line-count view to the repository sidebar. The language bar is a lightweight summary computed from the same Linguist byte-classification data GitHub already uses for syntax highlighting, which is cheaper to compute than an actual line-by-line count across every file. OctoCounts fills that gap as a browser extension and web app rather than a GitHub feature."
+            "text": "GitHub's repository language statistics measure bytes, not source lines. That describes the published metric; it does not establish why GitHub chose it or whether it is cheaper to compute. For a code/comment/blank breakdown, count the source tree with a line counter such as tokei, locally or through OctoCounts."
           }
         },
         {
@@ -145,7 +145,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / GitHub language bar alternative</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 5, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub Language Bar Alternative: Real Line Counts</h1>
       <p class="answer">OctoCounts is a free alternative to GitHub's language bar for public GitHub repositories. GitHub's bar shows byte-based language percentages; OctoCounts downloads the source archive at a pinned commit, counts lines with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and reports actual files, total lines, code lines, comments, and blanks per language, with exportable results and a browser extension that shows the same counts on GitHub repository pages.</p>
       <p class="note">OctoCounts is a free alternative to GitHub's language bar. It shows actual files, total lines, code lines, comments, and blanks per language for any public repository, instead of a single byte-based percentage bar.</p>
@@ -167,7 +167,7 @@
       </table>
 
       <h2>Why doesn't GitHub just show line counts instead of the language bar?</h2>
-      <p>GitHub has not added a line-count view to the repository sidebar. The language bar is a lightweight summary computed from the same Linguist byte-classification data GitHub already uses for syntax highlighting, which is cheaper to compute than an actual line-by-line count across every file. OctoCounts fills that gap as a browser extension and web app rather than a GitHub feature.</p>
+      <p>GitHub's repository language statistics measure bytes, not source lines. That describes the published metric; it does not establish why GitHub chose it or whether it is cheaper to compute. For a code/comment/blank breakdown, count the source tree with a line counter such as tokei, locally or through OctoCounts. See the <a href="https://docs.github.com/en/rest/repos/repos#list-repository-languages">GitHub REST languages endpoint</a> and <a href="https://github.com/github-linguist/linguist/blob/main/docs/how-linguist-works.md">Linguist counting rules</a>.</p>
 
       <h2>Can I see line counts directly on GitHub's repository page?</h2>
       <p>Install the OctoCounts browser extension for <a href="https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj">Chrome</a>, <a href="https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim">Edge</a>, or <a href="https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc">Firefox</a> to add a SLOC card directly to GitHub's repository sidebar, next to where the language bar already appears. No account or configuration is required. You can also paste any public repository URL into the <a href="/">OctoCounts web app</a> for the same breakdown without installing anything.</p>

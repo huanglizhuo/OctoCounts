@@ -46,7 +46,7 @@ Local protocol smoke test:
 node mcp/src/index.js
 ```
 
-The server speaks MCP over stdio with `Content-Length` framed JSON-RPC messages.
+The server speaks MCP over stdio with newline-delimited JSON-RPC messages (one JSON object per line).
 
 ## License
 

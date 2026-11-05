@@ -143,6 +143,7 @@
     </script>
   </head>
   <body>
+    <main>
     <h1>OctoCounts API Docs</h1>
     <p class="answer">OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.</p>
     <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
@@ -244,5 +245,6 @@ https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
     <p>Every analyzed repository gets live web URLs such as <code>https://octocounts.com/github/:owner/:repo</code>, plus ref, compare, and diff URLs, so a report can be cited and shared without re-running the analysis.</p>
 
     <p><a href="/">Back to OctoCounts</a></p>
+    </main>
   </body>
 </html>

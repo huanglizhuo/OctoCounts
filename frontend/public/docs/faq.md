@@ -1,6 +1,6 @@
 # OctoCounts FAQ
 
-Updated October 31, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning: the requested branch, tag, or commit SHA is resolved to an exact commit and counted with [tokei](https://github.com/XAMPPRocky/tokei), an open-source Rust line counter. No account is required, private repositories are not supported, and results can be exported as plain text, JSON, or a PNG card.
 
@@ -16,11 +16,11 @@ OctoCounts is a free, open-source source lines of code (SLOC) counter for public
 
 SLOC stands for Source Lines of Code. It is a software metric used to measure the size of a program by counting the lines in its source code. Unlike raw line count, SLOC distinguishes between code lines (actual instructions the compiler or interpreter processes), comment lines (documentation and explanations), and blank lines (whitespace). This breakdown matters because a 10,000-line file that is 40% comments tells a different story than one that is 95% code.
 
-Developers use SLOC to estimate project complexity, compare codebases when evaluating dependencies, scope billing and audit work, and communicate repository size to stakeholders who may not read code. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is tokei, an open-source line counter written in Rust that processes files in parallel.
+Developers use SLOC to describe source-tree size, compare dependency footprints under matching rules, and track changes between revisions. It does not measure complexity, code quality, productivity, or developer effort. OctoCounts reports SLOC at two levels: per programming language and as aggregate totals across the entire repository. The underlying counter is tokei, an open-source line counter written in Rust that processes files in parallel.
 
 ### How do I count lines of code in a GitHub repository?
 
-Open octocounts.com, paste a public GitHub repository URL (for example `github.com/torvalds/linux`), optionally pick a branch, tag, or commit SHA, and click Analyze. OctoCounts resolves the ref to one pinned commit, downloads the source archive, runs tokei, and returns a sortable per-language breakdown with aggregate totals, usually within seconds and without a git clone. Every analysis gets a shareable report URL that can be shared, cited, or revisited later.
+Open octocounts.com, paste a public GitHub repository URL (for example `github.com/torvalds/linux`), optionally pick a branch, tag, or commit SHA, and click Analyze. OctoCounts resolves the ref to one pinned commit, downloads the source archive, runs tokei, and returns a sortable per-language breakdown with aggregate totals without a git clone. Analysis time depends on repository size, upstream access, and queue load. Every analysis gets a shareable report URL that can be shared, cited, or revisited later.
 
 ### Is OctoCounts free?
 
@@ -82,7 +82,7 @@ Reports are exact for the downloaded source archive and selected analysis option
 
 ### Does OctoCounts support private repositories?
 
-No. OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally: download it from github.com/XAMPPRocky/tokei, clone your repository, and run tokei in the repository root. tokei is free, open source, and produces the same output format that OctoCounts uses.
+No. OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads. If you need to count lines of code in a private repository, run tokei locally: download it from github.com/XAMPPRocky/tokei, clone your repository, and run tokei in the repository root. tokei is free, open source, and reports code, comment, and blank lines; OctoCounts adds its own report fields and exports.
 
 ### Does OctoCounts store my source code?
 
@@ -90,7 +90,7 @@ No. OctoCounts analyzes public repositories and stores only aggregated statistic
 
 ### Is there an API or CLI?
 
-The OctoCounts API is a public HTTP interface for counting source lines of code in public GitHub repositories without cloning them. Endpoints cover starting a SLOC analysis, fetching cached reports, listing analysis jobs, generating README badges, and building compare and diff URLs, each documented with request parameters and JSON response schemas in the [API docs](https://octocounts.com/docs/api) (updated September 2026). Beyond the API, OctoCounts ships a zero-install CLI via `npx octocounts`, an MCP server so AI assistants can pull SLOC data during conversations, and a GitHub Action that comments size deltas on pull requests. All of it requires no account or sign-up.
+The OctoCounts API is a public HTTP interface for counting source lines of code in public GitHub repositories without cloning them. Endpoints cover starting a SLOC analysis, fetching cached reports, checking individual analysis jobs, and generating README badges. The web compare and diff URL formats are also documented in the [API docs](https://octocounts.com/docs/api). Beyond the API, OctoCounts ships a CLI that runs through Node.js and npm via `npx octocounts`, an MCP server so AI assistants can pull SLOC data during conversations, and a GitHub Action that comments size deltas on pull requests. All of it requires no account or sign-up.
 
 ### Can I use OctoCounts in CI or GitHub Actions?
 

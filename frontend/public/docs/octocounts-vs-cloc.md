@@ -1,6 +1,6 @@
 # OctoCounts vs cloc, scc, and tokei
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while [cloc](https://github.com/AlDanial/cloc), [tokei](https://github.com/XAMPPRocky/tokei), and [scc](https://github.com/boyter/scc) are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.
 
@@ -13,7 +13,7 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 | **OctoCounts** | Web app + extensions + API | Quick public-repo reports, README badges, comparisons, sharing | No | No | Yes |
 | [cloc](https://github.com/AlDanial/cloc) | Command-line (Perl) | Local analysis, CI scripts, language coverage | Yes | Yes | No |
 | [tokei](https://github.com/XAMPPRocky/tokei) | Command-line (Rust) | Fast local counting, large repositories | Yes | Yes | No |
-| [scc](https://github.com/boyter/scc) | Command-line (Go) | Local counting with complexity estimates and license detection | Yes | Yes | No |
+| [scc](https://github.com/boyter/scc) | Command-line (Go) | Local counting with complexity estimates and duplicate-file filtering | Yes | Yes | No |
 
 ## OctoCounts
 
@@ -30,9 +30,9 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 
 [cloc](https://github.com/AlDanial/cloc) is a mature command-line tool written in Perl. It counts blank, comment, and code lines across hundreds of languages and is widely used in CI pipelines and audits.
 
-- **Best for:** local analysis, scripting, and environments where you can install Perl.
+- **Best for:** local files, directories, archives, and CI scripts; the source distribution uses Perl, while the Windows executable is standalone.
 - **Strengths:** extremely broad language support, battle-tested, easy to run in CI.
-- **Trade-off:** you need a local clone and must share output by hand.
+- **Trade-off:** the input must be available locally as files, a directory, or an archive; share the output yourself.
 
 ## tokei
 
@@ -40,13 +40,13 @@ OctoCounts is not a replacement for every SLOC workflow. This page explains how 
 
 - **Best for:** fast local counting, especially on large repositories.
 - **Strengths:** Rust performance, clean output, 200+ languages.
-- **Trade-off:** requires a local clone and Rust toolchain or package manager install.
+- **Trade-off:** requires local source files and an installed binary; a Rust toolchain is only needed when building from source.
 
 ## scc
 
-[scc](https://github.com/boyter/scc) is a Go-based line counter that adds complexity estimates, license detection, and COCOMO estimates on top of basic counts.
+[scc](https://github.com/boyter/scc) is a Go-based line counter that adds complexity estimates, duplicate-file filtering, and COCOMO estimates on top of basic counts.
 
-- **Best for:** local analysis where you also want complexity or license insights.
+- **Best for:** local analysis where you also want complexity or duplicate-file filtering.
 - **Strengths:** very fast, additional metrics beyond raw line counts.
 - **Trade-off:** additional metrics may not match OctoCounts/tokei figures exactly.
 
@@ -60,7 +60,7 @@ For public GitHub repositories, OctoCounts is that alternative — it produces c
 | `cloc --exclude-dir=node_modules` | Dependency and build folders (`node_modules`, `target`, `dist`, `vendor`, …) are skipped by default; custom ignores are part of the analysis options |
 | `cloc --include-lang=Rust` | The per-language table is always shown; [badges](/badges) take `?lang=Rust` for a single-language count |
 | `cloc --json` | Export a report as JSON, or fetch it via the [API](/docs/api) |
-| `cloc --vcs=git` | Nothing to configure — counting runs from the source archive at a pinned commit |
+| `cloc --vcs=git` | Counts the source archive after filtering; this is not a Git-tracked-files mode |
 | Pasting cloc output into a PR or issue | Every report has a stable URL, a PNG card, and a copyable citation — the [methodology page](/docs/methodology) shows the citation format |
 
 What cloc still does better: private repositories, offline environments, `--diff` between two local trees, and its language database. For other tool-to-tool trade-offs, see the dedicated [tokei vs cloc vs scc comparison](/docs/tokei-vs-cloc-vs-scc).
@@ -74,7 +74,7 @@ What cloc still does better: private repositories, offline environments, `--diff
 | Comparing two public repositories side by side | OctoCounts /compare |
 | Private repository or sensitive code | tokei, cloc, or scc locally |
 | CI pipeline with custom rules | tokei, cloc, or scc |
-| Need complexity estimates or license detection | scc |
+| Need complexity estimates or duplicate-file filtering | scc |
 | Coverage for unusual languages | cloc |
 | Local counting on large codebases | tokei or scc |
 
@@ -92,7 +92,7 @@ tokei is the fast Rust-based line counter that OctoCounts uses under the hood. O
 
 ### What is the difference between OctoCounts and scc?
 
-scc is a Go-based command-line tool that adds complexity estimates and license detection. OctoCounts focuses on fast, shareable, no-install SLOC reports for public GitHub repositories.
+scc is a Go-based command-line tool that adds complexity estimates and duplicate-file filtering. OctoCounts focuses on fast, shareable, no-install SLOC reports for public GitHub repositories.
 
 ### When should I use OctoCounts instead of a local tool?
 

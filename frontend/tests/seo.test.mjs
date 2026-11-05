@@ -597,7 +597,7 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
     assert.doesNotMatch(staticXml, /<changefreq>|<priority>/);
 
     const reportsXml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml", snapshot))).text();
-    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-11-01<\/lastmod>/);
+    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-11-05<\/lastmod>/);
     assert.doesNotMatch(reportsXml, /<changefreq>|<priority>/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -736,7 +736,7 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
     const expectedStaticMax = staticDates.reduce((a, b) => (b > a ? b : a));
     assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-static\\.xml</loc>\\s*<lastmod>${expectedStaticMax}</lastmod>`));
     assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<\/sitemap>/);
-    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-01<\/lastmod>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-05<\/lastmod>/);
 
     for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
       const xml = await (await onRequest(await renderedContext(path, {
@@ -1497,6 +1497,55 @@ test("a compare payload with a foreign repository name still fails closed withou
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.match(html, /This comparison is temporarily unavailable/);
   assert.doesNotMatch(html, /fake-owner/);
+});
+
+test("a confirmed rename cannot authorize a different repository's comparison data", async (t) => {
+  __resetCompareExistenceCacheForTests();
+  t.mock.method(globalThis, "fetch", async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/redirect") return Response.json({ redirectSlug: "react-labs/react" });
+    // The recorded successor is react-labs/react, but the report cache returned Vue.
+    return Response.json(CURATED_FIXTURES["vuejs/core"]);
+  });
+  for (const path of ["/compare/react-vs-vue", "/compare/react-vs-vue.md"]) {
+    const response = await onRequest(await renderedContext(path));
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.doesNotMatch(await response.text(), /<table>|#dataset|Counted at commit/);
+  }
+  __resetCompareExistenceCacheForTests();
+});
+
+test("transient or malformed rename lookups retry without caching a missing redirect", async (t) => {
+  const renamed = {
+    ...CURATED_FIXTURES["react/react"], owner: "react-labs", repo: "react", repoFullName: "react-labs/react",
+    htmlUrl: "https://github.com/react-labs/react", publicPath: "/github/react-labs/react",
+    canonicalUrl: "https://octocounts.com/github/react-labs/react",
+  };
+  let firstResponse;
+  let lookupCount;
+  t.mock.method(globalThis, "fetch", async (url) => {
+    const request = new URL(url);
+    if (request.pathname === "/api/seo/redirect") {
+      lookupCount += 1;
+      return lookupCount === 1 ? firstResponse() : Response.json({ redirectSlug: "react-labs/react" });
+    }
+    return Response.json(request.searchParams.get("owner") === "react" ? renamed : CURATED_FIXTURES["vuejs/core"]);
+  });
+  for (firstResponse of [
+    () => new Response("temporarily unavailable", { status: 503 }),
+    () => new Response("not JSON", { headers: { "content-type": "application/json" } }),
+    () => Response.json({ redirectSlug: "not/a/repository" }),
+  ]) {
+    __resetCompareExistenceCacheForTests();
+    lookupCount = 0;
+    assert.equal((await onRequest(await renderedContext("/compare/react-vs-vue"))).status, 503);
+    const recovered = await onRequest(await renderedContext("/compare/react-vs-vue"));
+    assert.equal(recovered.status, 200);
+    assert.equal(lookupCount, 2);
+    assert.match(await recovered.text(), /<th><a href="\/github\/react-labs\/react">react-labs\/react<\/a><\/th>/);
+  }
+  __resetCompareExistenceCacheForTests();
 });
 
 test("sitemap drops missing comparisons and returns 503 when eligibility cannot be checked", async () => {

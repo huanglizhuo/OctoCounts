@@ -52,7 +52,7 @@
       "headline": "OctoCounts vs tokei: web vs CLI SLOC counting",
       "description": "OctoCounts vs tokei: there is no official tokei web UI, so OctoCounts runs the same tokei engine server-side on public GitHub repos, pinned to commits.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-30",
+      "dateModified": "2026-11-05",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -154,7 +154,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / vs tokei</nav>
     <main>
-      <p class="meta">Updated October 30, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 5, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts vs tokei</h1>
       <p class="answer">tokei is a fast, open-source line counter written in Rust, distributed as a command-line tool from <a href="https://github.com/XAMPPRocky/tokei">github.com/XAMPPRocky/tokei</a> — it counts files, code, comment, and blank lines per language on whatever checkout you point it at. <a href="/">OctoCounts</a> is a web app that runs that same tokei engine server-side on public GitHub repositories: paste a URL, get a report pinned to an exact commit SHA. There is no official tokei web UI, so the choice is not two competing counters but two workflows: install the CLI when the code is on your machine, use the web app when the code is on GitHub and the result needs to be shared.</p>
       <p class="note">This is not a matchup of rival engines — OctoCounts runs tokei under the hood. The comparison below is about workflow: where the code lives, how the result is pinned, and what you can do with the numbers afterward.</p>
@@ -187,7 +187,7 @@
       </ul>
 
       <h2>The CLI side: what tokei does on its own</h2>
-      <p><a href="https://github.com/XAMPPRocky/tokei">tokei</a> is the counting engine itself. It is written in Rust, recognizes hundreds of languages, and reports files, code, comment, and blank lines grouped by language. Installed with <code>cargo install tokei</code>, a system package manager, or a prebuilt release binary, it runs against any directory — a git checkout, a tarball, a folder with no version control at all.</p>
+      <p><a href="https://github.com/XAMPPRocky/tokei">tokei</a> is the counting engine itself. It is written in Rust, recognizes hundreds of languages, and reports files, code, comment, and blank lines grouped by language. Installed with <code>cargo install tokei</code>, a system package manager, or a prebuilt release binary, it runs against any directory — a git checkout, an extracted source archive, or a folder with no version control at all.</p>
       <ul>
         <li><strong>Private and local code:</strong> the only path of the two for closed-source projects, local-only experiments, and non-GitHub forges.</li>
         <li><strong>Works offline:</strong> once installed, counting needs no network at all.</li>
@@ -216,7 +216,7 @@
           <tr><td>Code hosted outside github.com</td><td>tokei CLI</td></tr>
         </tbody>
       </table>
-      <p class="note"><strong>Bottom line:</strong> the code's location decides. On GitHub and public → OctoCounts gives you the same tokei numbers with sharing, pinning, and badges for free; on your machine, private, or mid-edit → install the CLI. Using both is normal: many projects count locally with tokei during development and cite an OctoCounts report when the number needs to travel.</p>
+      <p class="note"><strong>Bottom line:</strong> the code's location decides. On GitHub and public → OctoCounts gives you the same tokei numbers with sharing, pinning, and badges for free; on your machine, private, or mid-edit → install the CLI. You can count locally during development and use an OctoCounts report when you need a public link.</p>
 
       <h2>Frequently Asked Questions</h2>
 

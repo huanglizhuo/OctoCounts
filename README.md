@@ -14,20 +14,20 @@
 
 GitHub's sidebar shows language percentages, but misses actual file and line counts. OctoCounts adds this missing SLOC (Source Lines of Code) view to public repos without cloning.
 
-Install the extension for instant stats directly on GitHub, or use the web app for public GitHub repositories. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results—delivering a breakdown faster than `git clone`.
+Install the extension for stats directly on GitHub, or use the web app for public GitHub repositories. It downloads the repo archive, runs [tokei](https://github.com/XAMPPRocky/tokei), and caches the results without downloading Git history.
 
 ## Use OctoCounts
 
 | Surface | Use it for |
 |---|---|
-| [Web app](https://octocounts.com/) | Analyze any public GitHub repository and share a permanent report. |
+| [Web app](https://octocounts.com/) | Analyze public GitHub repositories and share a live report or a fixed saved result. |
 | [Browser extension](extension/README.md) | Show SLOC directly inside GitHub's repository sidebar in Chrome, Edge, or Firefox. |
 | [Public stats](https://octocounts.com/stats) | See aggregate report totals, largest repos, language coverage, and source breakdown. |
 | [GitHub Action](action/README.md) | Comment SLOC changes on pull requests. |
 | [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |
 | [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
-| [README badges](#badges) | Add a live SLOC badge that links to a permanent report page. |
-| [Research](https://octocounts.com/research) | Original research: a pilot study on how test/doc/generated file filtering affects SLOC counts. |
+| [README badges](#badges) | Add a live SLOC badge that links to the repository report page. |
+| [Research](https://octocounts.com/research) | Original research: a 10-repository study of how test/doc/generated-file filtering affects SLOC counts. |
 
 ## Preview
 
@@ -44,11 +44,13 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 - Adds a browser extension card to GitHub repo pages with files, total lines, code, comments, blanks, and language count
 - Provides a web app where you can paste any public GitHub repo URL
 - Resolves any branch, tag, or commit SHA — pins results to an exact commit so the cache is actually meaningful
-- Downloads the GitHub archive tarball instead of cloning (much faster, no git history overhead)
+- Downloads the GitHub archive tarball instead of cloning, without Git history
 - Counts files, lines, code, comments, and blanks per language via tokei
-- Caches reports by `owner + repo + commit + tokei version` — repeat runs are instant
+- Caches reports by repository, commit, tokei version, and analysis options — matching runs can reuse saved results
 - Queues analysis jobs so concurrent requests don't bring the server to its knees
 - Exports reports as plain text, JSON, or a shareable PNG card
+
+Live repository links follow the latest cached public report. Fixed result links bind a saved report and commit, but saved records are subject to cache retention and may expire or be replaced; export JSON or text for long-term archival.
 
 ## Stack
 

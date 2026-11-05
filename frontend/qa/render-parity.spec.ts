@@ -33,6 +33,8 @@ test("a rendered report page keeps the server's capsule, FAQ and comparison link
   await expect(about).toContainText(reportCapsuleText(copy));
   for (const item of reportFaq(copy)) await expect(about).toContainText(item.answer);
   await expect(about.locator('a[href="/compare/react-vs-vue"]')).toHaveCount(1);
+  await expect(about.locator('a[href="/docs/glossary"]')).toHaveCount(1);
+  await expect(about.locator('a[href="/research"]')).toHaveCount(1);
 });
 
 test("rendered hub lists keep the rotating report links and skip sub-floor reports", async ({ page }) => {

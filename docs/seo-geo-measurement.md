@@ -1,6 +1,6 @@
 # OctoCounts SEO / GEO Measurement (SG-10)
 
-- Updated: 2026-10-27. ChatGPT UTM fallback and attribution basis added.
+- Updated: 2026-11-05. Added Google's documented generative AI impression report and its availability/export limits.
 - Created: 2026-09-08 (batch A kickoff of the SEO/GEO plan's SG-10 (history: docs/seo-geo-history.md)).
 - Status: event dictionary and export templates are authoritative for the
   current code; dashboards and baselines must be filled from real exports.
@@ -58,6 +58,17 @@ the templates below and mark unavailable cells as *unknown*, never as zero.
 - **Google Search Console** — per 28 days: page, queries, impressions, clicks,
   CTR, position. Filter groups: `/compare/*`, `/github/*`, `/docs/*`, `/`,
   `/extension`.
+- **Google Search Console — Generative AI performance (Search)** — export
+  AI Overviews/AI Mode impressions by page, country, device and date when the
+  property exposes this report. Google's [current report documentation](https://support.google.com/webmasters/answer/16984139)
+  says it is available worldwide but may not appear for a site with insufficient
+  generative AI impressions. Missing access or a missing report means *unknown*,
+  not zero. This report measures impressions, not a separately documented AI
+  conversion or citation-click count. Its data is included in ordinary Web
+  performance: do not add the two totals. Preserve the report's PT date boundary
+  and aggregation level when comparing exports; `~`/`-` values are exported as
+  zero, so retain the UI's unavailable-data annotation rather than interpreting
+  every exported zero as a measured absence.
 - **Bing Webmaster Tools** — same fields plus *AI Performance* (citations,
   AI-expanded queries; fields as the account exposes them).
 - **Web analytics (umami; plausible loader also wired)** — visits by page and
@@ -85,6 +96,7 @@ the templates below and mark unavailable cells as *unknown*, never as zero.
 | Item | Window | Value | Source | Notes/gaps |
 |---|---|---|---|---|
 | Search impressions/clicks by page group | last 28 d | *unknown* | GSC | no access yet |
+| Google generative AI impressions by page group | last 28 d (PT) | *unknown* | GSC Generative AI performance | no private export; report availability for this property unverified |
 | Bing AI citations | last 28 d | *unknown* | Bing WT AI Performance | no access yet |
 | AI visits by source | last 28 d | *unknown* | umami export | no access yet |
 | `extension_store_click` by placement | last 28 d | *unknown* | umami export | no access yet |
