@@ -68,7 +68,6 @@ const EXPORT_HEIGHT = 720;
 // The PNG card renders the finale frame at 2×: it is a single raster, so the
 // extra resolution is free and keeps the share card crisp on retina/social.
 const PNG_WIDTH = 2560;
-const PNG_HEIGHT = 1440;
 const PNG_PROGRESS = 1;
 const FRAME_DELAY_MS = 100;
 // 50 frames × 100ms = the 5s template. The seed frame sits at the same

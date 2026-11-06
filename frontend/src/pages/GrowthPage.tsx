@@ -3,7 +3,7 @@
 // GrowthSection the report page renders, fed by the canonical (SEO) report so
 // the URL works without running an analysis first. Client-routed like the
 // other tool pages; edge SSR for this route remains a v2 item (plan §12).
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "lucide-react";

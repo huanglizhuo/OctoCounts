@@ -284,7 +284,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
             <CountingPolicyCard report={report} onEditOptions={onEditOptions} />
             <Charts report={report} variant="full" />
             <Suspense fallback={null}>
-              <ShareSection key={report.id} report={report} stars={stars} />
+              <ShareSection key={report.id} report={report} />
             </Suspense>
             {/* Growth animation after the report sharing tools: lazy so the growth
                 chunk (renderer + player + GIF exporter) splits out of the
@@ -306,7 +306,6 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
             </Suspense>
             <TechnicalDetails
               report={report}
-              stars={stars}
               command={command}
               fullTimestamp={fullTimestamp}
               runLog={<RunnerLog status={status} report={report} error={error} />}
@@ -334,13 +333,11 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
 // runner head.
 function TechnicalDetails({
   report,
-  stars,
   command,
   fullTimestamp,
   runLog,
 }: {
   report: Report;
-  stars: number | null;
   command: string;
   fullTimestamp: string;
   runLog: React.ReactNode;

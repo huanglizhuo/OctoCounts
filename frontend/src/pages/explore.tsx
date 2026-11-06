@@ -119,7 +119,7 @@ function reportLocName(loc: string): string {
 }
 
 function MoreReports() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { seeds } = useContext(ExploreContext);
   const locs = readMoreReportLocs(seeds["octocounts-more-reports"] ?? readExploreSeed("octocounts-more-reports"));
   if (!locs.length) return null;
@@ -271,7 +271,7 @@ function readTrendingSnapshot(value: unknown) {
 
 export function TrendingPage() {
   const { seeds, now } = useContext(ExploreContext);
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: ["github-trending", "daily"],
     initialData: () => readTrendingSnapshot(seeds["octocounts-trending-data"] ?? readExploreSeed("octocounts-trending-data")),

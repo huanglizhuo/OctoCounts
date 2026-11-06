@@ -1,5 +1,4 @@
 import { Share2 } from "lucide-react";
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "./analytics";
 

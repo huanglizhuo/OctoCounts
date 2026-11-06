@@ -1,5 +1,5 @@
 import { Clipboard } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "./analytics";
 import { copyText, normalizedProvider } from "./reportUtils";

@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Loader2 } from "lucide-react";
-import React, { useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { analyzeAndWait, fetchJson } from "./api";
 import { canonicalAnalysisOptions } from "./AnalysisOptionsPanel";
 import type { Report } from "./types";
 import { buildSnapshotReportPath } from "./report/shared";
-import { buildEmbedUrl, buildPublicReportUrl, type EmbedProvider } from "./badges";
+import { buildPublicReportUrl, type EmbedProvider } from "./badges";
 import { formatCompactNumber, formatNumber, formatPercent, languageColor } from "./reportUtils";
 
 // iframe-embeddable SLOC card served at /embed/:provider/:owner/:repo. No page

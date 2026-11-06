@@ -9,12 +9,12 @@
 // state the server cannot know (localStorage, matchMedia, Date.now). The
 // prerender entry mocks a bare `window.location` at "/" before importing this
 // module, so pathname reads stay valid in both environments.
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import { History, Loader2, Play } from "lucide-react";
 import React, { FormEvent, ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { defaultRepoUrl, defaultRefName, siteLastUpdated, sourceRepoUrl } from "./constants";
-import { analyzeRepository, fetchGrowthStats } from "./api";
+import { fetchGrowthStats } from "./api";
 import { isHostDegraded, useGithubStatus } from "./githubStatus";
 import { trackEvent, providerFromRepoUrl } from "./analytics";
 import { Topbar, publicReportLinks } from "./Topbar";
@@ -35,8 +35,7 @@ import {
   formatCompactNumber,
   normalizedProvider,
 } from "./reportUtils";
-import type { AnalysisOptions, GrowthRepositoryStat, GrowthStats, Report, Stats } from "./types";
-import type { JobRecord } from "./types";
+import type { AnalysisOptions, Report, Stats } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
 import { AnalysisOptionsPanel, defaultAnalysisOptions, parseAnalysisOptions } from "./AnalysisOptionsPanel";
 
@@ -476,11 +475,13 @@ export function App() {
   };
   const analysisForm = (
     <>
-      <form className="input-row" onSubmit={submit}>
-        <span className="prompt">$</span>
+      <form className="input-row" onSubmit={submit} aria-busy={runActive}>
+        <span className="prompt" aria-hidden="true">$</span>
         <input
           id="repo-url"
           name="repoUrl"
+          autoCapitalize="none"
+          spellCheck={false}
           value={repoUrl}
           onChange={(event) => {
             const next = event.target.value;
@@ -509,13 +510,13 @@ export function App() {
         />
         <label className="ref">
           {t("hero.refLabel")}
-          <input id="repo-ref" name="refName" value={refName} onChange={(event) => { refIsExplicit.current = true; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
+          <input id="repo-ref" name="refName" autoCapitalize="none" spellCheck={false} value={refName} onChange={(event) => { refIsExplicit.current = true; setRefName(event.target.value); }} placeholder={t("hero.refPlaceholder")} aria-label={t("hero.ariaRef")} />
         </label>
         {/* Disabled for the entire run (not just the POST): a second
             click during queued/running would silently abort and restart
             the job. Cancel is the explicit escape hatch instead. */}
         <button className="btn" disabled={runActive}>
-          {isSubmitting ? <Loader2 className="spin" size={15} /> : <Play size={15} />}
+          {runActive ? <Loader2 className="spin" size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
           {t("hero.analyze")}
         </button>
         {runActive ? (
@@ -581,8 +582,8 @@ export function App() {
                       className={`chip ${busySample === sample.repoUrl ? "busy" : ""}`}
                       key={sample.repoUrl}
                       type="button"
-                      disabled={busySample !== null}
-                      aria-pressed={busySample === sample.repoUrl}
+                      disabled={runActive || busySample !== null}
+                      aria-busy={busySample === sample.repoUrl}
                       onClick={() => playSample(sample)}
                     >
                       {sample.label}
@@ -607,6 +608,7 @@ export function App() {
                         key={`${entry.repoUrl}@${entry.refName}`}
                         type="button"
                         title={entry.repoUrl}
+                        disabled={runActive}
                         onClick={() => playRecent(entry)}
                       >
                         <History size={12} aria-hidden="true" />

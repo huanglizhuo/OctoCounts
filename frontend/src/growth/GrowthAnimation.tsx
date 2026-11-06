@@ -417,7 +417,6 @@ function deriveFrame(scene: GrowthScene, t: number, hovered: string | null = nul
     if (!language || label.merged || label.value <= 0) return [];
     const left = Math.min(Math.floor(p), language.shares.length - 1);
     const right = Math.min(left + 1, language.shares.length - 1);
-    const localT = language.shares.length > 1 ? clamp(p - left, 0, 1) : 0;
     const previous = language.shares[left] ?? 0;
     const next = language.shares[right] ?? previous;
     const delta = next - previous;
@@ -591,7 +590,6 @@ export function GrowthAnimation({
       >
         <CityLayer
           f={f}
-          scene={scene}
           hovered={interactiveFinale ? hovered : null}
           revealOnHover={interactiveFinale}
         />
@@ -655,12 +653,10 @@ function HookAct({ f }: { f: GrowthFrame }) {
 // the stars beacon. All geometry arrives pre-computed in the frame.
 function CityLayer({
   f,
-  scene,
   hovered,
   revealOnHover,
 }: {
   f: GrowthFrame;
-  scene: GrowthScene;
   hovered: string | null;
   /** Finale hover mode: keep hover-only labels mounted (opacity 0) so hover can reveal them. */
   revealOnHover: boolean;

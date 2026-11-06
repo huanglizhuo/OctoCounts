@@ -24,6 +24,59 @@ function reportFor(repoUrl: string, code: number, options = { ignoredDirs: [], i
 }
 
 test.describe("analysis behavior regressions", () => {
+  for (const status of ["queued", "running"]) {
+    test(`${status}: analysis entry points stay disabled until cancellation`, async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem("octocounts.recentRepos", JSON.stringify([
+          { repoUrl: "https://github.com/example/recent", refName: "main", label: "example/recent" },
+        ]));
+      });
+      let submissions = 0;
+      await page.route("**/api/analyze", (route) => {
+        submissions += 1;
+        return route.fulfill({ json: { kind: "job", jobId: "active-job" } });
+      });
+      await page.route("**/api/jobs/active-job?*", (route) => route.fulfill({ json: { status } }));
+      await page.goto(BASE_URL);
+      const analyze = page.getByRole("button", { name: "Analyze", exact: true });
+      const samples = page.locator(".samples-row .chip");
+      const recent = page.locator(".recent-chip");
+      await expect(recent).toBeVisible();
+      const polled = page.waitForResponse("**/api/jobs/active-job?*");
+      await (status === "queued" ? samples.first() : analyze).click();
+      await polled;
+      await expect(page.locator(".input-row")).toHaveAttribute("aria-busy", "true");
+      await expect(analyze).toBeDisabled();
+      await expect(analyze.locator(".spin")).toBeVisible();
+      for (const chip of await samples.all()) await expect(chip).toBeDisabled();
+      await expect(recent).toBeDisabled();
+      expect(submissions).toBe(1);
+      await page.locator(".input-row").getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(page.locator(".input-row")).toHaveAttribute("aria-busy", "false");
+      await expect(analyze).toBeEnabled();
+      for (const chip of await samples.all()) await expect(chip).toBeEnabled();
+      await expect(recent).toBeEnabled();
+    });
+  }
+
+  test("tablet navigation uses two rows and each input has a visible keyboard focus", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto(BASE_URL);
+    const brand = (await page.locator(".topbar .brand").boundingBox())!;
+    const controls = (await page.locator(".topbar-controls").boundingBox())!;
+    const nav = (await page.locator(".topbar-nav").boundingBox())!;
+    expect(controls.y).toBeLessThan(brand.y + brand.height);
+    expect(nav.y).toBeGreaterThanOrEqual(brand.y + brand.height);
+    expect((await page.locator(".topbar").boundingBox())!.height).toBeLessThan(130);
+    await page.locator("#repo-url").focus();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#repo-ref")).toBeFocused();
+    expect(await page.locator("#repo-ref").evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("solid");
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator("#repo-url")).toBeFocused();
+    expect(await page.locator("#repo-url").evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("solid");
+  });
+
   test("a late analysis result cannot replace the newer request", async ({ page }) => {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window);

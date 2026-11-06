@@ -20,7 +20,7 @@ import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
 // it was retired in favor of the growth finale frame, which doubles as the
 // share card — see exportGrowthPng. Runner still captures an offscreen
 // ShareTickerCard for the sticky-bar PNG export.)
-export function ShareSection({ report, stars }: { report: Report; stars: number | null }) {
+export function ShareSection({ report }: { report: Report }) {
   const { t } = useTranslation();
   useEffect(() => {
     if (window.location.hash === "#readme-badge") document.getElementById("readme-badge")?.focus();

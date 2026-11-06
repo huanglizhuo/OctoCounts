@@ -572,6 +572,11 @@ section {
   color: var(--fg-mute);
 }
 
+.input-row input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .input-row .ref {
   border-left: 1px solid var(--input-border);
   background: color-mix(in srgb, var(--bg) 34%, transparent);
@@ -3030,10 +3035,20 @@ footer a:focus-visible {
 @media (max-width: 1180px) {
   .topbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: var(--space-3);
     max-height: none;
+  }
+
+  .topbar-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .topbar-controls {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .brand {
@@ -3135,7 +3150,8 @@ footer a:focus-visible {
     width: 100%;
   }
 
-  .input-row .btn {
+  .input-row .btn,
+  .input-row > .copybtn {
     grid-column: 1 / -1;
     min-height: 44px;
   }
