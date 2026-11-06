@@ -1,8 +1,8 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-05T09:26:00.862Z",
-  "date": "2026-11-05",
+  "generatedAt": "2026-11-06T09:20:14.459Z",
+  "date": "2026-11-06",
   "repositories": [
     {
       "rank": 1,
@@ -11,42 +11,25 @@
       "fullName": "NVIDIA/auto-ontology",
       "description": "Auto Ontology is a Python framework for building semantic, graph-based reasoning layers over data. It enables deterministic query generation, better context retrieval, and more explainable AI for LLM and agent workflows.",
       "language": "Python",
-      "starsToday": 2050,
-      "totalStars": 6074,
+      "starsToday": 2679,
+      "totalStars": 8083,
       "htmlUrl": "https://github.com/NVIDIA/auto-ontology",
       "publicPath": "/github/NVIDIA/auto-ontology",
       "sloc": {
         "code": 125874,
-        "generatedAt": "2026-11-04T19:44:59.327Z",
-        "reportId": "dd178ae965b5a0a6bb4e02b94229555891448feed77bbf008f76e8b0d7b1a259"
+        "generatedAt": "2026-11-05T15:29:28.686Z",
+        "reportId": "56dc3ba41c4b4f0bf43011b51a88973cb3a08733fb7cd1678b4beae47f233571"
       }
     },
     {
       "rank": 2,
-      "owner": "max-sixty",
-      "name": "worktrunk",
-      "fullName": "max-sixty/worktrunk",
-      "description": "Worktrunk is a CLI for Git worktree management, designed for parallel AI agent workflows",
-      "language": "Rust",
-      "starsToday": 531,
-      "totalStars": 11254,
-      "htmlUrl": "https://github.com/max-sixty/worktrunk",
-      "publicPath": "/github/max-sixty/worktrunk",
-      "sloc": {
-        "code": 119029,
-        "generatedAt": "2026-11-05T09:26:03.829Z",
-        "reportId": "177cb659fa522e64d70d8c700779e9777ab643e465e2f2226bd73b34e6ec91ab"
-      }
-    },
-    {
-      "rank": 3,
       "owner": "mattpocock",
       "name": "skills",
       "fullName": "mattpocock/skills",
       "description": "Skills for Real Engineers. Straight from my .agents directory.",
       "language": "Shell",
-      "starsToday": 1379,
-      "totalStars": 313931,
+      "starsToday": 2071,
+      "totalStars": 315924,
       "htmlUrl": "https://github.com/mattpocock/skills",
       "publicPath": "/github/mattpocock/skills",
       "sloc": {
@@ -56,37 +39,54 @@
       }
     },
     {
-      "rank": 4,
-      "owner": "floci-io",
-      "name": "floci",
-      "fullName": "floci-io/floci",
-      "description": "Light, fluffy, and always free - The AWS Local Emulator alternative",
-      "language": "Java",
-      "starsToday": 1090,
-      "totalStars": 29924,
-      "htmlUrl": "https://github.com/floci-io/floci",
-      "publicPath": "/github/floci-io/floci",
+      "rank": 3,
+      "owner": "garrytan",
+      "name": "gstack",
+      "fullName": "garrytan/gstack",
+      "description": "Use Garry Tan's exact Claude Code setup: 23 opinionated tools that serve as CEO, Designer, Eng Manager, Release Manager, Doc Engineer, and QA",
+      "language": "TypeScript",
+      "starsToday": 612,
+      "totalStars": 140236,
+      "htmlUrl": "https://github.com/garrytan/gstack",
+      "publicPath": "/github/garrytan/gstack",
       "sloc": {
-        "code": 663817,
-        "generatedAt": "2026-11-05T09:12:40.791Z",
-        "reportId": "935c23673481505cd4af9ad6b41a9b17285b874cd1586e61fe3f081dce5bd411"
+        "code": 233654,
+        "generatedAt": "2026-11-06T09:19:27.848Z",
+        "reportId": "c238cfd739ec0a49f181f7faf32eb7dcd17833944f6b161e06d4e6853d611a4f"
+      }
+    },
+    {
+      "rank": 4,
+      "owner": "Usagi-org",
+      "name": "ai-goofish-monitor",
+      "fullName": "Usagi-org/ai-goofish-monitor",
+      "description": "基于 Playwright 和AI实现的闲鱼多任务实时/定时监控与智能分析系统，配备了功能完善的后台管理UI。帮助用户从闲鱼海量商品中，找到心仪产品。",
+      "language": "Python",
+      "starsToday": 240,
+      "totalStars": 18063,
+      "htmlUrl": "https://github.com/Usagi-org/ai-goofish-monitor",
+      "publicPath": "/github/Usagi-org/ai-goofish-monitor",
+      "sloc": {
+        "code": 21605,
+        "generatedAt": "2026-11-01T06:28:32.673Z",
+        "reportId": "ad02ba2a41a66bc78259f68d4824830d5e9c3bf85943c90ddc84c162408cb4c6"
       }
     },
     {
       "rank": 5,
-      "owner": "thedotmack",
-      "name": "claude-mem",
-      "fullName": "thedotmack/claude-mem",
-      "description": "Persistent Context Across Sessions for Every Agent – Captures everything your agent does during sessions, compresses it with AI, and injects relevant context back into future sessions. Works with Claude Code, OpenClaw, Codex, Gemini, Hermes, Copilot, OpenCode + More",
-      "language": "TypeScript",
-      "starsToday": 1172,
-      "totalStars": 113193,
-      "htmlUrl": "https://github.com/thedotmack/claude-mem",
-      "publicPath": "/github/thedotmack/claude-mem",
+      "owner": "D4Vinci",
+      "name": "Scrapling",
+      "fullName": "D4Vinci/Scrapling",
+      "description": "🕷️ The BEST Web Scraping framework that handles everything from a single request to a full-scale crawl! Don't be shy, join here: https://discord.gg/EMgGbDceNQ and follow here for daily tips and tricks: https://x.com/Scrapling_dev",
+      "language": "Python",
+      "starsToday": 1655,
+      "totalStars": 98461,
+      "htmlUrl": "https://github.com/D4Vinci/Scrapling",
+      "publicPath": "/github/D4Vinci/Scrapling",
       "sloc": {
-        "code": 221197,
-        "generatedAt": "2026-11-05T09:26:07.876Z",
-        "reportId": "78b911acab523dd761a77b52ada55c939a726763d505accebd342651427a4cb0"
+        "code": 16094,
+        "generatedAt": "2026-11-05T19:28:26.401Z",
+        "reportId": "243f1cc267b1d20a9d928588f415202833e772676c6deff965a2d864fa50a13f"
       }
     },
     {
@@ -96,8 +96,8 @@
       "fullName": "vercel-labs/agent-desktop",
       "description": "Computer use CLI for AI agents",
       "language": "Rust",
-      "starsToday": 2470,
-      "totalStars": 15945,
+      "starsToday": 2173,
+      "totalStars": 17507,
       "htmlUrl": "https://github.com/vercel-labs/agent-desktop",
       "publicPath": "/github/vercel-labs/agent-desktop",
       "sloc": {
@@ -108,172 +108,155 @@
     },
     {
       "rank": 7,
-      "owner": "github",
-      "name": "spec-kit",
-      "fullName": "github/spec-kit",
-      "description": "💫 Toolkit to help you get started with SDD or any other process!",
-      "language": "Python",
-      "starsToday": 808,
-      "totalStars": 147567,
-      "htmlUrl": "https://github.com/github/spec-kit",
-      "publicPath": "/github/github/spec-kit",
+      "owner": "max-sixty",
+      "name": "worktrunk",
+      "fullName": "max-sixty/worktrunk",
+      "description": "Worktrunk is a CLI for Git worktree management, designed for parallel AI agent workflows",
+      "language": "Rust",
+      "starsToday": 546,
+      "totalStars": 11684,
+      "htmlUrl": "https://github.com/max-sixty/worktrunk",
+      "publicPath": "/github/max-sixty/worktrunk",
       "sloc": {
-        "code": 83420,
-        "generatedAt": "2026-11-04T23:04:34.977Z",
-        "reportId": "23c9e865b48e4c6e78864381b154eb9971bcc8ee8fcc993dc7209d38e452cc8c"
+        "code": 119029,
+        "generatedAt": "2026-11-06T07:45:40.774Z",
+        "reportId": "b15e06ffdcbb41f91c78933ed13b0782cdeac2815bde98f33f4b177fc8bc890c"
       }
     },
     {
       "rank": 8,
-      "owner": "The-PR-Agent",
-      "name": "pr-agent",
-      "fullName": "The-PR-Agent/pr-agent",
-      "description": "🚀 PR Agent: The Original Open-Source PR Reviewer. This project is not the Qodo free tier.",
-      "language": "Python",
-      "starsToday": 280,
-      "totalStars": 14959,
-      "htmlUrl": "https://github.com/The-PR-Agent/pr-agent",
-      "publicPath": "/github/The-PR-Agent/pr-agent",
+      "owner": "lz4",
+      "name": "lz4",
+      "fullName": "lz4/lz4",
+      "description": "Extremely Fast Compression algorithm",
+      "language": "C",
+      "starsToday": 23,
+      "totalStars": 12500,
+      "htmlUrl": "https://github.com/lz4/lz4",
+      "publicPath": "/github/lz4/lz4",
       "sloc": {
-        "code": 50104,
-        "generatedAt": "2026-11-05T08:57:57.031Z",
-        "reportId": "1ccebe8ee97784774b48cf0a8572ee211b8d5b3992bab9273a0a62b5f8ea54e3"
+        "code": 18165,
+        "generatedAt": "2026-11-06T09:20:27.842Z",
+        "reportId": "66dcf833e435a0de9ec2fdade4055ca0eb5443863a6d24a593d3565929cc5c0a"
       }
     },
     {
       "rank": 9,
-      "owner": "harry0703",
-      "name": "MoneyPrinterTurbo",
-      "fullName": "harry0703/MoneyPrinterTurbo",
-      "description": "利用 AI 大模型和自动化工作流，根据主题或关键词一键生成高清短视频。Generate HD short videos from a topic or keyword with an automated AI workflow.",
+      "owner": "google",
+      "name": "skills",
+      "fullName": "google/skills",
+      "description": "Agent Skills for Google products and technologies",
       "language": "Python",
-      "starsToday": 617,
-      "totalStars": 139440,
-      "htmlUrl": "https://github.com/harry0703/MoneyPrinterTurbo",
-      "publicPath": "/github/harry0703/MoneyPrinterTurbo",
+      "starsToday": 211,
+      "totalStars": 22567,
+      "htmlUrl": "https://github.com/google/skills",
+      "publicPath": "/github/google/skills",
       "sloc": {
-        "code": 45811,
-        "generatedAt": "2026-11-05T09:26:37.707Z",
-        "reportId": "719e67e1917759619e5105240f885ccab4ef603da6620146b74443ab541c0d62"
+        "code": 52165,
+        "generatedAt": "2026-11-05T22:20:05.016Z",
+        "reportId": "cb5c1de9bc27e12a42cd2da50073811e782addbdfbb8f87a780c99db448ba0b8"
       }
     },
     {
       "rank": 10,
-      "owner": "garrytan",
-      "name": "gstack",
-      "fullName": "garrytan/gstack",
-      "description": "Use Garry Tan's exact Claude Code setup: 23 opinionated tools that serve as CEO, Designer, Eng Manager, Release Manager, Doc Engineer, and QA",
-      "language": "TypeScript",
-      "starsToday": 290,
-      "totalStars": 139560,
-      "htmlUrl": "https://github.com/garrytan/gstack",
-      "publicPath": "/github/garrytan/gstack",
+      "owner": "vercel-labs",
+      "name": "agent-browser",
+      "fullName": "vercel-labs/agent-browser",
+      "description": "Browser automation CLI for AI agents",
+      "language": "Rust",
+      "starsToday": 150,
+      "totalStars": 46165,
+      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
+      "publicPath": "/github/vercel-labs/agent-browser",
       "sloc": {
-        "code": 231157,
-        "generatedAt": "2026-11-05T09:26:39.374Z",
-        "reportId": "04f47af0344051120b43c353f907e3029246f5b71b7aa98f80fc7ac263de2cf0"
+        "code": 196487,
+        "generatedAt": "2026-11-05T22:35:15.079Z",
+        "reportId": "800ff8a4da4ca973d720517ee7b0da69bf60086cbb843a75b2b69e3c2c283761"
       }
     },
     {
       "rank": 11,
-      "owner": "FareedKhan-dev",
-      "name": "kimi-k3-in-c",
-      "fullName": "FareedKhan-dev/kimi-k3-in-c",
-      "description": "A 2.78-trillion-parameter Kimi K3 running inference on a single CPU in 8.24 GB of RAM. Portable C99: no BLAS, no framework, no GPU.",
-      "language": "C",
-      "starsToday": 351,
-      "totalStars": 10590,
-      "htmlUrl": "https://github.com/FareedKhan-dev/kimi-k3-in-c",
-      "publicPath": "/github/FareedKhan-dev/kimi-k3-in-c",
-      "sloc": {
-        "code": 13882,
-        "generatedAt": "2026-11-05T09:26:41.844Z",
-        "reportId": "1dec469dafd5f775b6e159539facef7f647bc7b56c70cc9b33084dee6d40f827"
-      }
-    },
-    {
-      "rank": 12,
-      "owner": "JiaFeiMiao-K-Cat",
-      "name": "DiscImageStudio",
-      "fullName": "JiaFeiMiao-K-Cat/DiscImageStudio",
-      "description": "",
-      "language": "C#",
-      "starsToday": 1778,
-      "totalStars": 6895,
-      "htmlUrl": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio",
-      "publicPath": "/github/JiaFeiMiao-K-Cat/DiscImageStudio",
-      "sloc": {
-        "code": 60005,
-        "generatedAt": "2026-11-05T09:26:54.427Z",
-        "reportId": "93fbeee9d1fe1c48db836cb7632c1fbd78ff9fa0e39f8aebeed0e9c7026ee0b2"
-      }
-    },
-    {
-      "rank": 13,
-      "owner": "MichaelCade",
-      "name": "90DaysOfDevOps",
-      "fullName": "MichaelCade/90DaysOfDevOps",
-      "description": "This repository started out as a learning in public project for myself and has now become a structured learning map for many in the community. We have 3 years under our belt covering all things DevOps, including Principles, Processes, Tooling and Use Cases surrounding this vast topic.",
-      "language": "Shell",
-      "starsToday": 97,
-      "totalStars": 30691,
-      "htmlUrl": "https://github.com/MichaelCade/90DaysOfDevOps",
-      "publicPath": "/github/MichaelCade/90DaysOfDevOps",
-      "sloc": {
-        "code": 26128,
-        "generatedAt": "2026-11-05T09:27:47.410Z",
-        "reportId": "37616707c36f8569521031bb771a71e2b9a3bf70cb919c73f9838efb3c875351"
-      }
-    },
-    {
-      "rank": 14,
-      "owner": "D4Vinci",
-      "name": "Scrapling",
-      "fullName": "D4Vinci/Scrapling",
-      "description": "🕷️ The BEST Web Scraping framework that handles everything from a single request to a full-scale crawl! Don't be shy, join here: https://discord.gg/EMgGbDceNQ and follow here for daily tips and tricks: https://x.com/Scrapling_dev",
-      "language": "Python",
-      "starsToday": 2005,
-      "totalStars": 97146,
-      "htmlUrl": "https://github.com/D4Vinci/Scrapling",
-      "publicPath": "/github/D4Vinci/Scrapling",
-      "sloc": {
-        "code": 16094,
-        "generatedAt": "2026-11-04T21:00:36.957Z",
-        "reportId": "a8c0c38be170d16e99ee855eda6a84155571fbcc634325d652cd4a5959bff8bf"
-      }
-    },
-    {
-      "rank": 15,
-      "owner": "Thysrael",
-      "name": "Horizon",
-      "fullName": "Thysrael/Horizon",
-      "description": "📡 Your own AI-powered news radar. Generates daily briefings in English & Chinese. | 用 AI 构建你专属的新闻雷达",
-      "language": "Python",
-      "starsToday": 121,
-      "totalStars": 12778,
-      "htmlUrl": "https://github.com/Thysrael/Horizon",
-      "publicPath": "/github/Thysrael/Horizon",
-      "sloc": {
-        "code": 13268,
-        "generatedAt": "2026-11-05T07:05:15.047Z",
-        "reportId": "cb5b2a20e64939f13faae6fc8aa27299ac5c1dbf812c22c889bd9ea007b78314"
-      }
-    },
-    {
-      "rank": 16,
       "owner": "scenario-labs",
       "name": "skills",
       "fullName": "scenario-labs/skills",
       "description": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
       "language": "Python",
-      "starsToday": 224,
-      "totalStars": 2679,
+      "starsToday": 667,
+      "totalStars": 3289,
       "htmlUrl": "https://github.com/scenario-labs/skills",
       "publicPath": "/github/scenario-labs/skills",
       "sloc": {
-        "code": 212878,
-        "generatedAt": "2026-11-05T01:51:27.332Z",
-        "reportId": "8c2735f4db51dc6606872e3d66d9f9f7330c68585817615686a13488237f62a4"
+        "code": 213601,
+        "generatedAt": "2026-11-06T00:01:39.383Z",
+        "reportId": "0abbed503d6d1f191f5c8e8370f872b8e8f001903d1c986aaa28739258280291"
+      }
+    },
+    {
+      "rank": 12,
+      "owner": "ConardLi",
+      "name": "garden-skills",
+      "fullName": "ConardLi/garden-skills",
+      "description": "ConardLi's open-source Skills collection, featuring web design, knowledge retrieval, image generation, and more.",
+      "language": "JavaScript",
+      "starsToday": 175,
+      "totalStars": 14392,
+      "htmlUrl": "https://github.com/ConardLi/garden-skills",
+      "publicPath": "/github/ConardLi/garden-skills",
+      "sloc": {
+        "code": 55831,
+        "generatedAt": "2026-11-03T03:10:43.568Z",
+        "reportId": "4c5793bb061a2d923ffbb0757c37303a994894bfea0ab9806f3decb0f6c6b65a"
+      }
+    },
+    {
+      "rank": 13,
+      "owner": "microsoft",
+      "name": "VibeVoice",
+      "fullName": "microsoft/VibeVoice",
+      "description": "Open-Source Frontier Voice AI",
+      "language": "Python",
+      "starsToday": 223,
+      "totalStars": 56302,
+      "htmlUrl": "https://github.com/microsoft/VibeVoice",
+      "publicPath": "/github/microsoft/VibeVoice",
+      "sloc": {
+        "code": 16029,
+        "generatedAt": "2026-11-06T09:21:07.931Z",
+        "reportId": "e1eb8649a70226128e73704f3264b6fcd900018e3517560dc9d9cf5d383361e2"
+      }
+    },
+    {
+      "rank": 14,
+      "owner": "floci-io",
+      "name": "floci",
+      "fullName": "floci-io/floci",
+      "description": "Light, fluffy, and always free - The AWS Local Emulator alternative",
+      "language": "Java",
+      "starsToday": 779,
+      "totalStars": 30663,
+      "htmlUrl": "https://github.com/floci-io/floci",
+      "publicPath": "/github/floci-io/floci",
+      "sloc": {
+        "code": 665088,
+        "generatedAt": "2026-11-05T21:58:54.395Z",
+        "reportId": "a1be22888c94c700f620ae65fea53d5602db19bfb215266646dd52762d8d7d94"
+      }
+    },
+    {
+      "rank": 15,
+      "owner": "JiaFeiMiao-K-Cat",
+      "name": "DiscImageStudio",
+      "fullName": "JiaFeiMiao-K-Cat/DiscImageStudio",
+      "description": "",
+      "language": "C#",
+      "starsToday": 984,
+      "totalStars": 7543,
+      "htmlUrl": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio",
+      "publicPath": "/github/JiaFeiMiao-K-Cat/DiscImageStudio",
+      "sloc": {
+        "code": 61374,
+        "generatedAt": "2026-11-05T17:32:43.322Z",
+        "reportId": "e6d1190356000164752e60817b9b62724af6ccd5fc7418e4b64230a9ab3ac8e0"
       }
     }
   ]
