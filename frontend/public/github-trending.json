@@ -1,35 +1,273 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-06T09:20:14.459Z",
-  "date": "2026-11-06",
+  "generatedAt": "2026-11-07T08:44:06.500Z",
+  "date": "2026-11-07",
   "repositories": [
     {
       "rank": 1,
+      "owner": "zed-industries",
+      "name": "zed",
+      "fullName": "zed-industries/zed",
+      "description": "Code at the speed of thought – Zed is a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.",
+      "language": "Rust",
+      "starsToday": 306,
+      "totalStars": 93917,
+      "htmlUrl": "https://github.com/zed-industries/zed",
+      "publicPath": "/github/zed-industries/zed",
+      "sloc": {
+        "code": 1551290,
+        "generatedAt": "2026-11-06T21:41:07.415Z",
+        "reportId": "e0f451ecfa1c8066566bb6716775bd93858c869369a36dc5b7dfcf089b3e21e1"
+      }
+    },
+    {
+      "rank": 2,
       "owner": "NVIDIA",
       "name": "auto-ontology",
       "fullName": "NVIDIA/auto-ontology",
       "description": "Auto Ontology is a Python framework for building semantic, graph-based reasoning layers over data. It enables deterministic query generation, better context retrieval, and more explainable AI for LLM and agent workflows.",
       "language": "Python",
-      "starsToday": 2679,
-      "totalStars": 8083,
+      "starsToday": 2015,
+      "totalStars": 9456,
       "htmlUrl": "https://github.com/NVIDIA/auto-ontology",
       "publicPath": "/github/NVIDIA/auto-ontology",
       "sloc": {
-        "code": 125874,
-        "generatedAt": "2026-11-05T15:29:28.686Z",
-        "reportId": "56dc3ba41c4b4f0bf43011b51a88973cb3a08733fb7cd1678b4beae47f233571"
+        "code": 125876,
+        "generatedAt": "2026-11-06T18:28:42.683Z",
+        "reportId": "556eb12229a66211194c28a357d3176f48fdec61dc93b32d3d6793506e90d2a3"
       }
     },
     {
-      "rank": 2,
+      "rank": 3,
+      "owner": "rails",
+      "name": "rails",
+      "fullName": "rails/rails",
+      "description": "Ruby on Rails",
+      "language": "Ruby",
+      "starsToday": 142,
+      "totalStars": 59065,
+      "htmlUrl": "https://github.com/rails/rails",
+      "publicPath": "/github/rails/rails",
+      "sloc": {
+        "code": 143576,
+        "generatedAt": "2026-11-06T23:55:50.602Z",
+        "reportId": "ff062ecc6661289a596a8f07d3538d59ae55ede690b66f20efa65fc24d18698c"
+      }
+    },
+    {
+      "rank": 4,
+      "owner": "mpv-player",
+      "name": "mpv",
+      "fullName": "mpv-player/mpv",
+      "description": "🎥 Command line media player",
+      "language": "C",
+      "starsToday": 37,
+      "totalStars": 37948,
+      "htmlUrl": "https://github.com/mpv-player/mpv",
+      "publicPath": "/github/mpv-player/mpv",
+      "sloc": {
+        "code": 211290,
+        "generatedAt": "2026-11-07T06:50:40.304Z",
+        "reportId": "1250cd3bb4f29398237d36335f755351f82c6372d2c45ede2440fd380b0007c7"
+      }
+    },
+    {
+      "rank": 5,
+      "owner": "rust-lang",
+      "name": "rust",
+      "fullName": "rust-lang/rust",
+      "description": "Empowering everyone to build reliable and efficient software.",
+      "language": "Rust",
+      "starsToday": 192,
+      "totalStars": 121549,
+      "htmlUrl": "https://github.com/rust-lang/rust",
+      "publicPath": "/github/rust-lang/rust",
+      "sloc": {
+        "code": 2750623,
+        "generatedAt": "2026-11-07T06:55:19.691Z",
+        "reportId": "06fe989f238471764231db5ea8c6c60404f61e7a791168bc8cdfbf52a6dff5b3"
+      }
+    },
+    {
+      "rank": 6,
+      "owner": "react",
+      "name": "react",
+      "fullName": "react/react",
+      "description": "The library for web and native user interfaces.",
+      "language": "JavaScript",
+      "starsToday": 248,
+      "totalStars": 252323,
+      "htmlUrl": "https://github.com/react/react",
+      "publicPath": "/github/react/react",
+      "sloc": {
+        "code": 366426,
+        "generatedAt": "2026-11-06T20:15:19.267Z",
+        "reportId": "5d150a1d016a3d9bbd2b5ed836956e83df38586532c89c654d9978bab71dc7f7"
+      }
+    },
+    {
+      "rank": 7,
+      "owner": "angular",
+      "name": "angular",
+      "fullName": "angular/angular",
+      "description": "Deliver web apps with confidence 🚀",
+      "language": "TypeScript",
+      "starsToday": 135,
+      "totalStars": 101444,
+      "htmlUrl": "https://github.com/angular/angular",
+      "publicPath": "/github/angular/angular",
+      "sloc": {
+        "code": 737807,
+        "generatedAt": "2026-11-06T20:25:43.680Z",
+        "reportId": "7c04942ad7b5cdf9ed8e2e698e165677144b10654435ad115cf9906116b7443d"
+      }
+    },
+    {
+      "rank": 8,
+      "owner": "symfony",
+      "name": "symfony",
+      "fullName": "symfony/symfony",
+      "description": "The Symfony PHP framework",
+      "language": "PHP",
+      "starsToday": 128,
+      "totalStars": 31497,
+      "htmlUrl": "https://github.com/symfony/symfony",
+      "publicPath": "/github/symfony/symfony",
+      "sloc": {
+        "code": 947470,
+        "generatedAt": "2026-11-07T08:39:50.870Z",
+        "reportId": "5fb1c681c86fb68485f0f9d42b21b26ddf91c57d6215e40d1385dd5e485baeca"
+      }
+    },
+    {
+      "rank": 9,
+      "owner": "prometheus",
+      "name": "prometheus",
+      "fullName": "prometheus/prometheus",
+      "description": "The Prometheus monitoring system and time series database.",
+      "language": "Go",
+      "starsToday": 148,
+      "totalStars": 67261,
+      "htmlUrl": "https://github.com/prometheus/prometheus",
+      "publicPath": "/github/prometheus/prometheus",
+      "sloc": {
+        "code": 473624,
+        "generatedAt": "2026-11-06T19:11:57.026Z",
+        "reportId": "a7ccb859d09de4bd295980c20dd1e5801e2ff9b9355ca1eaf9391571e00655a7"
+      }
+    },
+    {
+      "rank": 10,
+      "owner": "google",
+      "name": "skills",
+      "fullName": "google/skills",
+      "description": "Agent Skills for Google products and technologies",
+      "language": "Python",
+      "starsToday": 534,
+      "totalStars": 22988,
+      "htmlUrl": "https://github.com/google/skills",
+      "publicPath": "/github/google/skills",
+      "sloc": {
+        "code": 53455,
+        "generatedAt": "2026-11-06T22:31:54.915Z",
+        "reportId": "06de99ed4f4b054d8d0ca3e6e9ffcd28b9f5e87b3bd19cc87b21d4c717941457"
+      }
+    },
+    {
+      "rank": 11,
+      "owner": "microsoft",
+      "name": "vscode",
+      "fullName": "microsoft/vscode",
+      "description": "Visual Studio Code",
+      "language": "TypeScript",
+      "starsToday": 301,
+      "totalStars": 195098,
+      "htmlUrl": "https://github.com/microsoft/vscode",
+      "publicPath": "/github/microsoft/vscode",
+      "sloc": {
+        "code": 2702658,
+        "generatedAt": "2026-11-07T07:48:37.548Z",
+        "reportId": "264eabb7982836bb1cb63ed87e84300bc74b2d9ba7803f89bdb6cace185615e5"
+      }
+    },
+    {
+      "rank": 12,
+      "owner": "lz4",
+      "name": "lz4",
+      "fullName": "lz4/lz4",
+      "description": "Extremely Fast Compression algorithm",
+      "language": "C",
+      "starsToday": 315,
+      "totalStars": 12664,
+      "htmlUrl": "https://github.com/lz4/lz4",
+      "publicPath": "/github/lz4/lz4",
+      "sloc": {
+        "code": 18173,
+        "generatedAt": "2026-11-07T00:31:15.534Z",
+        "reportId": "1acf035347324446fbc66927e85c95c549e01b56343b06d35cecf277d1388669"
+      }
+    },
+    {
+      "rank": 13,
+      "owner": "nushell",
+      "name": "nushell",
+      "fullName": "nushell/nushell",
+      "description": "A new type of shell",
+      "language": "Rust",
+      "starsToday": 131,
+      "totalStars": 41037,
+      "htmlUrl": "https://github.com/nushell/nushell",
+      "publicPath": "/github/nushell/nushell",
+      "sloc": {
+        "code": 339020,
+        "generatedAt": "2026-11-06T12:59:37.768Z",
+        "reportId": "c3df802dd7c09ea7c61cf5ee7d6fe4f998c871e477e3dee9526d6fa3508e53e4"
+      }
+    },
+    {
+      "rank": 14,
+      "owner": "etcd-io",
+      "name": "etcd",
+      "fullName": "etcd-io/etcd",
+      "description": "Distributed reliable key-value store for the most critical data of a distributed system",
+      "language": "Go",
+      "starsToday": 128,
+      "totalStars": 52658,
+      "htmlUrl": "https://github.com/etcd-io/etcd",
+      "publicPath": "/github/etcd-io/etcd",
+      "sloc": {
+        "code": 127779,
+        "generatedAt": "2026-11-06T13:23:56.057Z",
+        "reportId": "4debfa0a1dee4f9beb53a8c6b615c3add090a7a52253ce7c2d49c8e61f528791"
+      }
+    },
+    {
+      "rank": 15,
+      "owner": "openssl",
+      "name": "openssl",
+      "fullName": "openssl/openssl",
+      "description": "General purpose TLS and crypto library",
+      "language": "C",
+      "starsToday": 26,
+      "totalStars": 31348,
+      "htmlUrl": "https://github.com/openssl/openssl",
+      "publicPath": "/github/openssl/openssl",
+      "sloc": {
+        "code": 788910,
+        "generatedAt": "2026-11-06T21:51:19.035Z",
+        "reportId": "80bc73b73aa9df1d2fc8b96023b354db529cefb54d240aae793aa107cb811f0c"
+      }
+    },
+    {
+      "rank": 16,
       "owner": "mattpocock",
       "name": "skills",
       "fullName": "mattpocock/skills",
       "description": "Skills for Real Engineers. Straight from my .agents directory.",
       "language": "Shell",
-      "starsToday": 2071,
-      "totalStars": 315924,
+      "starsToday": 2070,
+      "totalStars": 317025,
       "htmlUrl": "https://github.com/mattpocock/skills",
       "publicPath": "/github/mattpocock/skills",
       "sloc": {
@@ -39,224 +277,37 @@
       }
     },
     {
-      "rank": 3,
-      "owner": "garrytan",
-      "name": "gstack",
-      "fullName": "garrytan/gstack",
-      "description": "Use Garry Tan's exact Claude Code setup: 23 opinionated tools that serve as CEO, Designer, Eng Manager, Release Manager, Doc Engineer, and QA",
-      "language": "TypeScript",
-      "starsToday": 612,
-      "totalStars": 140236,
-      "htmlUrl": "https://github.com/garrytan/gstack",
-      "publicPath": "/github/garrytan/gstack",
-      "sloc": {
-        "code": 233654,
-        "generatedAt": "2026-11-06T09:19:27.848Z",
-        "reportId": "c238cfd739ec0a49f181f7faf32eb7dcd17833944f6b161e06d4e6853d611a4f"
-      }
-    },
-    {
-      "rank": 4,
-      "owner": "Usagi-org",
-      "name": "ai-goofish-monitor",
-      "fullName": "Usagi-org/ai-goofish-monitor",
-      "description": "基于 Playwright 和AI实现的闲鱼多任务实时/定时监控与智能分析系统，配备了功能完善的后台管理UI。帮助用户从闲鱼海量商品中，找到心仪产品。",
-      "language": "Python",
-      "starsToday": 240,
-      "totalStars": 18063,
-      "htmlUrl": "https://github.com/Usagi-org/ai-goofish-monitor",
-      "publicPath": "/github/Usagi-org/ai-goofish-monitor",
-      "sloc": {
-        "code": 21605,
-        "generatedAt": "2026-11-01T06:28:32.673Z",
-        "reportId": "ad02ba2a41a66bc78259f68d4824830d5e9c3bf85943c90ddc84c162408cb4c6"
-      }
-    },
-    {
-      "rank": 5,
-      "owner": "D4Vinci",
-      "name": "Scrapling",
-      "fullName": "D4Vinci/Scrapling",
-      "description": "🕷️ The BEST Web Scraping framework that handles everything from a single request to a full-scale crawl! Don't be shy, join here: https://discord.gg/EMgGbDceNQ and follow here for daily tips and tricks: https://x.com/Scrapling_dev",
-      "language": "Python",
-      "starsToday": 1655,
-      "totalStars": 98461,
-      "htmlUrl": "https://github.com/D4Vinci/Scrapling",
-      "publicPath": "/github/D4Vinci/Scrapling",
-      "sloc": {
-        "code": 16094,
-        "generatedAt": "2026-11-05T19:28:26.401Z",
-        "reportId": "243f1cc267b1d20a9d928588f415202833e772676c6deff965a2d864fa50a13f"
-      }
-    },
-    {
-      "rank": 6,
-      "owner": "vercel-labs",
-      "name": "agent-desktop",
-      "fullName": "vercel-labs/agent-desktop",
-      "description": "Computer use CLI for AI agents",
-      "language": "Rust",
-      "starsToday": 2173,
-      "totalStars": 17507,
-      "htmlUrl": "https://github.com/vercel-labs/agent-desktop",
-      "publicPath": "/github/vercel-labs/agent-desktop",
-      "sloc": {
-        "code": 394882,
-        "generatedAt": "2026-11-05T06:54:54.643Z",
-        "reportId": "c1d2bf199cfdced52c279828bb4685669d81c21b92c39b02641f6699fb810cd6"
-      }
-    },
-    {
-      "rank": 7,
-      "owner": "max-sixty",
-      "name": "worktrunk",
-      "fullName": "max-sixty/worktrunk",
-      "description": "Worktrunk is a CLI for Git worktree management, designed for parallel AI agent workflows",
-      "language": "Rust",
-      "starsToday": 546,
-      "totalStars": 11684,
-      "htmlUrl": "https://github.com/max-sixty/worktrunk",
-      "publicPath": "/github/max-sixty/worktrunk",
-      "sloc": {
-        "code": 119029,
-        "generatedAt": "2026-11-06T07:45:40.774Z",
-        "reportId": "b15e06ffdcbb41f91c78933ed13b0782cdeac2815bde98f33f4b177fc8bc890c"
-      }
-    },
-    {
-      "rank": 8,
-      "owner": "lz4",
-      "name": "lz4",
-      "fullName": "lz4/lz4",
-      "description": "Extremely Fast Compression algorithm",
-      "language": "C",
-      "starsToday": 23,
-      "totalStars": 12500,
-      "htmlUrl": "https://github.com/lz4/lz4",
-      "publicPath": "/github/lz4/lz4",
-      "sloc": {
-        "code": 18165,
-        "generatedAt": "2026-11-06T09:20:27.842Z",
-        "reportId": "66dcf833e435a0de9ec2fdade4055ca0eb5443863a6d24a593d3565929cc5c0a"
-      }
-    },
-    {
-      "rank": 9,
-      "owner": "google",
-      "name": "skills",
-      "fullName": "google/skills",
-      "description": "Agent Skills for Google products and technologies",
-      "language": "Python",
-      "starsToday": 211,
-      "totalStars": 22567,
-      "htmlUrl": "https://github.com/google/skills",
-      "publicPath": "/github/google/skills",
-      "sloc": {
-        "code": 52165,
-        "generatedAt": "2026-11-05T22:20:05.016Z",
-        "reportId": "cb5c1de9bc27e12a42cd2da50073811e782addbdfbb8f87a780c99db448ba0b8"
-      }
-    },
-    {
-      "rank": 10,
-      "owner": "vercel-labs",
-      "name": "agent-browser",
-      "fullName": "vercel-labs/agent-browser",
-      "description": "Browser automation CLI for AI agents",
-      "language": "Rust",
-      "starsToday": 150,
-      "totalStars": 46165,
-      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
-      "publicPath": "/github/vercel-labs/agent-browser",
-      "sloc": {
-        "code": 196487,
-        "generatedAt": "2026-11-05T22:35:15.079Z",
-        "reportId": "800ff8a4da4ca973d720517ee7b0da69bf60086cbb843a75b2b69e3c2c283761"
-      }
-    },
-    {
-      "rank": 11,
-      "owner": "scenario-labs",
-      "name": "skills",
-      "fullName": "scenario-labs/skills",
-      "description": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
-      "language": "Python",
-      "starsToday": 667,
-      "totalStars": 3289,
-      "htmlUrl": "https://github.com/scenario-labs/skills",
-      "publicPath": "/github/scenario-labs/skills",
-      "sloc": {
-        "code": 213601,
-        "generatedAt": "2026-11-06T00:01:39.383Z",
-        "reportId": "0abbed503d6d1f191f5c8e8370f872b8e8f001903d1c986aaa28739258280291"
-      }
-    },
-    {
-      "rank": 12,
-      "owner": "ConardLi",
-      "name": "garden-skills",
-      "fullName": "ConardLi/garden-skills",
-      "description": "ConardLi's open-source Skills collection, featuring web design, knowledge retrieval, image generation, and more.",
+      "rank": 17,
+      "owner": "cloudflare",
+      "name": "security-audit-skill",
+      "fullName": "cloudflare/security-audit-skill",
+      "description": "A coding-agent skill for multi-phase security audits with independently verified, machine-readable findings",
       "language": "JavaScript",
-      "starsToday": 175,
-      "totalStars": 14392,
-      "htmlUrl": "https://github.com/ConardLi/garden-skills",
-      "publicPath": "/github/ConardLi/garden-skills",
+      "starsToday": 2548,
+      "totalStars": 64554,
+      "htmlUrl": "https://github.com/cloudflare/security-audit-skill",
+      "publicPath": "/github/cloudflare/security-audit-skill",
       "sloc": {
-        "code": 55831,
-        "generatedAt": "2026-11-03T03:10:43.568Z",
-        "reportId": "4c5793bb061a2d923ffbb0757c37303a994894bfea0ab9806f3decb0f6c6b65a"
+        "code": 3211,
+        "generatedAt": "2026-11-05T11:29:42.239Z",
+        "reportId": "856bfa8fa0cc86da320478847e3fbd209449b0b28d69eaba9630e44780b2d4c1"
       }
     },
     {
-      "rank": 13,
-      "owner": "microsoft",
-      "name": "VibeVoice",
-      "fullName": "microsoft/VibeVoice",
-      "description": "Open-Source Frontier Voice AI",
-      "language": "Python",
-      "starsToday": 223,
-      "totalStars": 56302,
-      "htmlUrl": "https://github.com/microsoft/VibeVoice",
-      "publicPath": "/github/microsoft/VibeVoice",
+      "rank": 18,
+      "owner": "astral-sh",
+      "name": "ruff",
+      "fullName": "astral-sh/ruff",
+      "description": "An extremely fast Python linter and code formatter, written in Rust.",
+      "language": "Rust",
+      "starsToday": 169,
+      "totalStars": 50772,
+      "htmlUrl": "https://github.com/astral-sh/ruff",
+      "publicPath": "/github/astral-sh/ruff",
       "sloc": {
-        "code": 16029,
-        "generatedAt": "2026-11-06T09:21:07.931Z",
-        "reportId": "e1eb8649a70226128e73704f3264b6fcd900018e3517560dc9d9cf5d383361e2"
-      }
-    },
-    {
-      "rank": 14,
-      "owner": "floci-io",
-      "name": "floci",
-      "fullName": "floci-io/floci",
-      "description": "Light, fluffy, and always free - The AWS Local Emulator alternative",
-      "language": "Java",
-      "starsToday": 779,
-      "totalStars": 30663,
-      "htmlUrl": "https://github.com/floci-io/floci",
-      "publicPath": "/github/floci-io/floci",
-      "sloc": {
-        "code": 665088,
-        "generatedAt": "2026-11-05T21:58:54.395Z",
-        "reportId": "a1be22888c94c700f620ae65fea53d5602db19bfb215266646dd52762d8d7d94"
-      }
-    },
-    {
-      "rank": 15,
-      "owner": "JiaFeiMiao-K-Cat",
-      "name": "DiscImageStudio",
-      "fullName": "JiaFeiMiao-K-Cat/DiscImageStudio",
-      "description": "",
-      "language": "C#",
-      "starsToday": 984,
-      "totalStars": 7543,
-      "htmlUrl": "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio",
-      "publicPath": "/github/JiaFeiMiao-K-Cat/DiscImageStudio",
-      "sloc": {
-        "code": 61374,
-        "generatedAt": "2026-11-05T17:32:43.322Z",
-        "reportId": "e6d1190356000164752e60817b9b62724af6ccd5fc7418e4b64230a9ab3ac8e0"
+        "code": 657294,
+        "generatedAt": "2026-11-07T04:40:56.608Z",
+        "reportId": "cf8dbcd2fcde589889c524ddb4cfc5078c6d655190ffe5b9c2849a1d9dce8cd3"
       }
     }
   ]
