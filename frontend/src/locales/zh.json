@@ -32,7 +32,6 @@
     "ariaSamples": "示例仓库",
     "analyze": "分析",
     "alsoLine": "还可以：在 GitHub 侧栏直接看 SLOC",
-    "sidebarHint": "直接在 GitHub 仓库侧边栏查看 SLOC。",
     "ambiguousRef": "此链接可能同时包含分支和路径。请在分析前明确填写引用。",
     "reportSubtitle": "代码行数 · SLOC 报告",
     "reportSubtitleRef": "代码行数 · SLOC 报告 · {{ref}}",
@@ -40,7 +39,6 @@
     "editReport": "分析其他仓库 / 修改设置"
   },
   "samples": {
-    "label": "示例",
     "try": "试试："
   },
   "runner": {
@@ -88,7 +86,6 @@
   "reportActions": {
     "barAria": "报告操作",
     "copyLink": "复制链接",
-    "export": "导出",
     "exportText": "复制文本报告",
     "exportJson": "复制 JSON",
     "exportPng": "导出 PNG",
@@ -113,10 +110,8 @@
     "ariaLabel": "分享报告操作",
     "title": "分享与嵌入",
     "subtitle": "把徽章放进 README，或分享报告链接。",
-    "copyBadge": "README 徽章",
     "copyEmbed": "嵌入 iframe",
     "copied": "已复制",
-    "copyFailed": "复制失败。请选中链接后手动复制。",
     "copyFailedShort": "复制失败",
     "manualContentAria": "用于手动复制的内容",
     "shareMode": "报告与嵌入的更新方式",
@@ -144,26 +139,10 @@
     "blanks": "空行"
   },
   "insights": {
-    "kicker": "洞察",
     "title": "代码库读数",
-    "scale": "规模",
     "cacheState": "结果",
     "speed": "速度",
-    "speedDetail": "{{version}} 统计 {{lines}} 行",
-    "scaleValues": {
-      "tiny": "极小",
-      "small": "小型",
-      "medium": "中型",
-      "large": "大型",
-      "huge": "超大型"
-    },
-    "scaleDetails": {
-      "tiny": "少于 1k 行代码",
-      "small": "1k-10k 行代码",
-      "medium": "10k-100k 行代码",
-      "large": "100k-500k 行代码",
-      "huge": "500k+ 行代码"
-    }
+    "speedDetail": "{{version}} 统计 {{lines}} 行"
   },
   "trust": {
     "title": "报告可信度详情",
@@ -198,10 +177,8 @@
   },
   "charts": {
     "languageShare": "语言构成",
-    "lines": "行数",
     "other": "其他",
     "noData": "无数据",
-    "totalLinesTooltip": "共 {{count}} 行",
     "fullStats": "完整统计",
     "compactStats": "精简统计",
     "totalCodeTooltip": "共 {{count}} 行代码",
@@ -363,8 +340,6 @@
   },
   "badgeBuilder": {
     "title": "Badge 生成器",
-    "subtitle": "复制实时 README badge",
-    "openPage": "完整徽章页面",
     "type": "Badge 类型",
     "language": "语言",
     "copyMarkdown": "复制 Markdown",
@@ -531,10 +506,7 @@
     "netChange": "这些数字表示仓库规模的净变化，不是 Git diff 的新增和删除行数。"
   },
   "growth": {
-    "reportsLabel": "报告",
-    "navAria": "公开报告页面",
     "footerTagline": "查看公开 GitHub 仓库的代码行数与语言统计。",
-    "launchKit": "发布素材",
     "loading": "正在加载公开报告统计...",
     "error": "数据暂时无法加载，请重试。",
     "empty": "暂无报告。",
@@ -567,16 +539,9 @@
       "stats": "{{reports}} 份报告 / {{repos}} 个仓库 / {{lines}} 行代码"
     },
     "actions": {
-      "analyze": "分析仓库",
-      "stats": "统计面板",
-      "recent": "最新报告",
-      "popular": "热门报告",
-      "largest": "最大仓库",
-      "chrome": "Chrome 插件"
+      "analyze": "分析仓库"
     },
     "stats": {
-      "ariaLabel": "OctoCounts 统计",
-      "kicker": "公开统计",
       "title": "OctoCounts 增长面板",
       "subtitle": "查看公开报告的分析活动，以及已测量的仓库规模。"
     },
@@ -604,27 +569,22 @@
     },
     "sections": {
       "largest": {
-        "title": "最大公开仓库",
-        "subtitle": "按代码行数排名"
+        "title": "最大公开仓库"
       },
       "recent": {
-        "title": "最新公开报告",
-        "subtitle": "可搜索、可分享的最新报告库存"
+        "title": "最新公开报告"
       }
     },
     "pages": {
       "recent": {
-        "kicker": "最新",
         "title": "最新代码库报告",
         "subtitle": "OctoCounts 刚生成的公开仓库 SLOC 报告。"
       },
       "popular": {
-        "kicker": "热门",
         "title": "热门代码库报告",
         "subtitle": "OctoCounts 站内热门报告，了解项目的代码规模与语言构成。"
       },
       "trending": {
-        "kicker": "GitHub 每日趋势",
         "title": "GitHub Trending 仓库",
         "subtitle": "查看热门项目及其代码规模，点击项目可查看对应的已保存 SLOC 报告。",
         "updated": "榜单快照更新于 {{date}}",
@@ -638,7 +598,6 @@
         "methodology": "计数方法"
       },
       "hall": {
-        "kicker": "排行榜",
         "title": "巨型仓库榜",
         "subtitle": "OctoCounts 已测量的最大仓库，按代码行数排名。"
       }
@@ -650,10 +609,7 @@
       "next": "下一页"
     },
     "repoCard": {
-      "mixed": "多语言",
-      "code": "代码",
-      "trendingFallback": "GitHub 热门仓库",
-      "starsToday_other": "今日 +{{count}} 星 · 共 {{total}} 星"
+      "trendingFallback": "GitHub 热门仓库"
     },
     "animation": {
       "title": "看这个仓库成长",

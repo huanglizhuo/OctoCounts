@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "copy-fonts": "cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 public/fonts/jetbrains-mono-400-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2 public/fonts/jetbrains-mono-700-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-800-normal.woff2 public/fonts/jetbrains-mono-800-latin.woff2",
+    "copy-fonts": "cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 public/fonts/jetbrains-mono-400-latin.woff2 && cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2 public/fonts/jetbrains-mono-700-latin.woff2",
     "prebuild": "npm run copy-fonts",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build --manifest && node scripts/prerender-home.mjs && node scripts/build-explore-ssr.mjs",
@@ -18,7 +18,6 @@
     "test:qa": "playwright test"
   },
   "dependencies": {
-    "@fontsource/jetbrains-mono": "^5.3.0",
     "@tanstack/react-query": "^5.105.0",
     "gifenc": "^1.0.3",
     "html-to-image": "^1.11.13",
@@ -31,6 +30,7 @@
     "simple-icons": "^16.36.0"
   },
   "devDependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@playwright/test": "^1.64.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

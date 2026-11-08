@@ -1,5 +1,5 @@
 // gifenc ships no type declarations (plain JS package). This covers only the
-// functions StarHistoryChart actually calls; see
+// functions the growth-animation GIF exporter actually calls; see
 // https://github.com/mattdesl/gifenc for the full API.
 declare module "gifenc" {
   export type RgbColor = [number, number, number];
@@ -25,8 +25,6 @@ declare module "gifenc" {
     ): void;
     finish(): void;
     bytes(): Uint8Array;
-    bytesView(): Uint8Array;
-    reset(): void;
   }
 
   export function GIFEncoder(options?: { initialCapacity?: number; auto?: boolean }): GifEncoderInstance;

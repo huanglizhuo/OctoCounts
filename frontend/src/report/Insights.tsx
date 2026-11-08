@@ -3,16 +3,6 @@ import { useTranslation } from "react-i18next";
 import { formatNumber } from "../reportUtils";
 import type { Report } from "../types";
 
-// Scale thresholds shared by the runner head tag, so the tag and the old
-// readout card can never disagree about where the boundaries are.
-export function projectScale(codeLines: number) {
-  if (codeLines < 1_000) return "tiny";
-  if (codeLines < 10_000) return "small";
-  if (codeLines < 100_000) return "medium";
-  if (codeLines < 500_000) return "large";
-  return "huge";
-}
-
 // Speed/result readouts for the Technical details disclosure. Scale used to
 // be the third card here but moved up to the runner head tag, and the
 // section head went away with the merge — what remains are the two facts
