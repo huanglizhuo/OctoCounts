@@ -20,6 +20,15 @@ export function formatPercent(value, total) {
   return fixed.endsWith('.0') ? `${Math.round(pct)}%` : `${fixed}%`;
 }
 
+export function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function textReport(report) {
   const { owner, name } = report.repository;
   const sha = report.commitSha.slice(0, 12);

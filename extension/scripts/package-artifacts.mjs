@@ -45,7 +45,9 @@ mkdirSync(packageDir, { recursive: true });
 for (const build of builds) {
   const archivePath = resolve(packageDir, build.archive);
   rmSync(archivePath, { force: true });
-  execFileSync('zip', ['-qr', archivePath, '.'], { cwd: build.distDir, stdio: 'inherit' });
+  // `-x src/*`: dist/src/popup/index.html is Vite's intermediate output,
+  // byte-identical to the popup.html the manifest actually points at.
+  execFileSync('zip', ['-qr', archivePath, '.', '-x', 'src/*'], { cwd: build.distDir, stdio: 'inherit' });
   console.log(`Packaged ${build.target}: packages/${build.archive}`);
 }
 

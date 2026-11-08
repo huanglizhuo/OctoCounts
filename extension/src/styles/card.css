@@ -47,7 +47,6 @@
 :host([data-theme="dark"]) {
   --fg: #f0f6fc;
   --fg-dim: #9198a1;
-  --fg-mute: #6e7681;
   --accent: #3fb950;
   --warn: #d29922;
   --err: #f85149;
@@ -59,7 +58,6 @@
 :host([data-theme="light"]) {
   --fg: #1f2328;
   --fg-dim: #636c76;
-  --fg-mute: #9198a1;
   --accent: #1a7f37;
   --warn: #9a6700;
   --err: #d1242f;
@@ -314,12 +312,6 @@ button.oc-lang-row {
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-
-.oc-more-hint {
-  font-size: 12px;
-  color: var(--fg-dim);
 }
 
 /* ── Skeleton loading state ── */

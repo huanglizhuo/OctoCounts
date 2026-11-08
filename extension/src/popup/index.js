@@ -3,6 +3,7 @@ import { getSettings } from '../shared/settings.js';
 import { BUILD_INFO } from '../shared/buildInfo.js';
 import { parseRoute, fingerprintHash } from '../content/github-dom.js';
 import { isLoginSupported, getAuthState } from '../shared/github-auth.js';
+import { errorMessage } from '../shared/errors.js';
 
 const $ = id => document.getElementById(id);
 
@@ -365,20 +366,8 @@ async function loadError() {
   if (!lastError) return;
 
   const section = $('errorSection');
-  const codeMap = {
-    rate_limited: t('error.rateLimited'),
-    github_unavailable: t('error.githubUnavailable'),
-    private_repo: t('error.privateRepo'),
-    forbidden:    t('error.forbidden'),
-    too_large:    t('error.tooLarge'),
-    not_found:    t('error.notFound'),
-    auth_error:   t('error.authError'),
-    offline:      t('error.offline'),
-    timeout:      t('card.error.timedOut'),
-    unknown:      t('error.unknown'),
-  };
 
-  $('errorTitle').textContent   = codeMap[lastError.code] || t('error.unknown');
+  $('errorTitle').textContent   = errorMessage(lastError);
   $('errorRepo').textContent    = `${lastError.owner}/${lastError.repo}`;
   $('errorMessage').textContent = lastError.message || '';
   $('errorCode').textContent    = lastError.code ? `code: ${lastError.code}` : '';
@@ -405,12 +394,6 @@ async function loadError() {
       detailEl.hidden    = !hidden;
       toggleBtn.textContent = hidden ? t('popup.hideDetails') : t('popup.showDetails');
     });
-  }
-
-  const retriesEl = $('errorRetries');
-  if (lastError.retryCount > 0) {
-    retriesEl.textContent = t('popup.retriedN', { count: lastError.retryCount });
-    retriesEl.hidden      = false;
   }
 
   $('errorDismiss').addEventListener('click', async () => {

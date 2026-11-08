@@ -55,7 +55,6 @@
     "title": "Paramètres OctoCounts",
     "groupBehavior": "Comportement",
     "groupAppearance": "Apparence",
-    "groupAdvanced": "Avancé",
     "groupCache": "Cache",
     "groupGithubAccount": "Compte GitHub",
     "githubNotConnected": "Non connecté",
@@ -102,7 +101,6 @@
     "clearCache": "Vider le cache local",
     "clearCacheSuccess": "Supprimées du cache : {{count}}",
     "clearCacheFail": "Échec de la suppression du cache",
-    "retriedN": "Tentatives épuisées : {{count}}",
     "tabStatusRepoOff": "désactivé pour ce dépôt",
     "mountFail": "Page de dépôt détectée, mais OctoCounts n'a pas trouvé d'emplacement fiable pour insérer sa carte — GitHub a peut-être modifié la structure de la page.",
     "mountFailKnown": "Cette structure de page ({{hash}}) a déjà été signalée. Un correctif arrive dans la prochaine mise à jour.",
@@ -122,8 +120,7 @@
     "invalidUrl": "Cette adresse de dépôt n'a pas pu être lue",
     "authError": "Échec de l'autorisation API OctoCounts",
     "offline": "Pas de connexion réseau",
-    "unknown": "Échec de l'analyse",
-    "failedToStart": "Impossible de démarrer l'analyse"
+    "unknown": "Échec de l'analyse"
   },
   "textReport": {
     "language": "Langage",

@@ -55,7 +55,6 @@
     "title": "Configuración de OctoCounts",
     "groupBehavior": "Comportamiento",
     "groupAppearance": "Apariencia",
-    "groupAdvanced": "Avanzado",
     "groupCache": "Caché",
     "groupGithubAccount": "Cuenta de GitHub",
     "githubNotConnected": "No conectado",
@@ -102,7 +101,6 @@
     "clearCache": "Limpiar caché local",
     "clearCacheSuccess": "Eliminados de caché: {{count}}",
     "clearCacheFail": "Error al limpiar el caché",
-    "retriedN": "Reintentos agotados: {{count}}",
     "tabStatusRepoOff": "deshabilitado para este repo",
     "mountFail": "Página de repositorio detectada, pero OctoCounts no encontró un lugar fiable donde insertar su tarjeta: GitHub puede haber cambiado la estructura de la página.",
     "mountFailKnown": "Esta estructura de página ({{hash}}) ya se ha informado. La corrección llegará en la próxima actualización.",
@@ -122,8 +120,7 @@
     "invalidUrl": "No se pudo leer la dirección de este repositorio",
     "authError": "Error de autorización de la API de OctoCounts",
     "offline": "Sin conexión a la red",
-    "unknown": "Error en el análisis",
-    "failedToStart": "No se pudo iniciar el análisis"
+    "unknown": "Error en el análisis"
   },
   "textReport": {
     "language": "Lenguaje",

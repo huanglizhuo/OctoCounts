@@ -53,14 +53,13 @@ function buildInfo(target, version) {
 }
 
 function buildDefines(info) {
+  // `store`, `listingUrl`, `storeConfigured` only reach build-info.json (read
+  // by tests and scripts/package-artifacts.mjs); no runtime code needs them.
   return {
     __OCTO_BUILD_TARGET__: JSON.stringify(info.target),
-    __OCTO_STORE__: JSON.stringify(info.store),
     __OCTO_STORE_NAME__: JSON.stringify(info.storeName),
-    __OCTO_LISTING_URL__: JSON.stringify(info.listingUrl),
     __OCTO_REVIEW_URL__: JSON.stringify(info.reviewUrl),
     __OCTO_EXTENSION_VERSION__: JSON.stringify(info.version),
-    __OCTO_STORE_CONFIGURED__: JSON.stringify(info.storeConfigured),
     __OCTO_RATING_PROMPT_ENABLED__: JSON.stringify(info.ratingPromptEnabled),
   };
 }
@@ -130,7 +129,9 @@ export default defineConfig(({ mode }) => {
             copyFileSync(`icons/icon${size}.png`, join(outDir, `icons/icon${size}.png`));
           }
           const nestedHtml = join(outDir, 'src/popup/index.html');
-          const html = readFileSync(nestedHtml, 'utf8').replace('v__VERSION__', `v${version}`);
+          // The nested HTML is Vite's own output; popup.html is the copy the
+          // manifest points at. The version is set at runtime by popup/index.js.
+          const html = readFileSync(nestedHtml, 'utf8');
           writeFileSync(join(outDir, 'popup.html'), html);
           cpSync('src/manifest-locales', join(outDir, '_locales'), { recursive: true });
         },

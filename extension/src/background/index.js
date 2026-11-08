@@ -1,7 +1,7 @@
 import { analyze, pollJob, fetchReport, connectGithubToken, fetchRepoHistory } from '../shared/api.js';
 import { getCached, setCached, clearAll, countEntries, pruneExpired, getSettings } from './cache.js';
 import { getInflight, setInflight, clearInflight } from './dedup.js';
-import { loginWithGithub, logout, getAuthState, getStoredToken } from '../shared/github-auth.js';
+import { loginWithGithub, logout, getStoredToken } from '../shared/github-auth.js';
 
 chrome.alarms.create('prune-cache', { periodInMinutes: 60 });
 chrome.alarms.onAlarm.addListener(alarm => {
@@ -16,8 +16,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
 async function handleMessage(msg) {
-  const settings = await getSettings();
-
   switch (msg.type) {
     case 'ANALYZE': {
       const { owner, repo, ref, forceRefresh = false } = msg;
@@ -70,7 +68,7 @@ async function handleMessage(msg) {
     }
 
     case 'GET_SETTINGS':
-      return settings;
+      return getSettings();
 
     case 'CLEAR_CACHE': {
       const count = await clearAll();
@@ -86,9 +84,6 @@ async function handleMessage(msg) {
     case 'GITHUB_LOGOUT':
       await logout();
       return { loggedOut: true };
-
-    case 'GET_AUTH_STATE':
-      return getAuthState();
 
     case 'CONNECT_STAR_HISTORY': {
       const { owner, repo } = msg;

@@ -55,7 +55,6 @@
     "title": "OctoCounts 设置",
     "groupBehavior": "行为",
     "groupAppearance": "外观",
-    "groupAdvanced": "高级",
     "groupCache": "缓存",
     "groupGithubAccount": "GitHub 账户",
     "githubNotConnected": "未连接",
@@ -102,7 +101,6 @@
     "clearCache": "清除本地缓存",
     "clearCacheSuccess": "已清除 {{count}} 条缓存",
     "clearCacheFail": "清除缓存失败",
-    "retriedN": "重试 {{count}} 次后放弃",
     "tabStatusRepoOff": "已在此仓库禁用",
     "mountFail": "检测到仓库页面，但 OctoCounts 没能找到可信的插入位置 —— GitHub 可能改了页面结构。",
     "mountFailKnown": "这种页面结构（{{hash}}）已经报告过了，修复会在下个版本发布。",
@@ -122,8 +120,7 @@
     "invalidUrl": "无法解析该仓库地址",
     "authError": "OctoCounts API 授权失败",
     "offline": "无网络连接",
-    "unknown": "分析失败",
-    "failedToStart": "无法启动分析"
+    "unknown": "分析失败"
   },
   "textReport": {
     "language": "语言",

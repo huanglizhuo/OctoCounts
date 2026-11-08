@@ -1,6 +1,6 @@
 import panelCss from '../styles/panel.css?inline';
 import { t } from '../i18n/index.js';
-import { formatNumber, formatCompact, formatPercent, textReport } from '../shared/format.js';
+import { formatNumber, formatCompact, formatPercent, textReport, escapeHtml } from '../shared/format.js';
 import { languageColor } from '../shared/chart.js';
 import { sortRows } from '../shared/sort.js';
 import { BUILD_INFO } from '../shared/buildInfo.js';
@@ -171,15 +171,6 @@ function appendGrowthPrompt(panel, { className, linkClassName, closeClassName, h
   el.appendChild(link);
   el.appendChild(close);
   panel.appendChild(el);
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function bindCopyBtn(btn, data, origLabel) {

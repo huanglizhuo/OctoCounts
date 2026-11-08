@@ -138,15 +138,21 @@ function ensureMounted() {
   if (!plan?.shouldMount) return;
   if (mountState === STATE.MOUNT_FAILED && mountAttempts >= MOUNT_ATTEMPT_HARD_CAP) return;
 
-  if (document.querySelector('[data-octocount-card]')) {
+  let activity = getCardActivity();
+  if (activity.mounted) {
     mountState = STATE.MOUNTED;
     return;
+  }
+
+  // Restored page markup can contain a card whose callbacks were cancelled.
+  if (document.querySelector('[data-octocount-card]')) {
+    unmountCard();
+    activity = getCardActivity();
   }
 
   // Silent mode deliberately shows nothing until the API answers, and a failed
   // analysis deliberately leaves the sidebar untouched. Neither is a mount
   // failure, and re-mounting here would restart the analysis on every mutation.
-  const activity = getCardActivity();
   if (activity.analyzing) {
     mountState = STATE.ANALYZING;
     return;
@@ -285,7 +291,8 @@ function scheduleContextCheck() {
 function observeRouteChanges() {
   if (routeObserver) return;
   routeObserver = new MutationObserver(scheduleContextCheck);
-  routeObserver.observe(document.body, { childList: true, subtree: true });
+  // Turbo replaces body; the observer must survive that replacement.
+  routeObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {

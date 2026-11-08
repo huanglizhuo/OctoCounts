@@ -1,9 +1,8 @@
 import { t } from '../i18n/index.js';
 import { formatNumber } from '../shared/format.js';
 
-// A compact, single-series line+area chart for the panel's star-history
-// section — a simplified vanilla-JS port of the math in
-// frontend/src/RepoHistoryChart.tsx's project()/linePath()/areaPath(), with
+// A compact, single-series line+area chart for the card's star-history
+// section — originally a vanilla-JS port of the web app's chart math, with
 // only one series (stars) and no dual-axis, since the extension only shows
 // star history, not the web app's combined star+SLOC view.
 const WIDTH = 280;
@@ -35,7 +34,7 @@ function areaPath(coords) {
   return `${linePath(coords)} L${last.x.toFixed(1)},${BASELINE_Y} L${first.x.toFixed(1)},${BASELINE_Y} Z`;
 }
 
-// Returns the HTML string to drop into the panel's star-history wrap. Caller
+// Returns the HTML string to drop into the card's star-history wrap. Caller
 // is responsible for checking `points.length >= 2` first — this assumes a
 // drawable series.
 export function buildStarHistoryHTML(points) {

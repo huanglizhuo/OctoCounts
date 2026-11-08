@@ -6,10 +6,10 @@ Versions are defined in one place: `package.json`. The build injects the version
 
 At build time (`npm run build:all`), `vite.config.js` reads the version from `package.json` and:
 - Writes it into `dist/chrome/manifest.json`, `dist/edge/manifest.json`, and `dist/firefox/manifest.json`
-- Replaces the `v__VERSION__` placeholder in the popup footer with the real version
+- Injects it into the popup footer at runtime via `BUILD_INFO.version` (`src/popup/index.js`)
 - Writes target-specific store metadata to each artifact's `build-info.json`
 
-The manifest source files under `manifests/` and `src/popup/index.html` intentionally hold placeholder versions — the build injects the package version.
+The manifest source files under `manifests/` intentionally hold placeholder versions — the build injects the package version.
 
 The Edge build defaults to the released [Microsoft Edge Add-ons listing](https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim). You can override its listing and review destinations for release testing:
 

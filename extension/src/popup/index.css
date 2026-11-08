@@ -44,7 +44,6 @@
 
   --sic-blue-bg: #dbeafe;   --sic-blue-fg: #2563eb;
   --sic-purple-bg: #ede9fe; --sic-purple-fg: #7c3aed;
-  --sic-orange-bg: #ffedd5; --sic-orange-fg: #ea580c;
   --sic-teal-bg: #ccfbf1;   --sic-teal-fg: #0d9488;
 
   --error-bg:     #fff5f0;
@@ -97,7 +96,6 @@
 
     --sic-blue-bg: #0c2044;   --sic-blue-fg: #4493f8;
     --sic-purple-bg: #1e0f3c; --sic-purple-fg: #a78bfa;
-    --sic-orange-bg: #2d1500; --sic-orange-fg: #fb923c;
     --sic-teal-bg: #002d29;   --sic-teal-fg: #2dd4bf;
 
     --error-bg:     #1a0a0a;
@@ -257,7 +255,6 @@ header {
 .s-ic svg { width: 10px; height: 10px; }
 .s-ic--blue   { background: var(--sic-blue-bg);   color: var(--sic-blue-fg); }
 .s-ic--purple { background: var(--sic-purple-bg); color: var(--sic-purple-fg); }
-.s-ic--orange { background: var(--sic-orange-bg); color: var(--sic-orange-fg); }
 .s-ic--teal   { background: var(--sic-teal-bg);   color: var(--sic-teal-fg); }
 
 /* ── Setting rows ── */
@@ -484,7 +481,6 @@ label.row-info { cursor: default; display: block; }
 }
 .link-btn:hover  { text-decoration: underline; }
 .link-btn:active { opacity: 0.7; }
-.error-retries  { margin-top: 4px; font-size: 11px; color: var(--text-4); font-style: italic; }
 
 /* ── Footer ── */
 footer {

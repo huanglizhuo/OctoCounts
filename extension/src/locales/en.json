@@ -55,7 +55,6 @@
     "title": "OctoCounts Settings",
     "groupBehavior": "Behavior",
     "groupAppearance": "Appearance",
-    "groupAdvanced": "Advanced",
     "groupCache": "Cache",
     "groupGithubAccount": "GitHub Account",
     "githubNotConnected": "Not connected",
@@ -102,7 +101,6 @@
     "clearCache": "Clear local cache",
     "clearCacheSuccess": "Cleared {{count}} cached reports",
     "clearCacheFail": "Failed to clear cache",
-    "retriedN": "Retries exhausted: {{count}}",
     "tabStatusRepoOff": "disabled for this repo",
     "mountFail": "Repository page detected, but OctoCounts could not find a trusted place to insert its card — GitHub may have changed its page structure.",
     "mountFailKnown": "This page layout ({{hash}}) has already been reported. A fix ships in the next update.",
@@ -122,8 +120,7 @@
     "invalidUrl": "This repository address could not be read",
     "authError": "OctoCounts API authorization failed",
     "offline": "No network connection",
-    "unknown": "Analysis failed",
-    "failedToStart": "Failed to start analysis"
+    "unknown": "Analysis failed"
   },
   "textReport": {
     "language": "Language",

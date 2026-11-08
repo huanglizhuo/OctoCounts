@@ -1,9 +1,10 @@
 import cardCss from '../styles/card.css?inline';
 import { t } from '../i18n/index.js';
-import { formatNumber, formatCompact, formatPercent } from '../shared/format.js';
+import { formatNumber, formatCompact, formatPercent, escapeHtml } from '../shared/format.js';
 import { buildBarItems, languageColor } from '../shared/chart.js';
 import { mountPanel, unmountPanel } from './panel.js';
 import { getAuthState } from '../shared/github-auth.js';
+import { errorMessage } from '../shared/errors.js';
 import { buildStarHistoryHTML } from './star-chart.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -21,6 +22,7 @@ let _analyzing = false;
 let _pollOperation = 0;
 let _deadlineTimer = null;
 let _generation = 0;
+let _cardHost = null;
 
 // Remove a card host, running any theme-listener cleanup registered on it.
 function teardownCardHost(host) {
@@ -38,6 +40,8 @@ export function unmountCard() {
   // otherwise block the next one from ever getting a card.
   _disabled = false;
   restoreGhLanguagesSection();
+  teardownCardHost(_cardHost);
+  _cardHost = null;
   // querySelectorAll, not querySelector: if a re-render ever leaves a duplicate
   // behind, a single-element teardown could never clean it up again.
   document.querySelectorAll('[data-octocount-card]').forEach(teardownCardHost);
@@ -53,8 +57,7 @@ export function unmountCard() {
 export function mountCard({ mount, owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
   if (!mount?.grid) return false;
 
-  _disabled = false;
-  _generation++;
+  unmountCard();
   const gen = _generation;
 
   return _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
@@ -95,6 +98,7 @@ function _createCardDom(mount, placement) {
   }
 
   const root = shadow.querySelector('.oc-inner');
+  _cardHost = host;
   return { host, root, shadow };
 }
 
@@ -215,7 +219,7 @@ function _insertCompletedCard(mount, { owner, repo, ref, placement, replaceGhLan
 // Why there is legitimately no card on screen right now, so the entry point can
 // tell "still working" apart from "we failed to find a mount point".
 export function getCardActivity() {
-  return { analyzing: _analyzing, errored: _disabled };
+  return { mounted: _cardHost?.isConnected === true, analyzing: _analyzing, errored: _disabled };
 }
 
 function getTheme() {
@@ -381,44 +385,15 @@ function renderCompleted(root, report, cachedAt, ctx, onRefresh) {
   cardHost.setAttribute('aria-label', t('card.openPanel'));
   cardHost.removeAttribute('tabindex');
   if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
-  if (cardHost._ocKeyListener) cardHost.removeEventListener('keydown', cardHost._ocKeyListener);
   const onCardClick = e => {
     const origin = e.composedPath()[0];
     if (origin?.closest?.('button, a, input, select, textarea')) return;
     openPanel();
   };
   cardHost._ocListener = onCardClick;
-  cardHost._ocKeyListener = null;
   cardHost.addEventListener('click', onCardClick);
 
   if (replaceGhLanguages) hideGhLanguagesSection(ctx.languagesSection);
-}
-
-// Maps background error codes to localized, user-readable one-liners.
-// (classifyError returns {code, status, detail} without a message.)
-function errorMessage(error) {
-  const codeMap = {
-    rate_limited: t('error.rateLimited'),
-    github_unavailable: t('error.githubUnavailable'),
-    private_repo: t('error.privateRepo'),
-    forbidden:    t('error.forbidden'),
-    too_large:    t('error.tooLarge'),
-    not_found:    t('error.notFound'),
-    auth_error:   t('error.authError'),
-    offline:      t('error.offline'),
-    timeout:      t('card.error.timedOut'),
-    // Every code in NON_RETRYABLE needs an entry here, because there is no
-    // second line of defence: `classifyError` in `background/index.js` returns
-    // `{ code, status, detail }` and drops the API's `message`, so the
-    // `error?.message` term below is always `undefined`. An unmapped code
-    // therefore renders as "Analysis failed" — and, being non-retryable, with no
-    // retry button either. No explanation and no action. `ref_not_found` also
-    // covers a repository with no commits, which the API reports under this same
-    // code.
-    ref_not_found: t('error.refNotFound'),
-    invalid_url:   t('error.invalidUrl'),
-  };
-  return codeMap[error?.code] || error?.message || t('error.unknown');
 }
 
 // Inline error state: the card stays in place with a retry action instead of
@@ -427,7 +402,6 @@ function renderError(root, error, ctx, onRetry) {
   const { cardTitle = '', shadow } = ctx;
   const code = error?.code || 'unknown';
   const message = errorMessage(error);
-  const retryable = !NON_RETRYABLE.has(code);
 
   const detailLines = [];
   if (error?.status)  detailLines.push(`HTTP status: ${error.status}`);
@@ -446,15 +420,13 @@ function renderError(root, error, ctx, onRetry) {
   cardHost.setAttribute('aria-label', t('card.error.title'));
   cardHost.removeAttribute('tabindex');
   if (cardHost._ocListener) cardHost.removeEventListener('click', cardHost._ocListener);
-  if (cardHost._ocKeyListener) cardHost.removeEventListener('keydown', cardHost._ocKeyListener);
   cardHost._ocListener = null;
-  cardHost._ocKeyListener = null;
 
   root.innerHTML = `<div class="oc-wrap">
     ${header('', cardTitle)}
     <div class="oc-err-text" role="alert">${escapeHtml(t('card.error.title'))}</div>
     <div class="oc-err-msg" title="${escapeHtml(message)}">${escapeHtml(message)}</div>
-    ${retryable ? `<button type="button" class="oc-link-btn oc-err-retry">${t('card.error.tryAgain')}</button>` : ''}
+    <button type="button" class="oc-link-btn oc-err-retry">${t('card.error.tryAgain')}</button>
     <button type="button" class="oc-link-btn oc-err-details" aria-expanded="false" aria-controls="oc-error-detail">${t('card.error.clickDetails')}</button>
     <pre id="oc-error-detail" class="oc-error-detail" hidden>${escapeHtml(detailText)}</pre>
   </div>`;
@@ -608,7 +580,6 @@ async function saveError(error, owner, repo) {
     status: error?.status || null,
     detail: error?.detail || '',
     timestamp: Date.now(),
-    retryCount: _retryCount,
   };
   try {
     await chrome.storage.local.set({ lastError: errorInfo });
@@ -681,13 +652,4 @@ async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onEr
   } catch (err) {
     handleError({ code: 'unknown', message: err.message || t('card.error.title') });
   }
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
