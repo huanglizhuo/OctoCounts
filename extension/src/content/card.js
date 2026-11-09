@@ -9,6 +9,11 @@ import { buildStarHistoryHTML } from './star-chart.js';
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const STAR_SUCCESS_COUNT_KEY = 'starPromptSuccessCount';
+// Job statuses that mean the backend is still working. Anything else a poll
+// answers with is a terminal state this build has no strategy for — polling it
+// would spin the card as "analyzing" until the 5-minute deadline, so it is
+// treated as a failure instead.
+const POLLABLE_JOB_STATUSES = new Set(['queued', 'running', 'pending']);
 
 const SKEL_WIDTHS  = [78, 60, 70, 52, 65, 74, 58, 68];
 const SKEL_DEFAULT = 4;
@@ -637,6 +642,10 @@ async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onEr
       if (operation !== _pollOperation) return;
       if (!poll || poll.error) { handleError(poll?.error || { code: 'unknown', message: t('card.error.title') }); return; }
       if (poll.type === 'PENDING') {
+        if (!POLLABLE_JOB_STATUSES.has(poll.status)) {
+          handleError({ code: 'unknown', message: t('card.error.title') });
+          return;
+        }
         onStatus?.('running');
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
       } else if (poll.type === 'FAILED') {

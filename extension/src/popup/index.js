@@ -143,6 +143,14 @@ async function checkPageStatus() {
       if (status.mountState === 'tree_view' && status.owner && status.repo) {
         showTreeViewBanner(tab, status.owner, status.repo);
       }
+      // The card is there (or silent mode is waiting), but its analysis
+      // failed — an API failure, not a DOM mount failure, so it is not
+      // reportable as a layout break. The repo pill alone reads as healthy;
+      // the detailed error card below comes from `lastError`.
+      if (status.mountState === 'api_error') {
+        $('noticeText').textContent = t('card.error.title');
+        $('noticeSection').hidden = false;
+      }
       // A missing trustworthy mount point or visibility signal both indicate
       // that GitHub changed a page contract the extension depends on.
       if (status.mountState === 'mount_failed' || status.mountState === 'visibility_unknown') {

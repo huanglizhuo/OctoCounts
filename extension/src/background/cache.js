@@ -89,9 +89,23 @@ async function removeEntries(keys) {
   });
 }
 
+// Storage drift, direction (b): an index key whose body no longer exists.
+// Ghost entries never expire on their own and overcount toward MAX_ENTRIES,
+// evicting real bodies to make room for nothing. Mutates `index` in place;
+// callers persist it via their own writeIndex.
+async function dropGhostEntries(index) {
+  const all = await chrome.storage.local.get(null);
+  const ghosts = Object.keys(index).filter(k => !all[k]);
+  for (const k of ghosts) delete index[k];
+}
+
 // LRU cap: keep at most MAX_ENTRIES, evicting the least-recently-cached first.
 // Applies regardless of cacheTtlMs so "never expire" cannot grow unbounded.
 async function enforceCap(index) {
+  if (Object.keys(index).length <= MAX_ENTRIES) return writeIndex(index);
+  // Over cap: drop ghost entries first so eviction slots are not wasted on
+  // bodies that no longer exist, then evict the oldest real ones.
+  await dropGhostEntries(index);
   const entries = Object.entries(index);
   if (entries.length <= MAX_ENTRIES) return writeIndex(index);
   const toRemove = entries
@@ -113,6 +127,16 @@ export async function getCached(owner, repo, ref = 'HEAD') {
     await removeEntries([key]);
     return null;
   }
+  // Storage drift, direction (a): the body exists but the index lost the key.
+  // Upsert it so the entry becomes visible and evictable (countEntries,
+  // pruneExpired, enforceCap) instead of being served forever while living
+  // outside all of them.
+  await enqueueIndexWrite(async () => {
+    const index = await getIndex();
+    if (index[key] === entry.cachedAt) return;
+    index[key] = entry.cachedAt;
+    await writeIndex(index);
+  });
   return entry;
 }
 
@@ -165,8 +189,13 @@ export async function pruneExpired() {
     await removeEntries(stale);
   }
   // Even with caching disabled (cacheTtlMs === 0) the LRU cap still applies.
+  // This is also the periodic reconciliation pass: TTL expiry above only
+  // removes entries the index knows are stale, so index keys whose bodies
+  // disappeared (storage drift) are swept here — hourly, where a full scan is
+  // acceptable. getCached heals the opposite direction on read.
   await enqueueIndexWrite(async () => {
     const current = await getIndex();
+    await dropGhostEntries(current);
     await enforceCap(current);
   });
 }

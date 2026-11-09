@@ -39,11 +39,12 @@ async function harness(settings = {}) {
   window.self = window.top = window;
   const requests = [];
   const timers = new Map();
+  const messageListeners = [];
   let clock = 0;
   let nextTimer = 0;
   const chrome = {
     runtime: {
-      onMessage: { addListener() {} },
+      onMessage: { addListener(fn) { messageListeners.push(fn); } },
       sendMessage(message) {
         if (message.type === 'GET_SETTINGS') return Promise.resolve({ showStarHistory: false, ...settings });
         return new Promise(resolve => requests.push({ ...message, resolve }));
@@ -78,6 +79,13 @@ async function harness(settings = {}) {
     card: () => document.querySelector('[data-octocount-card]'),
     turbo: () => document.dispatchEvent(new Event('turbo:render')),
     replaceBody() { document.body.replaceWith(parseHTML(fixture).document.body); },
+    pageStatus() {
+      let response = null;
+      for (const listener of messageListeners) {
+        listener({ type: 'GET_PAGE_STATUS' }, {}, r => { response = r; });
+      }
+      return response;
+    },
   };
 }
 
@@ -156,6 +164,42 @@ test('silent mode waits for success before mounting', async () => {
   await h.tick();
   assert.equal(h.requests.length, 1);
   h.requests[0].resolve({ type: 'CACHED', report });
+  await h.tick();
+  assert.equal(h.card().getAttribute('data-state'), 'completed');
+});
+
+test('a mounted card in its error state reports api_error, not mounted', async () => {
+  const h = await harness();
+  h.requests[0].resolve({ error: { code: 'rate_limited', message: 'rate limited' } });
+  await h.tick();
+  assert.equal(h.card().getAttribute('data-state'), 'error');
+  h.turbo();
+  await h.tick();
+  assert.equal(h.pageStatus().mountState, 'api_error');
+  assert.equal(h.requests.length, 1, 'an errored card must not restart analysis on DOM activity');
+});
+
+test('an unrecognized job status is terminal, not an endless analyzing spinner', async () => {
+  const h = await harness();
+  h.requests[0].resolve({ type: 'JOB', jobId: 'job-1' });
+  await h.tick(1500);
+  assert.equal(h.requests.at(-1).type, 'POLL');
+  h.requests.at(-1).resolve({ type: 'PENDING', status: 'cancelled' });
+  await h.tick(5000);
+  assert.equal(h.card().getAttribute('data-state'), 'error');
+  assert.equal(h.requests.filter(r => r.type === 'POLL').length, 1,
+    'a status outside queued/running/pending must not be polled again');
+});
+
+test('a running job keeps polling to completion', async () => {
+  const h = await harness();
+  h.requests[0].resolve({ type: 'JOB', jobId: 'job-1' });
+  await h.tick(1500);
+  assert.equal(h.requests.at(-1).type, 'POLL');
+  h.requests.at(-1).resolve({ type: 'PENDING', status: 'running' });
+  await h.tick(3000);
+  assert.equal(h.requests.filter(r => r.type === 'POLL').length, 2, 'running must keep polling');
+  h.requests.at(-1).resolve({ type: 'COMPLETED', report });
   await h.tick();
   assert.equal(h.card().getAttribute('data-state'), 'completed');
 });

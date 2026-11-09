@@ -26,6 +26,13 @@ async function handleMessage(msg) {
 
         const inflight = await getInflight(owner, repo, ref);
         if (inflight) return { type: 'JOB', jobId: inflight.jobId };
+      } else {
+        // A forced refresh supersedes whatever job is in flight for this key.
+        // Clear the stale entry before starting the new analysis (the fresh
+        // one is only set once the backend answers), so a concurrent analysis
+        // cannot dedup onto the orphaned job id and later clear the new entry
+        // out from under it.
+        await clearInflight(owner, repo, ref);
       }
 
       const result = await analyze(owner, repo, ref, forceRefresh);

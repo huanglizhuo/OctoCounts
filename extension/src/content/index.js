@@ -139,6 +139,13 @@ function ensureMounted() {
   if (mountState === STATE.MOUNT_FAILED && mountAttempts >= MOUNT_ATTEMPT_HARD_CAP) return;
 
   let activity = getCardActivity();
+  // Errored beats mounted: a card showing its error surface still has a
+  // connected host, so it would read as "mounted", but the popup must see the
+  // failure. (card.js never sets errored and analyzing at the same time.)
+  if (activity.errored) {
+    mountState = STATE.API_ERROR;
+    return;
+  }
   if (activity.mounted) {
     mountState = STATE.MOUNTED;
     return;
@@ -155,10 +162,6 @@ function ensureMounted() {
   // failure, and re-mounting here would restart the analysis on every mutation.
   if (activity.analyzing) {
     mountState = STATE.ANALYZING;
-    return;
-  }
-  if (activity.errored) {
-    mountState = STATE.API_ERROR;
     return;
   }
 
