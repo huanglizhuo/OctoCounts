@@ -1,313 +1,160 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-07T08:44:06.500Z",
-  "date": "2026-11-07",
+  "generatedAt": "2026-11-09T09:44:09.372Z",
+  "date": "2026-11-09",
   "repositories": [
     {
       "rank": 1,
-      "owner": "zed-industries",
-      "name": "zed",
-      "fullName": "zed-industries/zed",
-      "description": "Code at the speed of thought – Zed is a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.",
-      "language": "Rust",
-      "starsToday": 306,
-      "totalStars": 93917,
-      "htmlUrl": "https://github.com/zed-industries/zed",
-      "publicPath": "/github/zed-industries/zed",
+      "owner": "sherlock-project",
+      "name": "sherlock",
+      "fullName": "sherlock-project/sherlock",
+      "description": "Hunt down social media accounts by username across social networks",
+      "language": "Python",
+      "starsToday": 2373,
+      "totalStars": 105478,
+      "htmlUrl": "https://github.com/sherlock-project/sherlock",
+      "publicPath": "/github/sherlock-project/sherlock",
       "sloc": {
-        "code": 1551290,
-        "generatedAt": "2026-11-06T21:41:07.415Z",
-        "reportId": "e0f451ecfa1c8066566bb6716775bd93858c869369a36dc5b7dfcf089b3e21e1"
+        "code": 4953,
+        "generatedAt": "2026-11-09T09:43:50.492Z",
+        "reportId": "33928c2b3385188080f0ac7b7c05b8c142674815cf87fd217a4dad06eb08de0f"
       }
     },
     {
       "rank": 2,
-      "owner": "NVIDIA",
-      "name": "auto-ontology",
-      "fullName": "NVIDIA/auto-ontology",
-      "description": "Auto Ontology is a Python framework for building semantic, graph-based reasoning layers over data. It enables deterministic query generation, better context retrieval, and more explainable AI for LLM and agent workflows.",
-      "language": "Python",
-      "starsToday": 2015,
-      "totalStars": 9456,
-      "htmlUrl": "https://github.com/NVIDIA/auto-ontology",
-      "publicPath": "/github/NVIDIA/auto-ontology",
+      "owner": "dsx-ai-factory",
+      "name": "nvke",
+      "fullName": "dsx-ai-factory/nvke",
+      "description": "NVIDIA Kubernetes Engine (NVKE). A management plane for GPU Kubernetes on bare metal.",
+      "language": "Go",
+      "starsToday": 345,
+      "totalStars": 978,
+      "htmlUrl": "https://github.com/dsx-ai-factory/nvke",
+      "publicPath": "/github/dsx-ai-factory/nvke",
       "sloc": {
-        "code": 125876,
-        "generatedAt": "2026-11-06T18:28:42.683Z",
-        "reportId": "556eb12229a66211194c28a357d3176f48fdec61dc93b32d3d6793506e90d2a3"
+        "code": 417010,
+        "generatedAt": "2026-11-09T09:43:52.193Z",
+        "reportId": "740d82bdc5335c9cee5d5a3edbd388342131d6570fccf773a0929f4d688f9d2d"
       }
     },
     {
       "rank": 3,
-      "owner": "rails",
-      "name": "rails",
-      "fullName": "rails/rails",
-      "description": "Ruby on Rails",
-      "language": "Ruby",
-      "starsToday": 142,
-      "totalStars": 59065,
-      "htmlUrl": "https://github.com/rails/rails",
-      "publicPath": "/github/rails/rails",
+      "owner": "milind-soni",
+      "name": "OpenMausBot",
+      "fullName": "milind-soni/OpenMausBot",
+      "description": "Open-source Grok Bot alternative with a virtual machine that bots can use",
+      "language": "TypeScript",
+      "starsToday": 1439,
+      "totalStars": 19028,
+      "htmlUrl": "https://github.com/milind-soni/OpenMausBot",
+      "publicPath": "/github/milind-soni/OpenMausBot",
       "sloc": {
-        "code": 143576,
-        "generatedAt": "2026-11-06T23:55:50.602Z",
-        "reportId": "ff062ecc6661289a596a8f07d3538d59ae55ede690b66f20efa65fc24d18698c"
+        "code": 1175525,
+        "generatedAt": "2026-11-09T05:00:47.135Z",
+        "reportId": "4079a50c6a04ed0d83643a7a667b86461f0b4d529cbdd000d9a020b2ed004991"
       }
     },
     {
       "rank": 4,
-      "owner": "mpv-player",
-      "name": "mpv",
-      "fullName": "mpv-player/mpv",
-      "description": "🎥 Command line media player",
-      "language": "C",
-      "starsToday": 37,
-      "totalStars": 37948,
-      "htmlUrl": "https://github.com/mpv-player/mpv",
-      "publicPath": "/github/mpv-player/mpv",
+      "owner": "anthropics",
+      "name": "claude-quickstarts",
+      "fullName": "anthropics/claude-quickstarts",
+      "description": "A collection of projects designed to help developers quickly get started with building deployable applications using the Claude API",
+      "language": "Python",
+      "starsToday": 32,
+      "totalStars": 19672,
+      "htmlUrl": "https://github.com/anthropics/claude-quickstarts",
+      "publicPath": "/github/anthropics/claude-quickstarts",
       "sloc": {
-        "code": 211290,
-        "generatedAt": "2026-11-07T06:50:40.304Z",
-        "reportId": "1250cd3bb4f29398237d36335f755351f82c6372d2c45ede2440fd380b0007c7"
+        "code": 96129,
+        "generatedAt": "2026-11-09T09:43:55.371Z",
+        "reportId": "d8cd77392d27bbc9ade7cd0c106b43acfda9d214ef03d504c3b8ba06bda57fdc"
       }
     },
     {
       "rank": 5,
-      "owner": "rust-lang",
-      "name": "rust",
-      "fullName": "rust-lang/rust",
-      "description": "Empowering everyone to build reliable and efficient software.",
+      "owner": "vercel-labs",
+      "name": "agent-browser",
+      "fullName": "vercel-labs/agent-browser",
+      "description": "Browser automation CLI for AI agents",
       "language": "Rust",
-      "starsToday": 192,
-      "totalStars": 121549,
-      "htmlUrl": "https://github.com/rust-lang/rust",
-      "publicPath": "/github/rust-lang/rust",
+      "starsToday": 815,
+      "totalStars": 48026,
+      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
+      "publicPath": "/github/vercel-labs/agent-browser",
       "sloc": {
-        "code": 2750623,
-        "generatedAt": "2026-11-07T06:55:19.691Z",
-        "reportId": "06fe989f238471764231db5ea8c6c60404f61e7a791168bc8cdfbf52a6dff5b3"
+        "code": 198146,
+        "generatedAt": "2026-11-08T02:54:26.439Z",
+        "reportId": "bd9ad3f8941be7470898a33bb20e227af1f84c91f38124e197b7fe0580dacbf1"
       }
     },
     {
       "rank": 6,
-      "owner": "react",
-      "name": "react",
-      "fullName": "react/react",
-      "description": "The library for web and native user interfaces.",
-      "language": "JavaScript",
-      "starsToday": 248,
-      "totalStars": 252323,
-      "htmlUrl": "https://github.com/react/react",
-      "publicPath": "/github/react/react",
+      "owner": "meta",
+      "name": "astryx",
+      "fullName": "meta/astryx",
+      "description": "An open source design system that's fully customizable and agent ready",
+      "language": "TypeScript",
+      "starsToday": 875,
+      "totalStars": 18031,
+      "htmlUrl": "https://github.com/meta/astryx",
+      "publicPath": "/github/meta/astryx",
       "sloc": {
-        "code": 366426,
-        "generatedAt": "2026-11-06T20:15:19.267Z",
-        "reportId": "5d150a1d016a3d9bbd2b5ed836956e83df38586532c89c654d9978bab71dc7f7"
+        "code": 1427465,
+        "generatedAt": "2026-11-09T09:44:15.290Z",
+        "reportId": "d12d1652e6f1f5cf27ce9e554601d3801445adb1bf4c0befe33c9dcc6448cd0b"
       }
     },
     {
       "rank": 7,
-      "owner": "angular",
-      "name": "angular",
-      "fullName": "angular/angular",
-      "description": "Deliver web apps with confidence 🚀",
-      "language": "TypeScript",
-      "starsToday": 135,
-      "totalStars": 101444,
-      "htmlUrl": "https://github.com/angular/angular",
-      "publicPath": "/github/angular/angular",
+      "owner": "anthropics",
+      "name": "skills",
+      "fullName": "anthropics/skills",
+      "description": "Public repository for Agent Skills",
+      "language": "Python",
+      "starsToday": 792,
+      "totalStars": 190031,
+      "htmlUrl": "https://github.com/anthropics/skills",
+      "publicPath": "/github/anthropics/skills",
       "sloc": {
-        "code": 737807,
-        "generatedAt": "2026-11-06T20:25:43.680Z",
-        "reportId": "7c04942ad7b5cdf9ed8e2e698e165677144b10654435ad115cf9906116b7443d"
+        "code": 16653,
+        "generatedAt": "2026-11-06T22:41:38.456Z",
+        "reportId": "5cb78fd9e63b04ea635959c22a34b0874ef96a86f5e50d616e7a28f88a16de90"
       }
     },
     {
       "rank": 8,
-      "owner": "symfony",
-      "name": "symfony",
-      "fullName": "symfony/symfony",
-      "description": "The Symfony PHP framework",
-      "language": "PHP",
-      "starsToday": 128,
-      "totalStars": 31497,
-      "htmlUrl": "https://github.com/symfony/symfony",
-      "publicPath": "/github/symfony/symfony",
+      "owner": "google-deepmind",
+      "name": "mujoco",
+      "fullName": "google-deepmind/mujoco",
+      "description": "Multi-Joint dynamics with Contact. A general purpose physics simulator.",
+      "language": "C++",
+      "starsToday": 41,
+      "totalStars": 16662,
+      "htmlUrl": "https://github.com/google-deepmind/mujoco",
+      "publicPath": "/github/google-deepmind/mujoco",
       "sloc": {
-        "code": 947470,
-        "generatedAt": "2026-11-07T08:39:50.870Z",
-        "reportId": "5fb1c681c86fb68485f0f9d42b21b26ddf91c57d6215e40d1385dd5e485baeca"
+        "code": 419663,
+        "generatedAt": "2026-11-09T09:44:15.290Z",
+        "reportId": "934358b2b9ce9cdace8f25b20dfdc9d958e0f387a84a8fc076c3cc931b95b3bd"
       }
     },
     {
       "rank": 9,
-      "owner": "prometheus",
-      "name": "prometheus",
-      "fullName": "prometheus/prometheus",
-      "description": "The Prometheus monitoring system and time series database.",
-      "language": "Go",
-      "starsToday": 148,
-      "totalStars": 67261,
-      "htmlUrl": "https://github.com/prometheus/prometheus",
-      "publicPath": "/github/prometheus/prometheus",
-      "sloc": {
-        "code": 473624,
-        "generatedAt": "2026-11-06T19:11:57.026Z",
-        "reportId": "a7ccb859d09de4bd295980c20dd1e5801e2ff9b9355ca1eaf9391571e00655a7"
-      }
-    },
-    {
-      "rank": 10,
-      "owner": "google",
-      "name": "skills",
-      "fullName": "google/skills",
-      "description": "Agent Skills for Google products and technologies",
-      "language": "Python",
-      "starsToday": 534,
-      "totalStars": 22988,
-      "htmlUrl": "https://github.com/google/skills",
-      "publicPath": "/github/google/skills",
-      "sloc": {
-        "code": 53455,
-        "generatedAt": "2026-11-06T22:31:54.915Z",
-        "reportId": "06de99ed4f4b054d8d0ca3e6e9ffcd28b9f5e87b3bd19cc87b21d4c717941457"
-      }
-    },
-    {
-      "rank": 11,
-      "owner": "microsoft",
-      "name": "vscode",
-      "fullName": "microsoft/vscode",
-      "description": "Visual Studio Code",
+      "owner": "ranxianglei",
+      "name": "billion-context",
+      "fullName": "ranxianglei/billion-context",
+      "description": "A context-compression plugin for month-long single sessions (billions of tokens) ,small context windows (a 100K context is enough) and token savings (5x fewer tokens) .上下文压缩插件，月级长会话会话， 兼顾小窗口(100k上下文足矣)省token(省5倍token) . billion-context is all you need",
       "language": "TypeScript",
-      "starsToday": 301,
-      "totalStars": 195098,
-      "htmlUrl": "https://github.com/microsoft/vscode",
-      "publicPath": "/github/microsoft/vscode",
+      "starsToday": 460,
+      "totalStars": 5521,
+      "htmlUrl": "https://github.com/ranxianglei/billion-context",
+      "publicPath": "/github/ranxianglei/billion-context",
       "sloc": {
-        "code": 2702658,
-        "generatedAt": "2026-11-07T07:48:37.548Z",
-        "reportId": "264eabb7982836bb1cb63ed87e84300bc74b2d9ba7803f89bdb6cace185615e5"
-      }
-    },
-    {
-      "rank": 12,
-      "owner": "lz4",
-      "name": "lz4",
-      "fullName": "lz4/lz4",
-      "description": "Extremely Fast Compression algorithm",
-      "language": "C",
-      "starsToday": 315,
-      "totalStars": 12664,
-      "htmlUrl": "https://github.com/lz4/lz4",
-      "publicPath": "/github/lz4/lz4",
-      "sloc": {
-        "code": 18173,
-        "generatedAt": "2026-11-07T00:31:15.534Z",
-        "reportId": "1acf035347324446fbc66927e85c95c549e01b56343b06d35cecf277d1388669"
-      }
-    },
-    {
-      "rank": 13,
-      "owner": "nushell",
-      "name": "nushell",
-      "fullName": "nushell/nushell",
-      "description": "A new type of shell",
-      "language": "Rust",
-      "starsToday": 131,
-      "totalStars": 41037,
-      "htmlUrl": "https://github.com/nushell/nushell",
-      "publicPath": "/github/nushell/nushell",
-      "sloc": {
-        "code": 339020,
-        "generatedAt": "2026-11-06T12:59:37.768Z",
-        "reportId": "c3df802dd7c09ea7c61cf5ee7d6fe4f998c871e477e3dee9526d6fa3508e53e4"
-      }
-    },
-    {
-      "rank": 14,
-      "owner": "etcd-io",
-      "name": "etcd",
-      "fullName": "etcd-io/etcd",
-      "description": "Distributed reliable key-value store for the most critical data of a distributed system",
-      "language": "Go",
-      "starsToday": 128,
-      "totalStars": 52658,
-      "htmlUrl": "https://github.com/etcd-io/etcd",
-      "publicPath": "/github/etcd-io/etcd",
-      "sloc": {
-        "code": 127779,
-        "generatedAt": "2026-11-06T13:23:56.057Z",
-        "reportId": "4debfa0a1dee4f9beb53a8c6b615c3add090a7a52253ce7c2d49c8e61f528791"
-      }
-    },
-    {
-      "rank": 15,
-      "owner": "openssl",
-      "name": "openssl",
-      "fullName": "openssl/openssl",
-      "description": "General purpose TLS and crypto library",
-      "language": "C",
-      "starsToday": 26,
-      "totalStars": 31348,
-      "htmlUrl": "https://github.com/openssl/openssl",
-      "publicPath": "/github/openssl/openssl",
-      "sloc": {
-        "code": 788910,
-        "generatedAt": "2026-11-06T21:51:19.035Z",
-        "reportId": "80bc73b73aa9df1d2fc8b96023b354db529cefb54d240aae793aa107cb811f0c"
-      }
-    },
-    {
-      "rank": 16,
-      "owner": "mattpocock",
-      "name": "skills",
-      "fullName": "mattpocock/skills",
-      "description": "Skills for Real Engineers. Straight from my .agents directory.",
-      "language": "Shell",
-      "starsToday": 2070,
-      "totalStars": 317025,
-      "htmlUrl": "https://github.com/mattpocock/skills",
-      "publicPath": "/github/mattpocock/skills",
-      "sloc": {
-        "code": 1884,
-        "generatedAt": "2026-10-31T14:32:54.816Z",
-        "reportId": "1687356ed5e70e3f9a94c441070d608e26f3f6ecb8a3a7e0f6789bc25fc26c87"
-      }
-    },
-    {
-      "rank": 17,
-      "owner": "cloudflare",
-      "name": "security-audit-skill",
-      "fullName": "cloudflare/security-audit-skill",
-      "description": "A coding-agent skill for multi-phase security audits with independently verified, machine-readable findings",
-      "language": "JavaScript",
-      "starsToday": 2548,
-      "totalStars": 64554,
-      "htmlUrl": "https://github.com/cloudflare/security-audit-skill",
-      "publicPath": "/github/cloudflare/security-audit-skill",
-      "sloc": {
-        "code": 3211,
-        "generatedAt": "2026-11-05T11:29:42.239Z",
-        "reportId": "856bfa8fa0cc86da320478847e3fbd209449b0b28d69eaba9630e44780b2d4c1"
-      }
-    },
-    {
-      "rank": 18,
-      "owner": "astral-sh",
-      "name": "ruff",
-      "fullName": "astral-sh/ruff",
-      "description": "An extremely fast Python linter and code formatter, written in Rust.",
-      "language": "Rust",
-      "starsToday": 169,
-      "totalStars": 50772,
-      "htmlUrl": "https://github.com/astral-sh/ruff",
-      "publicPath": "/github/astral-sh/ruff",
-      "sloc": {
-        "code": 657294,
-        "generatedAt": "2026-11-07T04:40:56.608Z",
-        "reportId": "cf8dbcd2fcde589889c524ddb4cfc5078c6d655190ffe5b9c2849a1d9dce8cd3"
+        "code": 164153,
+        "generatedAt": "2026-11-09T07:44:37.821Z",
+        "reportId": "66830744d753cdaa0b730d47c43a9a7520bac7b6b2b0e4116880ff16754d8c95"
       }
     }
   ]

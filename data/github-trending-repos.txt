@@ -1,19 +1,10 @@
-# GitHub Trending daily snapshot generated 2026-11-07T08:44:06.500Z
-zed-industries/zed
-NVIDIA/auto-ontology
-rails/rails
-mpv-player/mpv
-rust-lang/rust
-react/react
-angular/angular
-symfony/symfony
-prometheus/prometheus
-google/skills
-microsoft/vscode
-lz4/lz4
-nushell/nushell
-etcd-io/etcd
-openssl/openssl
-mattpocock/skills
-cloudflare/security-audit-skill
-astral-sh/ruff
+# GitHub Trending daily snapshot generated 2026-11-09T09:44:09.372Z
+sherlock-project/sherlock
+dsx-ai-factory/nvke
+milind-soni/OpenMausBot
+anthropics/claude-quickstarts
+vercel-labs/agent-browser
+meta/astryx
+anthropics/skills
+google-deepmind/mujoco
+ranxianglei/billion-context
