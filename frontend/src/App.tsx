@@ -327,6 +327,7 @@ export function App() {
     error,
     errorCode,
     isSubmitting,
+    isFetchingReport,
     lastCommand,
     status,
     setLastCommand,
@@ -355,8 +356,11 @@ export function App() {
     }
   }, [report]);
   // A run occupies the button from submit through queued/running until the
-  // report (or failure) lands — not just the initial POST.
-  const runActive = isSubmitting || status === "queued" || status === "running";
+  // report (or failure) lands — not just the initial POST. That includes the
+  // report download after the job poll says "completed": isFetchingReport
+  // keeps the run active so the button cannot restart it mid-fetch. The
+  // terminal failure states (failed, timedOut) release it.
+  const runActive = isSubmitting || isFetchingReport || status === "queued" || status === "running";
 
   // Shown only while GitHub self-reports a disruption, so users hitting a
   // failed analysis see the cause before they submit, not after.

@@ -9,7 +9,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build --manifest && node scripts/prerender-home.mjs && node scripts/build-explore-ssr.mjs",
     "test:seo": "npm run build && node --test tests/seo*.test.mjs",
-    "test:unit": "node --test tests/github-status.test.mjs tests/analytics.test.mjs tests/growth-*.test.mjs tests/deployment.test.mjs",
+    "test:unit": "node --test tests/github-status.test.mjs tests/analytics.test.mjs tests/growth-*.test.mjs tests/deployment.test.mjs tests/runner-status.test.mjs tests/api-decode.test.mjs",
     "test:facts": "node ../scripts/check-product-facts.mjs",
     "test:csp": "node scripts/check-csp-hash.mjs",
     "test": "npm run test:csp && npm run test:unit && npm run test:facts && npm run test:seo && npm run test:budget",

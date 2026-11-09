@@ -70,7 +70,8 @@
       "running": "running",
       "completed": "completed",
       "cached": "cached",
-      "failed": "failed"
+      "failed": "failed",
+      "timedOut": "timed out"
     },
     "log": {
       "idle": "idle: command runner ready",
@@ -83,7 +84,8 @@
       "languageRows_one": "{{count}} language row rendered",
       "languageRows_other": "{{count}} language rows rendered",
       "counted": "counted {{lines}} lines in {{duration}}ms",
-      "runningWaiting": "running: the analysis worker is processing this repository ({{elapsed}}s)"
+      "runningWaiting": "running: the analysis worker is processing this repository ({{elapsed}}s)",
+      "fetchingReport": "completed: fetching the report…"
     },
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "cache hit",
@@ -340,6 +342,7 @@
     "not_found": "Confirm that the repository exists and is public. Private repositories are intentionally out of scope.",
     "github_request_failed": "GitHub did not return a usable archive or repository response. Retry after a short wait.",
     "analysis_failed": "The archive downloaded, but the counting step failed. Retry once; if it repeats, the repository may hit an analyzer edge case.",
+    "timed_out": "The run passed the 5-minute deadline. The job may still finish server-side; retrying soon after usually returns the finished report from cache.",
     "default": "Retry the analysis, or check the repository URL and ref."
   },
   "githubStatus": {
@@ -466,6 +469,8 @@
     "defaultRef": "default",
     "analysisFailed": "Analysis failed. Wait a few minutes and try again.",
     "analysisTimedOut": "The comparison is taking too long. Wait a few minutes and try again.",
+    "missingReport": "The analysis job reported status {{status}} but has no report to fetch.",
+    "unexpectedJobStatus": "The analysis job returned an unexpected status: {{status}}.",
     "swapAria": "Swap repositories",
     "noSharedLanguages": "The two reports share no languages, so there is no per-language delta to show.",
     "snapshotUnavailable": "One or both saved results are unavailable. Run the comparison to create new reports.",

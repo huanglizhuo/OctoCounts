@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Download, Loader2, Pause, Play, RotateCcw, X } from "lucide-react";
 import { fetchCanonicalReport, fetchRepoHistory } from "../api";
 import { AnalyticsEvents, trackEvent } from "../analytics";
+import { ExploreDataError } from "../growth/ExploreLoading";
 import { downloadDataUrl, formatNumber, languageColor, normalizedProvider, visibleLanguageColor } from "../reportUtils";
 import { useScheme } from "../scheme";
 import type { Report } from "../types";
@@ -327,7 +328,11 @@ export function GrowthSection({
       </div>
       {historyQuery.isLoading ? (
         <GrowthSkeleton label={t("growth.animation.loadingHistory")} />
-      ) : historyQuery.isError ? (
+      ) : historyQuery.isError && !scene ? (
+        // Only a failure with nothing to show for it replaces the section; a
+        // failed refresh that still leaves a buildable scene falls through to
+        // the scene plus the inline notice below (the explore pages'
+        // stale-data convention — same TanStack flags, same decode).
         <div className="growth-empty">
           <p>{t("growth.animation.unavailable")}</p>
           <button className="copybtn" type="button" onClick={() => void historyQuery.refetch()}>
@@ -350,6 +355,12 @@ export function GrowthSection({
         )
       ) : (
         <>
+          {historyQuery.isError ? (
+            // The refresh failed but the previously fetched history still
+            // stands: keep playing the stale scene and say so inline rather
+            // than blanking the section over data we still have.
+            <ExploreDataError stale={!!historyQuery.data} onRetry={() => void historyQuery.refetch()} />
+          ) : null}
           {history.slocBackfillInProgress ? (
             <p className="growth-note growth-gathering">
               <Loader2 className="spin" size={13} /> {t("growth.animation.gatheringHistory")}

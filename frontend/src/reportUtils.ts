@@ -1,6 +1,27 @@
 import i18n from "./i18n";
-import type { AppStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
+import type { AppStatus, JobStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
 export { visibleLanguageColor } from "./colorContrast";
+
+// The runner status ladder, decoded purely so useAnalysisRunner, the log, the
+// progress bar and the app chrome all read one state machine. The 5-minute
+// deadline stamps its error with the "timed_out" code (see the deadline timer
+// in useAnalysisRunner), which is what distinguishes it from a generic
+// failure: same terminal shape, different — and honest — label.
+export function runnerStatus({
+  error,
+  report,
+  jobStatus,
+  pending,
+}: {
+  error: { code?: string } | null;
+  report: Report | null;
+  jobStatus?: JobStatus;
+  pending: boolean;
+}): AppStatus {
+  if (error) return error.code === "timed_out" ? "timedOut" : "failed";
+  if (report) return report.cached ? "cached" : "completed";
+  return jobStatus ?? (pending ? "queued" : "idle");
+}
 
 export function tickerRows(report: Report): TickerRow[] {
   const rows = report.languages.filter((language) => language.stats.code > 0).slice(0, 6);
@@ -15,6 +36,7 @@ export function tickerRows(report: Report): TickerRow[] {
 
 export function logLines(status: AppStatus, report: Report | null, error: string | null, elapsedSec = 0) {
   if (status === "failed") return [{ ts: "00:00", kind: "err", text: error ?? i18n.t("runner.status.failed") }];
+  if (status === "timedOut") return [{ ts: "00:00", kind: "err", text: error ?? i18n.t("runner.status.timedOut") }];
   if (status === "idle") return [{ ts: "00:00", kind: "", text: i18n.t("runner.log.idle") }];
   if (status === "queued") {
     const lines = [{ ts: logTs(elapsedSec), kind: "warn", text: i18n.t("runner.log.queuedWaiting", { elapsed: elapsedSec }) }];
@@ -26,6 +48,10 @@ export function logLines(status: AppStatus, report: Report | null, error: string
     if (elapsedSec >= 20) lines.push({ ts: logTs(elapsedSec), kind: "warn", text: i18n.t("runner.log.stillCounting", { elapsed: elapsedSec }) });
     return lines;
   }
+  // The job poll said "completed" but the report download has not resolved
+  // yet (useAnalysisRunner's isFetchingReport window): say so instead of
+  // leaving an empty log under a full progress bar.
+  if (status === "completed" && !report) return [{ ts: logTs(elapsedSec), kind: "ok", text: i18n.t("runner.log.fetchingReport") }];
 
   if (report)
     return [
@@ -64,7 +90,7 @@ export function progressValue(status: AppStatus) {
   if (status === "idle") return 0;
   if (status === "queued") return 30;
   if (status === "running") return 64;
-  if (status === "failed") return 100;
+  if (status === "failed" || status === "timedOut") return 100;
   return 100;
 }
 

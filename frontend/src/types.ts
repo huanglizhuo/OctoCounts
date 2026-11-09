@@ -1,5 +1,5 @@
 export type JobStatus = "queued" | "running" | "completed" | "failed";
-export type AppStatus = JobStatus | "idle" | "cached";
+export type AppStatus = JobStatus | "idle" | "cached" | "timedOut";
 export type Scheme = "matrix" | "paper";
 export type SortKey = "name" | keyof Stats;
 export type PieItem = { label: string; value: number; color: string };

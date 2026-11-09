@@ -59,7 +59,8 @@
       "running": "运行中",
       "completed": "已完成",
       "cached": "已缓存",
-      "failed": "失败"
+      "failed": "失败",
+      "timedOut": "已超时"
     },
     "log": {
       "idle": "空闲：命令运行器就绪",
@@ -71,7 +72,8 @@
       "counted": "已统计 {{lines}} 行，耗时 {{duration}}ms",
       "stillQueued": "已等待 {{elapsed}} 秒，任务会逐个运行",
       "stillCounting": "已运行 {{elapsed}} 秒；大型仓库可能需要更久",
-      "runningWaiting": "运行中：分析工作进程正在处理此仓库（{{elapsed}} 秒）"
+      "runningWaiting": "运行中：分析工作进程正在处理此仓库（{{elapsed}} 秒）",
+      "fetchingReport": "已完成：正在获取报告…"
     },
     "command": "octocount analyze {{repo}}{{ref}}{{force}}",
     "cacheHit": "缓存命中",
@@ -327,6 +329,7 @@
     "not_found": "请确认仓库存在且为公开仓库。私有仓库明确不在当前产品范围内。",
     "github_request_failed": "GitHub 没有返回可用的归档或仓库响应。请稍后重试。",
     "analysis_failed": "归档已下载，但计数步骤失败。请重试一次；如果持续出现，可能是该仓库触发了分析器边界情况。",
+    "timed_out": "本次运行超过了 5 分钟的时限。服务端可能仍在收尾，稍后重试通常能直接取回已完成的报告。",
     "default": "请重试分析，或检查仓库链接和引用。"
   },
   "githubStatus": {
@@ -453,6 +456,8 @@
     "defaultRef": "默认分支",
     "analysisFailed": "分析失败。请稍等几分钟后再试。",
     "analysisTimedOut": "对比耗时过长。请稍等几分钟后再试。",
+    "missingReport": "分析任务已标记为 {{status}}，但没有可获取的报告。",
+    "unexpectedJobStatus": "分析任务返回了意外状态：{{status}}。",
     "swapAria": "交换仓库",
     "noSharedLanguages": "两份报告没有共同语言，无法显示分语言差异。",
     "snapshotUnavailable": "一份或两份已保存结果已不可用。重新对比可以创建新报告。",

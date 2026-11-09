@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import i18n from "./i18n";
 import { AnalyticsEvents, providerFromRepoUrl, trackEvent } from "./analytics";
 import { analyzeRepository, ApiRequestError, fetchJson, localizedErrorCodeMessage } from "./api";
-import { commandText } from "./reportUtils";
-import type { AnalysisOptions, AppStatus, JobRecord, Report } from "./types";
+import { commandText, runnerStatus } from "./reportUtils";
+import type { AnalysisOptions, JobRecord, Report } from "./types";
 
 type AnalysisError = {
   code?: string;
@@ -129,7 +129,10 @@ export function useAnalysisRunner({
       if (operation !== operationRef.current) return;
       operationRef.current += 1;
       controller.abort();
-      setError({ message: i18n.t("runner.status.timedOut") + (activeJobId.current ? ` · ${i18n.t("error.resumeJob", { jobId: activeJobId.current })}` : "") });
+      // The "timed_out" code is what runnerStatus decodes into the timedOut
+      // status; no other error path can mint it, so the deadline stays
+      // distinguishable from a generic failure.
+      setError({ code: "timed_out", message: i18n.t("runner.status.timedOut") + (activeJobId.current ? ` · ${i18n.t("error.resumeJob", { jobId: activeJobId.current })}` : "") });
       setJobId(null);
       setJobStartedAt(null);
       setIsSubmitting(false);
@@ -202,13 +205,12 @@ export function useAnalysisRunner({
     setIsSubmitting(false);
   };
 
-  const status: AppStatus = error
-    ? "failed"
-    : report
-      ? report.cached
-        ? "cached"
-        : "completed"
-      : jobQuery.data?.status ?? (jobId || isSubmitting ? "queued" : "idle");
+  const status = runnerStatus({ error, report, jobStatus: jobQuery.data?.status, pending: Boolean(jobId || isSubmitting) });
+  // "completed" from the job poll is not the finish line: the report fetch
+  // effect above is still in flight. Until it resolves, the run stays active
+  // (App keeps the button disabled and cancel visible) instead of flashing an
+  // enabled button over an empty log at 100% progress.
+  const isFetchingReport = status === "completed" && !report && !error;
 
   return {
     report,
@@ -216,6 +218,7 @@ export function useAnalysisRunner({
     error: error?.message ?? jobQuery.data?.error?.message ?? null,
     errorCode: error?.code ?? jobQuery.data?.error?.code,
     isSubmitting,
+    isFetchingReport,
     lastCommand,
     status,
     setLastCommand,

@@ -87,7 +87,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
   const [demoDismissed, setDemoDismissed] = useState(false);
   useEffect(() => {
     if (variant !== "demo" || demoDismissed) return;
-    if (status === "queued" || status === "running" || status === "failed") setDemoDismissed(true);
+    if (status === "queued" || status === "running" || status === "failed" || status === "timedOut") setDemoDismissed(true);
   }, [variant, status, demoDismissed]);
   const isDemo = variant === "demo" && !demoDismissed;
 
@@ -262,7 +262,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
       <span className="visually-hidden" aria-live="polite">{t("runner.status." + status)}</span>
       {!report ? <RunnerLog status={status} report={report} error={error} elapsedSec={elapsedSec} /> : null}
       {waitingMessage && isWorking ? <p className="retry-wait" role="status">{waitingMessage}</p> : null}
-      {status === "failed" ? <ErrorState code={errorCode} message={error} onRetry={onRerun} /> : null}
+      {status === "failed" || status === "timedOut" ? <ErrorState code={errorCode} message={error} onRetry={onRerun} /> : null}
       {report ? (
         isDemo ? (
           <>

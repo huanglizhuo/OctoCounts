@@ -60,7 +60,15 @@ export async function analyzeAndWait(request: { repoUrl: string; refName: string
     while (Date.now() < deadline) {
       const job = await fetchJson<JobRecord>(`/api/jobs/${encodeURIComponent(jobId)}?wait=20`, { signal: controller.signal }, { deadline });
       if (job.status === "failed") throw new Error(localizedErrorCodeMessage(job.error?.code, job.error?.message ?? "", "compare.analysisFailed"));
-      if (job.status === "completed" && job.reportId) return await fetchJson<Report>(`/api/reports/${encodeURIComponent(job.reportId)}`, { signal: controller.signal }, { deadline });
+      if (job.status === "completed") {
+        // Backend contract: a completed job always carries report_id. Without
+        // one there is nothing to fetch and re-polling can never change that —
+        // fail now instead of burning the rest of the deadline into a
+        // misleading "taking too long" timeout.
+        if (!job.reportId) throw new Error(i18n.t("compare.missingReport", { status: job.status }));
+        return await fetchJson<Report>(`/api/reports/${encodeURIComponent(job.reportId)}`, { signal: controller.signal }, { deadline });
+      }
+      if (job.status !== "queued" && job.status !== "running") throw new Error(i18n.t("compare.unexpectedJobStatus", { status: job.status }));
       await waitForRetry(250, controller.signal);
     }
     throw new Error(i18n.t("compare.analysisTimedOut"));
