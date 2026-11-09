@@ -79,3 +79,26 @@ test("a rate-limited analyze waits for Retry-After instead of failing", async ()
     server.close();
   }
 });
+
+test("an unknown job status fails the repo instead of polling until --max-polls", async (t) => {
+  const statuses = ["queued", "running", "paused"];
+  let polls = 0;
+  const server = createServer((request, response) => {
+    request.resume().on("end", () => {
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/api/analyze") return response.end(JSON.stringify({ kind: "job", jobId: "job-x", status: "queued" }));
+      polls += 1;
+      response.end(JSON.stringify({ id: "job-x", status: statuses.shift() ?? "paused", reportId: null }));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const dir = await mkdtemp(join(tmpdir(), "seed-status-test-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, "repos.txt");
+  await writeFile(file, "octo/demo\n");
+  await assert.rejects(promisify(execFile)(process.execPath, [
+    script.pathname, "--api-base", `http://127.0.0.1:${server.address().port}`, "--file", file, "--limit", "1", "--poll-ms", "0", "--max-polls", "10",
+  ]), (error) => error.code === 1 && error.stdout.includes('FAIL octo/demo: unexpected job status "paused" for job job-x'));
+  assert.equal(polls, 3, "queued and running keep polling; the unknown status stops at once");
+});

@@ -104,6 +104,7 @@ async function waitForJob(jobId) {
   for (let attempt = 0; attempt < maxPolls; attempt += 1) {
     const job = await getJson(`/api/jobs/${encodeURIComponent(jobId)}`);
     if (job.status === "completed" || job.status === "failed") return job;
+    if (job.status !== "queued" && job.status !== "running") throw new Error(`unexpected job status ${JSON.stringify(job.status)} for job ${jobId}`);
     await sleep(pollMs);
   }
   throw new Error(`job timed out after ${maxPolls} polls`);

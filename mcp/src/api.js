@@ -21,6 +21,8 @@ export async function analyzeAndWait(apiBase, request, { signal, timeoutMs = 300
       const job = await fetchJson(`${apiBase}/api/jobs/${encodeURIComponent(jobId)}?wait=20`, {}, context);
       if (job.status === "completed" && job.reportId) return await fetchJson(`${apiBase}/api/reports/${encodeURIComponent(job.reportId)}`, {}, context);
       if (job.status === "failed") throw Object.assign(new Error(`${job.error?.code ? `[${job.error.code}] ` : ""}${job.error?.message ?? "OctoCounts analysis failed"}`), { code: job.error?.code });
+      if (job.status === "completed") throw new Error("OctoCounts job completed without reportId");
+      if (job.status !== "queued" && job.status !== "running") throw new Error(`Unexpected OctoCounts job status ${JSON.stringify(job.status)}`);
       await sleep(250, controller.signal);
     }
     throw new Error("OctoCounts analysis timed out");

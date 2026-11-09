@@ -84,6 +84,39 @@ for (const client of clients) {
     await assert.rejects(api.analyzeAndWait("https://api.test", {}, { timeoutMs: 20 }), /job-timeout.*resume with GET/);
   });
 
+  test(`${client}: queued and running keep polling until the completed report`, async (t) => {
+    const statuses = ["queued", "running", "completed"];
+    const urls = [];
+    t.mock.method(globalThis, "fetch", async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith("/api/analyze")) return json({ kind: "job", jobId: "job-ok" });
+      if (String(url).includes("/api/reports/")) return json({ id: "report-ok" });
+      const status = statuses.shift();
+      return json({ id: "job-ok", status, reportId: status === "completed" ? "report-ok" : null });
+    });
+    assert.deepEqual(await api.analyzeAndWait("https://api.test", {}), { id: "report-ok" });
+    assert.deepEqual(urls.slice(1), [...Array(3).fill("https://api.test/api/jobs/job-ok?wait=20"), "https://api.test/api/reports/report-ok"]);
+  });
+
+  // A contract violation must surface at once, not spin silently until the deadline.
+  test(`${client}: completed without reportId and unknown statuses fail fast with the job ID`, async (t) => {
+    const mock = t.mock.method(globalThis, "fetch");
+    for (const [job, message] of [
+      [{ status: "completed", reportId: null }, "OctoCounts job completed without reportId"],
+      [{ status: "paused" }, 'Unexpected OctoCounts job status "paused"'],
+      [{}, "Unexpected OctoCounts job status undefined"],
+    ]) {
+      let polls = 0;
+      mock.mock.mockImplementation(async (url) => {
+        if (String(url).endsWith("/api/analyze")) return json({ kind: "job", jobId: "job-x" });
+        polls++;
+        return json({ id: "job-x", ...job });
+      });
+      await assert.rejects(api.analyzeAndWait("https://api.test", {}, { timeoutMs: 2_000 }), (error) => error.jobId === "job-x" && error.message === `${message}; job job-x; resume with GET https://api.test/api/jobs/job-x`);
+      assert.equal(polls, 1);
+    }
+  });
+
   test(`${client}: fixed URLs use ID and SHA; opt-in preserves omitted defaults`, () => {
     const report = { id: "saved/a", repository: { owner: "o", name: "r" }, commitSha: "a".repeat(40), refName: "main", analysisOptions: { ignoredDirs: ["docs"] } };
     const url = new URL(api.reportUrl(report));

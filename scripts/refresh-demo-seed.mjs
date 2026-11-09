@@ -98,7 +98,7 @@ async function analyzeReport(api, repoUrl, refName) {
       body: JSON.stringify({ repoUrl, refName, forceRefresh: false, options: DEFAULT_OPTIONS, source: "web" }),
     }, "POST /api/analyze");
 
-  let result = await submit();
+  const result = await submit();
   if (result.kind === "cached") return result.report;
 
   const deadline = Date.now() + 10 * 60 * 1000;
@@ -112,7 +112,8 @@ async function analyzeReport(api, repoUrl, refName) {
       const again = await submit();
       return again.kind === "cached" ? again.report : report;
     }
-    result = { kind: "job", jobId: result.jobId, status: job.status };
+    if (job.status === "completed") throw new Error(`job ${result.jobId} completed without reportId`);
+    if (job.status !== "queued" && job.status !== "running") throw new Error(`unexpected job status ${JSON.stringify(job.status)} for job ${result.jobId}`);
   }
   throw new Error("analysis timed out after 10 minutes");
 }
