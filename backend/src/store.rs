@@ -393,6 +393,25 @@ impl Store {
                     ADD CONSTRAINT jobs_status_valid
                     CHECK (status IN ('queued', 'running', 'completed', 'failed'));
                 END IF;
+
+                -- Pairs each status with the payload a job in that status
+                -- carries, so no write can strand a completed row without its
+                -- report or attach an error to a non-terminal one. NOT VALID:
+                -- rows written before this rule (including by an old binary
+                -- mid-deploy) are left untouched; every new write is checked.
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'jobs_status_payload_valid'
+                    AND connamespace = current_schema()::regnamespace
+                ) THEN
+                    ALTER TABLE jobs
+                    ADD CONSTRAINT jobs_status_payload_valid CHECK (
+                        (status = 'completed' AND report_id IS NOT NULL AND error IS NULL)
+                        OR (status = 'failed' AND report_id IS NULL AND error IS NOT NULL)
+                        OR (status IN ('queued', 'running') AND report_id IS NULL AND error IS NULL)
+                    ) NOT VALID;
+                END IF;
             END $$;
             "#,
         )
@@ -3152,11 +3171,25 @@ impl Store {
         status: JobStatus,
         updated_at: DateTime<Utc>,
     ) -> anyhow::Result<()> {
+        // The status/payload CHECK applies to test rows too: a forced terminal
+        // row still has to look like a real one.
+        let report_id = (status == JobStatus::Completed).then(|| "forced-report".to_string());
+        let error = if status == JobStatus::Failed {
+            Some(serde_json::to_string(&ApiErrorBody {
+                code: "internal".to_string(),
+                message: "forced".to_string(),
+                request_accepted: None,
+            })?)
+        } else {
+            None
+        };
         sqlx::query(
-            "INSERT INTO jobs (id, status, created_at, updated_at) VALUES ($1, $2, $3, $3)",
+            "INSERT INTO jobs (id, status, report_id, error, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, $5)",
         )
         .bind(id)
         .bind(status_to_str(&status))
+        .bind(report_id)
+        .bind(error)
         .bind(updated_at)
         .execute(&self.pool)
         .await?;
@@ -3468,41 +3501,83 @@ impl Store {
         Ok(())
     }
 
-    pub async fn set_job_running(&self, id: Uuid) -> anyhow::Result<()> {
-        self.update_job(id, JobStatus::Running, None, None).await
-    }
-
-    pub async fn set_job_completed(&self, id: Uuid, report_id: String) -> anyhow::Result<()> {
-        self.update_job(id, JobStatus::Completed, Some(report_id), None)
+    /// Queued → Running, and nothing else: a duplicate worker start after the
+    /// job finished cannot resurrect it or wipe its outcome.
+    pub async fn set_job_running(&self, id: Uuid) -> anyhow::Result<JobTransition> {
+        self.update_job(id, JobStatus::Running, None, None, &[JobStatus::Queued])
             .await
     }
 
-    pub async fn set_job_failed(&self, id: Uuid, error: ApiErrorBody) -> anyhow::Result<()> {
-        self.update_job(id, JobStatus::Failed, None, Some(error))
-            .await
+    /// Queued/Running → Completed. `queued` is a legal source as well as
+    /// `running` because the coordinator's running transition is best-effort:
+    /// a transient database error there must not doom an otherwise successful
+    /// analysis. A job already marked failed — reclaimed as abandoned while a
+    /// stale worker was still grinding — stays failed.
+    pub async fn set_job_completed(
+        &self,
+        id: Uuid,
+        report_id: String,
+    ) -> anyhow::Result<JobTransition> {
+        self.update_job(
+            id,
+            JobStatus::Completed,
+            Some(report_id),
+            None,
+            &[JobStatus::Queued, JobStatus::Running],
+        )
+        .await
     }
 
+    /// Queued/Running → Failed. A job already in a terminal state keeps the
+    /// outcome it recorded first.
+    pub async fn set_job_failed(
+        &self,
+        id: Uuid,
+        error: ApiErrorBody,
+    ) -> anyhow::Result<JobTransition> {
+        self.update_job(
+            id,
+            JobStatus::Failed,
+            None,
+            Some(error),
+            &[JobStatus::Queued, JobStatus::Running],
+        )
+        .await
+    }
+
+    /// Writes one guarded status transition: the row is updated only when its
+    /// current status is one of `expected_statuses`. Anything else — the job
+    /// already reached a terminal state, was reclaimed as abandoned, or never
+    /// existed — refuses the write and leaves the row's current state
+    /// authoritative.
     async fn update_job(
         &self,
         id: Uuid,
         status: JobStatus,
         report_id: Option<String>,
         error: Option<ApiErrorBody>,
-    ) -> anyhow::Result<()> {
+        expected_statuses: &[JobStatus],
+    ) -> anyhow::Result<JobTransition> {
         let error = error
             .map(|value| serde_json::to_string(&value))
             .transpose()?;
-        sqlx::query(
-            "UPDATE jobs SET status = $1, report_id = $2, error = $3::jsonb, updated_at = $4 WHERE id = $5",
+        let expected: Vec<&str> = expected_statuses.iter().map(status_to_str).collect();
+        let result = sqlx::query(
+            "UPDATE jobs SET status = $1, report_id = $2, error = $3::jsonb, updated_at = $4 WHERE id = $5 AND status = ANY($6)",
         )
         .bind(status_to_str(&status))
         .bind(report_id)
         .bind(error)
         .bind(Utc::now())
         .bind(id)
+        .bind(expected)
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(if result.rows_affected() == 0 {
+            JobTransition::Refused
+        } else {
+            JobTransition::Applied
+        })
     }
 
     pub async fn job(&self, id: Uuid) -> anyhow::Result<Option<JobRecord>> {
@@ -3989,6 +4064,20 @@ fn row_to_job(row: sqlx::postgres::PgRow) -> anyhow::Result<JobRecord> {
     })
 }
 
+/// The outcome of a guarded status transition on a `jobs` row.
+///
+/// [`JobTransition::Refused`] means the row was not in a state the transition
+/// accepts — it had already finished, been reclaimed as abandoned, or never
+/// existed — so nothing was written and the row's current state remains
+/// authoritative. Callers must not mistake a refusal for success.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobTransition {
+    /// The row was in an accepted source state and now carries the new status.
+    Applied,
+    /// The write was skipped: the row was not in any accepted source state.
+    Refused,
+}
+
 fn status_to_str(status: &JobStatus) -> &'static str {
     match status {
         JobStatus::Queued => "queued",
@@ -4081,10 +4170,10 @@ fn is_active_job_key_conflict(error: &anyhow::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{CleanupConfig, JobKey, ReportCard, Store};
+    use super::{CleanupConfig, JobKey, JobTransition, ReportCard, Store};
     use crate::models::{
-        AnalysisOptions, AnalysisSource, JobStatus, LanguageReport, LanguageStats, Report,
-        Repository, RepositoryProvider,
+        AnalysisOptions, AnalysisSource, ApiErrorBody, JobStatus, LanguageReport, LanguageStats,
+        Report, Repository, RepositoryProvider,
     };
     use chrono::{Duration, Utc};
     use sqlx::postgres::PgPoolOptions;
@@ -5162,6 +5251,197 @@ mod tests {
             .unwrap();
         assert!(!created);
         assert_eq!(again.id, next.id);
+        store.drop_schema().await;
+    }
+
+    #[tokio::test]
+    async fn job_lifecycle_queued_running_completed_transitions_apply() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (job, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store.set_job_running(job.id).await.unwrap(),
+            JobTransition::Applied
+        );
+        assert_eq!(
+            store
+                .set_job_completed(job.id, "report-done".to_string())
+                .await
+                .unwrap(),
+            JobTransition::Applied
+        );
+
+        let finished = store.job(job.id).await.unwrap().unwrap();
+        assert_eq!(finished.status, JobStatus::Completed);
+        assert_eq!(finished.report_id.as_deref(), Some("report-done"));
+        store.drop_schema().await;
+    }
+
+    /// A duplicate worker start after completion used to flip the row back to
+    /// `running` and NULL out its report id.
+    #[tokio::test]
+    async fn a_completed_job_cannot_go_back_to_running() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (job, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        store.set_job_running(job.id).await.unwrap();
+        store
+            .set_job_completed(job.id, "report-done".to_string())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store.set_job_running(job.id).await.unwrap(),
+            JobTransition::Refused
+        );
+
+        let finished = store.job(job.id).await.unwrap().unwrap();
+        assert_eq!(finished.status, JobStatus::Completed);
+        assert_eq!(
+            finished.report_id.as_deref(),
+            Some("report-done"),
+            "the completed row must keep its report"
+        );
+        store.drop_schema().await;
+    }
+
+    /// The reclaim race: a stale worker finishing after its job was reclaimed
+    /// as abandoned used to flip the failed row back to completed.
+    #[tokio::test]
+    async fn a_late_completion_cannot_resurrect_a_reclaimed_job() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (orphan, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        store.set_job_running(orphan.id).await.unwrap();
+        // The owning process dies: no heartbeat for ten minutes.
+        sqlx::query("UPDATE jobs SET updated_at = NOW() - INTERVAL '10 minutes' WHERE id = $1")
+            .bind(orphan.id)
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        // Another request reclaims the key, failing the orphan.
+        let (next, created) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        assert!(created);
+        assert_ne!(next.id, orphan.id);
+        assert_eq!(
+            store.job(orphan.id).await.unwrap().unwrap().status,
+            JobStatus::Failed
+        );
+
+        // The dead worker's late completion must be refused, leaving the
+        // failure -- not the report -- as the row's outcome.
+        assert_eq!(
+            store
+                .set_job_completed(orphan.id, "late-report".to_string())
+                .await
+                .unwrap(),
+            JobTransition::Refused
+        );
+        let after = store.job(orphan.id).await.unwrap().unwrap();
+        assert_eq!(after.status, JobStatus::Failed);
+        assert_eq!(after.report_id, None);
+        assert_eq!(after.error.unwrap().code, "internal");
+        store.drop_schema().await;
+    }
+
+    /// The first terminal outcome wins: neither a second failure nor a late
+    /// completion may overwrite it.
+    #[tokio::test]
+    async fn a_failed_job_keeps_its_first_error() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (job, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+        assert_eq!(
+            store
+                .set_job_failed(
+                    job.id,
+                    ApiErrorBody {
+                        request_accepted: None,
+                        code: "analysis_failed".to_string(),
+                        message: "first error".to_string(),
+                    },
+                )
+                .await
+                .unwrap(),
+            JobTransition::Applied
+        );
+
+        assert_eq!(
+            store
+                .set_job_failed(
+                    job.id,
+                    ApiErrorBody {
+                        request_accepted: None,
+                        code: "internal".to_string(),
+                        message: "second error".to_string(),
+                    },
+                )
+                .await
+                .unwrap(),
+            JobTransition::Refused
+        );
+        assert_eq!(
+            store
+                .set_job_completed(job.id, "report-done".to_string())
+                .await
+                .unwrap(),
+            JobTransition::Refused
+        );
+
+        let failed = store.job(job.id).await.unwrap().unwrap();
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.report_id, None);
+        assert_eq!(failed.error.unwrap().code, "analysis_failed");
+        store.drop_schema().await;
+    }
+
+    /// The database constraint backs the guarded transitions up: a rogue write
+    /// that would complete a row without its report is rejected outright.
+    #[tokio::test]
+    async fn jobs_pair_each_status_with_its_payload() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let owner = unique_name("octo");
+        let (job, _) = store
+            .create_or_get_active_job(test_job_key(&owner))
+            .await
+            .unwrap();
+
+        let result = sqlx::query("UPDATE jobs SET status = 'completed' WHERE id = $1")
+            .bind(job.id)
+            .execute(&store.pool)
+            .await;
+        assert!(result.is_err(), "a completed row must carry a report id");
+        assert_eq!(
+            store.job(job.id).await.unwrap().unwrap().status,
+            JobStatus::Queued
+        );
         store.drop_schema().await;
     }
 

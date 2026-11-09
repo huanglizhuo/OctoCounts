@@ -20,7 +20,7 @@ use crate::{
         AnalysisSource, AnalyzeRequest, AnalyzeResponse, ApiErrorBody, JobRecord, JobStatus,
         RepoRef,
     },
-    store::{JobKey, Store},
+    store::{JobKey, JobTransition, Store},
 };
 
 /// How long a waiter goes without re-reading the job from the database.
@@ -219,22 +219,40 @@ impl AnalysisCoordinator {
     /// Every status write goes through one of these three so the database write
     /// and the wakeup can never drift apart. The wakeup is always published
     /// after the write returns, so a woken waiter re-reads a committed row.
+    ///
+    /// Each transition is guarded by its source state: the store refuses a
+    /// write whose row is not in a state the transition accepts, so a stale
+    /// worker cannot resurrect a reclaimed job or un-finish a finished one. A
+    /// refusal is a race outcome, not an error — the row's current state is
+    /// authoritative — so it is logged and the wakeup still fires.
     pub(crate) async fn set_job_running(&self, job_id: Uuid) {
-        if let Err(error) = self.store.set_job_running(job_id).await {
-            tracing::error!(%error, "failed to mark job running");
+        match self.store.set_job_running(job_id).await {
+            Ok(JobTransition::Applied) => {}
+            Ok(JobTransition::Refused) => tracing::warn!(
+                %job_id,
+                "refused to mark job running: it is no longer queued (reclaimed or already finished)"
+            ),
+            Err(error) => tracing::error!(%error, "failed to mark job running"),
         }
         self.events.publish(job_id);
     }
 
     pub(crate) async fn set_job_completed(&self, job_id: Uuid, report_id: String) {
-        if let Err(error) = self.store.set_job_completed(job_id, report_id).await {
-            tracing::error!(%error, "failed to mark job completed");
+        match self.store.set_job_completed(job_id, report_id).await {
+            Ok(JobTransition::Applied) => {}
+            // The report stays saved; only the job row is left in its current
+            // terminal state.
+            Ok(JobTransition::Refused) => tracing::warn!(
+                %job_id,
+                "refused to mark job completed: it already finished or was reclaimed as abandoned; the saved report is left as-is"
+            ),
+            Err(error) => tracing::error!(%error, "failed to mark job completed"),
         }
         self.events.publish(job_id);
     }
 
     pub(crate) async fn set_job_failed(&self, job_id: Uuid, code: &str, message: &str) {
-        if let Err(error) = self
+        match self
             .store
             .set_job_failed(
                 job_id,
@@ -246,7 +264,12 @@ impl AnalysisCoordinator {
             )
             .await
         {
-            tracing::error!(%error, "failed to mark job failed");
+            Ok(JobTransition::Applied) => {}
+            Ok(JobTransition::Refused) => tracing::warn!(
+                %job_id,
+                "refused to mark job failed: it already finished or was reclaimed as abandoned"
+            ),
+            Err(error) => tracing::error!(%error, "failed to mark job failed"),
         }
         self.events.publish(job_id);
     }
