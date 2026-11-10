@@ -1,10 +1,12 @@
-# GitHub Trending daily snapshot generated 2026-11-09T09:44:09.372Z
-sherlock-project/sherlock
-dsx-ai-factory/nvke
-milind-soni/OpenMausBot
-anthropics/claude-quickstarts
-vercel-labs/agent-browser
-meta/astryx
+# GitHub Trending daily snapshot generated 2026-11-10T09:44:28.151Z
 anthropics/skills
+meta/astryx
+sherlock-project/sherlock
 google-deepmind/mujoco
-ranxianglei/billion-context
+anthropics/claude-quickstarts
+garrytan/gbrain
+vercel-labs/agent-browser
+ruvnet/RuView
+ZhuLinsen/daily_stock_analysis
+homeassistant-ai/ha-mcp
+milind-soni/OpenMausBot
