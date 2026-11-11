@@ -464,8 +464,7 @@ mod tests {
     #[test]
     fn partial_options_keep_explicit_toggles() {
         use super::AnalysisOptions;
-        let partial: AnalysisOptions =
-            serde_json::from_str(r#"{"includeDocs": true}"#).unwrap();
+        let partial: AnalysisOptions = serde_json::from_str(r#"{"includeDocs": true}"#).unwrap();
         assert!(partial.include_docs);
         assert!(!partial.include_tests && !partial.include_generated);
         assert!(partial != AnalysisOptions::canonical());
