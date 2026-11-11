@@ -986,9 +986,12 @@ async fn raw_passthrough_matches_the_parsed_path_field_for_field() {
     harness.drop_schema().await;
 }
 
-/// `analysisOptions` has two different defaults depending on whether the key is
-/// absent or merely incomplete, and they disagree on three booleans. Both have to
-/// survive the passthrough.
+/// `analysisOptions` fills must survive the passthrough for every omission
+/// flavour. Since the 2026-11 profile unification both flavours — key absent
+/// and key present but incomplete — fill with the canonical exclusion set;
+/// before, the incomplete flavour filled `true` while the absent one filled
+/// `false`. Either way the passthrough must agree with what deserializing
+/// into `Report` and re-serializing would produce.
 #[tokio::test]
 async fn passthrough_fills_both_flavours_of_analysis_options_default() {
     let Some(harness) = harness().await else {
@@ -997,18 +1000,17 @@ async fn passthrough_fills_both_flavours_of_analysis_options_default() {
 
     let cases = [
         // Key absent: Report's field-level default runs AnalysisOptions::default().
-        ("report-options-absent", "", false),
+        ("report-options-absent", ""),
         // Key present but empty: AnalysisOptions' own field defaults apply.
-        ("report-options-empty", r#""analysisOptions": {},"#, true),
+        ("report-options-empty", r#""analysisOptions": {},"#),
         // Key present and partial: only the missing fields get defaults.
         (
             "report-options-partial",
             r#""analysisOptions": {"includeDocs": false, "profile": "source-only"},"#,
-            true,
         ),
     ];
 
-    for (index, (id, options, defaults_are_true)) in cases.into_iter().enumerate() {
+    for (index, (id, options)) in cases.into_iter().enumerate() {
         harness
             .store
             .insert_raw_report(
@@ -1051,8 +1053,8 @@ async fn passthrough_fills_both_flavours_of_analysis_options_default() {
         );
         assert_eq!(
             value["analysisOptions"]["includeTests"],
-            serde_json::Value::Bool(defaults_are_true),
-            "{id}: an absent key defaults to false, a present one to true",
+            serde_json::Value::Bool(false),
+            "{id}: every omission flavour fills the canonical exclusion set",
         );
         assert_eq!(value["analysisKey"], "");
         assert_eq!(value["repository"]["provider"], "github");

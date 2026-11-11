@@ -128,9 +128,11 @@ pub struct AnalysisOptions {
     // whatever shape the omission takes — no `options` key at all (via
     // AnalyzeRequest's `#[serde(default)]`) or a partial object (here). Until
     // the 2026-11 unification these filled `true`, which made a partial
-    // object count everything while a missing one counted canonically; the
-    // read-side legacy fill in `store.rs` keeps spelling out the old
-    // all-inclusive set for rows stored before the toggles existed.
+    // object count everything while a missing one counted canonically. The
+    // stored-body read path mirrors these same serde fills (see
+    // `store.rs`'s read projection), so pre-toggle rows echo with the
+    // canonical spelling; the `options_canonical` trigger, not the echo,
+    // keeps such all-inclusive rows out of the canonical SEO selection.
     #[serde(default)]
     pub include_docs: bool,
     #[serde(default)]
@@ -152,10 +154,7 @@ impl AnalysisOptions {
     /// and the SLOC-history sampler all count under it unless the caller opts
     /// back in to docs/tests/generated files. It remains the derived `Default`
     /// and deserializing `{}` now yields it too (the historic `default_true`
-    /// fill that made partial objects all-inclusive is gone). Reports stored
-    /// before the toggles existed were counted all-inclusive and are echoed
-    /// with the legacy spelling by `store.rs`'s read projection — never this
-    /// set.
+    /// fill that made partial objects all-inclusive is gone).
     ///
     /// Before the canonical guard existed, whichever row was written last won
     /// the SEO surfaces, so a single include-all visit flipped the public
@@ -177,11 +176,12 @@ impl AnalysisOptions {
 
     /// What rows stored before the include toggles existed actually counted:
     /// docs, tests and generated files all included, because the analyzer of
-    /// that era had no filtering. The read-side body projection spells missing
-    /// `analysisOptions` fields out with this set so legacy rows are echoed
-    /// with the semantics their numbers were produced under — filling them
-    /// with [`Self::canonical`] would relabel include-all counts as the
-    /// public profile.
+    /// that era had no filtering. Spelled out explicitly for the counting
+    /// goldens (the difftest baseline runs the maximal surface through it) and
+    /// as the frontend's legacy-fill counterpart — the stored-body echo itself
+    /// mirrors serde (canonical fills) and leans on the `options_canonical`
+    /// trigger for the real canonical guard.
+    #[cfg(test)]
     pub fn legacy() -> Self {
         Self {
             include_docs: true,
@@ -470,8 +470,8 @@ mod tests {
         assert!(partial != AnalysisOptions::canonical());
     }
 
-    /// The legacy spelling: what pre-toggle rows counted under, and what the
-    /// read projection must echo for them — never the canonical set.
+    /// The legacy spelling: what pre-toggle rows counted under — the counting
+    /// goldens' inclusive baseline, and never the canonical set.
     #[test]
     fn legacy_options_are_all_inclusive() {
         use super::AnalysisOptions;

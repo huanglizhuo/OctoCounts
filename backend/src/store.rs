@@ -618,9 +618,7 @@ impl Store {
     /// equality is the right comparison because anything other than the exact
     /// canonical value set is a different measurement: a *partial* options
     /// object was written by the pre-toggle analyzer, which counted docs,
-    /// tests and generated files (the read projection in
-    /// `normalized_report_body_expr` echoes those rows with the legacy
-    /// all-inclusive spelling), and the legacy NULL shape (rows predating
+    /// tests and generated files, and the legacy NULL shape (rows predating
     /// option tracking) is the all-inclusive set in everything but spelling.
     /// Both therefore land on `false`, which is the `COALESCE`'s doing:
     /// `NULL = jsonb` is SQL NULL, and a NULL guard would behave identically
@@ -628,7 +626,9 @@ impl Store {
     /// for ad-hoc inspection. (Since the 2026-11 unification a *request* that
     /// omits the toggles deserializes to the canonical set — that path stores
     /// complete options and stays canonical; the strict comparison above only
-    /// ever sees complete JSON.)
+    /// ever sees complete JSON.) This trigger is the real guard that keeps
+    /// pre-toggle all-inclusive rows out of the canonical SEO selection, even
+    /// though the read projection echoes them with the canonical spelling.
     async fn migrate_report_stat_columns(&self) -> anyhow::Result<()> {
         // Nullable, no default: a metadata-only change, no table rewrite.
         sqlx::query(
@@ -3887,19 +3887,26 @@ fn throttled_fetch_sql(body_expr: &str, update_predicate: &str, select_predicate
 fn normalized_report_body_expr() -> &'static str {
     static EXPR: OnceLock<String> = OnceLock::new();
     EXPR.get_or_init(|| {
-        // Rows whose `analysisOptions` is absent (or missing the include
-        // fields) predate the doc/test/generated toggles, and the analyzer of
-        // that era counted everything — so both shapes are completed with the
-        // LEGACY all-inclusive spelling, never the canonical exclusion set:
-        // echoing canonical here would relabel include-all numbers as the
-        // public profile. Rows written after the toggles exist always carry
-        // complete explicit options, so the fill never touches them. The
-        // `||` direction keeps anything already stored winning over the fill.
-        // (Request-side defaults are a different concern: since the 2026-11
-        // unification a partial request deserializes to the canonical set —
-        // see AnalysisOptions. That path influences future counts; this one
-        // only describes past ones.)
-        let legacy = serde_json::to_string(&AnalysisOptions::legacy()).expect("options serialize");
+        // `analysisOptions` fills must mirror serde exactly: the raw-JSON
+        // passthrough this expression serves is pinned field-for-field
+        // against the parse-into-Report-and-re-serialize path
+        // (`raw_passthrough_matches_the_parsed_path_field_for_field`), so the
+        // two can never disagree. When the key is absent, `Report`'s
+        // field-level #[serde(default)] runs `AnalysisOptions::default()`;
+        // when the key is present but incomplete, the field defaults inside
+        // `AnalysisOptions` apply instead. Since the 2026-11 profile
+        // unification both flavours fill the canonical exclusion set (before,
+        // the incomplete flavour filled `true`) — so pre-toggle rows, whose
+        // counts are all-inclusive, now *echo* with the canonical spelling.
+        // That echo is display-only: the `options_canonical` trigger keeps
+        // such rows out of the canonical SEO selection by comparing the
+        // stored (incomplete) JSON against the pinned canonical one, which
+        // never matches — the database, not the echo, is the guard.
+        let absent = serde_json::to_string(&AnalysisOptions::default()).expect("options serialize");
+        let partial = serde_json::to_string(
+            &serde_json::from_str::<AnalysisOptions>("{}").expect("empty options deserialize"),
+        )
+        .expect("options serialize");
         format!(
             r#"(
                 jsonb_build_object('analysisKey', '')
@@ -3909,10 +3916,13 @@ fn normalized_report_body_expr() -> &'static str {
                        jsonb_build_object('provider', 'github')
                        || COALESCE(body->'repository', '{{}}'::jsonb)
                    )
-                || jsonb_build_object(
-                       'analysisOptions',
-                       '{legacy}'::jsonb || COALESCE(body->'analysisOptions', '{{}}'::jsonb)
-                   )
+                || CASE WHEN body ? 'analysisOptions'
+                        THEN jsonb_build_object(
+                                 'analysisOptions',
+                                 '{partial}'::jsonb || (body->'analysisOptions')
+                             )
+                        ELSE jsonb_build_object('analysisOptions', '{absent}'::jsonb)
+                   END
             )::text"#
         )
     })
