@@ -1,18 +1,35 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-10T09:44:28.151Z",
-  "date": "2026-11-10",
+  "generatedAt": "2026-11-11T09:19:39.393Z",
+  "date": "2026-11-11",
   "repositories": [
     {
       "rank": 1,
+      "owner": "meta",
+      "name": "astryx",
+      "fullName": "meta/astryx",
+      "description": "An open source design system that's fully customizable and agent ready",
+      "language": "TypeScript",
+      "starsToday": 3108,
+      "totalStars": 23896,
+      "htmlUrl": "https://github.com/meta/astryx",
+      "publicPath": "/github/meta/astryx",
+      "sloc": {
+        "code": 1501834,
+        "generatedAt": "2026-11-11T09:19:29.758Z",
+        "reportId": "ea067c7890db49a383566028381442d3f43c4afaf9e7faf2c35adeb86d04e100"
+      }
+    },
+    {
+      "rank": 2,
       "owner": "anthropics",
       "name": "skills",
       "fullName": "anthropics/skills",
       "description": "Public repository for Agent Skills",
       "language": "Python",
-      "starsToday": 1038,
-      "totalStars": 191602,
+      "starsToday": 1679,
+      "totalStars": 192719,
       "htmlUrl": "https://github.com/anthropics/skills",
       "publicPath": "/github/anthropics/skills",
       "sloc": {
@@ -22,65 +39,31 @@
       }
     },
     {
-      "rank": 2,
-      "owner": "meta",
-      "name": "astryx",
-      "fullName": "meta/astryx",
-      "description": "An open source design system that's fully customizable and agent ready",
-      "language": "TypeScript",
-      "starsToday": 3278,
-      "totalStars": 21162,
-      "htmlUrl": "https://github.com/meta/astryx",
-      "publicPath": "/github/meta/astryx",
-      "sloc": {
-        "code": 1448221,
-        "generatedAt": "2026-11-10T09:43:42.978Z",
-        "reportId": "e73fedce2ed181113bfc05101c71d18a591fbca3757a64d8e269da90b85e7867"
-      }
-    },
-    {
       "rank": 3,
-      "owner": "sherlock-project",
-      "name": "sherlock",
-      "fullName": "sherlock-project/sherlock",
-      "description": "Hunt down social media accounts by username across social networks",
-      "language": "Python",
-      "starsToday": 4267,
-      "totalStars": 108022,
-      "htmlUrl": "https://github.com/sherlock-project/sherlock",
-      "publicPath": "/github/sherlock-project/sherlock",
+      "owner": "addyosmani",
+      "name": "agent-skills",
+      "fullName": "addyosmani/agent-skills",
+      "description": "Production-grade engineering skills for AI coding agents.",
+      "language": "JavaScript",
+      "starsToday": 465,
+      "totalStars": 115457,
+      "htmlUrl": "https://github.com/addyosmani/agent-skills",
+      "publicPath": "/github/addyosmani/agent-skills",
       "sloc": {
-        "code": 4953,
-        "generatedAt": "2026-11-09T09:43:50.492Z",
-        "reportId": "33928c2b3385188080f0ac7b7c05b8c142674815cf87fd217a4dad06eb08de0f"
+        "code": 5887,
+        "generatedAt": "2026-11-09T08:20:20.382Z",
+        "reportId": "e627f78bede5be376ee94cca0cd80118c84a84a9759b1ae6b310f22a64ddf866"
       }
     },
     {
       "rank": 4,
-      "owner": "google-deepmind",
-      "name": "mujoco",
-      "fullName": "google-deepmind/mujoco",
-      "description": "Multi-Joint dynamics with Contact. A general purpose physics simulator.",
-      "language": "C++",
-      "starsToday": 574,
-      "totalStars": 17127,
-      "htmlUrl": "https://github.com/google-deepmind/mujoco",
-      "publicPath": "/github/google-deepmind/mujoco",
-      "sloc": {
-        "code": 419833,
-        "generatedAt": "2026-11-10T01:41:04.585Z",
-        "reportId": "b797409903f5ce7516f37884f5263d25615408b67610a68276d36180b3587cdd"
-      }
-    },
-    {
-      "rank": 5,
       "owner": "anthropics",
       "name": "claude-quickstarts",
       "fullName": "anthropics/claude-quickstarts",
       "description": "A collection of projects designed to help developers quickly get started with building deployable applications using the Claude API",
       "language": "Python",
-      "starsToday": 551,
-      "totalStars": 20209,
+      "starsToday": 531,
+      "totalStars": 20677,
       "htmlUrl": "https://github.com/anthropics/claude-quickstarts",
       "publicPath": "/github/anthropics/claude-quickstarts",
       "sloc": {
@@ -90,105 +73,139 @@
       }
     },
     {
-      "rank": 6,
-      "owner": "garrytan",
-      "name": "gbrain",
-      "fullName": "garrytan/gbrain",
-      "description": "Garry's Opinionated OpenClaw/Hermes Agent Brain",
-      "language": "TypeScript",
-      "starsToday": 216,
-      "totalStars": 32370,
-      "htmlUrl": "https://github.com/garrytan/gbrain",
-      "publicPath": "/github/garrytan/gbrain",
+      "rank": 5,
+      "owner": "google-deepmind",
+      "name": "mujoco",
+      "fullName": "google-deepmind/mujoco",
+      "description": "Multi-Joint dynamics with Contact. A general purpose physics simulator.",
+      "language": "C++",
+      "starsToday": 456,
+      "totalStars": 17538,
+      "htmlUrl": "https://github.com/google-deepmind/mujoco",
+      "publicPath": "/github/google-deepmind/mujoco",
       "sloc": {
-        "code": 659931,
-        "generatedAt": "2026-11-10T09:43:42.976Z",
-        "reportId": "5c36d828271e3c40e904b0b7af77e661c1939145fea3791bf0c9ca606ae1b54a"
+        "code": 420039,
+        "generatedAt": "2026-11-10T21:59:19.446Z",
+        "reportId": "317abacb0f25bfaef5e6b0cd71d597275787cbfeadc6b1fd5c69c36ae596dc24"
+      }
+    },
+    {
+      "rank": 6,
+      "owner": "we-promise",
+      "name": "sure",
+      "fullName": "we-promise/sure",
+      "description": "The personal finance app for everyone (by everyone)",
+      "language": "Ruby",
+      "starsToday": 159,
+      "totalStars": 12365,
+      "htmlUrl": "https://github.com/we-promise/sure",
+      "publicPath": "/github/we-promise/sure",
+      "sloc": {
+        "code": 488846,
+        "generatedAt": "2026-11-11T09:19:22.910Z",
+        "reportId": "2ca87f0cf15e67fd877b23db34d6369f1d159349e53be7814d8ad1383015927b"
       }
     },
     {
       "rank": 7,
-      "owner": "vercel-labs",
-      "name": "agent-browser",
-      "fullName": "vercel-labs/agent-browser",
-      "description": "Browser automation CLI for AI agents",
-      "language": "Rust",
-      "starsToday": 916,
-      "totalStars": 48824,
-      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
-      "publicPath": "/github/vercel-labs/agent-browser",
-      "sloc": {
-        "code": 203181,
-        "generatedAt": "2026-11-09T19:46:16.109Z",
-        "reportId": "9dca5aff37482fa525f694c553fb683375cf2f1258536b369bebce86264ddc21"
-      }
-    },
-    {
-      "rank": 8,
-      "owner": "ruvnet",
-      "name": "RuView",
-      "fullName": "ruvnet/RuView",
-      "description": "π RuView turns commodity WiFi signals into real-time spatial intelligence, vital sign monitoring, and presence detection — all without a single pixel of video.",
-      "language": "Rust",
-      "starsToday": 172,
-      "totalStars": 103749,
-      "htmlUrl": "https://github.com/ruvnet/RuView",
-      "publicPath": "/github/ruvnet/RuView",
-      "sloc": {
-        "code": 818514,
-        "generatedAt": "2026-11-10T01:21:35.804Z",
-        "reportId": "460ff5e9bb82c1418ae4510d58dc9e6e38120df1c6a027bbe35a74f44b7ff463"
-      }
-    },
-    {
-      "rank": 9,
-      "owner": "ZhuLinsen",
-      "name": "daily_stock_analysis",
-      "fullName": "ZhuLinsen/daily_stock_analysis",
-      "description": "LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。 LLM-powered multi-market stock analysis system with multi-source market data, real-time news, decision dashboard, automated notifications, and cost-free scheduled runs.",
-      "language": "Python",
-      "starsToday": 506,
-      "totalStars": 69401,
-      "htmlUrl": "https://github.com/ZhuLinsen/daily_stock_analysis",
-      "publicPath": "/github/ZhuLinsen/daily_stock_analysis",
-      "sloc": {
-        "code": 263140,
-        "generatedAt": "2026-11-09T14:45:48.203Z",
-        "reportId": "77e4add39fd41997bbd92175dde07a92ede981539e451b330eeea79c63efb3d6"
-      }
-    },
-    {
-      "rank": 10,
       "owner": "homeassistant-ai",
       "name": "ha-mcp",
       "fullName": "homeassistant-ai/ha-mcp",
       "description": "Configure and automate Home Assistant with Claude, ChatGPT, and other AI assistants.",
       "language": "Python",
-      "starsToday": 31,
-      "totalStars": 6271,
+      "starsToday": 790,
+      "totalStars": 6895,
       "htmlUrl": "https://github.com/homeassistant-ai/ha-mcp",
       "publicPath": "/github/homeassistant-ai/ha-mcp",
       "sloc": {
-        "code": 340407,
-        "generatedAt": "2026-11-10T09:44:57.400Z",
-        "reportId": "5389df1cbc9117739d3c08d978707cbddd95f8f953e4893e3d9ad401cfdd6a91"
+        "code": 342000,
+        "generatedAt": "2026-11-11T05:58:45.001Z",
+        "reportId": "431be0ea1d20b70e094f0fd7b8f9811eef6090a10845290229c197906a066b1f"
+      }
+    },
+    {
+      "rank": 8,
+      "owner": "vercel-labs",
+      "name": "agent-browser",
+      "fullName": "vercel-labs/agent-browser",
+      "description": "Browser automation CLI for AI agents",
+      "language": "Rust",
+      "starsToday": 780,
+      "totalStars": 49505,
+      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
+      "publicPath": "/github/vercel-labs/agent-browser",
+      "sloc": {
+        "code": 204139,
+        "generatedAt": "2026-11-11T06:36:19.439Z",
+        "reportId": "997aa3d83e1806c8afb51881fe9d772aecdc36b920edcb64720b94c980971f01"
+      }
+    },
+    {
+      "rank": 9,
+      "owner": "sherlock-project",
+      "name": "sherlock",
+      "fullName": "sherlock-project/sherlock",
+      "description": "Hunt down social media accounts by username across social networks",
+      "language": "Python",
+      "starsToday": 2393,
+      "totalStars": 109607,
+      "htmlUrl": "https://github.com/sherlock-project/sherlock",
+      "publicPath": "/github/sherlock-project/sherlock",
+      "sloc": {
+        "code": 4953,
+        "generatedAt": "2026-11-09T09:43:50.492Z",
+        "reportId": "33928c2b3385188080f0ac7b7c05b8c142674815cf87fd217a4dad06eb08de0f"
+      }
+    },
+    {
+      "rank": 10,
+      "owner": "tokio-rs",
+      "name": "topcoat",
+      "fullName": "tokio-rs/topcoat",
+      "description": "A batteries-included framework for building web apps",
+      "language": "Rust",
+      "starsToday": 192,
+      "totalStars": 7012,
+      "htmlUrl": "https://github.com/tokio-rs/topcoat",
+      "publicPath": "/github/tokio-rs/topcoat",
+      "sloc": {
+        "code": 163581,
+        "generatedAt": "2026-11-11T09:20:04.941Z",
+        "reportId": "080b0d3c26c18ae80de34303f166c48831fb0fb3fd82c5d5820ed47ae48222eb"
       }
     },
     {
       "rank": 11,
-      "owner": "milind-soni",
-      "name": "OpenMausBot",
-      "fullName": "milind-soni/OpenMausBot",
-      "description": "Open-source Grok Bot alternative with a virtual machine that bots can use",
+      "owner": "ranxianglei",
+      "name": "billion-context",
+      "fullName": "ranxianglei/billion-context",
+      "description": "A context-compression plugin for month-long single sessions (billions of tokens) ,small context windows (a 100K context is enough) and token savings (5x fewer tokens) .上下文压缩插件，月级长会话会话， 兼顾小窗口(100k上下文足矣)省token(省5倍token) . billion-context is all you need",
       "language": "TypeScript",
-      "starsToday": 1587,
-      "totalStars": 20245,
-      "htmlUrl": "https://github.com/milind-soni/OpenMausBot",
-      "publicPath": "/github/milind-soni/OpenMausBot",
+      "starsToday": 375,
+      "totalStars": 6626,
+      "htmlUrl": "https://github.com/ranxianglei/billion-context",
+      "publicPath": "/github/ranxianglei/billion-context",
       "sloc": {
-        "code": 1183347,
-        "generatedAt": "2026-11-10T09:44:11.550Z",
-        "reportId": "b74f627f3ed5f52207c9bb945ba6003eb43994f133e02a723c70a489563a9928"
+        "code": 168443,
+        "generatedAt": "2026-11-11T07:46:03.607Z",
+        "reportId": "c5b9a8963aafbba1bea59d36ecaa8b65fc3b0fc793fa88460c4449096edde612"
+      }
+    },
+    {
+      "rank": 12,
+      "owner": "mattpocock",
+      "name": "skills",
+      "fullName": "mattpocock/skills",
+      "description": "Skills for Real Engineers. Straight from my .agents directory.",
+      "language": "Shell",
+      "starsToday": 1225,
+      "totalStars": 321364,
+      "htmlUrl": "https://github.com/mattpocock/skills",
+      "publicPath": "/github/mattpocock/skills",
+      "sloc": {
+        "code": 1884,
+        "generatedAt": "2026-10-31T14:32:54.816Z",
+        "reportId": "1687356ed5e70e3f9a94c441070d608e26f3f6ecb8a3a7e0f6789bc25fc26c87"
       }
     }
   ]

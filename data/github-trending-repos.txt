@@ -1,12 +1,13 @@
-# GitHub Trending daily snapshot generated 2026-11-10T09:44:28.151Z
-anthropics/skills
+# GitHub Trending daily snapshot generated 2026-11-11T09:19:39.393Z
 meta/astryx
-sherlock-project/sherlock
-google-deepmind/mujoco
+anthropics/skills
+addyosmani/agent-skills
 anthropics/claude-quickstarts
-garrytan/gbrain
-vercel-labs/agent-browser
-ruvnet/RuView
-ZhuLinsen/daily_stock_analysis
+google-deepmind/mujoco
+we-promise/sure
 homeassistant-ai/ha-mcp
-milind-soni/OpenMausBot
+vercel-labs/agent-browser
+sherlock-project/sherlock
+tokio-rs/topcoat
+ranxianglei/billion-context
+mattpocock/skills
