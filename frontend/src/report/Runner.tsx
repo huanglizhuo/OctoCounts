@@ -266,12 +266,12 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
       {report ? (
         isDemo ? (
           <>
-            <Summary stats={report.total} />
+            <Summary stats={report.total} report={report} />
             <Charts report={report} variant="demo" />
           </>
         ) : (
           <>
-            <Summary stats={report.total} />
+            <Summary stats={report.total} report={report} />
             <ReportActions
               report={report}
               onRerun={onRerun}

@@ -123,11 +123,19 @@ pub struct AnalysisOptions {
     pub ignored_languages: Vec<String>,
     #[serde(default)]
     pub profile: AnalysisProfile,
-    #[serde(default = "default_true")]
+    // Field-level defaults are the derived Default (false): a request that
+    // omits any of these toggles asks for the canonical exclusion profile,
+    // whatever shape the omission takes — no `options` key at all (via
+    // AnalyzeRequest's `#[serde(default)]`) or a partial object (here). Until
+    // the 2026-11 unification these filled `true`, which made a partial
+    // object count everything while a missing one counted canonically; the
+    // read-side legacy fill in `store.rs` keeps spelling out the old
+    // all-inclusive set for rows stored before the toggles existed.
+    #[serde(default)]
     pub include_docs: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub include_tests: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub include_generated: bool,
     // False must stay absent: canonical SQL and legacy cache keys pin the JSON.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -139,20 +147,15 @@ impl AnalysisOptions {
     /// selection (`latest_eligible!`'s canonical guard in `store.rs`) requires
     /// before a `reports` row may stand as its repository's canonical report.
     ///
-    /// This is deliberately the derived `Default` (every include-* toggle
-    /// `false`, no ignores, the `default` profile), which is *not* the same as
-    /// what a client gets from deserializing `{}` — serde's field-level
-    /// `default_true` makes that flavour all-inclusive. The split is historic
-    /// and load-bearing:
-    ///
-    /// * the indexed corpus (the ~4,900-page sitemap, the seed script, the
-    ///   SLOC-history sampler and every SEO golden fixture) was produced with
-    ///   this all-false set, because `AnalyzeRequest::options`' `#[serde(default)]`
-    ///   resolves to `Default::default()` when a request omits `options` —
-    ///   exactly what `scripts/seed-popular-repos.mjs` sends;
-    /// * the web app (and the demo seed) submit the all-true set explicitly,
-    ///   so a visitor's custom-options analysis is *numerically a different
-    ///   measurement* of the same repository.
+    /// Since the 2026-11 profile unification this is also what every surface
+    /// ships by default: the web form, badges/embeds, the CLI, the MCP server
+    /// and the SLOC-history sampler all count under it unless the caller opts
+    /// back in to docs/tests/generated files. It remains the derived `Default`
+    /// and deserializing `{}` now yields it too (the historic `default_true`
+    /// fill that made partial objects all-inclusive is gone). Reports stored
+    /// before the toggles existed were counted all-inclusive and are echoed
+    /// with the legacy spelling by `store.rs`'s read projection — never this
+    /// set.
     ///
     /// Before the canonical guard existed, whichever row was written last won
     /// the SEO surfaces, so a single include-all visit flipped the public
@@ -169,6 +172,22 @@ impl AnalysisOptions {
             include_tests: false,
             include_generated: false,
             respect_gitattributes: false,
+        }
+    }
+
+    /// What rows stored before the include toggles existed actually counted:
+    /// docs, tests and generated files all included, because the analyzer of
+    /// that era had no filtering. The read-side body projection spells missing
+    /// `analysisOptions` fields out with this set so legacy rows are echoed
+    /// with the semantics their numbers were produced under — filling them
+    /// with [`Self::canonical`] would relabel include-all counts as the
+    /// public profile.
+    pub fn legacy() -> Self {
+        Self {
+            include_docs: true,
+            include_tests: true,
+            include_generated: true,
+            ..Self::canonical()
         }
     }
 }
@@ -334,10 +353,6 @@ pub struct RepoRef {
     pub renamed_from: Option<(String, String)>,
 }
 
-fn default_true() -> bool {
-    true
-}
-
 fn default_provider() -> RepositoryProvider {
     RepositoryProvider::GitHub
 }
@@ -432,16 +447,42 @@ mod tests {
         );
     }
 
-    /// The two flavours of "default" the incident turned on: omitting
-    /// `options` from a request gets the canonical all-false set (the derived
-    /// default via `#[serde(default)]`), while an explicitly empty `options`
-    /// object gets serde's field-level `default_true` toggles. Deserializing
-    /// `{}` must therefore NOT be canonical.
+    /// The 2026-11 unification: every omission flavour of a request now means
+    /// the canonical exclusion profile — a missing `options` key (via
+    /// `AnalyzeRequest`'s field-level default) and a partial/empty options
+    /// object (via the field defaults here) deserialize identically. Before,
+    /// `{}` filled the include toggles with `true`, a different measurement.
     #[test]
-    fn an_explicitly_empty_options_object_is_not_canonical() {
+    fn an_explicitly_empty_options_object_is_canonical() {
         use super::AnalysisOptions;
         let empty: AnalysisOptions = serde_json::from_str("{}").unwrap();
-        assert!(empty != AnalysisOptions::canonical());
-        assert!(empty.include_docs && empty.include_tests && empty.include_generated);
+        assert_eq!(empty, AnalysisOptions::canonical());
+    }
+
+    /// Partial objects keep their explicit values; only omitted fields fill
+    /// with the canonical default.
+    #[test]
+    fn partial_options_keep_explicit_toggles() {
+        use super::AnalysisOptions;
+        let partial: AnalysisOptions =
+            serde_json::from_str(r#"{"includeDocs": true}"#).unwrap();
+        assert!(partial.include_docs);
+        assert!(!partial.include_tests && !partial.include_generated);
+        assert!(partial != AnalysisOptions::canonical());
+    }
+
+    /// The legacy spelling: what pre-toggle rows counted under, and what the
+    /// read projection must echo for them — never the canonical set.
+    #[test]
+    fn legacy_options_are_all_inclusive() {
+        use super::AnalysisOptions;
+        let legacy = AnalysisOptions::legacy();
+        assert!(legacy.include_docs && legacy.include_tests && legacy.include_generated);
+        assert_eq!(legacy.profile, super::AnalysisProfile::Default);
+        assert!(legacy != AnalysisOptions::canonical());
+        assert_eq!(
+            serde_json::to_string(&legacy).unwrap(),
+            r#"{"ignoredDirs":[],"ignoredLanguages":[],"profile":"default","includeDocs":true,"includeTests":true,"includeGenerated":true}"#
+        );
     }
 }

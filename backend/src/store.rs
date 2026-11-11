@@ -615,15 +615,20 @@ impl Store {
     /// function of `body` for every writer): it is the boolean behind
     /// [`canonical_options_sql!`], computed as strict jsonb equality of
     /// `body->'analysisOptions'` against the canonical options JSON. Strict
-    /// equality is the right comparison because a *partial* options object
-    /// deserializes with serde's field-level `default_true` toggles — anything
-    /// the writer omitted counts as included, which is a different measurement —
-    /// and the legacy NULL shape (rows predating option tracking, written by an
-    /// analyzer with no doc/test/generated filtering) is the all-inclusive set
-    /// in everything but spelling. Both therefore land on `false`, which is the
-    /// `COALESCE`'s doing: `NULL = jsonb` is SQL NULL, and a NULL guard would
-    /// behave identically in a `WHERE` clause, but an explicit `false` keeps the
-    /// column honest for ad-hoc inspection.
+    /// equality is the right comparison because anything other than the exact
+    /// canonical value set is a different measurement: a *partial* options
+    /// object was written by the pre-toggle analyzer, which counted docs,
+    /// tests and generated files (the read projection in
+    /// `normalized_report_body_expr` echoes those rows with the legacy
+    /// all-inclusive spelling), and the legacy NULL shape (rows predating
+    /// option tracking) is the all-inclusive set in everything but spelling.
+    /// Both therefore land on `false`, which is the `COALESCE`'s doing:
+    /// `NULL = jsonb` is SQL NULL, and a NULL guard would behave identically
+    /// in a `WHERE` clause, but an explicit `false` keeps the column honest
+    /// for ad-hoc inspection. (Since the 2026-11 unification a *request* that
+    /// omits the toggles deserializes to the canonical set — that path stores
+    /// complete options and stays canonical; the strict comparison above only
+    /// ever sees complete JSON.)
     async fn migrate_report_stat_columns(&self) -> anyhow::Result<()> {
         // Nullable, no default: a metadata-only change, no table rewrite.
         sqlx::query(
@@ -3874,27 +3879,27 @@ fn throttled_fetch_sql(body_expr: &str, update_predicate: &str, select_predicate
 }
 
 /// A SQL expression rendering `body` as the JSON `/api/reports/{id}` has always
-/// returned: the stored document plus the defaults that `serde` used to
-/// materialize for the three fields that carry `#[serde(default)]`.
+/// returned: the stored document plus the completion fills that deserializing
+/// into `Report` used to materialize for fields carrying `#[serde(default)]`.
 ///
 /// The defaults are serialized from the Rust types rather than hand-written, so
 /// they cannot drift away from what deserialization would have produced.
 fn normalized_report_body_expr() -> &'static str {
     static EXPR: OnceLock<String> = OnceLock::new();
     EXPR.get_or_init(|| {
-        // `analysisOptions` has two different defaults and they disagree.
-        //
-        // When the key is absent, `Report`'s field-level #[serde(default)] runs
-        // `AnalysisOptions::default()`, which is Derive(Default) -- every bool
-        // false. When the key is present but incomplete, the *field*-level
-        // defaults inside AnalysisOptions apply instead, and three of those are
-        // `default_true`. Both are serialized from the Rust types here rather than
-        // hand-written, so neither can drift.
-        let absent = serde_json::to_string(&AnalysisOptions::default()).expect("options serialize");
-        let partial = serde_json::to_string(
-            &serde_json::from_str::<AnalysisOptions>("{}").expect("empty options deserialize"),
-        )
-        .expect("options serialize");
+        // Rows whose `analysisOptions` is absent (or missing the include
+        // fields) predate the doc/test/generated toggles, and the analyzer of
+        // that era counted everything — so both shapes are completed with the
+        // LEGACY all-inclusive spelling, never the canonical exclusion set:
+        // echoing canonical here would relabel include-all numbers as the
+        // public profile. Rows written after the toggles exist always carry
+        // complete explicit options, so the fill never touches them. The
+        // `||` direction keeps anything already stored winning over the fill.
+        // (Request-side defaults are a different concern: since the 2026-11
+        // unification a partial request deserializes to the canonical set —
+        // see AnalysisOptions. That path influences future counts; this one
+        // only describes past ones.)
+        let legacy = serde_json::to_string(&AnalysisOptions::legacy()).expect("options serialize");
         format!(
             r#"(
                 jsonb_build_object('analysisKey', '')
@@ -3904,13 +3909,10 @@ fn normalized_report_body_expr() -> &'static str {
                        jsonb_build_object('provider', 'github')
                        || COALESCE(body->'repository', '{{}}'::jsonb)
                    )
-                || CASE WHEN body ? 'analysisOptions'
-                        THEN jsonb_build_object(
-                                 'analysisOptions',
-                                 '{partial}'::jsonb || (body->'analysisOptions')
-                             )
-                        ELSE jsonb_build_object('analysisOptions', '{absent}'::jsonb)
-                   END
+                || jsonb_build_object(
+                       'analysisOptions',
+                       '{legacy}'::jsonb || COALESCE(body->'analysisOptions', '{{}}'::jsonb)
+                   )
             )::text"#
         )
     })

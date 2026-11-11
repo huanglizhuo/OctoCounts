@@ -26,9 +26,14 @@ await writeFile(new URL("i18n-stub.mjs", cacheDir), `export default {
 `);
 const colorContrast = await transform(await readFile(new URL("../src/colorContrast.ts", import.meta.url), "utf8"), { loader: "ts", format: "esm", target: "es2020" });
 await writeFile(new URL("colorContrast.mjs", cacheDir), colorContrast.code);
+// reportUtils also imports the canonical-options predicate from the shared
+// functions/ source (summaryScopeLabel); compile that peer alongside so its
+// relative specifier survives the move into the cache.
+const reportCopy = await transform(await readFile(new URL("../functions/report-copy.js", import.meta.url), "utf8"), { loader: "js", format: "esm", target: "es2020" });
+await writeFile(new URL("report-copy.mjs", cacheDir), reportCopy.code);
 await writeFile(
   new URL("report-utils.mjs", cacheDir),
-  compiled.code.replace('from "./i18n"', 'from "./i18n-stub.mjs"').replace('from "./colorContrast"', 'from "./colorContrast.mjs"'),
+  compiled.code.replace('from "./i18n"', 'from "./i18n-stub.mjs"').replace('from "./colorContrast"', 'from "./colorContrast.mjs"').replace('from "../functions/report-copy.js"', 'from "./report-copy.mjs"'),
 );
 const { runnerStatus, logLines, progressValue } = await import(new URL("report-utils.mjs", cacheDir).href);
 

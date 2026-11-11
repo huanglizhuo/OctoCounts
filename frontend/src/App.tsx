@@ -37,7 +37,7 @@ import {
 } from "./reportUtils";
 import type { AnalysisOptions, Report, Stats } from "./types";
 import { useAnalysisRunner } from "./useAnalysisRunner";
-import { AnalysisOptionsPanel, defaultAnalysisOptions, parseAnalysisOptions } from "./AnalysisOptionsPanel";
+import { AnalysisOptionsPanel, defaultAnalysisOptions, legacyAnalysisOptions, parseAnalysisOptions } from "./AnalysisOptionsPanel";
 
 // The homepage extension promo comes from the injection context (see
 // prerenderContext.ts): lazy on plain SPA loads, eager on the prerendered
@@ -965,7 +965,12 @@ function normalizeReport(report: Report): Report {
     ...report,
     repository: { ...report.repository, provider: normalizedProvider(report) },
     analysisKey: report.analysisKey || report.tokeiVersion,
-    analysisOptions: { ...defaultAnalysisOptions, ...(report.analysisOptions ?? {}) },
+    // Legacy reports (options never persisted) were counted with docs, tests
+    // and generated files included — filling them with today's canonical
+    // default would pass isCanonicalAnalysisOptions and mislabel include-all
+    // numbers as the public profile. legacyAnalysisOptions keeps the era's
+    // semantics; see its definition in AnalysisOptionsPanel.
+    analysisOptions: { ...legacyAnalysisOptions, ...(report.analysisOptions ?? {}) },
   };
 }
 

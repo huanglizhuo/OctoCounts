@@ -138,7 +138,16 @@
     "lines": "总行数",
     "code": "代码行",
     "comments": "注释",
-    "blanks": "空行"
+    "blanks": "空行",
+    "scopeCanonical": "默认口径：文档、测试与生成文件目录不计入代码行",
+    "scopeSourceOnly": "source-only 口径：仅统计源代码目录",
+    "scopeCustom": "自定义口径：{{includes}} 已计入（默认口径不计入）",
+    "scopeIncludes": {
+      "docs": "文档",
+      "tests": "测试",
+      "generated": "生成文件",
+      "separator": "、"
+    }
   },
   "insights": {
     "title": "代码库读数",

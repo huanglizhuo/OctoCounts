@@ -52,6 +52,26 @@ Sometimes you just want to know whether a repo is 2k lines, 200k lines, or a wee
 
 Live repository links follow the latest cached public report. Fixed result links bind a saved report and commit, but saved records are subject to cache retention and may expire or be replaced; export JSON or text for long-term archival.
 
+## Counting scope
+
+Every OctoCounts surface — the web app, badges, the browser extension, the CLI, the MCP server, and the indexed public report pages — counts under one **default scope**: documentation, test, and generated files are **excluded** from the code count.
+
+The exclusion is directory-based. Alongside the always-ignored build/VCS directories (`node_modules`, `target`, `dist`, `build`, `vendor`, …), the default scope drops these directories wherever they appear in the tree:
+
+| Excluded | Directories |
+|---|---|
+| Docs | `doc`, `docs`, `documentation` |
+| Tests | `test`, `tests`, `__tests__`, `fixtures` |
+| Generated | `gen`, `generated`, `.generated` |
+
+Know the boundaries of the rule:
+
+- **It is a scope, not a purity claim.** Files that happen to live outside those directories still count — a root `README.md`, JSON lockfiles, and Rust `#[cfg(test)]` modules inline in source files are all included.
+- **Opt back in explicitly.** The web app's analysis options (and the API's `includeDocs` / `includeTests` / `includeGenerated` toggles) count the whole repository when enabled; such runs produce a different measurement of the same repo and are pinned as their own saved results.
+- **Reports state their scope.** Every report page names its counting scope next to the headline numbers, and the counting-policy section spells out the full effective rules for that specific run.
+
+A 10-repository study of how this filtering moves SLOC counts is on the [research page](https://octocounts.com/research).
+
 ## Stack
 
 | Layer | Tech |

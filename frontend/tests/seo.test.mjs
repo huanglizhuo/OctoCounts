@@ -260,12 +260,12 @@ test("performance assets avoid blocked inline fonts and oversized previews", asy
   const runner = await readFile(new URL("src/report/Runner.tsx", ROOT), "utf8");
   assert.match(
     runner,
-    /isDemo \? \(\s*<>\s*<Summary stats=\{report\.total\} \/>\s*<Charts report=\{report\} variant="demo" \/>/,
+    /isDemo \? \(\s*<>\s*<Summary stats=\{report\.total\} report=\{report\} \/>\s*<Charts report=\{report\} variant="demo" \/>/,
     "demo branch renders Summary directly above Charts",
   );
   assert.match(
     runner,
-    /\) : \(\s*<>\s*<Summary stats=\{report\.total\} \/>\s*<ReportActions[\s\S]*?\/>\s*<CountingPolicyCard report=\{report\} onEditOptions=\{onEditOptions\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
+    /\) : \(\s*<>\s*<Summary stats=\{report\.total\} report=\{report\} \/>\s*<ReportActions[\s\S]*?\/>\s*<CountingPolicyCard report=\{report\} onEditOptions=\{onEditOptions\} \/>\s*<Charts report=\{report\} variant="full" \/>/,
     "full branch renders Summary before ReportActions and Charts",
   );
   // The homepage embeds no full tool forms anymore (T9): compare and diff are

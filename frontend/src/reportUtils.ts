@@ -1,4 +1,5 @@
 import i18n from "./i18n";
+import { isCanonicalAnalysisOptions } from "../functions/report-copy.js";
 import type { AppStatus, JobStatus, LanguageReport, Report, SortKey, TickerRow } from "./types";
 export { visibleLanguageColor } from "./colorContrast";
 
@@ -189,6 +190,26 @@ export function policySummary(report: Report) {
     i18n.t(`countingPolicy.attributeSummary.${policy.repositoryAttributes.status}`),
     i18n.t("countingPolicy.exclusionSummary", { dirs: policy.ignoredDirs.length, languages: new Set(policy.ignoredLanguages.map((language) => language.toLowerCase())).size }),
   ].join(" · ");
+}
+
+// One-line counting-scope label for the summary grid: states the exclusion
+// principle on canonical pages (the default since the profile unification)
+// and, on custom snapshots, names what the visitor opted back in so their
+// numbers are never silently compared against a default-scope count. Null
+// when there is nothing responsible to claim (pre-policy legacy reports).
+export function summaryScopeLabel(report: Report): string | null {
+  const policy = report.countingPolicy;
+  if (!policy) return null;
+  if (isCanonicalAnalysisOptions(report.analysisOptions)) {
+    return i18n.t("summary.scopeCanonical");
+  }
+  const included = (["docs", "tests", "generated"] as const).filter((kind) =>
+    kind === "docs" ? policy.includeDocs : kind === "tests" ? policy.includeTests : policy.includeGenerated,
+  );
+  if (included.length === 0) return i18n.t("summary.scopeSourceOnly");
+  return i18n.t("summary.scopeCustom", {
+    includes: included.map((kind) => i18n.t(`summary.scopeIncludes.${kind}`)).join(i18n.t("summary.scopeIncludes.separator")),
+  });
 }
 
 export function commandText(repoUrl: string, refName: string, forceRefresh: boolean) {

@@ -325,16 +325,19 @@ fn edge_cases() -> bytes::Bytes {
 // Harness
 // ---------------------------------------------------------------------------
 
-/// What an ordinary API request actually analyses with.
+/// The all-inclusive option set the counting goldens are pinned under.
 ///
-/// `AnalysisOptions::default()` is *not* this: the `include_*` flags derive
-/// their Rust default from `bool` (`false`), while `#[serde(default = ...)]`
-/// makes them `true` when the field is absent from the request body. So the
-/// struct default silently drops `docs/`, `tests/` and `generated/`, and real
-/// traffic does not. Both are pinned below; going through serde keeps this
-/// honest instead of restating the flags by hand.
+/// The goldens exist to freeze the analyzer's counting machinery on the
+/// fixtures, so they run the *maximal* surface — docs, tests and generated
+/// files all present — which exercises every file the fixtures carry. This
+/// used to fall out of serde's old `default_true` fill for `{}` (what an
+/// empty options object meant); since the 2026-11 profile unification that
+/// fill is the canonical exclusion set, so the inclusive baseline is spelled
+/// explicitly via `AnalysisOptions::legacy()` instead. Request defaults are
+/// pinned separately in `models.rs`
+/// (`an_explicitly_empty_options_object_is_canonical`).
 fn api_options() -> AnalysisOptions {
-    serde_json::from_str("{}").unwrap()
+    AnalysisOptions::legacy()
 }
 
 fn fixture_input(
@@ -526,9 +529,10 @@ fn source_only_profile_counts_are_stable() {
     );
 }
 
-/// `AnalysisOptions::default()` is reachable from Rust call sites and behaves
-/// differently from an empty request body. Pin it so the discrepancy cannot
-/// change unnoticed.
+/// `AnalysisOptions::default()` — the canonical exclusion profile since the
+/// 2026-11 unification, and identical to what an empty/partial request object
+/// now deserializes to (pinned in `models.rs`). Its fixture counts are pinned
+/// under their own golden so the exclusion wiring itself is frozen too.
 #[test]
 fn struct_default_options_counts_are_stable() {
     let report = analyze_fixture(rust_project(), AnalysisOptions::default());

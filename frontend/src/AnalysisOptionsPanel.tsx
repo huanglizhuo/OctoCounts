@@ -2,7 +2,30 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AnalysisOptions } from "./types";
 
+// The form's defaults ARE the canonical public-surface profile (docs, tests
+// and generated files excluded) so every surface ships one default: web UI,
+// badges/embeds, CLI, MCP, SEO pages, history sampling and the growth
+// animation all count the same way out of the box. Visitors who want the
+// whole repository counted flip the toggles on explicitly.
 export const defaultAnalysisOptions: AnalysisOptions = {
+  ignoredDirs: [],
+  ignoredLanguages: [],
+  profile: "default",
+  includeDocs: false,
+  includeTests: false,
+  includeGenerated: false,
+};
+
+// Kept as its own name for call sites that mean "the public profile" (embeds)
+// rather than "whatever the form defaults to today" — the two coincide by
+// design; if the form default ever moves again, this one must not follow.
+export const canonicalAnalysisOptions: AnalysisOptions = { ...defaultAnalysisOptions };
+
+// Reports stored before options were persisted were counted with docs, tests
+// and generated files all included — the defaults of that era. Filling their
+// missing options with today's defaults would relabel include-all numbers as
+// canonical (isCanonicalAnalysisOptions would pass), so legacy fills use this.
+export const legacyAnalysisOptions: AnalysisOptions = {
   ignoredDirs: [],
   ignoredLanguages: [],
   profile: "default",
@@ -10,8 +33,6 @@ export const defaultAnalysisOptions: AnalysisOptions = {
   includeTests: true,
   includeGenerated: true,
 };
-
-export const canonicalAnalysisOptions: AnalysisOptions = { ...defaultAnalysisOptions, includeDocs: false, includeTests: false, includeGenerated: false };
 
 // How many configured fields differ from the defaults — one point per field,
 // array-valued fields (ignored dirs/languages) counting as a single field.
@@ -98,9 +119,13 @@ export function parseAnalysisOptions(value: string | null): AnalysisOptions | nu
       profile: parsed.profile,
       ignoredDirs: parsed.ignoredDirs.filter((item): item is string => typeof item === "string"),
       ignoredLanguages: parsed.ignoredLanguages.filter((item): item is string => typeof item === "string"),
-      includeDocs: typeof parsed.includeDocs === "boolean" ? parsed.includeDocs : true,
-      includeTests: typeof parsed.includeTests === "boolean" ? parsed.includeTests : true,
-      includeGenerated: typeof parsed.includeGenerated === "boolean" ? parsed.includeGenerated : true,
+      // Missing booleans fill with today's default (excluded) — real snapshot
+      // URLs always serialize explicit values, so this only decides hand-made
+      // or legacy partial ?analysis= JSON, which should mean the current
+      // default rather than the pre-unification include-everything one.
+      includeDocs: typeof parsed.includeDocs === "boolean" ? parsed.includeDocs : false,
+      includeTests: typeof parsed.includeTests === "boolean" ? parsed.includeTests : false,
+      includeGenerated: typeof parsed.includeGenerated === "boolean" ? parsed.includeGenerated : false,
       respectGitattributes: parsed.respectGitattributes === true,
     };
   } catch {

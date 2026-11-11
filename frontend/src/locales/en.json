@@ -150,7 +150,16 @@
     "lines": "Total lines",
     "code": "Code lines",
     "comments": "Comments",
-    "blanks": "Blanks"
+    "blanks": "Blanks",
+    "scopeCanonical": "Default scope: documentation, test, and generated directories are excluded from the code count",
+    "scopeSourceOnly": "Source-only scope: only source directories are counted",
+    "scopeCustom": "Custom scope: {{includes}} included (excluded under the default scope)",
+    "scopeIncludes": {
+      "docs": "docs",
+      "tests": "tests",
+      "generated": "generated files",
+      "separator": ", "
+    }
   },
   "insights": {
     "title": "Codebase readout",

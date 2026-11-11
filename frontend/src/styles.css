@@ -1853,6 +1853,17 @@ body.embed-mode {
   line-height: 1;
 }
 
+/* Counting-scope chip: spans the whole summary grid so the headline numbers
+   and the exclusion rules that produced them read as one unit. */
+.summary .summary-scope {
+  grid-column: 1 / -1;
+  background: var(--panel);
+  color: var(--fg-mute);
+  font-size: var(--text-xs);
+  padding: 6px var(--space-5) 10px;
+  margin: 0;
+}
+
 /* Charts area: the donut chart sits left of the sortable table inside the
    runner's single container (the two stack on narrow screens); the toolbar
    carries the demo scope note and the mobile full-columns toggle. */
