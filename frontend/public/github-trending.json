@@ -1,8 +1,8 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-11T09:19:39.393Z",
-  "date": "2026-11-11",
+  "generatedAt": "2026-11-12T09:45:57.348Z",
+  "date": "2026-11-12",
   "repositories": [
     {
       "rank": 1,
@@ -11,42 +11,76 @@
       "fullName": "meta/astryx",
       "description": "An open source design system that's fully customizable and agent ready",
       "language": "TypeScript",
-      "starsToday": 3108,
-      "totalStars": 23896,
+      "starsToday": 2776,
+      "totalStars": 25759,
       "htmlUrl": "https://github.com/meta/astryx",
       "publicPath": "/github/meta/astryx",
       "sloc": {
-        "code": 1501834,
-        "generatedAt": "2026-11-11T09:19:29.758Z",
-        "reportId": "ea067c7890db49a383566028381442d3f43c4afaf9e7faf2c35adeb86d04e100"
+        "code": 1537472,
+        "generatedAt": "2026-11-12T09:45:22.004Z",
+        "reportId": "29f58ade3262cd8cdbc85c2054c7f60e6dde43ec76df869f62d8393f0f2a29b7"
       }
     },
     {
       "rank": 2,
-      "owner": "anthropics",
-      "name": "skills",
-      "fullName": "anthropics/skills",
-      "description": "Public repository for Agent Skills",
+      "owner": "ZhuLinsen",
+      "name": "daily_stock_analysis",
+      "fullName": "ZhuLinsen/daily_stock_analysis",
+      "description": "LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。 LLM-powered multi-market stock analysis system with multi-source market data, real-time news, decision dashboard, automated notifications, and cost-free scheduled runs.",
       "language": "Python",
-      "starsToday": 1679,
-      "totalStars": 192719,
-      "htmlUrl": "https://github.com/anthropics/skills",
-      "publicPath": "/github/anthropics/skills",
+      "starsToday": 278,
+      "totalStars": 70904,
+      "htmlUrl": "https://github.com/ZhuLinsen/daily_stock_analysis",
+      "publicPath": "/github/ZhuLinsen/daily_stock_analysis",
       "sloc": {
-        "code": 16653,
-        "generatedAt": "2026-11-06T22:41:38.456Z",
-        "reportId": "5cb78fd9e63b04ea635959c22a34b0874ef96a86f5e50d616e7a28f88a16de90"
+        "code": 263140,
+        "generatedAt": "2026-11-12T07:14:14.290Z",
+        "reportId": "48aa5ec6d53c49a1d1309c89e2f0bced303a84f8453705e272e907ad26436f53"
       }
     },
     {
       "rank": 3,
+      "owner": "GoogleChrome",
+      "name": "modern-web-guidance-src",
+      "fullName": "GoogleChrome/modern-web-guidance-src",
+      "description": "",
+      "language": "TypeScript",
+      "starsToday": 159,
+      "totalStars": 2104,
+      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
+      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
+      "sloc": {
+        "code": 179401,
+        "generatedAt": "2026-11-12T02:34:29.144Z",
+        "reportId": "25501ae26c533f214c113a6fa6c1305394ccb99cc492166167c294efa5e7c954"
+      }
+    },
+    {
+      "rank": 4,
+      "owner": "shadcn",
+      "name": "improve",
+      "fullName": "shadcn/improve",
+      "description": "Use your most capable model to audit your codebase and write plans for cheaper models to execute.",
+      "language": null,
+      "starsToday": 361,
+      "totalStars": 11269,
+      "htmlUrl": "https://github.com/shadcn/improve",
+      "publicPath": "/github/shadcn/improve",
+      "sloc": {
+        "code": 0,
+        "generatedAt": "2026-11-11T12:25:25.800Z",
+        "reportId": "0ca4d4923527bdd35b177b2f1f303764b1e1feb8a98e1ae1e4ad77d24d7f9a4e"
+      }
+    },
+    {
+      "rank": 5,
       "owner": "addyosmani",
       "name": "agent-skills",
       "fullName": "addyosmani/agent-skills",
       "description": "Production-grade engineering skills for AI coding agents.",
       "language": "JavaScript",
-      "starsToday": 465,
-      "totalStars": 115457,
+      "starsToday": 787,
+      "totalStars": 116254,
       "htmlUrl": "https://github.com/addyosmani/agent-skills",
       "publicPath": "/github/addyosmani/agent-skills",
       "sloc": {
@@ -56,156 +90,88 @@
       }
     },
     {
-      "rank": 4,
-      "owner": "anthropics",
-      "name": "claude-quickstarts",
-      "fullName": "anthropics/claude-quickstarts",
-      "description": "A collection of projects designed to help developers quickly get started with building deployable applications using the Claude API",
-      "language": "Python",
-      "starsToday": 531,
-      "totalStars": 20677,
-      "htmlUrl": "https://github.com/anthropics/claude-quickstarts",
-      "publicPath": "/github/anthropics/claude-quickstarts",
-      "sloc": {
-        "code": 96129,
-        "generatedAt": "2026-11-09T09:43:55.371Z",
-        "reportId": "d8cd77392d27bbc9ade7cd0c106b43acfda9d214ef03d504c3b8ba06bda57fdc"
-      }
-    },
-    {
-      "rank": 5,
-      "owner": "google-deepmind",
-      "name": "mujoco",
-      "fullName": "google-deepmind/mujoco",
-      "description": "Multi-Joint dynamics with Contact. A general purpose physics simulator.",
-      "language": "C++",
-      "starsToday": 456,
-      "totalStars": 17538,
-      "htmlUrl": "https://github.com/google-deepmind/mujoco",
-      "publicPath": "/github/google-deepmind/mujoco",
-      "sloc": {
-        "code": 420039,
-        "generatedAt": "2026-11-10T21:59:19.446Z",
-        "reportId": "317abacb0f25bfaef5e6b0cd71d597275787cbfeadc6b1fd5c69c36ae596dc24"
-      }
-    },
-    {
       "rank": 6,
-      "owner": "we-promise",
-      "name": "sure",
-      "fullName": "we-promise/sure",
-      "description": "The personal finance app for everyone (by everyone)",
-      "language": "Ruby",
-      "starsToday": 159,
-      "totalStars": 12365,
-      "htmlUrl": "https://github.com/we-promise/sure",
-      "publicPath": "/github/we-promise/sure",
-      "sloc": {
-        "code": 488846,
-        "generatedAt": "2026-11-11T09:19:22.910Z",
-        "reportId": "2ca87f0cf15e67fd877b23db34d6369f1d159349e53be7814d8ad1383015927b"
-      }
-    },
-    {
-      "rank": 7,
-      "owner": "homeassistant-ai",
-      "name": "ha-mcp",
-      "fullName": "homeassistant-ai/ha-mcp",
-      "description": "Configure and automate Home Assistant with Claude, ChatGPT, and other AI assistants.",
-      "language": "Python",
-      "starsToday": 790,
-      "totalStars": 6895,
-      "htmlUrl": "https://github.com/homeassistant-ai/ha-mcp",
-      "publicPath": "/github/homeassistant-ai/ha-mcp",
-      "sloc": {
-        "code": 342000,
-        "generatedAt": "2026-11-11T05:58:45.001Z",
-        "reportId": "431be0ea1d20b70e094f0fd7b8f9811eef6090a10845290229c197906a066b1f"
-      }
-    },
-    {
-      "rank": 8,
       "owner": "vercel-labs",
       "name": "agent-browser",
       "fullName": "vercel-labs/agent-browser",
       "description": "Browser automation CLI for AI agents",
       "language": "Rust",
-      "starsToday": 780,
-      "totalStars": 49505,
+      "starsToday": 708,
+      "totalStars": 50120,
       "htmlUrl": "https://github.com/vercel-labs/agent-browser",
       "publicPath": "/github/vercel-labs/agent-browser",
       "sloc": {
-        "code": 204139,
-        "generatedAt": "2026-11-11T06:36:19.439Z",
-        "reportId": "997aa3d83e1806c8afb51881fe9d772aecdc36b920edcb64720b94c980971f01"
+        "code": 205450,
+        "generatedAt": "2026-11-12T08:48:54.449Z",
+        "reportId": "d467736474da056f7cec2fd5318d0ca0a9da4fe25e85bbfa9095ca657d6be17c"
+      }
+    },
+    {
+      "rank": 7,
+      "owner": "we-promise",
+      "name": "sure",
+      "fullName": "we-promise/sure",
+      "description": "The personal finance app for everyone (by everyone)",
+      "language": "Ruby",
+      "starsToday": 1078,
+      "totalStars": 13343,
+      "htmlUrl": "https://github.com/we-promise/sure",
+      "publicPath": "/github/we-promise/sure",
+      "sloc": {
+        "code": 489642,
+        "generatedAt": "2026-11-12T07:40:18.368Z",
+        "reportId": "2defc0702fb47c9a6f7cd25228c0b3428c39e260aa9c71c0e02f6eeacc348e6a"
+      }
+    },
+    {
+      "rank": 8,
+      "owner": "homeassistant-ai",
+      "name": "ha-mcp",
+      "fullName": "homeassistant-ai/ha-mcp",
+      "description": "Configure and automate Home Assistant with Claude, ChatGPT, and other AI assistants.",
+      "language": "Python",
+      "starsToday": 645,
+      "totalStars": 7609,
+      "htmlUrl": "https://github.com/homeassistant-ai/ha-mcp",
+      "publicPath": "/github/homeassistant-ai/ha-mcp",
+      "sloc": {
+        "code": 342197,
+        "generatedAt": "2026-11-12T02:59:13.597Z",
+        "reportId": "10e2c756139d6c1bfa7def7ac7efb04fdc8835d915e38d08f928cc093109377b"
       }
     },
     {
       "rank": 9,
-      "owner": "sherlock-project",
-      "name": "sherlock",
-      "fullName": "sherlock-project/sherlock",
-      "description": "Hunt down social media accounts by username across social networks",
-      "language": "Python",
-      "starsToday": 2393,
-      "totalStars": 109607,
-      "htmlUrl": "https://github.com/sherlock-project/sherlock",
-      "publicPath": "/github/sherlock-project/sherlock",
+      "owner": "openai",
+      "name": "codex-security",
+      "fullName": "openai/codex-security",
+      "description": "OpenAI's Codex Security CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities. npm: https://www.npmjs.com/package/@openai/codex-security",
+      "language": "TypeScript",
+      "starsToday": 52,
+      "totalStars": 11998,
+      "htmlUrl": "https://github.com/openai/codex-security",
+      "publicPath": "/github/openai/codex-security",
       "sloc": {
-        "code": 4953,
-        "generatedAt": "2026-11-09T09:43:50.492Z",
-        "reportId": "33928c2b3385188080f0ac7b7c05b8c142674815cf87fd217a4dad06eb08de0f"
+        "code": 432773,
+        "generatedAt": "2026-11-12T09:46:17.964Z",
+        "reportId": "d8b311db69c8cae450d13c61c7dce3b5a37f80103e2d6d9a8c871913d9b965a4"
       }
     },
     {
       "rank": 10,
-      "owner": "tokio-rs",
-      "name": "topcoat",
-      "fullName": "tokio-rs/topcoat",
-      "description": "A batteries-included framework for building web apps",
-      "language": "Rust",
-      "starsToday": 192,
-      "totalStars": 7012,
-      "htmlUrl": "https://github.com/tokio-rs/topcoat",
-      "publicPath": "/github/tokio-rs/topcoat",
+      "owner": "TheAlgorithms",
+      "name": "Java",
+      "fullName": "TheAlgorithms/Java",
+      "description": "All Algorithms implemented in Java",
+      "language": "Java",
+      "starsToday": 51,
+      "totalStars": 67188,
+      "htmlUrl": "https://github.com/TheAlgorithms/Java",
+      "publicPath": "/github/TheAlgorithms/Java",
       "sloc": {
-        "code": 163581,
-        "generatedAt": "2026-11-11T09:20:04.941Z",
-        "reportId": "080b0d3c26c18ae80de34303f166c48831fb0fb3fd82c5d5820ed47ae48222eb"
-      }
-    },
-    {
-      "rank": 11,
-      "owner": "ranxianglei",
-      "name": "billion-context",
-      "fullName": "ranxianglei/billion-context",
-      "description": "A context-compression plugin for month-long single sessions (billions of tokens) ,small context windows (a 100K context is enough) and token savings (5x fewer tokens) .上下文压缩插件，月级长会话会话， 兼顾小窗口(100k上下文足矣)省token(省5倍token) . billion-context is all you need",
-      "language": "TypeScript",
-      "starsToday": 375,
-      "totalStars": 6626,
-      "htmlUrl": "https://github.com/ranxianglei/billion-context",
-      "publicPath": "/github/ranxianglei/billion-context",
-      "sloc": {
-        "code": 168443,
-        "generatedAt": "2026-11-11T07:46:03.607Z",
-        "reportId": "c5b9a8963aafbba1bea59d36ecaa8b65fc3b0fc793fa88460c4449096edde612"
-      }
-    },
-    {
-      "rank": 12,
-      "owner": "mattpocock",
-      "name": "skills",
-      "fullName": "mattpocock/skills",
-      "description": "Skills for Real Engineers. Straight from my .agents directory.",
-      "language": "Shell",
-      "starsToday": 1225,
-      "totalStars": 321364,
-      "htmlUrl": "https://github.com/mattpocock/skills",
-      "publicPath": "/github/mattpocock/skills",
-      "sloc": {
-        "code": 1884,
-        "generatedAt": "2026-10-31T14:32:54.816Z",
-        "reportId": "1687356ed5e70e3f9a94c441070d608e26f3f6ecb8a3a7e0f6789bc25fc26c87"
+        "code": 48693,
+        "generatedAt": "2026-11-12T09:45:26.463Z",
+        "reportId": "188467de968ac809f563c419fa8835efd4e5a8d7fa02f90ee285cf96931a57ff"
       }
     }
   ]
