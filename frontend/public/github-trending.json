@@ -1,86 +1,154 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-12T09:45:57.348Z",
-  "date": "2026-11-12",
+  "generatedAt": "2026-11-13T09:28:30.039Z",
+  "date": "2026-11-13",
   "repositories": [
     {
       "rank": 1,
-      "owner": "meta",
-      "name": "astryx",
-      "fullName": "meta/astryx",
-      "description": "An open source design system that's fully customizable and agent ready",
+      "owner": "GoogleChrome",
+      "name": "modern-web-guidance-src",
+      "fullName": "GoogleChrome/modern-web-guidance-src",
+      "description": "Keep your coding agent up to date with the latest web best practices",
       "language": "TypeScript",
-      "starsToday": 2776,
-      "totalStars": 25759,
-      "htmlUrl": "https://github.com/meta/astryx",
-      "publicPath": "/github/meta/astryx",
+      "starsToday": 739,
+      "totalStars": 3900,
+      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
+      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
       "sloc": {
-        "code": 1537472,
-        "generatedAt": "2026-11-12T09:45:22.004Z",
-        "reportId": "29f58ade3262cd8cdbc85c2054c7f60e6dde43ec76df869f62d8393f0f2a29b7"
+        "code": 181740,
+        "generatedAt": "2026-11-13T00:48:23.166Z",
+        "reportId": "afa21109b449cb871ea618d3117e1ff6939c865c98186e8ecaa51f56e721d344"
       }
     },
     {
       "rank": 2,
-      "owner": "ZhuLinsen",
-      "name": "daily_stock_analysis",
-      "fullName": "ZhuLinsen/daily_stock_analysis",
-      "description": "LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。 LLM-powered multi-market stock analysis system with multi-source market data, real-time news, decision dashboard, automated notifications, and cost-free scheduled runs.",
-      "language": "Python",
-      "starsToday": 278,
-      "totalStars": 70904,
-      "htmlUrl": "https://github.com/ZhuLinsen/daily_stock_analysis",
-      "publicPath": "/github/ZhuLinsen/daily_stock_analysis",
+      "owner": "openai",
+      "name": "codex-security",
+      "fullName": "openai/codex-security",
+      "description": "OpenAI's Codex Security CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities. npm: https://www.npmjs.com/package/@openai/codex-security",
+      "language": "TypeScript",
+      "starsToday": 643,
+      "totalStars": 12737,
+      "htmlUrl": "https://github.com/openai/codex-security",
+      "publicPath": "/github/openai/codex-security",
       "sloc": {
-        "code": 263140,
-        "generatedAt": "2026-11-12T07:14:14.290Z",
-        "reportId": "48aa5ec6d53c49a1d1309c89e2f0bced303a84f8453705e272e907ad26436f53"
+        "code": 434978,
+        "generatedAt": "2026-11-13T05:58:07.530Z",
+        "reportId": "4db4e56b5da2c9c43b15fcb53e377179c1c38b42d40a09d098ea2ff6d3baa6fc"
       }
     },
     {
       "rank": 3,
-      "owner": "GoogleChrome",
-      "name": "modern-web-guidance-src",
-      "fullName": "GoogleChrome/modern-web-guidance-src",
-      "description": "",
-      "language": "TypeScript",
-      "starsToday": 159,
-      "totalStars": 2104,
-      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
-      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
+      "owner": "nvm-sh",
+      "name": "nvm",
+      "fullName": "nvm-sh/nvm",
+      "description": "Node Version Manager - POSIX-compliant bash script to manage multiple active node.js versions.",
+      "language": "Shell",
+      "starsToday": 63,
+      "totalStars": 96086,
+      "htmlUrl": "https://github.com/nvm-sh/nvm",
+      "publicPath": "/github/nvm-sh/nvm",
       "sloc": {
-        "code": 179401,
-        "generatedAt": "2026-11-12T02:34:29.144Z",
-        "reportId": "25501ae26c533f214c113a6fa6c1305394ccb99cc492166167c294efa5e7c954"
+        "code": 7029,
+        "generatedAt": "2026-11-12T07:09:28.039Z",
+        "reportId": "7d62a371004299682638fe3e4ba691e0bc37fe29498f01ad3e90387f70eb0005"
       }
     },
     {
       "rank": 4,
-      "owner": "shadcn",
-      "name": "improve",
-      "fullName": "shadcn/improve",
-      "description": "Use your most capable model to audit your codebase and write plans for cheaper models to execute.",
-      "language": null,
-      "starsToday": 361,
-      "totalStars": 11269,
-      "htmlUrl": "https://github.com/shadcn/improve",
-      "publicPath": "/github/shadcn/improve",
+      "owner": "pookjw",
+      "name": "HermesEnabler",
+      "fullName": "pookjw/HermesEnabler",
+      "description": "Enable Hermès Watch Faces on any Apple Watch devices",
+      "language": "Objective-C",
+      "starsToday": 218,
+      "totalStars": 1674,
+      "htmlUrl": "https://github.com/pookjw/HermesEnabler",
+      "publicPath": "/github/pookjw/HermesEnabler",
       "sloc": {
-        "code": 0,
-        "generatedAt": "2026-11-11T12:25:25.800Z",
-        "reportId": "0ca4d4923527bdd35b177b2f1f303764b1e1feb8a98e1ae1e4ad77d24d7f9a4e"
+        "code": 5190,
+        "generatedAt": "2026-11-13T05:17:54.573Z",
+        "reportId": "819227a1b0e7a3ad275be93490053c8b2683be548e307cd23cde1922f9b5e96d"
       }
     },
     {
       "rank": 5,
+      "owner": "we-promise",
+      "name": "sure",
+      "fullName": "we-promise/sure",
+      "description": "The personal finance app for everyone (by everyone)",
+      "language": "Ruby",
+      "starsToday": 967,
+      "totalStars": 14271,
+      "htmlUrl": "https://github.com/we-promise/sure",
+      "publicPath": "/github/we-promise/sure",
+      "sloc": {
+        "code": 491698,
+        "generatedAt": "2026-11-13T06:56:25.281Z",
+        "reportId": "26ea254ad208a065d955c3cb024f87d8e1c28278850e26d787a70112a4b95cd4"
+      }
+    },
+    {
+      "rank": 6,
+      "owner": "QwenLM",
+      "name": "qwen-code",
+      "fullName": "QwenLM/qwen-code",
+      "description": "An open-source AI coding agent that lives in your terminal.",
+      "language": "TypeScript",
+      "starsToday": 151,
+      "totalStars": 30048,
+      "htmlUrl": "https://github.com/QwenLM/qwen-code",
+      "publicPath": "/github/QwenLM/qwen-code",
+      "sloc": {
+        "code": 4851916,
+        "generatedAt": "2026-11-13T09:28:17.564Z",
+        "reportId": "0a0798ca5661f75dba308198c45ada73ac15fa4fe110b3751080bac73cb81db6"
+      }
+    },
+    {
+      "rank": 7,
+      "owner": "ashhart",
+      "name": "TensorFold",
+      "fullName": "ashhart/TensorFold",
+      "description": "LLM Inference Engine for Metal, CUDA and Vulkan.",
+      "language": "Zig",
+      "starsToday": 54,
+      "totalStars": 2038,
+      "htmlUrl": "https://github.com/ashhart/TensorFold",
+      "publicPath": "/github/ashhart/TensorFold",
+      "sloc": {
+        "code": 1164008,
+        "generatedAt": "2026-11-13T09:30:52.015Z",
+        "reportId": "9a0b344fdf96228c3f892babcd0f850fd904d7a00fa43cb0f4b11d318344db60"
+      }
+    },
+    {
+      "rank": 8,
+      "owner": "nodejs",
+      "name": "node",
+      "fullName": "nodejs/node",
+      "description": "Node.js JavaScript runtime ✨🐢🚀✨",
+      "language": "JavaScript",
+      "starsToday": 62,
+      "totalStars": 123676,
+      "htmlUrl": "https://github.com/nodejs/node",
+      "publicPath": "/github/nodejs/node",
+      "sloc": {
+        "code": 10506735,
+        "generatedAt": "2026-11-13T09:28:40.962Z",
+        "reportId": "14adadf8453ec79cff0f065fdb5e673ef5a33a7ff2cfb9e5fbdb7ac0bf2bc2b2"
+      }
+    },
+    {
+      "rank": 9,
       "owner": "addyosmani",
       "name": "agent-skills",
       "fullName": "addyosmani/agent-skills",
       "description": "Production-grade engineering skills for AI coding agents.",
       "language": "JavaScript",
-      "starsToday": 787,
-      "totalStars": 116254,
+      "starsToday": 816,
+      "totalStars": 116931,
       "htmlUrl": "https://github.com/addyosmani/agent-skills",
       "publicPath": "/github/addyosmani/agent-skills",
       "sloc": {
@@ -90,88 +158,71 @@
       }
     },
     {
-      "rank": 6,
-      "owner": "vercel-labs",
-      "name": "agent-browser",
-      "fullName": "vercel-labs/agent-browser",
-      "description": "Browser automation CLI for AI agents",
-      "language": "Rust",
-      "starsToday": 708,
-      "totalStars": 50120,
-      "htmlUrl": "https://github.com/vercel-labs/agent-browser",
-      "publicPath": "/github/vercel-labs/agent-browser",
-      "sloc": {
-        "code": 205450,
-        "generatedAt": "2026-11-12T08:48:54.449Z",
-        "reportId": "d467736474da056f7cec2fd5318d0ca0a9da4fe25e85bbfa9095ca657d6be17c"
-      }
-    },
-    {
-      "rank": 7,
-      "owner": "we-promise",
-      "name": "sure",
-      "fullName": "we-promise/sure",
-      "description": "The personal finance app for everyone (by everyone)",
-      "language": "Ruby",
-      "starsToday": 1078,
-      "totalStars": 13343,
-      "htmlUrl": "https://github.com/we-promise/sure",
-      "publicPath": "/github/we-promise/sure",
-      "sloc": {
-        "code": 489642,
-        "generatedAt": "2026-11-12T07:40:18.368Z",
-        "reportId": "2defc0702fb47c9a6f7cd25228c0b3428c39e260aa9c71c0e02f6eeacc348e6a"
-      }
-    },
-    {
-      "rank": 8,
-      "owner": "homeassistant-ai",
-      "name": "ha-mcp",
-      "fullName": "homeassistant-ai/ha-mcp",
-      "description": "Configure and automate Home Assistant with Claude, ChatGPT, and other AI assistants.",
-      "language": "Python",
-      "starsToday": 645,
-      "totalStars": 7609,
-      "htmlUrl": "https://github.com/homeassistant-ai/ha-mcp",
-      "publicPath": "/github/homeassistant-ai/ha-mcp",
-      "sloc": {
-        "code": 342197,
-        "generatedAt": "2026-11-12T02:59:13.597Z",
-        "reportId": "10e2c756139d6c1bfa7def7ac7efb04fdc8835d915e38d08f928cc093109377b"
-      }
-    },
-    {
-      "rank": 9,
-      "owner": "openai",
-      "name": "codex-security",
-      "fullName": "openai/codex-security",
-      "description": "OpenAI's Codex Security CLI and TypeScript SDK for finding, validating, and fixing security vulnerabilities. npm: https://www.npmjs.com/package/@openai/codex-security",
-      "language": "TypeScript",
-      "starsToday": 52,
-      "totalStars": 11998,
-      "htmlUrl": "https://github.com/openai/codex-security",
-      "publicPath": "/github/openai/codex-security",
-      "sloc": {
-        "code": 432773,
-        "generatedAt": "2026-11-12T09:46:17.964Z",
-        "reportId": "d8b311db69c8cae450d13c61c7dce3b5a37f80103e2d6d9a8c871913d9b965a4"
-      }
-    },
-    {
       "rank": 10,
-      "owner": "TheAlgorithms",
-      "name": "Java",
-      "fullName": "TheAlgorithms/Java",
-      "description": "All Algorithms implemented in Java",
-      "language": "Java",
-      "starsToday": 51,
-      "totalStars": 67188,
-      "htmlUrl": "https://github.com/TheAlgorithms/Java",
-      "publicPath": "/github/TheAlgorithms/Java",
+      "owner": "meta",
+      "name": "astryx",
+      "fullName": "meta/astryx",
+      "description": "An open source design system that's fully customizable and agent ready",
+      "language": "TypeScript",
+      "starsToday": 1830,
+      "totalStars": 27008,
+      "htmlUrl": "https://github.com/meta/astryx",
+      "publicPath": "/github/meta/astryx",
       "sloc": {
-        "code": 48693,
-        "generatedAt": "2026-11-12T09:45:26.463Z",
-        "reportId": "188467de968ac809f563c419fa8835efd4e5a8d7fa02f90ee285cf96931a57ff"
+        "code": 1588786,
+        "generatedAt": "2026-11-13T09:28:40.962Z",
+        "reportId": "02b32d9eba4e14c269541065dd649ebccf726caf28832093b8d206818ab04a57"
+      }
+    },
+    {
+      "rank": 11,
+      "owner": "CopilotKit",
+      "name": "OpenBot",
+      "fullName": "CopilotKit/OpenBot",
+      "description": "Open-source AI coworkers that each get a computer of their own: a browser, files and tools, with every action decided before it happens and recorded after. Bring any AG-UI agent.",
+      "language": "TypeScript",
+      "starsToday": 298,
+      "totalStars": 11934,
+      "htmlUrl": "https://github.com/CopilotKit/OpenBot",
+      "publicPath": "/github/CopilotKit/OpenBot",
+      "sloc": {
+        "code": 1065541,
+        "generatedAt": "2026-11-13T04:22:07.045Z",
+        "reportId": "d474740ac270ebacead732791eb6c5dca1a9ec3ed379cadbde8e1b41778ddc15"
+      }
+    },
+    {
+      "rank": 12,
+      "owner": "Alishahryar1",
+      "name": "free-claude-code",
+      "fullName": "Alishahryar1/free-claude-code",
+      "description": "Use Claude Code, Codex, Antigravity, VSCode, Pi, and OpenCode (and 6 other harnesses) for free (1.3B+ free tokens) from your terminal, app, IDE, or phone, and now from the browser with native browser sessions (multi-harness + multi-model) like OpenClaw (voice supported + ToS friendly)",
+      "language": "Python",
+      "starsToday": 415,
+      "totalStars": 69640,
+      "htmlUrl": "https://github.com/Alishahryar1/free-claude-code",
+      "publicPath": "/github/Alishahryar1/free-claude-code",
+      "sloc": {
+        "code": 112602,
+        "generatedAt": "2026-11-12T12:09:17.766Z",
+        "reportId": "b87068087bd0fcd5f86b151579e0501e194faa28e1ea3fe328ff2403d8da3749"
+      }
+    },
+    {
+      "rank": 13,
+      "owner": "ggml-org",
+      "name": "llama.cpp",
+      "fullName": "ggml-org/llama.cpp",
+      "description": "LLM inference in C/C++",
+      "language": "C++",
+      "starsToday": 176,
+      "totalStars": 134775,
+      "htmlUrl": "https://github.com/ggml-org/llama.cpp",
+      "publicPath": "/github/ggml-org/llama.cpp",
+      "sloc": {
+        "code": 856618,
+        "generatedAt": "2026-11-13T09:28:52.145Z",
+        "reportId": "b37ac248773a0a72dae9b784e702e6287aa64274b10b46258d5fe073c6f5ea97"
       }
     }
   ]
