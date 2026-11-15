@@ -1,13 +1,16 @@
-# GitHub Trending daily snapshot generated 2026-11-14T08:56:02.385Z
-alibaba/open-code-review
-GoogleChrome/modern-web-guidance-src
-openai/codex-security
-ZhuLinsen/daily_stock_analysis
-we-promise/sure
+# GitHub Trending daily snapshot generated 2026-11-15T09:18:55.813Z
 backnotprop/plannotator
-louislam/uptime-kuma
-block/buzz
+GoogleChrome/modern-web-guidance-src
 tradermonty/claude-trading-skills
-tailscale/tailcat
-Likely7/Veyra-NRVideo
 ChromeDevTools/chrome-devtools-mcp
+alibaba/open-code-review
+QwenLM/qwen-code
+dream-num/univer
+ag-ui-protocol/ag-ui
+ashhart/TensorFold
+JuliusBrussee/caveman
+louislam/uptime-kuma
+we-promise/sure
+Tencent/LoopForge
+Likely7/Veyra-NRVideo
+martin-olivier/airgorah
