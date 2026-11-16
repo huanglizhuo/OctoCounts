@@ -1,137 +1,35 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-15T09:18:55.813Z",
-  "date": "2026-11-15",
+  "generatedAt": "2026-11-16T09:35:19.070Z",
+  "date": "2026-11-16",
   "repositories": [
     {
       "rank": 1,
-      "owner": "backnotprop",
-      "name": "plannotator",
-      "fullName": "backnotprop/plannotator",
-      "description": "The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.",
-      "language": "TypeScript",
-      "starsToday": 408,
-      "totalStars": 11435,
-      "htmlUrl": "https://github.com/backnotprop/plannotator",
-      "publicPath": "/github/backnotprop/plannotator",
-      "sloc": {
-        "code": 1023231,
-        "generatedAt": "2026-11-15T09:17:37.291Z",
-        "reportId": "24c2f2a93a05d700fab975afe3d436745431a2833e4f0e447069df12b65d2036"
-      }
-    },
-    {
-      "rank": 2,
-      "owner": "GoogleChrome",
-      "name": "modern-web-guidance-src",
-      "fullName": "GoogleChrome/modern-web-guidance-src",
-      "description": "Keep your coding agent up to date with the latest web best practices",
-      "language": "TypeScript",
-      "starsToday": 1231,
-      "totalStars": 6397,
-      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
-      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
-      "sloc": {
-        "code": 193269,
-        "generatedAt": "2026-11-14T02:37:42.547Z",
-        "reportId": "0b3d92d82dbca264146446a4b4a591e33bf06a80d6bed1c19d2560bc202858aa"
-      }
-    },
-    {
-      "rank": 3,
-      "owner": "tradermonty",
-      "name": "claude-trading-skills",
-      "fullName": "tradermonty/claude-trading-skills",
-      "description": "Claude Code skills for equity investors and traders — market analysis, technical charting, economic calendars, screeners, and trading strategy development.",
-      "language": "Python",
-      "starsToday": 553,
-      "totalStars": 5062,
-      "htmlUrl": "https://github.com/tradermonty/claude-trading-skills",
-      "publicPath": "/github/tradermonty/claude-trading-skills",
-      "sloc": {
-        "code": 204537,
-        "generatedAt": "2026-11-14T15:12:16.270Z",
-        "reportId": "35a0593ee546cfd328fe3ad75358a1505d48474fc76a800d322123068925ec04"
-      }
-    },
-    {
-      "rank": 4,
-      "owner": "ChromeDevTools",
-      "name": "chrome-devtools-mcp",
-      "fullName": "ChromeDevTools/chrome-devtools-mcp",
-      "description": "Chrome DevTools for coding agents",
-      "language": "TypeScript",
-      "starsToday": 664,
-      "totalStars": 56520,
-      "htmlUrl": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
-      "publicPath": "/github/ChromeDevTools/chrome-devtools-mcp",
-      "sloc": {
-        "code": 94492,
-        "generatedAt": "2026-11-13T15:08:59.617Z",
-        "reportId": "8182c84867d746998b0116644bfbb8840f7db910e485e1c1517267333b6e0216"
-      }
-    },
-    {
-      "rank": 5,
-      "owner": "alibaba",
-      "name": "open-code-review",
-      "fullName": "alibaba/open-code-review",
-      "description": "Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
-      "language": "Go",
-      "starsToday": 893,
-      "totalStars": 51627,
-      "htmlUrl": "https://github.com/alibaba/open-code-review",
-      "publicPath": "/github/alibaba/open-code-review",
-      "sloc": {
-        "code": 190209,
-        "generatedAt": "2026-11-15T02:54:33.789Z",
-        "reportId": "b49f79ff4ca0cb32e8d94906084919385f7aaf97035c130bfdf578a3f6118851"
-      }
-    },
-    {
-      "rank": 6,
-      "owner": "QwenLM",
-      "name": "qwen-code",
-      "fullName": "QwenLM/qwen-code",
-      "description": "An open-source AI coding agent that lives in your terminal.",
-      "language": "TypeScript",
-      "starsToday": 64,
-      "totalStars": 30452,
-      "htmlUrl": "https://github.com/QwenLM/qwen-code",
-      "publicPath": "/github/QwenLM/qwen-code",
-      "sloc": {
-        "code": 4882053,
-        "generatedAt": "2026-11-15T09:17:58.529Z",
-        "reportId": "5c38012b6712bde5590e6b501486038c7158501969731fff1dd0e5550a4880a8"
-      }
-    },
-    {
-      "rank": 7,
       "owner": "dream-num",
       "name": "univer",
       "fullName": "dream-num/univer",
       "description": "Build your own AI office with Univer Office SDK. Bring editing, calculation, collaboration, and file processing into your product for people and AI agents. Built on an extensible open-source core.",
       "language": "TypeScript",
-      "starsToday": 495,
-      "totalStars": 25145,
+      "starsToday": 988,
+      "totalStars": 26746,
       "htmlUrl": "https://github.com/dream-num/univer",
       "publicPath": "/github/dream-num/univer",
       "sloc": {
-        "code": 618954,
-        "generatedAt": "2026-11-14T09:26:47.334Z",
-        "reportId": "928691bc3c8395a56ba71dcfa874b7ed49ee804c1dba300a9d8b5af315a0d1c2"
+        "code": 618043,
+        "generatedAt": "2026-11-16T07:40:29.597Z",
+        "reportId": "9027e71d0b0e61ac4dde13c5de76814abb4efed888cb2a5da160416f4ebe7eb8"
       }
     },
     {
-      "rank": 8,
+      "rank": 2,
       "owner": "ag-ui-protocol",
       "name": "ag-ui",
       "fullName": "ag-ui-protocol/ag-ui",
       "description": "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.",
       "language": "TypeScript",
-      "starsToday": 9,
-      "totalStars": 17491,
+      "starsToday": 355,
+      "totalStars": 18250,
       "htmlUrl": "https://github.com/ag-ui-protocol/ag-ui",
       "publicPath": "/github/ag-ui-protocol/ag-ui",
       "sloc": {
@@ -141,122 +39,173 @@
       }
     },
     {
-      "rank": 9,
-      "owner": "ashhart",
-      "name": "TensorFold",
-      "fullName": "ashhart/TensorFold",
-      "description": "LLM Inference Engine for Metal, CUDA and Vulkan.",
-      "language": "Zig",
-      "starsToday": 37,
-      "totalStars": 2215,
-      "htmlUrl": "https://github.com/ashhart/TensorFold",
-      "publicPath": "/github/ashhart/TensorFold",
+      "rank": 3,
+      "owner": "google-labs-code",
+      "name": "stitch-skills",
+      "fullName": "google-labs-code/stitch-skills",
+      "description": "A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open standard, for compatibility with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.",
+      "language": "TypeScript",
+      "starsToday": 247,
+      "totalStars": 9520,
+      "htmlUrl": "https://github.com/google-labs-code/stitch-skills",
+      "publicPath": "/github/google-labs-code/stitch-skills",
       "sloc": {
-        "code": 1189959,
-        "generatedAt": "2026-11-15T03:15:55.468Z",
-        "reportId": "c3a56ca9de95d592447dbe405ab5ee61f218ae5b43ae9eb7712c5f6cc14ac26d"
+        "code": 4657,
+        "generatedAt": "2026-11-16T09:34:23.603Z",
+        "reportId": "7bace0111d8e87f649eafdab8f5d7cb1d63e5dd41ac39d5ec60b0d04135ff3cc"
       }
     },
     {
-      "rank": 10,
-      "owner": "JuliusBrussee",
-      "name": "caveman",
-      "fullName": "JuliusBrussee/caveman",
-      "description": "🪨 why use many token when few token do trick. Viral skill + proxy for coding agents that cuts 65% of tokens by talking like a caveman.",
+      "rank": 4,
+      "owner": "backnotprop",
+      "name": "plannotator",
+      "fullName": "backnotprop/plannotator",
+      "description": "The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.",
+      "language": "TypeScript",
+      "starsToday": 866,
+      "totalStars": 12138,
+      "htmlUrl": "https://github.com/backnotprop/plannotator",
+      "publicPath": "/github/backnotprop/plannotator",
+      "sloc": {
+        "code": 1058391,
+        "generatedAt": "2026-11-16T09:34:28.789Z",
+        "reportId": "1a7081f16baa7f4b6041177ede52414f1a4198af25e316fe19c66f48f0ae400b"
+      }
+    },
+    {
+      "rank": 5,
+      "owner": "ChromeDevTools",
+      "name": "chrome-devtools-mcp",
+      "fullName": "ChromeDevTools/chrome-devtools-mcp",
+      "description": "Chrome DevTools for coding agents",
+      "language": "TypeScript",
+      "starsToday": 717,
+      "totalStars": 57328,
+      "htmlUrl": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "publicPath": "/github/ChromeDevTools/chrome-devtools-mcp",
+      "sloc": {
+        "code": 94507,
+        "generatedAt": "2026-11-16T09:34:28.843Z",
+        "reportId": "ce98ef5c58c37caca84aea3c8c3d3b0fd25181ed147ac62fec15a84b5480844c"
+      }
+    },
+    {
+      "rank": 6,
+      "owner": "alibaba",
+      "name": "open-code-review",
+      "fullName": "alibaba/open-code-review",
+      "description": "Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
       "language": "Go",
-      "starsToday": 227,
-      "totalStars": 120237,
-      "htmlUrl": "https://github.com/JuliusBrussee/caveman",
-      "publicPath": "/github/JuliusBrussee/caveman",
+      "starsToday": 691,
+      "totalStars": 52531,
+      "htmlUrl": "https://github.com/alibaba/open-code-review",
+      "publicPath": "/github/alibaba/open-code-review",
       "sloc": {
-        "code": 269356,
-        "generatedAt": "2026-11-13T19:30:52.742Z",
-        "reportId": "236af0028da468deaa6d5823a27ac4965c9a6448ea2fbcb3e41b6e674ae4e117"
+        "code": 190322,
+        "generatedAt": "2026-11-16T09:34:32.097Z",
+        "reportId": "fd74d16c2c3ceb496fafc96564157649bb51c331aed323a31fcbcbb57d3173ab"
       }
     },
     {
-      "rank": 11,
-      "owner": "louislam",
-      "name": "uptime-kuma",
-      "fullName": "louislam/uptime-kuma",
-      "description": "A fancy self-hosted monitoring tool",
-      "language": "JavaScript",
-      "starsToday": 430,
-      "totalStars": 94346,
-      "htmlUrl": "https://github.com/louislam/uptime-kuma",
-      "publicPath": "/github/louislam/uptime-kuma",
-      "sloc": {
-        "code": 124405,
-        "generatedAt": "2026-11-14T11:59:54.089Z",
-        "reportId": "e5b09bf4cf1eecfcf0ba6f693c5d656402e8e3d18c96dc861414c4453d251093"
-      }
-    },
-    {
-      "rank": 12,
-      "owner": "we-promise",
-      "name": "sure",
-      "fullName": "we-promise/sure",
-      "description": "The personal finance app for everyone (by everyone)",
-      "language": "Ruby",
-      "starsToday": 659,
-      "totalStars": 15470,
-      "htmlUrl": "https://github.com/we-promise/sure",
-      "publicPath": "/github/we-promise/sure",
-      "sloc": {
-        "code": 497367,
-        "generatedAt": "2026-11-15T09:16:16.083Z",
-        "reportId": "f03752bfddfee91218d142ed4f584e7fd5cc3181fca447948813f1d30047becc"
-      }
-    },
-    {
-      "rank": 13,
+      "rank": 7,
       "owner": "Tencent",
       "name": "LoopForge",
       "fullName": "Tencent/LoopForge",
       "description": "Self-hosted workflows for coding-agent delivery. Orchestrate CodeBuddy, Codex and Claude Code with scripts and human approval gates. Includes Local workflows for coding assistants.",
       "language": "Go",
-      "starsToday": 33,
-      "totalStars": 1065,
+      "starsToday": 423,
+      "totalStars": 2059,
       "htmlUrl": "https://github.com/Tencent/LoopForge",
       "publicPath": "/github/Tencent/LoopForge",
       "sloc": {
         "code": 457238,
-        "generatedAt": "2026-11-15T09:20:52.434Z",
-        "reportId": "e2eb019f3eab3393e68f4b5d3006f333812c29d78426d2b278bea1d066434715"
+        "generatedAt": "2026-11-16T08:20:17.007Z",
+        "reportId": "e8cd8c44043aee1bf9a1b86a3ff38f626732490ed530dbac8c16cfebc7aa24c1"
       }
     },
     {
-      "rank": 14,
-      "owner": "Likely7",
-      "name": "Veyra-NRVideo",
-      "fullName": "Likely7/Veyra-NRVideo",
-      "description": "Bring PS5 GTA6 to 120FPS with DLSS 5. An advanced Windows video player and capture enhancement tool featuring real-time preview for videos, images, and capture card sources. Combine AI-powered Super Resolution, DLSS5 image enhancement, and Frame Generation to deliver a next-generation visual experience.",
+      "rank": 8,
+      "owner": "ggml-org",
+      "name": "ggml",
+      "fullName": "ggml-org/ggml",
+      "description": "Tensor library for machine learning",
       "language": "C++",
-      "starsToday": 420,
-      "totalStars": 2475,
-      "htmlUrl": "https://github.com/Likely7/Veyra-NRVideo",
-      "publicPath": "/github/Likely7/Veyra-NRVideo",
+      "starsToday": 43,
+      "totalStars": 16037,
+      "htmlUrl": "https://github.com/ggml-org/ggml",
+      "publicPath": "/github/ggml-org/ggml",
       "sloc": {
-        "code": 206561,
-        "generatedAt": "2026-11-15T09:18:14.258Z",
-        "reportId": "935eb2c962a6a2684501181086a931a97f05f1b4a05fe8766f453888994550fb"
+        "code": 468969,
+        "generatedAt": "2026-11-13T09:47:22.447Z",
+        "reportId": "16708b33f8aa97a5f2735d31a3ef1823acf99a67ff59b38d929d78eda6d82419"
       }
     },
     {
-      "rank": 15,
-      "owner": "martin-olivier",
-      "name": "airgorah",
-      "fullName": "martin-olivier/airgorah",
-      "description": "A WiFi security auditing software",
-      "language": "Rust",
-      "starsToday": 270,
-      "totalStars": 6076,
-      "htmlUrl": "https://github.com/martin-olivier/airgorah",
-      "publicPath": "/github/martin-olivier/airgorah",
+      "rank": 9,
+      "owner": "elementalsouls",
+      "name": "Claude-BugHunter",
+      "fullName": "elementalsouls/Claude-BugHunter",
+      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
+      "language": "Python",
+      "starsToday": 98,
+      "totalStars": 6903,
+      "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
+      "publicPath": "/github/elementalsouls/Claude-BugHunter",
       "sloc": {
-        "code": 6409,
-        "generatedAt": "2026-11-14T12:48:47.428Z",
-        "reportId": "5e6a2821aa0ac619d22c8a0c6587825664ca1a5b3d0bc8fec88b5a0e25f91610"
+        "code": 9278,
+        "generatedAt": "2026-11-16T09:35:38.461Z",
+        "reportId": "7fb256b0332dc007a21e4b5f5a15a1a52e3c800fbf14e771c41982d3bd1bf160"
+      }
+    },
+    {
+      "rank": 10,
+      "owner": "GoogleChrome",
+      "name": "modern-web-guidance-src",
+      "fullName": "GoogleChrome/modern-web-guidance-src",
+      "description": "Keep your coding agent up to date with the latest web best practices",
+      "language": "TypeScript",
+      "starsToday": 1219,
+      "totalStars": 7614,
+      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
+      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
+      "sloc": {
+        "code": 193269,
+        "generatedAt": "2026-11-14T02:37:42.547Z",
+        "reportId": "0b3d92d82dbca264146446a4b4a591e33bf06a80d6bed1c19d2560bc202858aa"
+      }
+    },
+    {
+      "rank": 11,
+      "owner": "tradermonty",
+      "name": "claude-trading-skills",
+      "fullName": "tradermonty/claude-trading-skills",
+      "description": "Claude Code skills for equity investors and traders — market analysis, technical charting, economic calendars, screeners, and trading strategy development.",
+      "language": "Python",
+      "starsToday": 706,
+      "totalStars": 5889,
+      "htmlUrl": "https://github.com/tradermonty/claude-trading-skills",
+      "publicPath": "/github/tradermonty/claude-trading-skills",
+      "sloc": {
+        "code": 208079,
+        "generatedAt": "2026-11-16T03:49:07.777Z",
+        "reportId": "a36155c3e30236132e79e13f03450c10aa4ba4a2b0df6e827ff79beebd9087cc"
+      }
+    },
+    {
+      "rank": 12,
+      "owner": "NVIDIA",
+      "name": "SkillEvaluator",
+      "fullName": "NVIDIA/SkillEvaluator",
+      "description": "Multi-tier framework for evaluating AI agent skills with quality gates, semantic overlap detection, synthetic evaluation dataset generation, and live agent evaluation that measures how skills affect agent behavior.",
+      "language": "Python",
+      "starsToday": 122,
+      "totalStars": 2095,
+      "htmlUrl": "https://github.com/NVIDIA/SkillEvaluator",
+      "publicPath": "/github/NVIDIA/SkillEvaluator",
+      "sloc": {
+        "code": 207081,
+        "generatedAt": "2026-11-16T09:34:48.267Z",
+        "reportId": "4446899ff6ef313ecafbb2d981cbfbeb0a71136af25a25e26d262c037212ba51"
       }
     }
   ]
