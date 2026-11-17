@@ -1,52 +1,120 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-16T09:35:19.070Z",
-  "date": "2026-11-16",
+  "generatedAt": "2026-11-17T10:40:09.508Z",
+  "date": "2026-11-17",
   "repositories": [
     {
       "rank": 1,
+      "owner": "elementalsouls",
+      "name": "Claude-BugHunter",
+      "fullName": "elementalsouls/Claude-BugHunter",
+      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
+      "language": "Python",
+      "starsToday": 1094,
+      "totalStars": 7931,
+      "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
+      "publicPath": "/github/elementalsouls/Claude-BugHunter",
+      "sloc": {
+        "code": 10558,
+        "generatedAt": "2026-11-17T01:03:12.810Z",
+        "reportId": "cee268b89fac956ae37b8da07e58b2226068ba818b22197da7b829feb3482da0"
+      }
+    },
+    {
+      "rank": 2,
+      "owner": "mvanhorn",
+      "name": "last30days-skill",
+      "fullName": "mvanhorn/last30days-skill",
+      "description": "AI agent skill that researches any topic across Reddit, X, YouTube, HN, Polymarket, and the web - then synthesizes a grounded summary",
+      "language": "Python",
+      "starsToday": 135,
+      "totalStars": 68485,
+      "htmlUrl": "https://github.com/mvanhorn/last30days-skill",
+      "publicPath": "/github/mvanhorn/last30days-skill",
+      "sloc": {
+        "code": 81029,
+        "generatedAt": "2026-11-17T03:19:59.048Z",
+        "reportId": "70eebca4337f441dfea5f8ffa547b298c4bc1affa70d0ed6ec0c70033966d137"
+      }
+    },
+    {
+      "rank": 3,
+      "owner": "alibaba",
+      "name": "open-code-review",
+      "fullName": "alibaba/open-code-review",
+      "description": "Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
+      "language": "Go",
+      "starsToday": 951,
+      "totalStars": 53314,
+      "htmlUrl": "https://github.com/alibaba/open-code-review",
+      "publicPath": "/github/alibaba/open-code-review",
+      "sloc": {
+        "code": 190817,
+        "generatedAt": "2026-11-17T06:43:07.124Z",
+        "reportId": "1a58777d76e7ec7ab0d896aa4630692ae2c93e5437f4be13033c040f846a30d7"
+      }
+    },
+    {
+      "rank": 4,
+      "owner": "Tencent",
+      "name": "LoopForge",
+      "fullName": "Tencent/LoopForge",
+      "description": "Self-hosted workflows for coding-agent delivery. Orchestrate CodeBuddy, Codex and Claude Code with scripts and human approval gates. Includes Local workflows for coding assistants.",
+      "language": "Go",
+      "starsToday": 1020,
+      "totalStars": 2684,
+      "htmlUrl": "https://github.com/Tencent/LoopForge",
+      "publicPath": "/github/Tencent/LoopForge",
+      "sloc": {
+        "code": 457587,
+        "generatedAt": "2026-11-17T10:39:49.176Z",
+        "reportId": "d4f0f2c1def1ded1b11e34237a3468b6b02833a4a5d4a61df65ddeded25c8ff4"
+      }
+    },
+    {
+      "rank": 5,
       "owner": "dream-num",
       "name": "univer",
       "fullName": "dream-num/univer",
       "description": "Build your own AI office with Univer Office SDK. Bring editing, calculation, collaboration, and file processing into your product for people and AI agents. Built on an extensible open-source core.",
       "language": "TypeScript",
-      "starsToday": 988,
-      "totalStars": 26746,
+      "starsToday": 1828,
+      "totalStars": 28615,
       "htmlUrl": "https://github.com/dream-num/univer",
       "publicPath": "/github/dream-num/univer",
       "sloc": {
-        "code": 618043,
-        "generatedAt": "2026-11-16T07:40:29.597Z",
-        "reportId": "9027e71d0b0e61ac4dde13c5de76814abb4efed888cb2a5da160416f4ebe7eb8"
+        "code": 619192,
+        "generatedAt": "2026-11-17T10:25:57.908Z",
+        "reportId": "978b31c1477c4b7d173e8421df9ee2a74aa11a18c6e0baa6eefcf9e9a712f408"
       }
     },
     {
-      "rank": 2,
-      "owner": "ag-ui-protocol",
-      "name": "ag-ui",
-      "fullName": "ag-ui-protocol/ag-ui",
-      "description": "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.",
-      "language": "TypeScript",
-      "starsToday": 355,
-      "totalStars": 18250,
-      "htmlUrl": "https://github.com/ag-ui-protocol/ag-ui",
-      "publicPath": "/github/ag-ui-protocol/ag-ui",
+      "rank": 6,
+      "owner": "getarcaneapp",
+      "name": "arcane",
+      "fullName": "getarcaneapp/arcane",
+      "description": "Modern Docker Management, Designed for Everyone",
+      "language": "Go",
+      "starsToday": 46,
+      "totalStars": 9012,
+      "htmlUrl": "https://github.com/getarcaneapp/arcane",
+      "publicPath": "/github/getarcaneapp/arcane",
       "sloc": {
-        "code": 396689,
-        "generatedAt": "2026-11-15T09:19:12.068Z",
-        "reportId": "9cb91c999b5921b3037835addfe3da10ae763fd762415f75b3b540862920a832"
+        "code": 454124,
+        "generatedAt": "2026-11-17T07:16:18.086Z",
+        "reportId": "5e23a9b2b0921b424443d4d237d6c4933e699daccd6c792c579b637779aeb6de"
       }
     },
     {
-      "rank": 3,
+      "rank": 7,
       "owner": "google-labs-code",
       "name": "stitch-skills",
       "fullName": "google-labs-code/stitch-skills",
       "description": "A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open standard, for compatibility with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.",
       "language": "TypeScript",
-      "starsToday": 247,
-      "totalStars": 9520,
+      "starsToday": 529,
+      "totalStars": 9891,
       "htmlUrl": "https://github.com/google-labs-code/stitch-skills",
       "publicPath": "/github/google-labs-code/stitch-skills",
       "sloc": {
@@ -56,156 +124,139 @@
       }
     },
     {
-      "rank": 4,
+      "rank": 8,
+      "owner": "cursor",
+      "name": "plugins",
+      "fullName": "cursor/plugins",
+      "description": "Cursor plugin specification and official plugins",
+      "language": "TypeScript",
+      "starsToday": 196,
+      "totalStars": 16719,
+      "htmlUrl": "https://github.com/cursor/plugins",
+      "publicPath": "/github/cursor/plugins",
+      "sloc": {
+        "code": 26341,
+        "generatedAt": "2026-11-17T06:32:30.250Z",
+        "reportId": "078c2dcb9893d68addd08150b24eacf876a31c3dc99f5bbb6cdf77fe5d26cd0f"
+      }
+    },
+    {
+      "rank": 9,
+      "owner": "obra",
+      "name": "superpowers",
+      "fullName": "obra/superpowers",
+      "description": "An agentic skills framework & software development methodology that works.",
+      "language": "Shell",
+      "starsToday": 1905,
+      "totalStars": 318895,
+      "htmlUrl": "https://github.com/obra/superpowers",
+      "publicPath": "/github/obra/superpowers",
+      "sloc": {
+        "code": 2620,
+        "generatedAt": "2026-11-03T23:17:32.630Z",
+        "reportId": "0c67d2665825a6a5f5888452dec44f1bbecbfd902f80124a2d5f72174bdcd4e6"
+      }
+    },
+    {
+      "rank": 10,
+      "owner": "ag-ui-protocol",
+      "name": "ag-ui",
+      "fullName": "ag-ui-protocol/ag-ui",
+      "description": "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.",
+      "language": "TypeScript",
+      "starsToday": 791,
+      "totalStars": 19720,
+      "htmlUrl": "https://github.com/ag-ui-protocol/ag-ui",
+      "publicPath": "/github/ag-ui-protocol/ag-ui",
+      "sloc": {
+        "code": 396689,
+        "generatedAt": "2026-11-16T20:24:43.714Z",
+        "reportId": "ee3663cb2df5cf22210a3e412c9638accc43224a315c46546e35884b8d4ede19"
+      }
+    },
+    {
+      "rank": 11,
       "owner": "backnotprop",
       "name": "plannotator",
       "fullName": "backnotprop/plannotator",
       "description": "The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.",
       "language": "TypeScript",
-      "starsToday": 866,
-      "totalStars": 12138,
+      "starsToday": 696,
+      "totalStars": 12862,
       "htmlUrl": "https://github.com/backnotprop/plannotator",
       "publicPath": "/github/backnotprop/plannotator",
       "sloc": {
-        "code": 1058391,
-        "generatedAt": "2026-11-16T09:34:28.789Z",
-        "reportId": "1a7081f16baa7f4b6041177ede52414f1a4198af25e316fe19c66f48f0ae400b"
-      }
-    },
-    {
-      "rank": 5,
-      "owner": "ChromeDevTools",
-      "name": "chrome-devtools-mcp",
-      "fullName": "ChromeDevTools/chrome-devtools-mcp",
-      "description": "Chrome DevTools for coding agents",
-      "language": "TypeScript",
-      "starsToday": 717,
-      "totalStars": 57328,
-      "htmlUrl": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
-      "publicPath": "/github/ChromeDevTools/chrome-devtools-mcp",
-      "sloc": {
-        "code": 94507,
-        "generatedAt": "2026-11-16T09:34:28.843Z",
-        "reportId": "ce98ef5c58c37caca84aea3c8c3d3b0fd25181ed147ac62fec15a84b5480844c"
-      }
-    },
-    {
-      "rank": 6,
-      "owner": "alibaba",
-      "name": "open-code-review",
-      "fullName": "alibaba/open-code-review",
-      "description": "Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
-      "language": "Go",
-      "starsToday": 691,
-      "totalStars": 52531,
-      "htmlUrl": "https://github.com/alibaba/open-code-review",
-      "publicPath": "/github/alibaba/open-code-review",
-      "sloc": {
-        "code": 190322,
-        "generatedAt": "2026-11-16T09:34:32.097Z",
-        "reportId": "fd74d16c2c3ceb496fafc96564157649bb51c331aed323a31fcbcbb57d3173ab"
-      }
-    },
-    {
-      "rank": 7,
-      "owner": "Tencent",
-      "name": "LoopForge",
-      "fullName": "Tencent/LoopForge",
-      "description": "Self-hosted workflows for coding-agent delivery. Orchestrate CodeBuddy, Codex and Claude Code with scripts and human approval gates. Includes Local workflows for coding assistants.",
-      "language": "Go",
-      "starsToday": 423,
-      "totalStars": 2059,
-      "htmlUrl": "https://github.com/Tencent/LoopForge",
-      "publicPath": "/github/Tencent/LoopForge",
-      "sloc": {
-        "code": 457238,
-        "generatedAt": "2026-11-16T08:20:17.007Z",
-        "reportId": "e8cd8c44043aee1bf9a1b86a3ff38f626732490ed530dbac8c16cfebc7aa24c1"
-      }
-    },
-    {
-      "rank": 8,
-      "owner": "ggml-org",
-      "name": "ggml",
-      "fullName": "ggml-org/ggml",
-      "description": "Tensor library for machine learning",
-      "language": "C++",
-      "starsToday": 43,
-      "totalStars": 16037,
-      "htmlUrl": "https://github.com/ggml-org/ggml",
-      "publicPath": "/github/ggml-org/ggml",
-      "sloc": {
-        "code": 468969,
-        "generatedAt": "2026-11-13T09:47:22.447Z",
-        "reportId": "16708b33f8aa97a5f2735d31a3ef1823acf99a67ff59b38d929d78eda6d82419"
-      }
-    },
-    {
-      "rank": 9,
-      "owner": "elementalsouls",
-      "name": "Claude-BugHunter",
-      "fullName": "elementalsouls/Claude-BugHunter",
-      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
-      "language": "Python",
-      "starsToday": 98,
-      "totalStars": 6903,
-      "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
-      "publicPath": "/github/elementalsouls/Claude-BugHunter",
-      "sloc": {
-        "code": 9278,
-        "generatedAt": "2026-11-16T09:35:38.461Z",
-        "reportId": "7fb256b0332dc007a21e4b5f5a15a1a52e3c800fbf14e771c41982d3bd1bf160"
-      }
-    },
-    {
-      "rank": 10,
-      "owner": "GoogleChrome",
-      "name": "modern-web-guidance-src",
-      "fullName": "GoogleChrome/modern-web-guidance-src",
-      "description": "Keep your coding agent up to date with the latest web best practices",
-      "language": "TypeScript",
-      "starsToday": 1219,
-      "totalStars": 7614,
-      "htmlUrl": "https://github.com/GoogleChrome/modern-web-guidance-src",
-      "publicPath": "/github/GoogleChrome/modern-web-guidance-src",
-      "sloc": {
-        "code": 193269,
-        "generatedAt": "2026-11-14T02:37:42.547Z",
-        "reportId": "0b3d92d82dbca264146446a4b4a591e33bf06a80d6bed1c19d2560bc202858aa"
-      }
-    },
-    {
-      "rank": 11,
-      "owner": "tradermonty",
-      "name": "claude-trading-skills",
-      "fullName": "tradermonty/claude-trading-skills",
-      "description": "Claude Code skills for equity investors and traders — market analysis, technical charting, economic calendars, screeners, and trading strategy development.",
-      "language": "Python",
-      "starsToday": 706,
-      "totalStars": 5889,
-      "htmlUrl": "https://github.com/tradermonty/claude-trading-skills",
-      "publicPath": "/github/tradermonty/claude-trading-skills",
-      "sloc": {
-        "code": 208079,
-        "generatedAt": "2026-11-16T03:49:07.777Z",
-        "reportId": "a36155c3e30236132e79e13f03450c10aa4ba4a2b0df6e827ff79beebd9087cc"
+        "code": 1098843,
+        "generatedAt": "2026-11-17T10:40:49.500Z",
+        "reportId": "b540737caeabe94ee115ea8cd46b1895fae9d1802395a6040b7969f4534328ae"
       }
     },
     {
       "rank": 12,
-      "owner": "NVIDIA",
-      "name": "SkillEvaluator",
-      "fullName": "NVIDIA/SkillEvaluator",
-      "description": "Multi-tier framework for evaluating AI agent skills with quality gates, semantic overlap detection, synthetic evaluation dataset generation, and live agent evaluation that measures how skills affect agent behavior.",
-      "language": "Python",
-      "starsToday": 122,
-      "totalStars": 2095,
-      "htmlUrl": "https://github.com/NVIDIA/SkillEvaluator",
-      "publicPath": "/github/NVIDIA/SkillEvaluator",
+      "owner": "sveltejs",
+      "name": "svelte",
+      "fullName": "sveltejs/svelte",
+      "description": "web development for the rest of us",
+      "language": "JavaScript",
+      "starsToday": 115,
+      "totalStars": 89175,
+      "htmlUrl": "https://github.com/sveltejs/svelte",
+      "publicPath": "/github/sveltejs/svelte",
       "sloc": {
-        "code": 207081,
-        "generatedAt": "2026-11-16T09:34:48.267Z",
-        "reportId": "4446899ff6ef313ecafbb2d981cbfbeb0a71136af25a25e26d262c037212ba51"
+        "code": 58940,
+        "generatedAt": "2026-11-17T10:40:08.166Z",
+        "reportId": "a87ba4ceb75c5067ce980e522160ef31fce32bfe9836c67ffcc515557cc3034e"
+      }
+    },
+    {
+      "rank": 13,
+      "owner": "affaan-m",
+      "name": "ECC",
+      "fullName": "affaan-m/ECC",
+      "description": "The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
+      "language": "JavaScript",
+      "starsToday": 718,
+      "totalStars": 304921,
+      "htmlUrl": "https://github.com/affaan-m/ECC",
+      "publicPath": "/github/affaan-m/ECC",
+      "sloc": {
+        "code": 205902,
+        "generatedAt": "2026-11-17T06:46:08.425Z",
+        "reportId": "177a6eb1dbc3ac73cc89eef867b558d120542870d8f40cb55f99f3c8d53e1fbf"
+      }
+    },
+    {
+      "rank": 14,
+      "owner": "jingyaogong",
+      "name": "minimind",
+      "fullName": "jingyaogong/minimind",
+      "description": "🧠 Train a 64M-parameter LLM from scratch in just 2h!",
+      "language": "Python",
+      "starsToday": 188,
+      "totalStars": 65622,
+      "htmlUrl": "https://github.com/jingyaogong/minimind",
+      "publicPath": "/github/jingyaogong/minimind",
+      "sloc": {
+        "code": 35489,
+        "generatedAt": "2026-11-08T17:31:31.274Z",
+        "reportId": "258481d3a42da7104f4bd226f1dae4e609abfd1bdb635d9dc8c02c1a5001c591"
+      }
+    },
+    {
+      "rank": 15,
+      "owner": "google-research",
+      "name": "paper-orchestra",
+      "fullName": "google-research/paper-orchestra",
+      "description": "PaperOrchestra is a multi-agent framework for automated AI research paper writing.",
+      "language": "Python",
+      "starsToday": 313,
+      "totalStars": 2042,
+      "htmlUrl": "https://github.com/google-research/paper-orchestra",
+      "publicPath": "/github/google-research/paper-orchestra",
+      "sloc": {
+        "code": 9770,
+        "generatedAt": "2026-11-17T10:41:11.111Z",
+        "reportId": "7ed1bd594db127c5f2fb371b6ec677c787944638ef2a2006cc8787320887c6d5"
       }
     }
   ]
