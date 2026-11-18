@@ -1,8 +1,8 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-17T10:40:09.508Z",
-  "date": "2026-11-17",
+  "generatedAt": "2026-11-18T10:05:07.776Z",
+  "date": "2026-11-18",
   "repositories": [
     {
       "rank": 1,
@@ -11,14 +11,14 @@
       "fullName": "elementalsouls/Claude-BugHunter",
       "description": "A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
       "language": "Python",
-      "starsToday": 1094,
-      "totalStars": 7931,
+      "starsToday": 1005,
+      "totalStars": 10204,
       "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
       "publicPath": "/github/elementalsouls/Claude-BugHunter",
       "sloc": {
-        "code": 10558,
-        "generatedAt": "2026-11-17T01:03:12.810Z",
-        "reportId": "cee268b89fac956ae37b8da07e58b2226068ba818b22197da7b829feb3482da0"
+        "code": 10654,
+        "generatedAt": "2026-11-18T10:04:58.226Z",
+        "reportId": "74edc68f94d2cc420036726436adafcb442c65531e6f07728aa9babf2fb6d1f2"
       }
     },
     {
@@ -28,14 +28,14 @@
       "fullName": "mvanhorn/last30days-skill",
       "description": "AI agent skill that researches any topic across Reddit, X, YouTube, HN, Polymarket, and the web - then synthesizes a grounded summary",
       "language": "Python",
-      "starsToday": 135,
-      "totalStars": 68485,
+      "starsToday": 696,
+      "totalStars": 69497,
       "htmlUrl": "https://github.com/mvanhorn/last30days-skill",
       "publicPath": "/github/mvanhorn/last30days-skill",
       "sloc": {
-        "code": 81029,
-        "generatedAt": "2026-11-17T03:19:59.048Z",
-        "reportId": "70eebca4337f441dfea5f8ffa547b298c4bc1affa70d0ed6ec0c70033966d137"
+        "code": 82321,
+        "generatedAt": "2026-11-17T23:04:36.066Z",
+        "reportId": "22fe0a5831f1a0953310d37da5a2e00344df9f23e5570ac1795798ed3a073a39"
       }
     },
     {
@@ -45,14 +45,14 @@
       "fullName": "alibaba/open-code-review",
       "description": "Secure, fast, efficient, battle-tested at Alibaba's scale. Hybrid architecture code review tool: deterministic pipelines + LLM Agent, precise line-level comments, built-in multi-language ruleset (NPE, thread-safety, XSS, SQL injection), OpenAI & Anthropic compatible.",
       "language": "Go",
-      "starsToday": 951,
-      "totalStars": 53314,
+      "starsToday": 763,
+      "totalStars": 54054,
       "htmlUrl": "https://github.com/alibaba/open-code-review",
       "publicPath": "/github/alibaba/open-code-review",
       "sloc": {
-        "code": 190817,
-        "generatedAt": "2026-11-17T06:43:07.124Z",
-        "reportId": "1a58777d76e7ec7ab0d896aa4630692ae2c93e5437f4be13033c040f846a30d7"
+        "code": 191806,
+        "generatedAt": "2026-11-18T05:21:14.597Z",
+        "reportId": "95b7bfb7faada54ae6881b16da2cc9cd7e6c582be5f0034f29c64054cd1a0b0f"
       }
     },
     {
@@ -62,14 +62,14 @@
       "fullName": "Tencent/LoopForge",
       "description": "Self-hosted workflows for coding-agent delivery. Orchestrate CodeBuddy, Codex and Claude Code with scripts and human approval gates. Includes Local workflows for coding assistants.",
       "language": "Go",
-      "starsToday": 1020,
-      "totalStars": 2684,
+      "starsToday": 591,
+      "totalStars": 3676,
       "htmlUrl": "https://github.com/Tencent/LoopForge",
       "publicPath": "/github/Tencent/LoopForge",
       "sloc": {
-        "code": 457587,
-        "generatedAt": "2026-11-17T10:39:49.176Z",
-        "reportId": "d4f0f2c1def1ded1b11e34237a3468b6b02833a4a5d4a61df65ddeded25c8ff4"
+        "code": 462406,
+        "generatedAt": "2026-11-18T10:05:06.288Z",
+        "reportId": "16b049937e91f115c0ae9e1fbd44b6ea0a5dc56d6ddc64c2445df642453d37fa"
       }
     },
     {
@@ -79,14 +79,14 @@
       "fullName": "dream-num/univer",
       "description": "Build your own AI office with Univer Office SDK. Bring editing, calculation, collaboration, and file processing into your product for people and AI agents. Built on an extensible open-source core.",
       "language": "TypeScript",
-      "starsToday": 1828,
-      "totalStars": 28615,
+      "starsToday": 1774,
+      "totalStars": 29744,
       "htmlUrl": "https://github.com/dream-num/univer",
       "publicPath": "/github/dream-num/univer",
       "sloc": {
-        "code": 619192,
-        "generatedAt": "2026-11-17T10:25:57.908Z",
-        "reportId": "978b31c1477c4b7d173e8421df9ee2a74aa11a18c6e0baa6eefcf9e9a712f408"
+        "code": 619654,
+        "generatedAt": "2026-11-18T09:29:00.562Z",
+        "reportId": "834b1c0a6adf665f4f0959dc710899bf8166803d073b616e3c859c43c1d96da6"
       }
     },
     {
@@ -96,14 +96,14 @@
       "fullName": "getarcaneapp/arcane",
       "description": "Modern Docker Management, Designed for Everyone",
       "language": "Go",
-      "starsToday": 46,
-      "totalStars": 9012,
+      "starsToday": 618,
+      "totalStars": 9540,
       "htmlUrl": "https://github.com/getarcaneapp/arcane",
       "publicPath": "/github/getarcaneapp/arcane",
       "sloc": {
-        "code": 454124,
-        "generatedAt": "2026-11-17T07:16:18.086Z",
-        "reportId": "5e23a9b2b0921b424443d4d237d6c4933e699daccd6c792c579b637779aeb6de"
+        "code": 458352,
+        "generatedAt": "2026-11-18T04:39:09.244Z",
+        "reportId": "f6c568c4296a019855ea5e1f746870d4e055c575dce106da87d01f40b42b2f4a"
       }
     },
     {
@@ -113,14 +113,14 @@
       "fullName": "google-labs-code/stitch-skills",
       "description": "A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open standard, for compatibility with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.",
       "language": "TypeScript",
-      "starsToday": 529,
-      "totalStars": 9891,
+      "starsToday": 350,
+      "totalStars": 10252,
       "htmlUrl": "https://github.com/google-labs-code/stitch-skills",
       "publicPath": "/github/google-labs-code/stitch-skills",
       "sloc": {
         "code": 4657,
-        "generatedAt": "2026-11-16T09:34:23.603Z",
-        "reportId": "7bace0111d8e87f649eafdab8f5d7cb1d63e5dd41ac39d5ec60b0d04135ff3cc"
+        "generatedAt": "2026-11-18T05:02:15.780Z",
+        "reportId": "f4afbaf256364ba408835536e7d71cb18c870ac3371a0ae47b982cbd339c8460"
       }
     },
     {
@@ -130,14 +130,14 @@
       "fullName": "cursor/plugins",
       "description": "Cursor plugin specification and official plugins",
       "language": "TypeScript",
-      "starsToday": 196,
-      "totalStars": 16719,
+      "starsToday": 201,
+      "totalStars": 17031,
       "htmlUrl": "https://github.com/cursor/plugins",
       "publicPath": "/github/cursor/plugins",
       "sloc": {
-        "code": 26341,
-        "generatedAt": "2026-11-17T06:32:30.250Z",
-        "reportId": "078c2dcb9893d68addd08150b24eacf876a31c3dc99f5bbb6cdf77fe5d26cd0f"
+        "code": 26367,
+        "generatedAt": "2026-11-18T01:04:33.619Z",
+        "reportId": "ea89253a55bdade1b501ae5ace4ab2b18b019ae921e0f3d50fa86632c6259711"
       }
     },
     {
@@ -147,8 +147,8 @@
       "fullName": "obra/superpowers",
       "description": "An agentic skills framework & software development methodology that works.",
       "language": "Shell",
-      "starsToday": 1905,
-      "totalStars": 318895,
+      "starsToday": 1917,
+      "totalStars": 319647,
       "htmlUrl": "https://github.com/obra/superpowers",
       "publicPath": "/github/obra/superpowers",
       "sloc": {
@@ -164,14 +164,14 @@
       "fullName": "ag-ui-protocol/ag-ui",
       "description": "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.",
       "language": "TypeScript",
-      "starsToday": 791,
-      "totalStars": 19720,
+      "starsToday": 1445,
+      "totalStars": 20236,
       "htmlUrl": "https://github.com/ag-ui-protocol/ag-ui",
       "publicPath": "/github/ag-ui-protocol/ag-ui",
       "sloc": {
-        "code": 396689,
-        "generatedAt": "2026-11-16T20:24:43.714Z",
-        "reportId": "ee3663cb2df5cf22210a3e412c9638accc43224a315c46546e35884b8d4ede19"
+        "code": 400750,
+        "generatedAt": "2026-11-17T18:17:02.556Z",
+        "reportId": "0d5e239223c850d8f16e2df7f1905e72a7fd976a0e519c6a747570e4e9a70351"
       }
     },
     {
@@ -181,14 +181,14 @@
       "fullName": "backnotprop/plannotator",
       "description": "The workspace to stay in the loop and on top of agents - shape, decide, plan, annotate, review code, share with team, and send all feedback to agents with one click.",
       "language": "TypeScript",
-      "starsToday": 696,
-      "totalStars": 12862,
+      "starsToday": 691,
+      "totalStars": 13236,
       "htmlUrl": "https://github.com/backnotprop/plannotator",
       "publicPath": "/github/backnotprop/plannotator",
       "sloc": {
-        "code": 1098843,
-        "generatedAt": "2026-11-17T10:40:49.500Z",
-        "reportId": "b540737caeabe94ee115ea8cd46b1895fae9d1802395a6040b7969f4534328ae"
+        "code": 1117967,
+        "generatedAt": "2026-11-18T10:05:43.677Z",
+        "reportId": "ae28942a562f8ad7cee4fa1b5945e8cfc6f910db982cee098f42ccc3d0c7c263"
       }
     },
     {
@@ -198,14 +198,14 @@
       "fullName": "sveltejs/svelte",
       "description": "web development for the rest of us",
       "language": "JavaScript",
-      "starsToday": 115,
-      "totalStars": 89175,
+      "starsToday": 477,
+      "totalStars": 89609,
       "htmlUrl": "https://github.com/sveltejs/svelte",
       "publicPath": "/github/sveltejs/svelte",
       "sloc": {
-        "code": 58940,
-        "generatedAt": "2026-11-17T10:40:08.166Z",
-        "reportId": "a87ba4ceb75c5067ce980e522160ef31fce32bfe9836c67ffcc515557cc3034e"
+        "code": 59029,
+        "generatedAt": "2026-11-18T08:18:33.839Z",
+        "reportId": "c3c0ea435b5fc2bc42f275b76ac321d9adf1e62f00f2e6696b75555f0a6abaac"
       }
     },
     {
@@ -215,8 +215,8 @@
       "fullName": "affaan-m/ECC",
       "description": "The agent harness performance optimization system. Skills, instincts, memory, security, and research-first development for Claude Code, Codex, Opencode, Cursor and beyond.",
       "language": "JavaScript",
-      "starsToday": 718,
-      "totalStars": 304921,
+      "starsToday": 883,
+      "totalStars": 305960,
       "htmlUrl": "https://github.com/affaan-m/ECC",
       "publicPath": "/github/affaan-m/ECC",
       "sloc": {
@@ -232,14 +232,14 @@
       "fullName": "jingyaogong/minimind",
       "description": "🧠 Train a 64M-parameter LLM from scratch in just 2h!",
       "language": "Python",
-      "starsToday": 188,
-      "totalStars": 65622,
+      "starsToday": 192,
+      "totalStars": 66373,
       "htmlUrl": "https://github.com/jingyaogong/minimind",
       "publicPath": "/github/jingyaogong/minimind",
       "sloc": {
-        "code": 35489,
-        "generatedAt": "2026-11-08T17:31:31.274Z",
-        "reportId": "258481d3a42da7104f4bd226f1dae4e609abfd1bdb635d9dc8c02c1a5001c591"
+        "code": 35494,
+        "generatedAt": "2026-11-18T07:45:49.405Z",
+        "reportId": "8d3889ba97db7937ea19e130ef7173f91308f42eca580564adc2fd49763110a5"
       }
     },
     {
@@ -249,8 +249,8 @@
       "fullName": "google-research/paper-orchestra",
       "description": "PaperOrchestra is a multi-agent framework for automated AI research paper writing.",
       "language": "Python",
-      "starsToday": 313,
-      "totalStars": 2042,
+      "starsToday": 1072,
+      "totalStars": 3549,
       "htmlUrl": "https://github.com/google-research/paper-orchestra",
       "publicPath": "/github/google-research/paper-orchestra",
       "sloc": {
