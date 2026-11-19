@@ -116,7 +116,7 @@ test("report schema follows home analysis, repository switches and recounts with
   await expect(page).toHaveURL(canonical);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonical);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /^index,follow/);
-  await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}.md`);
+  await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}?format=md`);
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", "https://api.octocounts.com/og/github/example/repo");
 });
 

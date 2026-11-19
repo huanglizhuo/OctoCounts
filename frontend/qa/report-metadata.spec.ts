@@ -69,7 +69,7 @@ for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`, "/tree/tiny"]) {
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", image);
     await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", image);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", suffix === "/tree/tiny" ? "noindex,follow" : /^index,follow/);
-    await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}.md`);
+    await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${canonical}?format=md`);
     expect(new URL(page.url()).pathname).toBe(path);
     expect(analyses).toBe(0);
     expect(errors).toEqual([]);
@@ -92,7 +92,7 @@ for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`, "/tree/tiny"]) {
       await page.getByRole("button", { name: "Analyze", exact: true }).click();
       const nextCanonical = new URL("/github/other/project/tree/main", baseURL).href;
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", nextCanonical);
-      await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${nextCanonical}.md`);
+      await expect(page.locator('link[type="text/markdown"]')).toHaveAttribute("href", `${nextCanonical}?format=md`);
       await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", "https://api.octocounts.com/og/github/other/project");
       expect(errors).toEqual([]);
     }
