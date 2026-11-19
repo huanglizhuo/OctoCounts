@@ -47,8 +47,9 @@ The weekly seed workflow rotates its batch using `GITHUB_RUN_NUMBER`, including
 repositories appended from the comparison registry. For a local dry run, use
 `node scripts/seed-popular-repos.mjs --dry-run --limit 50 --batch 0`; increment the
 batch to cover the next group. It wraps after the last batch. The sitemap API
-returns the complete eligible GitHub inventory; the Pages function splits it into
-XML files, so its 50,000-URL file limit does not truncate the whole inventory.
+keeps its original full inventory response for existing clients. Pages requests
+shard dates and comparison rows with `view=index`, one 10,000-entry shard with
+`view=page&page=1`, or up to 64 daily links with `view=rotating&day=<UTC day number>`.
 
 ## Local Development (Host-native)
 

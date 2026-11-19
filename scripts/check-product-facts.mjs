@@ -140,8 +140,19 @@ try {
   const historical = JSON.parse(await readFile(historicalPath, "utf8"));
   if (historical.measurements.length !== 8) note("historical codebase table: expected the eight published measurements");
   for (const row of historical.measurements) {
+    const archive = `/research/largest-codebases-2026-11-19/${row.repository.replace("/", "--")}.json`;
+    const report = JSON.parse(await readFile(path.join(FRONTEND, "public", archive), "utf8"));
+    if (`${report.repository.owner}/${report.repository.name}` !== row.repository || !/^[a-f0-9]{40}$/.test(report.commitSha)
+      || !report.id || !report.countingPolicy?.version || report.tokeiVersion !== "tokei-15.0.0"
+      || ["includeDocs", "includeTests", "includeGenerated"].some(key => report.countingPolicy[key] !== false || report.analysisOptions[key] !== false)) {
+      note(`invalid November archive for ${row.repository}`);
+    }
     for (const extension of ["md", "html"]) {
       const article = contents.get(path.join(FRONTEND, "public", "docs", `largest-codebases.${extension}`)) ?? "";
+      const november = article.split("\n").find(line => line.includes(archive));
+      const cells = [row.repository, report.commitSha.slice(0, 12), report.generatedAt.slice(0, 10),
+        ...["code", "lines", "files"].map(key => report.total[key].toLocaleString("en-US"))];
+      if (!november || !cells.every(value => november.includes(value))) note(`November table differs from ${archive} in ${extension}`);
       const record = article.split("\n").find((line) => line.includes(row.repository) && line.includes(row.commitPrefix));
       if (!record || ![row.codeLines, row.totalLines, row.files].every((count) => record.includes(count.toLocaleString("en-US")))) {
         note(`largest-codebases.${extension}: published table differs from the historical download for ${row.repository}`);
@@ -150,6 +161,13 @@ try {
   }
 } catch (error) {
   note(`historical codebase table: ${error.message}`);
+}
+
+for (const ext of ["html", "md"]) {
+  const guide = contents.get(path.join(FRONTEND, "public", "docs", `api.${ext}`)) ?? "";
+  if (!guide.includes(facts.facts.analysisOptions.defaults) || !guide.includes('{"includeTests": true}')) {
+    note(`api.${ext}: document omitted, empty, and partial counting options`);
+  }
 }
 
 // ---------- required scope statements ----------

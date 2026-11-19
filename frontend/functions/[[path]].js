@@ -36,7 +36,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/extension", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/docs/api", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/api", lastmod: "2026-11-19" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-10-30" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-05" },
@@ -51,7 +51,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/docs/github-api-count-lines", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/tokei-vs-cloc-vs-scc", lastmod: "2026-11-05" },
-  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-10-29" },
+  { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-11-19" },
   { loc: "https://octocounts.com/research", lastmod: "2026-10-27" },
   { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/privacy", lastmod: "2026-10-25" },
@@ -72,17 +72,17 @@ export async function onRequest(context) {
   const response = await routeRequest(context);
   const url = new URL(context.request.url);
   if (!url.pathname.startsWith("/github/")) return response;
-  let route;
+  let routes;
   try {
-    route = parseGitHubRoute(url.pathname.replace(/\.md$/, "").split("/").filter(Boolean).map(decodeURIComponent));
+    const paths = new Set([url.pathname, url.pathname.replace(/\.md$/, "")]);
+    routes = [...paths].map(path => parseGitHubRoute(path.split("/").filter(Boolean).map(decodeURIComponent))).filter(Boolean);
   } catch {
     return response;
   }
-  if (!route) return response;
-  // One tag covers HTML, Markdown, refs and query variants of the repository.
+  if (!routes.length) return response;
   const headers = new Headers(response.headers);
-  const existing = headers.get("cache-tag");
-  headers.set("cache-tag", ["octo-html", await repositoryCacheTag(route.provider, route.owner, route.repo), existing].filter(Boolean).join(","));
+  const tags = await Promise.all(routes.map(route => repositoryCacheTag(route.provider, route.owner, route.repo)));
+  headers.set("cache-tag", [...new Set(["octo-html", ...tags, ...(headers.get("cache-tag") || "").split(",").filter(Boolean)])].join(","));
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
@@ -167,7 +167,7 @@ async function routeRequest(context) {
   }
 
   const legacyReport = LEGACY_REPORT_REDIRECTS[parts.slice(0, 3).join("/").toLowerCase()];
-  if (legacyReport && !url.searchParams.has("reportId")) {
+  if (legacyReport && routePath === url.pathname && !url.searchParams.has("reportId")) {
     if (!parseGitHubRoute(parts)) return new Response("Not found", { status: 404 });
     const suffix = routePath.split("/").slice(4).join("/");
     return Response.redirect(new URL(`${legacyReport}${suffix ? `/${suffix}` : ""}${url.pathname.endsWith(".md") ? ".md" : ""}${url.search}`, url.origin), 308);
@@ -201,8 +201,26 @@ async function routeRequest(context) {
 
   if (parts[0] === "github") {
     const route = parseGitHubRoute(parts);
+    if (routePath !== url.pathname) {
+      // Decode the original path so a final component consisting only of ".md" survives.
+      const literal = parseGitHubRoute(url.pathname.split("/").filter(Boolean).map(decodeURIComponent));
+      if (literal) {
+        const explicit = url.searchParams.get("format") === "md";
+        if (explicit || url.searchParams.has("analysis") || url.searchParams.has("reportId")) {
+          return reportResponse(context, literal, { markdown: explicit });
+        }
+        const exact = await fetchSeoReport(context, literal);
+        if (exact.state === "ok") return reportResponse(context, literal, { result: exact });
+        if (exact.state === "unavailable") return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(literal), { markdown: true });
+        if (route) {
+          const legacy = await fetchSeoReport(context, route);
+          if (legacy.state !== "missing") return reportResponse(context, route, { markdown: true, suffix: true, result: legacy });
+        }
+        return reportResponse(context, literal, { result: exact });
+      }
+    }
     if (!route) return new Response("Not found", { status: 404 });
-    return reportResponse(context, route, { markdown: markdownRequested });
+    return reportResponse(context, route, { markdown: markdownRequested, suffix: routePath !== url.pathname });
   }
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
@@ -418,7 +436,7 @@ async function reportResponse(context, route, options = {}) {
   // "missing"/"unavailable" exits below simply leave its promise unresolved
   // without rejection risk.
   const relatedPromise = fetchRelatedReports(context, route);
-  const result = await fetchSeoReport(context, route);
+  const result = options.result ?? await fetchSeoReport(context, route);
   if (result.state === "missing") {
     if (requestUrl.searchParams.has("reportId")) {
       const message = "This saved result is no longer available. Open the repository report to request a new analysis.";
@@ -455,7 +473,7 @@ async function reportResponse(context, route, options = {}) {
     canonicalSlug.toLowerCase() === String(report.repoFullName ?? "").toLowerCase() &&
     canonicalSlug.toLowerCase() !== `${route.owner}/${route.repo}`.toLowerCase()
   ) {
-    const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
+    const suffix = options.suffix ? ".md" : "";
     const refPath = route.refName ? `/${requestUrl.pathname.split("/")[4]}/${route.refName.split("/").map(encodeURIComponent).join("/")}` : "";
     return Response.redirect(new URL(`/github/${canonicalOwner}/${canonicalRepo}${refPath}${suffix}${requestUrl.search}`, requestUrl.origin), 308);
   }
@@ -500,9 +518,9 @@ async function reportResponse(context, route, options = {}) {
   // canonical casing only via the report itself. 308 it so link equity lands
   // on the URL the canonical tag and sitemap use. Markdown requests redirect
   // to the canonical casing with their .md suffix preserved.
-  const comparePath = requestUrl.pathname.endsWith(".md") ? requestUrl.pathname.slice(0, -3) : requestUrl.pathname;
+  const comparePath = options.suffix ? requestUrl.pathname.slice(0, -3) : requestUrl.pathname;
   if (report.publicPath && report.publicPath.toLowerCase() === comparePath.toLowerCase() && report.publicPath !== comparePath) {
-    const suffix = requestUrl.pathname.endsWith(".md") ? ".md" : "";
+    const suffix = options.suffix ? ".md" : "";
     return Response.redirect(new URL(report.publicPath + suffix + requestUrl.search, requestUrl.origin), 308);
   }
   // Writes purge repository tags; template deployments purge octo-html.
@@ -702,7 +720,7 @@ async function listPageResponse(context, kind, url) {
         },
       },
       explore: explore.locale,
-      extraHead: `${explore.head}${moreReportsData(rotating)}<script type="application/json" id="octocounts-list-data">${escapeScriptJson(listData)}</script>`,
+      extraHead: explore.head,
       bodyContent: explore.html,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
@@ -763,18 +781,10 @@ async function fetchRotatingReportLocs(context) {
   const cacheKey = `rotating-reports:${dayNumber}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
-  try {
-    const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
-    });
-    if (!response.ok) return [];
-    const locs = rotatingReportLocs(filterReportSitemapEntries(await response.json()), dayNumber);
-    cache.set(cacheKey, locs);
-    return locs;
-  } catch {
-    return [];
-  }
+  const view = await fetchSitemapView(context, { view: "rotating", day: dayNumber });
+  if (!view) return [];
+  cache.set(cacheKey, view.locs);
+  return view.locs;
 }
 
 function reportLocName(loc) {
@@ -785,13 +795,6 @@ function moreReportsHtml(locs) {
   if (!locs.length) return "";
   const items = locs.map((loc) => `<li><a href="${escapeAttr(loc)}">${escapeHtml(reportLocName(loc))}</a></li>`).join("");
   return `<section><h2>More repository reports</h2><ul>${items}</ul></section>`;
-}
-
-/// The same rotating links as data in <head>, outside #root: createRoot()
-/// discards the server markup, so the client list and trending pages render
-/// these links again and Google's rendered DOM keeps them.
-function moreReportsData(locs) {
-  return locs.length ? `<script type="application/json" id="octocounts-more-reports">${escapeScriptJson(locs)}</script>` : "";
 }
 
 /// Visible heading for a page whose <title> ends in the " | OctoCounts" brand.
@@ -854,7 +857,7 @@ async function trendingPageResponse(context, options = {}) {
       robots: "index,follow,max-image-preview:large,max-snippet:-1",
       ogImage: "https://octocounts.com/og-image.jpg",
       explore: explore.locale,
-      extraHead: `${explore.head}<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />${moreReportsData(rotating)}<script type="application/json" id="octocounts-trending-data">${escapeScriptJson(snapshot)}</script>`,
+      extraHead: `${explore.head}<link rel="alternate" type="application/rss+xml" title="${escapeAttr(title)}" href="https://octocounts.com/trending.xml" />`,
       mdAlternate: "https://octocounts.com/trending.md",
       jsonLd: {
         "@context": "https://schema.org",
@@ -1036,7 +1039,7 @@ async function statsPageResponse(context, options = {}) {
       },
       bodyContent: explore.html,
       explore: explore.locale,
-      extraHead: `${explore.head}<script type="application/json" id="octocounts-stats-data">${escapeScriptJson(stats)}</script>`,
+      extraHead: explore.head,
     }),
     cacheControl
   );
@@ -2253,14 +2256,30 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
   });
 }
 
-async function fetchReportSitemapEntries(context) {
+const compareInventoryRepos = [...new Set(COMPARE_REGISTRY.flatMap(({ left, right }) =>
+  [left, right].map(({ owner, repo }) => `${owner}/${repo}`)))].join(",");
+
+async function fetchSitemapView(context, params) {
   try {
-    const response = await fetch(`${apiBase(context)}/api/seo/sitemap`, {
+    const response = await fetch(`${apiBase(context)}/api/seo/sitemap?${new URLSearchParams(params)}`, {
       headers: { accept: "application/json" }, signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
     });
     if (!response.ok) return null;
-    const entries = await response.json();
-    return Array.isArray(entries) ? filterReportSitemapEntries(entries) : null;
+    const payload = await response.json();
+    // Older API nodes ignore query parameters and return the complete array.
+    if (Array.isArray(payload)) {
+      const entries = filterReportSitemapEntries(payload);
+      if (params.view === "rotating") return { locs: rotatingReportLocs(entries, Number(params.day)) };
+      if (params.view === "page") return { entries: entries.slice((params.page - 1) * REPORTS_SITEMAP_PAGE_SIZE, params.page * REPORTS_SITEMAP_PAGE_SIZE) };
+      const shards = [];
+      for (let i = 0; i < entries.length; i += REPORTS_SITEMAP_PAGE_SIZE) shards.push(maxLastmod(entries.slice(i, i + REPORTS_SITEMAP_PAGE_SIZE)));
+      return { entries, shards };
+    }
+    if (!Array.isArray(payload?.entries)) return null;
+    const entries = filterReportSitemapEntries(payload.entries);
+    if (params.view === "rotating") return { locs: entries.map(entry => entry.loc) };
+    if (params.view === "index" && (!Array.isArray(payload.shards) || !payload.shards.every(date => /^\d{4}-\d{2}-\d{2}$/.test(date)))) return null;
+    return { entries, shards: payload.shards };
   } catch {
     return null;
   }
@@ -2371,9 +2390,8 @@ async function sitemapIndexResponse(context) {
   // Only the report-page count is unknown up front (compare is a single file
   // and the static list is compiled in), so skip the compare-existence scan
   // here: the index is the hottest sitemap request crawlers make.
-  const dynamicEntries = await fetchReportSitemapEntries(context);
-  if (dynamicEntries === null) return sitemapUnavailableResponse();
-  const reportPages = Math.ceil(dynamicEntries.length / REPORTS_SITEMAP_PAGE_SIZE);
+  const view = await fetchSitemapView(context, { view: "index", repos: compareInventoryRepos });
+  if (!view) return sitemapUnavailableResponse();
   // Include a child's freshest lastmod only when its underlying dates are known.
   const snapshot = await trendingSnapshot(context);
   const staticLastmod = maxLastmod(
@@ -2381,13 +2399,12 @@ async function sitemapIndexResponse(context) {
       entry.loc.endsWith("/trending") ? { lastmod: snapshot?.date } : entry
     )
   );
-  const pageSize = REPORTS_SITEMAP_PAGE_SIZE;
   const children = [
     { loc: "https://octocounts.com/sitemap-static.xml", lastmod: snapshot ? staticLastmod : undefined },
-    { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([...compareLastmods(dynamicEntries).values()].map((lastmod) => ({ lastmod }))) },
-    ...Array.from({ length: reportPages }, (_, i) => ({
+    { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([...compareLastmods(view.entries).values()].map((lastmod) => ({ lastmod }))) },
+    ...view.shards.map((date, i) => ({
       loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
-      lastmod: maxLastmod(dynamicEntries.slice(i * pageSize, (i + 1) * pageSize)),
+      lastmod: date > REPORT_CONTENT_LASTMOD ? date : REPORT_CONTENT_LASTMOD,
     })),
   ];
   const sitemaps = children
@@ -2411,10 +2428,10 @@ async function staticSitemapResponse(context) {
 }
 
 async function compareSitemapResponse(context) {
-  const [entries, reportEntries] = await Promise.all([indexableCompareEntries(context), fetchReportSitemapEntries(context)]);
+  const [entries, view] = await Promise.all([indexableCompareEntries(context), fetchSitemapView(context, { view: "index", repos: compareInventoryRepos })]);
   if (entries === null) return sitemapUnavailableResponse();
   // Dates are optional: without the report inventory the URLs still list.
-  const lastmods = reportEntries ? compareLastmods(reportEntries) : new Map();
+  const lastmods = view ? compareLastmods(view.entries) : new Map();
   return urlsetResponse(entries.map((entry) => ({ loc: entry.loc, lastmod: lastmods.get(entry.slug) })));
 }
 
@@ -2435,14 +2452,10 @@ function sitemapNotFoundResponse() {
 }
 
 async function reportsSitemapResponse(context, page) {
-  if (!Number.isInteger(page) || page < 1) return sitemapNotFoundResponse();
-  const dynamicEntries = await fetchReportSitemapEntries(context);
-  if (dynamicEntries === null) return sitemapUnavailableResponse();
-  const slice = dynamicEntries
-    .slice((page - 1) * REPORTS_SITEMAP_PAGE_SIZE, page * REPORTS_SITEMAP_PAGE_SIZE)
-    .map((entry) => ({ loc: entry.loc, lastmod: entry.lastmod }));
-  if (!slice.length) return sitemapNotFoundResponse();
-  return urlsetResponse(slice);
+  if (!Number.isSafeInteger(page) || page < 1) return sitemapNotFoundResponse();
+  const view = await fetchSitemapView(context, { view: "page", page });
+  if (!view) return sitemapUnavailableResponse();
+  return view.entries.length ? urlsetResponse(view.entries) : sitemapNotFoundResponse();
 }
 
 async function trendingSnapshot(context) {
@@ -2595,7 +2608,7 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     ogImage: ogImageUrl,
     ogImageAlt: report.isSnapshot ? "OctoCounts" : report.citation,
     jsonLd: reportJsonLd(report),
-    mdAlternate: report.isSnapshot ? `${report.canonicalUrl}&format=md` : `${report.canonicalUrl}.md`,
+    mdAlternate: `${report.canonicalUrl}${report.isSnapshot ? "&" : "?"}format=md`,
     extraHead: `<link rel="preload" as="image" href="${escapeAttr(ogImageUrl)}" fetchpriority="high" />
 <script type="application/json" id="octocounts-report-summary">${escapeScriptJson(jsonSummary)}</script>`,
     bodyContent: table + `<p>${escapeHtml(reportLanguageLine(report))} Generated on <time datetime="${escapeAttr(isoMilliseconds(report.generatedAt))}">${escapeHtml(readableDate(report.generatedAt))}</time>.</p><section><h2>Counting rules and retention</h2><p>${escapeHtml(reportPolicyText(report))}</p><p>Saved reports remain subject to cache cleanup and replacement. Export the JSON or text for durable citation; live repository URLs can change.</p></section>` + reportReproduceHtml(report) + faqHtml + similarReposHtml + growthSsrHtml + internalLinks,

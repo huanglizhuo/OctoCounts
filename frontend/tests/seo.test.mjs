@@ -547,8 +547,8 @@ test("trending bootstrap safely embeds the same snapshot and labels stale data",
     description: '</script><script>alert("unsafe")</script>',
   }] };
   const html = await (await onRequest(await renderedContext("/trending", snapshot))).text();
-  const data = html.match(/<script type="application\/json" id="octocounts-trending-data">([\s\S]*?)<\/script>/)[1];
-  assert.deepEqual(JSON.parse(data), snapshot);
+  const data = html.match(/<script type="application\/json" id="octocounts-explore-bootstrap">([\s\S]*?)<\/script>/)[1];
+  assert.deepEqual(JSON.parse(data).seeds["octocounts-trending-data"], snapshot);
   assert.ok(data.includes("\\u003c/script>"));
   assert.ok(!html.includes('<script>alert("unsafe")</script>'));
   assert.match(html, /role="status">Trending update delayed/);
@@ -960,6 +960,27 @@ function stubReportFetch(available) {
     globalThis.fetch = originalFetch;
   };
 }
+
+test("literal .md repositories and refs keep their own canonical HTML and explicit Markdown", async (t) => {
+  t.mock.method(globalThis, "fetch", async raw => {
+    const url = new URL(raw);
+    if (url.pathname.endsWith("/related")) return Response.json({ reports: [] });
+    const repo = url.searchParams.get("repo");
+    if (!["design", "design.md"].includes(repo)) return new Response(null, { status: 404 });
+    const publicPath = `/github/octo/${repo}`;
+    return Response.json({ ...RELATED_REPORT_FIXTURE, owner: "octo", repo, repoFullName: `octo/${repo}`, publicPath, canonicalUrl: `https://octocounts.com${publicPath}` });
+  });
+  for (const path of ["/github/octo/design", "/github/octo/design.md", "/github/octo/design/tree/release.md"]) {
+    const html = await onRequest(await renderedContext(path));
+    assert.equal(html.status, 200);
+    assert.match(html.headers.get("content-type"), /^text\/html/);
+    assert.ok((await html.text()).includes(`rel="canonical" href="https://octocounts.com${path}"`));
+    const md = await onRequest(await renderedContext(path + "?format=md"));
+    assert.equal(md.status, 200);
+    assert.match(md.headers.get("content-type"), /^text\/markdown/);
+    assert.ok((await md.text()).startsWith(`# octo/${path.split("/")[3]} SLOC report`));
+  }
+});
 
 test("report page hydration never adopts an SSR summary for a different repository", async () => {
   const main = await readFile(new URL("src/App.tsx", ROOT), "utf8");
@@ -1680,6 +1701,7 @@ function stubReportAndRelatedFetch(relatedPayload, report = RELATED_REPORT_FIXTU
       if (relatedPayload instanceof Response) return relatedPayload;
       return Response.json(relatedPayload);
     }
+    if ([request.searchParams.get("repo"), request.searchParams.get("refName")].some(value => value?.endsWith(".md"))) return new Response(null, { status: 404 });
     return Response.json(report);
   };
   return () => {
@@ -1728,6 +1750,7 @@ test("report HTML and Markdown survive a stalled optional related request", { ti
   const originalFetch = globalThis.fetch;
   let aborted = 0;
   globalThis.fetch = async (url, options) => {
+    if (new URL(url).searchParams.get("repo")?.endsWith(".md")) return new Response(null, { status: 404 });
     if (new URL(url).pathname !== "/api/seo/related") return Response.json(RELATED_REPORT_FIXTURE);
     assert.ok(options.signal, "the optional request must have a deadline");
     return new Promise((_resolve, reject) => {
@@ -1991,7 +2014,7 @@ test("stats SSR renders the full citable aggregates and Dataset datePublished", 
   assert.match(text, /40,000,000 total lines/);
   assert.match(html, /"@type":"Dataset"/);
   assert.match(html, /"datePublished":"2026-07-10"/);
-  assert.deepEqual(JSON.parse(html.match(/id="octocounts-stats-data">([^<]*)<\/script>/)[1]), stats);
+  assert.deepEqual(JSON.parse(html.match(/id="octocounts-explore-bootstrap">([^<]*)<\/script>/)[1]).seeds["octocounts-stats-data"], stats);
   assert.match(html, /<div id="root" data-oc-ssr="explore" data-oc-hydrate="explore"[^>]*>/);
 });
 
@@ -2235,13 +2258,13 @@ test("explicit refs keep their identity in canonical, Markdown and Dataset URLs"
     const html = await response.text();
     const canonical = `https://octocounts.com${path}`;
     assert.ok(html.includes(`<link rel="canonical" href="${canonical}"`), path);
-    assert.ok(html.includes(`type="text/markdown" href="${canonical}.md"`), path);
+    assert.ok(html.includes(`type="text/markdown" href="${canonical}?format=md"`), path);
     const dataset = JSON.parse(html.match(/<script type="application\/ld\+json">([^<]*)<\/script>/)[1])["@graph"].find((node) => node["@type"] === "Dataset");
     assert.equal(dataset.url, canonical);
     const download = new URL(dataset.distribution.contentUrl);
     assert.equal(download.searchParams.get("refName"), reference);
     assert.equal(download.searchParams.get("refKind"), kind);
-    const markdown = await onRequest(await renderedContext(`${path}.md`));
+    const markdown = await onRequest(await renderedContext(`${path}?format=md`));
     assert.equal(markdown.status, 200);
     assert.match(await markdown.text(), new RegExp(fixture.commitSha.slice(0, 12)));
     assert.ok(calls.every((url) => url.searchParams.get("refName") === reference && url.searchParams.get("refKind") === kind));
@@ -2587,7 +2610,7 @@ test("HTML pages advertise their markdown twin with a text/markdown alternate li
   try {
     const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
     const html = await response.text();
-    assert.ok(html.includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/github/octo-org/octo-repo.md" />'));
+    assert.ok(html.includes('<link rel="alternate" type="text/markdown" href="https://octocounts.com/github/octo-org/octo-repo?format=md" />'));
   } finally {
     restoreReports();
   }
@@ -2799,7 +2822,7 @@ test("legacy AI_MARKDOWN_UA settings cannot change canonical HTML or explicit Ma
   try {
     const bot = await onRequest(withUserAgent(context, "PerplexityBot/1.0"));
     assert.match(bot.headers.get("content-type") ?? "", /^text\/html/);
-    const explicitContext = await renderedContext("/github/octo-org/octo-repo.md");
+    const explicitContext = await renderedContext("/github/octo-org/octo-repo?format=md");
     explicitContext.env.SEO_API_BASE = "https://api.test";
     const explicit = await onRequest(withUserAgent(explicitContext, "PerplexityBot/1.0"));
     assert.match(explicit.headers.get("content-type") ?? "", /^text\/markdown/);
@@ -3065,7 +3088,7 @@ test("SSR list snapshots preserve final-page boundaries, global ranks and safe J
     ? Response.json({ page: 2, limit: 36, hasNext: false, reports }) : Response.json([]);
   try {
     const html = await (await onRequest(await renderedContext("/recent?page=2"))).text();
-    const seed = JSON.parse(html.match(/id="octocounts-list-data">([^<]*)<\/script>/)[1]);
+    const seed = JSON.parse(html.match(/id="octocounts-explore-bootstrap">([^<]*)<\/script>/)[1]).seeds["octocounts-list-data"];
     assert.equal(seed.kind, "recent");
     assert.equal(seed.payload.page, 2);
     assert.equal(seed.payload.hasNext, false);
@@ -3252,7 +3275,7 @@ test("canonical report metadata stays short, names its rules once, and skips dat
     assert.match(body, /Top programming language: TypeScript 32\.3%\. Generated on <time datetime="2026-10-23T03:09:39\.242\+00:00">October 23, 2026<\/time>/);
     assert.match(body, /canonical public options/);
     assert.doesNotMatch(body, /242465275|reproduction requires|Unknown rules in older reports/, "no raw timestamps or repeated hedges in the visible body");
-    const markdown = await (await onRequest(await renderedContext("/github/octo-org/octo-repo.md"))).text();
+    const markdown = await (await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"))).text();
     assert.match(markdown, /Top programming language: TypeScript 32\.3%\. Generated on October 23, 2026\./);
   } finally {
     globalThis.fetch = originalFetch;

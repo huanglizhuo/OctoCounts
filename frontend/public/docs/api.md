@@ -2,7 +2,7 @@
 
 OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 19, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 > OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads.
 
@@ -72,7 +72,7 @@ Live ref links, live badges and live embeds use the canonical public options: de
 
 Set options.respectGitattributes to true and options.includeGenerated to false to exclude files declared linguist-generated in .gitattributes. Files declared linguist-vendored are excluded whenever this mode is enabled. IncludeGenerated: true keeps generated declarations; source-only still excludes them. Off is the default and keeps existing cache keys and counting behavior.
 
-Specify all inclusion toggles when constructing options: omitting options entirely uses canonical exclusions; an explicitly empty options object retains the existing include-all toggle defaults. Git evaluates nested declarations, macros, quoted paths, unset and unspecified overrides. Only set or true activates exclusion. Directory exclusions run first and cannot be restored by declarations. This mode reads repository declarations only and does not implement the full GitHub Linguist classifier.
+Omitting options or sending an empty options object uses the canonical exclusions for docs, tests and generated directories. A partial object overrides only the supplied flags. For example, `{"includeTests": true}` inside options includes test directories and keeps docs and generated directories excluded. Git evaluates nested declarations, macros, quoted paths, unset and unspecified overrides. Only set or true activates exclusion. Directory exclusions run first and cannot be restored by declarations. This mode reads repository declarations only and does not implement the full GitHub Linguist classifier.
 
 New reports include countingPolicy with effective rules and repositoryAttributes.status (off, not_found or applied), plus generatedFiles, vendoredFiles and excludedFiles. These are files removed by declaration filtering after extraction, not source-line totals; overlapping generated/vendored exclusions count once in excludedFiles. Old reports may omit countingPolicy and must be displayed as unknown. Filtering failures fail the analysis rather than silently using other rules.
 

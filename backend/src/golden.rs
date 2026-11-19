@@ -491,6 +491,20 @@ async fn seo_sitemap_matches_golden() {
     let (status, body) = harness.get("/api/seo/sitemap").await;
     assert_eq!(status, StatusCode::OK);
     assert_golden("seo_sitemap.json", &body);
+    let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+    for query in [
+        "view=page&page=1",
+        "view=rotating&day=123",
+        "view=index&repos=rust-lang%2Frust",
+    ] {
+        let (status, view) = harness.get(&format!("/api/seo/sitemap?{query}")).await;
+        assert_eq!(status, StatusCode::OK);
+        let view: serde_json::Value = serde_json::from_str(&view).unwrap();
+        assert_eq!(view["entries"], serde_json::json!([body[1]]));
+        if query.starts_with("view=index") {
+            assert_eq!(view["shards"], serde_json::json!(["2024-03-14"]));
+        }
+    }
     harness.drop_schema().await;
 }
 

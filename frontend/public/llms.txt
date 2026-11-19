@@ -7,9 +7,9 @@ AI-Usage: search and retrieval allowed. Default content-use signal: ai-train=no;
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-31
+Last-Updated: 2026-11-19
 Full Context: https://octocounts.com/llms-full.txt
-Markdown Versions: append .md to any report, comparison, docs, /trending, or /stats URL (or add ?format=md) for a text/markdown rendering of the same content, e.g. https://octocounts.com/github/react/react.md
+Markdown Versions: use ?format=md on report URLs, including repositories and refs ending in .md, e.g. https://octocounts.com/github/react/react?format=md. Comparison, docs, trending and stats pages also support the .md suffix.
 
 ## Short Answer
 

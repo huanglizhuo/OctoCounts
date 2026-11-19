@@ -149,46 +149,31 @@ async fn run_worker(
     client: Client,
     mut receiver: mpsc::UnboundedReceiver<String>,
 ) {
-    let mut pending: Vec<String> = Vec::new();
-    let mut pending_set: HashSet<String> = HashSet::new();
-
-    loop {
-        match tokio::time::timeout(config.flush_interval, receiver.recv()).await {
-            Ok(Some(url)) => {
-                if pending_set.insert(url.clone()) {
-                    pending.push(url);
+    while let Some(first) = receiver.recv().await {
+        let deadline = tokio::time::Instant::now() + config.flush_interval;
+        let mut pending = vec![first.clone()];
+        let mut seen = HashSet::from([first]);
+        while pending.len() < config.batch_size && tokio::time::Instant::now() < deadline {
+            match tokio::time::timeout_at(deadline, receiver.recv()).await {
+                Ok(Some(url)) => {
+                    if seen.insert(url.clone()) {
+                        pending.push(url);
+                    }
                 }
-                if pending.len() >= config.batch_size {
-                    flush(&config, &client, &mut pending, &mut pending_set).await;
-                }
+                Ok(None) | Err(_) => break,
             }
-            Ok(None) => {
-                flush(&config, &client, &mut pending, &mut pending_set).await;
-                break;
-            }
-            Err(_) => flush(&config, &client, &mut pending, &mut pending_set).await,
         }
+        flush(&config, &client, &pending).await;
     }
 }
 
-async fn flush(
-    config: &IndexNowConfig,
-    client: &Client,
-    pending: &mut Vec<String>,
-    pending_set: &mut HashSet<String>,
-) {
-    if pending.is_empty() {
-        return;
-    }
-    let urls = std::mem::take(pending);
-    pending_set.clear();
-
+async fn flush(config: &IndexNowConfig, client: &Client, urls: &[String]) {
     if config.dry_run {
         tracing::info!(?urls, "IndexNow dry-run: would submit batch");
         return;
     }
 
-    if let Err(error) = post_batch(client, config, &urls).await {
+    if let Err(error) = post_batch(client, config, urls).await {
         tracing::warn!(%error, urls = urls.len(), "IndexNow batch submission failed; dropping batch");
     }
 }
@@ -434,6 +419,27 @@ mod tests {
                 "https://octocounts.com/github/octo/count",
                 "https://octocounts.com/github/rust-lang/rust"
             ])
+        );
+    }
+
+    #[tokio::test]
+    async fn duplicate_arrivals_do_not_postpone_the_first_flush() {
+        let (endpoint, requests) = start_mock(|_| StatusCode::OK).await;
+        let service = IndexNowService::start(test_config(endpoint)).unwrap();
+        let producer = tokio::spawn(async move {
+            loop {
+                service.submit("https://octocounts.com/github/octo/count".into());
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        });
+        wait_for_requests(&requests, 1).await;
+        producer.abort();
+        assert_eq!(
+            requests.lock().unwrap()[0]["urlList"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
         );
     }
 

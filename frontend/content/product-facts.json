@@ -73,6 +73,7 @@
       ]
     },
     "analysisOptions": {
+      "defaults": "Omitting options or sending an empty options object uses the canonical exclusions for docs, tests and generated directories. A partial object overrides only the supplied flags.",
       "value": [
         "ignoredDirs",
         "ignoredLanguages",

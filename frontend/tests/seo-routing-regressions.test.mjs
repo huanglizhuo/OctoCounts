@@ -62,3 +62,20 @@ test("a temporary collection failure stays retryable rather than becoming a miss
   assert.doesNotMatch(html, /undefined/);
   assert.match(html, /<h1>Recently analyzed repositories<\/h1>/);
 });
+
+test("the sitemap index and second shard request bounded API views", async (t) => {
+  const entry = { loc: "https://octocounts.com/github/octo/last", lastmod: "2026-11-17", total: { files: 8 } };
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async raw => {
+    const query = new URL(raw).searchParams;
+    calls.push(query.get("view"));
+    if (query.get("view") === "index") return Response.json({ shards: ["2026-11-13", "2026-11-17"], entries: [] });
+    assert.equal(query.get("page"), "2");
+    return Response.json({ entries: [entry] });
+  });
+  const index = await onRequest(context("/sitemap.xml"));
+  assert.match(await index.text(), /sitemap-reports-2\.xml<\/loc>\s*<lastmod>2026-11-17/);
+  const shard = await onRequest(context("/sitemap-reports-2.xml"));
+  assert.ok((await shard.text()).includes(entry.loc));
+  assert.deepEqual(calls, ["index", "page"]);
+});

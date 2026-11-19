@@ -2706,12 +2706,12 @@ impl Store {
                       AND "#,
             latest_eligible!("reports"),
             r#"
-                    ORDER BY provider, owner, repo, created_at DESC
+                    ORDER BY provider, owner, repo, created_at DESC, id
                 ) latest
                 ORDER BY created_at DESC
             ) page
             JOIN reports r ON r.id = page.id
-            ORDER BY page.created_at DESC
+            ORDER BY page.created_at DESC, page.id
             "#
         ))
         // The edge splits this inventory into sitemap files; no global URL cap applies here.

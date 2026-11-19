@@ -1,6 +1,23 @@
 # How many lines of code? The largest codebases, counted
 
-Updated October 29, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 19, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+
+## November 2026 measurements
+
+These eight public reports were archived on November 19, 2026. Each used tokei 15.0.0 with the canonical exclusions for tests, docs and generated directories. Each JSON download preserves the full commit SHA, report ID, engine version, counts and effective rules.
+
+| Repository | Code lines | Total lines | Files | Measured (UTC) | Archived report |
+| --- | ---: | ---: | ---: | --- | --- |
+| torvalds/linux | 32,874,442 | 43,225,049 | 90,082 | 2026-11-18 | [4405c18c95d2 JSON](https://octocounts.com/research/largest-codebases-2026-11-19/torvalds--linux.json) |
+| mozilla-firefox/firefox | 24,785,548 | 35,510,054 | 141,084 | 2026-11-19 | [615217b20e60 JSON](https://octocounts.com/research/largest-codebases-2026-11-19/mozilla-firefox--firefox.json) |
+| llvm/llvm-project | 8,450,443 | 11,746,025 | 37,957 | 2026-11-19 | [bdb0780cba67 JSON](https://octocounts.com/research/largest-codebases-2026-11-19/llvm--llvm-project.json) |
+| tensorflow/tensorflow | 5,321,972 | 7,057,944 | 24,620 | 2026-11-19 | [525639d3073e JSON](https://octocounts.com/research/largest-codebases-2026-11-19/tensorflow--tensorflow.json) |
+| godotengine/godot | 4,237,947 | 5,955,195 | 11,441 | 2026-11-18 | [b070e63b161a JSON](https://octocounts.com/research/largest-codebases-2026-11-19/godotengine--godot.json) |
+| kubernetes/kubernetes | 4,053,589 | 5,034,325 | 15,288 | 2026-11-19 | [9a2fac740d0b JSON](https://octocounts.com/research/largest-codebases-2026-11-19/kubernetes--kubernetes.json) |
+| postgres/postgres | 1,637,547 | 2,941,781 | 4,145 | 2026-11-19 | [2c077c7d602d JSON](https://octocounts.com/research/largest-codebases-2026-11-19/postgres--postgres.json) |
+| git/git | 1,159,073 | 1,625,723 | 3,575 | 2026-11-16 | [e1ec09b23c8e JSON](https://octocounts.com/research/largest-codebases-2026-11-19/git--git.json) |
+
+## October 2026 historical measurements
 
 Counted by OctoCounts with tokei 14.0.0 over each repository's default branch at a pinned commit (test, docs, and generated-file exclusion rules enabled): the **Linux kernel** has 32,360,324 code lines, **Firefox** 24,586,522, **LLVM** 8,307,824, **TensorFlow** 5,130,571, **Godot** 4,120,690, **Kubernetes** 3,901,619, **PostgreSQL** 1,631,788, and **git** 1,148,625. These historical figures name the measured commit prefix and date. Repository links open live reports, which may show different counts.
 

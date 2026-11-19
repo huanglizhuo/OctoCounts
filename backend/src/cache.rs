@@ -12,7 +12,7 @@ use moka::{future::Cache, policy::EvictionPolicy};
 use crate::{
     models::GrowthStats,
     repo_history::RepoHistoryResponse,
-    seo::{RelatedList, SeoList, SeoReport, SitemapEntry},
+    seo::{RelatedList, SeoList, SeoReport, SitemapInventory},
 };
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ pub struct AppCaches {
     pub seo_recent: Cache<String, SeoList>,
     pub seo_popular: Cache<String, SeoList>,
     pub seo_monoliths: Cache<String, SeoList>,
-    pub seo_sitemap: Cache<String, Vec<SitemapEntry>>,
+    pub seo_sitemap: Cache<String, Arc<SitemapInventory>>,
     pub seo_related: Cache<String, RelatedList>,
     /// Combined star + SLOC history responses. The one-time watch/backfill
     /// trigger only runs on a cache miss (see `repo_history::repo_history`),

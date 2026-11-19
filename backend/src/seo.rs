@@ -489,45 +489,206 @@ pub async fn monoliths(
     Ok((monoliths_cache_headers(), Json(list)))
 }
 
-pub async fn sitemap(
-    State(state): State<AppState>,
-) -> Result<(HeaderMap, Json<Vec<SitemapEntry>>), ApiError> {
-    let cache_key = "sitemap".to_string();
-    if let Some(entries) = state.caches.seo_sitemap.get(&cache_key).await {
-        return Ok((sitemap_cache_headers(), Json(entries)));
+const SITEMAP_PAGE_SIZE: usize = 10_000;
+const ROTATING_LINKS: usize = 64;
+
+pub struct SitemapInventory {
+    // Keep the original API response, including its recency ordering.
+    raw: Vec<SitemapEntry>,
+    eligible: std::collections::BTreeMap<String, usize>,
+    ordered: Vec<usize>,
+    shard_dates: Vec<String>,
+}
+
+impl SitemapInventory {
+    fn new(raw: Vec<SitemapEntry>) -> Self {
+        let mut eligible = std::collections::BTreeMap::new();
+        let mut seen = std::collections::HashSet::new();
+        for (index, row) in raw.iter().enumerate() {
+            let key = row.loc.to_ascii_lowercase();
+            if seen.insert(key.clone()) && row.total.files >= MIN_INDEXABLE_REPORT_FILES as i64 {
+                eligible.insert(key, index);
+            }
+        }
+        let ordered: Vec<usize> = eligible.values().copied().collect();
+        let shard_dates = ordered
+            .chunks(SITEMAP_PAGE_SIZE)
+            .filter_map(|chunk| chunk.iter().map(|&i| &raw[i].lastmod).max().cloned())
+            .collect();
+        Self {
+            raw,
+            eligible,
+            ordered,
+            shard_dates,
+        }
     }
 
-    let entries: Vec<SitemapEntry> = state
-        .coordinator
-        .store()
-        .sitemap_entries()
-        .await
-        .map_err(ApiError::internal)?
-        .into_iter()
-        // The site only serves /github/* report pages: the edge function and
-        // the SPA have no /gitlab route, so publishing a GitLab URL here would
-        // put a 404 in the sitemap. Filter until a GitLab route exists.
-        .filter(|row| row.provider == RepositoryProvider::GitHub)
-        .map(|row| SitemapEntry {
-            loc: format!(
-                "https://octocounts.com{}",
-                repository_public_path(row.provider, &row.owner, &row.repo)
-            ),
-            lastmod: row.lastmod.to_string(),
+    fn page(&self, page: usize) -> &[usize] {
+        page.checked_sub(1)
+            .and_then(|p| p.checked_mul(SITEMAP_PAGE_SIZE))
+            .and_then(|start| self.ordered.get(start..))
+            .map(|tail| &tail[..tail.len().min(SITEMAP_PAGE_SIZE)])
+            .unwrap_or_default()
+    }
+
+    fn rotating(&self, day: u64) -> Vec<&SitemapEntry> {
+        let count = self.ordered.len();
+        if count == 0 {
+            return Vec::new();
+        }
+        let start = (day % count as u64) as usize * ROTATING_LINKS % count;
+        (0..count.min(ROTATING_LINKS))
+            .map(|i| &self.raw[self.ordered[(start + i) % count]])
+            .collect()
+    }
+}
+
+#[derive(Deserialize, Default)]
+pub struct SitemapQuery {
+    view: Option<String>,
+    page: Option<usize>,
+    day: Option<u64>,
+    repos: Option<String>,
+}
+
+pub async fn sitemap(
+    State(state): State<AppState>,
+    Query(query): Query<SitemapQuery>,
+) -> Result<axum::response::Response, ApiError> {
+    use axum::response::IntoResponse;
+    let cache_key = "sitemap".to_string();
+    let inventory = if let Some(cached) = state.caches.seo_sitemap.get(&cache_key).await {
+        cached
+    } else {
+        let entries: Vec<SitemapEntry> = state
+            .coordinator
+            .store()
+            .sitemap_entries()
+            .await
+            .map_err(ApiError::internal)?
+            .into_iter()
+            // The site only serves /github/* report pages: the edge function and
+            // the SPA have no /gitlab route, so publishing a GitLab URL here would
+            // put a 404 in the sitemap. Filter until a GitLab route exists.
+            .filter(|row| row.provider == RepositoryProvider::GitHub)
+            .map(|row| SitemapEntry {
+                loc: format!(
+                    "https://octocounts.com{}",
+                    repository_public_path(row.provider, &row.owner, &row.repo)
+                ),
+                lastmod: row.lastmod.to_string(),
+                total: SitemapTotals {
+                    files: row.total_files,
+                    lines: row.total_lines,
+                    code: row.total_code,
+                },
+            })
+            .collect();
+        let value = std::sync::Arc::new(SitemapInventory::new(entries));
+        state
+            .caches
+            .seo_sitemap
+            .insert(cache_key, value.clone())
+            .await;
+        value
+    };
+    let headers = sitemap_cache_headers();
+    #[derive(Serialize)]
+    struct View<'a> {
+        entries: Vec<&'a SitemapEntry>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        shards: Option<&'a [String]>,
+    }
+    let payload = match query.view.as_deref() {
+        None => return Ok((headers, Json(&inventory.raw)).into_response()),
+        Some("page") if query.page.is_some_and(|page| page > 0) => {
+            let entries: Vec<_> = inventory
+                .page(query.page.unwrap())
+                .iter()
+                .map(|&i| &inventory.raw[i])
+                .collect();
+            View {
+                entries,
+                shards: None,
+            }
+        }
+        Some("rotating") if query.day.is_some() => View {
+            entries: inventory.rotating(query.day.unwrap()),
+            shards: None,
+        },
+        Some("index") => {
+            let entries: Vec<_> = query
+                .repos
+                .as_deref()
+                .unwrap_or_default()
+                .split(',')
+                .take(512)
+                .filter_map(|slug| {
+                    inventory.eligible.get(&format!(
+                        "https://octocounts.com/github/{}",
+                        slug.to_ascii_lowercase()
+                    ))
+                })
+                .map(|&i| &inventory.raw[i])
+                .collect();
+            View {
+                entries,
+                shards: Some(&inventory.shard_dates),
+            }
+        }
+        _ => {
+            return Err(ApiError::new(
+                axum::http::StatusCode::BAD_REQUEST,
+                "invalid_sitemap_view",
+                "Invalid sitemap view or parameters",
+            ))
+        }
+    };
+    Ok((headers, Json(payload)).into_response())
+}
+
+#[cfg(test)]
+#[test]
+fn sitemap_shards_cover_eligible_urls_once() {
+    let mut entries: Vec<_> = (0..=SITEMAP_PAGE_SIZE)
+        .rev()
+        .map(|i| SitemapEntry {
+            loc: format!("https://octocounts.com/github/owner/repo-{i:05}"),
+            lastmod: if i == SITEMAP_PAGE_SIZE {
+                "2026-11-19"
+            } else {
+                "2026-10-01"
+            }
+            .into(),
             total: SitemapTotals {
-                files: row.total_files,
-                lines: row.total_lines,
-                code: row.total_code,
+                files: 5,
+                lines: 20,
+                code: 15,
             },
         })
         .collect();
-    state
-        .caches
-        .seo_sitemap
-        .insert(cache_key, entries.clone())
-        .await;
-
-    Ok((sitemap_cache_headers(), Json(entries)))
+    let mut duplicate = entries[0].clone();
+    duplicate.loc.make_ascii_uppercase();
+    entries.push(duplicate);
+    let mut thin = entries[0].clone();
+    thin.loc.push_str("-thin");
+    thin.total.files = 1;
+    entries.push(thin);
+    let inventory = SitemapInventory::new(entries);
+    assert_eq!(inventory.page(1).len(), SITEMAP_PAGE_SIZE);
+    assert_eq!(inventory.page(2), &[0]);
+    assert_eq!(inventory.shard_dates, ["2026-10-01", "2026-11-19"]);
+    assert!(inventory.page(3).is_empty());
+    assert!(inventory.page(usize::MAX).is_empty());
+    assert_eq!(inventory.ordered.len(), SITEMAP_PAGE_SIZE + 1);
+    assert!(inventory
+        .ordered
+        .windows(2)
+        .all(|pair| inventory.raw[pair[0]].loc < inventory.raw[pair[1]].loc));
+    assert_eq!(
+        inventory.rotating(1)[0].loc,
+        inventory.raw[inventory.ordered[64]].loc
+    );
 }
 
 pub(crate) fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError> {

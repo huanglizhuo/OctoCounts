@@ -66,7 +66,8 @@ test("hub pages repeat their rotating report links as head data the client rende
   for (const path of ["/recent", "/popular", "/hall-of-monoliths", "/trending"]) {
     const html = await (await onRequest(context(path))).text();
     const head = html.slice(0, html.indexOf("</head>"));
-    const data = JSON.parse(head.match(/<script type="application\/json" id="octocounts-more-reports">([^<]*)<\/script>/)?.[1] ?? "null");
+    assert.doesNotMatch(head, /id="octocounts-(?:more-reports|list-data|trending-data)"/);
+    const data = JSON.parse(head.match(/id="octocounts-explore-bootstrap">([^<]*)<\/script>/)[1]).seeds["octocounts-more-reports"];
     const directory = html.match(/<details class="explore-directory">([\s\S]*?)<\/details>/)?.[1] ?? "";
     const visible = [...directory.matchAll(/<li><a href="([^"]+)">/g)].map((match) => match[1]);
     assert.equal(data.length, 3, path);

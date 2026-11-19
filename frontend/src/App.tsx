@@ -1145,8 +1145,7 @@ function setCanonical(href: string) {
   const canonical = new URL(href);
   if (canonical.pathname.startsWith("/github/")) {
     const markdown = new URL(canonical);
-    if (canonical.searchParams.has("reportId")) markdown.searchParams.set("format", "md");
-    else markdown.pathname += ".md";
+    markdown.searchParams.set("format", "md");
     let alternate = document.head.querySelector<HTMLLinkElement>('link[rel="alternate"][type="text/markdown"]');
     if (!alternate) {
       alternate = document.createElement("link");
