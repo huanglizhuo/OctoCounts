@@ -165,7 +165,7 @@ function DeferredContent({ children, rootMargin = "300px", estimatePx = 240 }: {
 // machine-readable summary (#octocounts-report-summary). Seeding the runner
 // from it shows the full report instantly and halves the perceived double
 // download; the auto-run analysis then refreshes it from the live API.
-function seedReportFromSsrSummary(): Report | null {
+function seedReportFromSsrSummary(): (Report & { canonicalUrl?: string }) | null {
   const node = document.getElementById("octocounts-report-summary");
   if (!node) return null;
   try {
@@ -182,6 +182,7 @@ function seedReportFromSsrSummary(): Report | null {
     const summaryRepo = String(summary.repository?.repo ?? "").toLowerCase();
     if (summaryOwner !== parsedRoute.owner.toLowerCase() || summaryRepo !== parsedRoute.repo.toLowerCase()) return null;
     return {
+      canonicalUrl: summary.canonicalUrl,
       id: summary.reportId ?? "",
       repository: {
         owner: summary.repository.owner,
@@ -1073,6 +1074,10 @@ function buildCanonicalReportUrl(report: Report, ref: string) {
   if (new URLSearchParams(window.location.search).has("reportId")
     || (report !== seedReport && report.analysisOptions && !isCanonicalAnalysisOptions(report.analysisOptions))) {
     return buildSnapshotReportUrl(report);
+  }
+  if (report === seedReport && window.location.pathname.split("/")[4] === "tree") {
+    const root = new URL(buildPublicReportUrl(report.repository.owner, report.repository.name, ""));
+    if (ssrSeed?.canonicalUrl === `https://octocounts.com${root.pathname}`) return root.href;
   }
   return buildCanonicalUrlForParsedRepo({ owner: report.repository.owner, repo: report.repository.name }, report.repository.htmlUrl, ref);
 }

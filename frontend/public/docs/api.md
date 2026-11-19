@@ -121,6 +121,8 @@ https://octocounts.com/compare?left=...&right=...&leftRef=...&rightRef=...
 https://octocounts.com/diff?repo=...&base=...&head=...
 ```
 
+For repositories whose names end in `.md`, keep the full name in the report URL. For example, the [google-labs-code/design.md report](https://octocounts.com/github/google-labs-code/design.md) serves HTML. Append `?format=md` for its Markdown representation.
+
 ## Where are the methodology and AI-readable context documented?
 
 For citation details, cache keys, ignored folders, and counting limitations, see the [OctoCounts methodology](https://octocounts.com/docs/methodology). Agent-readable context is available at [/llms.txt](https://octocounts.com/llms.txt) and [/llms-full.txt](https://octocounts.com/llms-full.txt).

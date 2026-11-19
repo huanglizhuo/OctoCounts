@@ -523,6 +523,18 @@ async function reportResponse(context, route, options = {}) {
     const suffix = options.suffix ? ".md" : "";
     return Response.redirect(new URL(report.publicPath + suffix + requestUrl.search, requestUrl.origin), 308);
   }
+  // A tree and the unqualified URL can serve the same saved measurement.
+  // Keep the tree navigable, and consolidate only after matching the actual root record.
+  if (!report.isSnapshot && route.refKind === "tree" && report.reportId && report.refName === route.refName) {
+    const rootRoute = { owner: report.owner, repo: report.repo };
+    const root = await fetchSeoReport(context, rootRoute, 1000);
+    if (root.state === "ok") {
+      const current = await root.response.json();
+      if (reportMatchesRoute(current, rootRoute) && current.reportId === report.reportId && current.refName === route.refName) {
+        report.canonicalUrl = `https://octocounts.com/github/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
+      }
+    }
+  }
   // Writes purge repository tags; template deployments purge octo-html.
   const cacheControl = "public, max-age=60, s-maxage=86400, stale-while-revalidate=3600";
   const dependencyTags = (await Promise.all([report, ...relatedReports].map(r => repositoryCacheTag(r.provider || "github", r.owner, r.repo)))).join(",");
@@ -1829,12 +1841,12 @@ function envScratchMap(env) {
 /// - "ok": report exists (response attached, unread)
 /// - "missing": 404 — the repository has no cached report
 /// - "unavailable": 5xx, network error, or timeout — transient backend trouble
-async function fetchSeoReport(context, target) {
+async function fetchSeoReport(context, target, timeoutMs = SEO_REPORT_TIMEOUT_MS) {
   try {
     const reportId = new URL(context.request.url).searchParams.get("reportId");
     const response = await fetch(reportId ? `${apiBase(context)}/api/reports/${encodeURIComponent(reportId)}` : seoReportUrl(context, target), {
       headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.ok) {
       const stored = await response.json();

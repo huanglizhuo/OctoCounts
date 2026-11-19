@@ -18,17 +18,19 @@ for (const robots of ["noindex,follow", "index,follow"]) {
   });
 }
 
-for (const suffix of ["", "/tree/deadbee", `/commit/${commit}`, "/tree/tiny"]) {
+for (const suffix of ["", "/tree/main", "/tree/deadbee", `/commit/${commit}`, "/tree/tiny"]) {
   test(`report seed preserves canonical and Dataset identity for ${suffix || "the default branch"}`, async ({ page, baseURL }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const path = `/github/example/repository${suffix}`;
-    const canonical = new URL(path, baseURL).href;
+    const canonicalPath = suffix === "/tree/main" ? "/github/example/repository" : path;
+    const canonical = new URL(canonicalPath, baseURL).href;
     const summary = {
       reportId: "seed-report",
+      canonicalUrl: "https://octocounts.com" + canonicalPath,
       repository: { owner: "example", repo: "repository", htmlUrl: "https://github.com/example/repository", provider: "github" },
       // A cached commit can carry the branch name used when originally counted.
-      refName: suffix.startsWith("/tree/") ? "deadbee" : "main",
+      refName: suffix.startsWith("/tree/") ? suffix.slice(6) : "main",
       commitSha: commit,
       generatedAt: "2026-09-08T01:02:03.000Z",
       tokeiVersion: "tokei-13.0.0",

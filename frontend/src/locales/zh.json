@@ -681,6 +681,7 @@
       "statsPolicy": "统计汇总已保存的报告，包含重复分析与系统补录，不代表去重代码量或访客数。近期时间范围采用 UTC。",
       "recentPolicy": "按报告生成时间排序。最近分析不代表仓库最近有代码更新。",
       "popularPolicy": "根据 OctoCounts 报告访问活跃度排序，不代表 GitHub Star 排名或独立访客数。",
+      "largestCodebasesGuide": "按实测代码行数比较八个大型代码库",
       "monolithsPolicy": "代码行不含注释和空行。报告采用公开统计口径，各仓库的分析日期可能不同。",
       "trendingOrder": "沿用 GitHub Trending 原始顺序，不按新增 Star 或代码规模排序。",
       "loading": "正在加载仓库与统计数据…",

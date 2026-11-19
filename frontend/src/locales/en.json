@@ -694,6 +694,7 @@
       "statsPolicy": "Counts aggregate stored reports, including repeat analyses and system backfills. They are not unique lines of code or visitor counts. Recent periods use UTC.",
       "recentPolicy": "Ordered by report generation time. A recent analysis does not necessarily mean the repository was recently updated.",
       "popularPolicy": "Ranked by report access activity on OctoCounts, not GitHub stars or unique visitors.",
+      "largestCodebasesGuide": "Compare eight large codebases by measured lines of code",
       "monolithsPolicy": "Code lines exclude comments and blank lines. Reports use the public counting profile and may have different analysis dates.",
       "trendingOrder": "GitHub Trending order, not sorted by stars gained or codebase size.",
       "loading": "Loading repositories and measurements…",

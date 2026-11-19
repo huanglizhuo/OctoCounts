@@ -2272,6 +2272,32 @@ test("explicit refs keep their identity in canonical, Markdown and Dataset URLs"
   }
 });
 
+test("tree URLs consolidate only when the root serves the same saved report and ref", async (t) => {
+  const branch = { ...RELATED_REPORT_FIXTURE, reportId: "branch-id" };
+  const rootUrl = branch.canonicalUrl;
+  const tree = `${branch.publicPath}/tree/main`;
+  for (const [root, expected] of [
+    [branch, rootUrl],
+    [{ ...branch, reportId: "other-id" }, `https://octocounts.com${tree}`],
+    [{ ...branch, refName: "release" }, `https://octocounts.com${tree}`],
+    [null, `https://octocounts.com${tree}`],
+  ]) {
+    t.mock.method(globalThis, "fetch", async (raw) => {
+      const url = new URL(raw);
+      if (url.pathname === "/api/seo/related") return Response.json({ reports: [] });
+      if (url.searchParams.has("refName")) return Response.json(branch);
+      if (!root) throw new DOMException("Timed out", "TimeoutError");
+      return Response.json(root);
+    });
+    const response = await onRequest(await renderedContext(tree));
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(`rel="canonical" href="${expected}"`));
+    assert.ok(html.includes(`type="text/markdown" href="${expected}?format=md"`));
+    t.mock.restoreAll();
+  }
+});
+
 test("a commit URL never publishes another commit's report", async () => {
   const restore = stubReportAndRelatedFetch({ reports: [] });
   try {

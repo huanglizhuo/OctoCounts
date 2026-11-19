@@ -247,6 +247,9 @@ export function ReportListPage({ kind }: { kind: CollectionKind }) {
   return (
     <div className="explore-data" aria-busy={query.isLoading}>
 
+      {kind === "monoliths" && page === 1 ? <p className="explore-policy">
+        <a href="/docs/largest-codebases">{t("growth.explore.largestCodebasesGuide")}</a>
+      </p> : null}
       {query.isLoading ? <ExploreSkeleton kind={kind} /> : null}
       {query.isError ? <ExploreDataError stale={!!query.data} onRetry={() => void query.refetch()} /> : null}
       {query.data ? <RepositoryList reports={reports} kind={kind} start={(page - 1) * query.data.limit + 1} /> : null}
