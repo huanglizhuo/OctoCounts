@@ -1,16 +1,20 @@
-# GitHub Trending daily snapshot generated 2026-11-18T10:05:07.776Z
-elementalsouls/Claude-BugHunter
-mvanhorn/last30days-skill
-alibaba/open-code-review
-Tencent/LoopForge
-dream-num/univer
-getarcaneapp/arcane
-google-labs-code/stitch-skills
+# GitHub Trending daily snapshot generated 2026-11-19T10:16:04.370Z
 cursor/plugins
-obra/superpowers
-ag-ui-protocol/ag-ui
-backnotprop/plannotator
-sveltejs/svelte
-affaan-m/ECC
-jingyaogong/minimind
+HKUDS/CLI-Anything
+mvanhorn/last30days-skill
+getarcaneapp/arcane
+NVIDIA/SkillEvaluator
+nvm-sh/nvm
+astral-sh/uv
 google-research/paper-orchestra
+google-labs-code/stitch-skills
+sveltejs/svelte
+jquery/jquery
+appwrite/appwrite
+openvinotoolkit/openvino
+obra/superpowers
+affaan-m/ECC
+DeanChensj/jiangshan-map
+n8n-io/n8n
+solidjs/solid
+punkpeye/awesome-mcp-servers
