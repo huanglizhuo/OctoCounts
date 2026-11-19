@@ -415,6 +415,14 @@ function parseGitHubRoute(parts) {
 
 async function reportResponse(context, route, options = {}) {
   const requestUrl = new URL(context.request.url);
+  // Older live-share links serialized these exact public defaults. Only strip
+  // the value we emitted, so custom options and saved snapshots retain their semantics.
+  const legacyLiveOptions = '{"ignoredDirs":[],"ignoredLanguages":[],"profile":"default","includeDocs":false,"includeTests":false,"includeGenerated":false}';
+  if (!requestUrl.searchParams.has("reportId") && requestUrl.searchParams.get("analysis") === legacyLiveOptions
+    && requestUrl.searchParams.getAll("analysis").length === 1) {
+    requestUrl.searchParams.delete("analysis");
+    return Response.redirect(requestUrl, 308);
+  }
   // The SEO cache has its own counting options; custom links need a saved ID
   // before it can safely supply their counts to HTML or social previews.
   if (requestUrl.searchParams.has("analysis") && !requestUrl.searchParams.has("reportId")) {

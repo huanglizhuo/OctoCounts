@@ -77,6 +77,8 @@ for (const suffix of ["", "/tree/main", "/tree/deadbee", `/commit/${commit}`, "/
     expect(errors).toEqual([]);
 
     if (!suffix) {
+      const liveUrl = new URL("/github/example/repository/tree/main", baseURL).href;
+      await expect(page.locator("#readme-badge code")).toContainText(`](${liveUrl})`);
       await page.route("**/api/analyze", (route) => route.fulfill({ json: {
         kind: "cached", reportId: "next-report", report: {
           ...summary,

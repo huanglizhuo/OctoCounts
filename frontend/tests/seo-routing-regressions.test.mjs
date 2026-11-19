@@ -38,6 +38,24 @@ test("report and comparison outages preserve the requested Markdown representati
   assert.match(html.headers.get("content-type"), /^text\/html/);
 });
 
+test("historical live shares strip only their explicit public defaults", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 404 }));
+  const path = "/github/example/repository/tree/release/v1";
+  const options = { ignoredDirs: [], ignoredLanguages: [], profile: "default", includeDocs: false, includeTests: false, includeGenerated: false };
+  const params = new URLSearchParams({ analysis: JSON.stringify(options), format: "md" });
+  const response = await onRequest(context(`${path}?${params}`));
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), `https://octocounts.com${path}?format=md`);
+  params.set("reportId", "saved");
+  assert.equal((await onRequest(context(`${path}?${params}`))).status, 404);
+  params.delete("reportId");
+  params.delete("format");
+  params.set("analysis", JSON.stringify({ ...options, includeTests: true }));
+  const custom = await onRequest(context(`${path}?${params}`));
+  assert.equal(custom.status, 200);
+  assert.match(await custom.text(), /content="noindex,follow"/);
+});
+
 test("empty collection pages past page one are hard 404s with a useful return link", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ reports: [] }));
   for (const collection of ["recent", "popular", "hall-of-monoliths"]) {

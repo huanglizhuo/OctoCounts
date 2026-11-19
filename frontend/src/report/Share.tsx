@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import { AnalyticsEvents, trackEvent } from "../analytics";
 import { buildBadgeUrl, buildEmbedSnippet, buildEmbedUrl, buildPublicReportUrl, buildReportBadgeUrl } from "../badges";
 import { ShareButtons } from "../ShareButtons";
-import { canonicalAnalysisOptions } from "../AnalysisOptionsPanel";
 import { copyText, formatNumber, formatPercent, normalizedProvider, policySummary, tickerRows, visibleLanguageColor } from "../reportUtils";
 import type { Report } from "../types";
 import { StarBadge, buildSnapshotReportUrl, useCopied } from "./shared";
@@ -31,13 +30,12 @@ export function ShareSection({ report }: { report: Report }) {
   const [manualCopyValue, setManualCopyValue] = useState<string | null>(null);
   const [shareMode, setShareMode] = useState<"snapshot" | "live">("snapshot");
   const [badgeMode, setBadgeMode] = useState<"snapshot" | "live">("live");
-  const liveUrl = new URL(buildPublicReportUrl(report.repository.owner, report.repository.name, report.refName));
-  liveUrl.searchParams.set("analysis", JSON.stringify(canonicalAnalysisOptions));
-  const shareUrl = shareMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl.href;
+  const liveUrl = buildPublicReportUrl(report.repository.owner, report.repository.name, report.refName);
+  const shareUrl = shareMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl;
   const badgeUrl = badgeMode === "snapshot"
     ? report.id ? buildReportBadgeUrl(report.id) : ""
     : buildBadgeUrl(report.repository.owner, report.repository.name, report.refName, "summary", "");
-  const badgeMarkdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${badgeMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl.href})` : "";
+  const badgeMarkdown = badgeUrl ? `[![OctoCounts](${badgeUrl})](${badgeMode === "snapshot" ? buildSnapshotReportUrl(report) : liveUrl})` : "";
   const runCopy = async (action: () => Promise<boolean>, fallbackValue?: string) => {
     const ok = await action();
     setCopyFeedback(ok ? "copied" : "failed");
