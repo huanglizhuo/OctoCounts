@@ -26,7 +26,7 @@ OctoCounts is open source under the MIT license. The source code, issue tracker,
 
 ## Maintainer
 
-OctoCounts is built and maintained by [huanglizhuo](https://github.com/huanglizhuo).
+I'm [huanglizhuo](https://github.com/huanglizhuo), the developer behind OctoCounts. I also built [EchoPod](https://echopod.clothpath.com/), an app for learning languages with podcasts.
 
 ## Contact
 
