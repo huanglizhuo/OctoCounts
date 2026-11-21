@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-10-31
+Last-Updated: 2026-11-21
 
 ## What OctoCounts Does
 
@@ -116,7 +116,8 @@ For private repositories, run tokei locally.
 - Count lines of code without cloning: https://octocounts.com/docs/count-lines-without-cloning
 - Can the GitHub API count lines of code?: https://octocounts.com/docs/github-api-count-lines
 - tokei vs cloc vs scc (three open-source counters compared): https://octocounts.com/docs/tokei-vs-cloc-vs-scc
-- Largest codebases by lines of code (linux, Firefox, LLVM, TensorFlow, Godot, Kubernetes, PostgreSQL, git — first-party counts pinned to commits): https://octocounts.com/docs/largest-codebases
+- Largest codebases by lines of code: https://octocounts.com/docs/largest-codebases
+  [November 2026 code counts for eight repositories](https://octocounts.com/docs/largest-codebases#november-2026). Each row links to the archived report with the full commit SHA and counting rules. The [October table](https://octocounts.com/docs/largest-codebases#october-2026) records an earlier measurement.
 - GitHub language bar alternative: https://octocounts.com/docs/github-language-bar-alternative
 - Best SLOC counter tools compared: https://octocounts.com/docs/best-sloc-counter-tools
 - Research (ten repositories, five configurations, archived full reports; separate historical pilot): https://octocounts.com/research

@@ -77,3 +77,30 @@ test("published study preserves pinned evidence and matching HTML/Markdown count
   }
   assert.ok(html.includes(archive.datasetSha256) && md.includes(archive.datasetSha256));
 });
+
+test("November dataset downloads and featured answers agree with the archived reports", async () => {
+  const root = new URL("../frontend/public/", import.meta.url);
+  const html = await readFile(new URL("docs/largest-codebases.html", root), "utf8");
+  const md = await readFile(new URL("docs/largest-codebases.md", root), "utf8");
+  const schemas = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(match => JSON.parse(match[1]));
+  const dataset = schemas.find(schema => schema["@id"]?.endsWith("#november-2026"));
+  const faq = schemas.find(schema => schema["@type"] === "FAQPage");
+  const questions = new Map([
+    ["torvalds/linux", "How many lines of code is the Linux kernel?"],
+    ["mozilla-firefox/firefox", "How many lines of code is Firefox?"],
+  ]);
+  assert.equal(new Set(dataset.distribution.map(file => file.name)).size, 8);
+  for (const file of dataset.distribution) {
+    const archive = `research/largest-codebases-2026-11-19/${file.name.replace("/", "--")}.json`;
+    assert.equal(file.contentUrl, `https://octocounts.com/${archive}`);
+    const report = JSON.parse(await readFile(new URL(archive, root), "utf8"));
+    assert.equal(file.name, `${report.repository.owner}/${report.repository.name}`);
+    if (!questions.has(file.name)) continue;
+    const answer = faq.mainEntity.find(item => item.name === questions.get(file.name)).acceptedAnswer.text;
+    assert.ok(html.includes(`<p>${answer}`) && md.includes(answer));
+    for (const value of [report.total.code, report.total.lines, report.total.files]) assert.ok(answer.includes(value.toLocaleString("en-US")));
+    assert.ok(answer.includes(report.commitSha.slice(0, 12)));
+    questions.delete(file.name);
+  }
+  assert.equal(questions.size, 0);
+});

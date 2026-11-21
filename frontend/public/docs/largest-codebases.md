@@ -1,10 +1,10 @@
 # How many lines of code? The largest codebases, counted
 
-Updated November 19, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 21, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 ## November 2026 measurements
 
-These eight public reports were archived on November 19, 2026. Each used tokei 15.0.0 with the canonical exclusions for tests, docs and generated directories. Each JSON download preserves the full commit SHA, report ID, engine version, counts and effective rules.
+Of the eight repositories in the November 19, 2026 archive, the Linux kernel had the most counted code lines (32,874,442), followed by Firefox (24,785,548). Each used tokei 15.0.0 with the canonical exclusions for tests, docs and generated directories. Each JSON download preserves the full commit SHA, report ID, engine version, counts and effective rules.
 
 | Repository | Code lines | Total lines | Files | Measured (UTC) | Archived report |
 | --- | ---: | ---: | ---: | --- | --- |
@@ -36,17 +36,17 @@ Counted by OctoCounts with tokei 14.0.0 over each repository's default branch at
 
 \* git's largest counted "language" is PO File — its translation catalogs — a good reminder that SLOC tools count what the parser sees: C is the largest programming language in the tree, but the .po catalog lines are numerous enough to lead the table.
 
-## How these numbers were measured
+## How the October counts were measured
 
-Every figure comes from OctoCounts' own counting pipeline: the repository's default branch is resolved to an exact commit, the *source archive* of that commit is downloaded (no git history), and the tree is counted with [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0. The published configuration excludes files matched by the test, docs, and generated-file rules; this does not prove that every remaining line is hand-written. Repository links open live reports, not preserved copies of these measurements. Download the [published historical table as JSON](https://octocounts.com/research/largest-codebases-2026-10-15.json). The original report IDs and complete effective rules were not archived with this article, so this export preserves the published figures but is not a complete reproduction recipe. See the [counting methodology](https://octocounts.com/docs/methodology) for the evidence to retain for future measurements.
+Each October figure comes from OctoCounts' own counting pipeline: the repository's default branch is resolved to an exact commit, the *source archive* of that commit is downloaded (no git history), and the tree is counted with [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0. The published configuration excludes files matched by the test, docs, and generated-file rules; this does not prove that every remaining line is hand-written. Repository links open live reports, not preserved copies of these measurements. Download the [published historical table as JSON](https://octocounts.com/research/largest-codebases-2026-10-15.json). The original report IDs and complete effective rules were not archived with this article, so this export preserves the published figures but is not a complete reproduction recipe. See the [counting methodology](https://octocounts.com/docs/methodology) for the evidence to retain for future measurements.
 
 ## How many lines of code is the Linux kernel?
 
-32,360,324 code lines at commit `4056b3c9d3c9` (October 14, 2026) — 42,580,025 total lines including comments and blanks, across 89,182 files in 50 languages, C at 60.8% of code. The kernel's `master` branch advances daily, so treat the number as "the kernel in mid-October 2026," not an eternal fact; the [live report](https://octocounts.com/github/torvalds/linux) may show a later measurement. Cite this historical table for the figures above. It remains the largest public codebase most people can name, and the only one in this table where even the compressed source archive is a few hundred megabytes.
+The Linux kernel contained 32,874,442 code lines out of 43,225,049 total lines across 90,082 files at commit 4405c18c95d2. OctoCounts measured that commit on November 18, 2026 with tokei 15.0.0, excluding test, documentation and generated directories under its canonical rules. [Archived Linux kernel report (JSON)](https://octocounts.com/research/largest-codebases-2026-11-19/torvalds--linux.json).
 
 ## How many lines of code is Firefox?
 
-24,586,522 code lines at commit `3934f7874da5` (October 14, 2026), across 140,115 files — the largest file count in this set — in 91 languages, the widest language mix here. C++ leads at 22.8% of code; comments are 19.9% of all lines, the highest comment share among the systems codebases measured. The [full report](https://octocounts.com/github/mozilla-firefox/firefox) shows why one-line comparisons of "Firefox vs Chromium" are treacherous: file counts and language mixes differ as much as line totals.
+Firefox contained 24,785,548 code lines out of 35,510,054 total lines across 141,084 files at commit 615217b20e60. OctoCounts measured that commit on November 19, 2026 with tokei 15.0.0, excluding test, documentation and generated directories under its canonical rules. [Archived Firefox report (JSON)](https://octocounts.com/research/largest-codebases-2026-11-19/mozilla-firefox--firefox.json).
 
 ## Which is the largest codebase ever?
 
@@ -67,7 +67,7 @@ So the citable form is: *tool + version + options + commit + date*. "32,360,324 
 
 No — and this dataset is the argument. PostgreSQL averages 395 code lines per file with 30.3% of all lines being comments: dense, heavily documented code. Kubernetes averages 260 code lines per file at 80.5% code. The linux kernel averages 363 code lines per file across 50 languages. Size is an input to planning, budgeting, and the honest sanity check ("is this really too big to audit before we depend on it?") — not a verdict on engineering quality.
 
-If you cite these figures, credit OctoCounts and link this article and its historical JSON table. The original saved reports and full effective rules were not archived, so these records support attribution but not a complete reproduction. The [methodology page](https://octocounts.com/docs/methodology) includes the recommended citation format.
+For a November figure, cite the archived JSON report in its table row. For an October figure, cite the historical JSON table and record the commit prefix. Only the November archive includes full SHAs and effective rules. The [methodology page](https://octocounts.com/docs/methodology) includes the recommended citation format.
 
 ## How should I compare sizes under different filters?
 

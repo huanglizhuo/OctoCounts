@@ -149,7 +149,8 @@ try {
     }
     for (const extension of ["md", "html"]) {
       const article = contents.get(path.join(FRONTEND, "public", "docs", `largest-codebases.${extension}`)) ?? "";
-      const november = article.split("\n").find(line => line.includes(archive));
+      const rowStart = extension === "html" ? "<tr><td>" : "| ";
+      const november = article.split("\n").find(line => line.trimStart().startsWith(rowStart + row.repository) && line.includes(archive));
       const cells = [row.repository, report.commitSha.slice(0, 12), report.generatedAt.slice(0, 10),
         ...["code", "lines", "files"].map(key => report.total[key].toLocaleString("en-US"))];
       if (!november || !cells.every(value => november.includes(value))) note(`November table differs from ${archive} in ${extension}`);

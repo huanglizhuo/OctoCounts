@@ -1,6 +1,6 @@
 # How Filtering Changes SLOC Counts: 10-Repository Study
 
-Article updated October 27, 2026. The new ten-repository study and the unchanged September pilot are separate datasets.
+Article updated November 21, 2026. The October study and September pilot use separate datasets.
 
 ## Cross-language study — October 27, 2026
 
@@ -76,11 +76,11 @@ The question matters because SLOC comparisons are only valid when both sides wer
 
 ## Method
 
-The pilot sampled two public GitHub repositories already present in the OctoCounts corpus — [react/react](https://octocounts.com/github/react/react) (counted under its former `facebook/react` path; the repository has since moved organizations) and [vitejs/vite](https://octocounts.com/github/vitejs/vite) — and counted each one under four configurations: the site default (docs, tests, and generated files all included), `exclude-tests`, `exclude-docs`, and `exclude-generated`. That is 2 repositories × 4 configurations = 8 counted runs, all recorded on 2026-09-08.
+The pilot sampled two public GitHub repositories already present in the OctoCounts corpus — [react/react](https://octocounts.com/github/react/react) (counted under its former `facebook/react` path; the repository has since moved organizations) and [vitejs/vite](https://octocounts.com/github/vitejs/vite) — and counted each one under four configurations: the pilot baseline (docs, tests, and generated files all included), `exclude-tests`, `exclude-docs`, and `exclude-generated`. That is 2 repositories × 4 configurations = 8 counted runs, all recorded on 2026-09-08.
 
 Two design choices make the deltas pure configuration effects rather than drift:
 
-- **Commit pinning.** The default configuration ran first and recorded the resolved commit SHA; every other configuration pinned `refName` to that exact SHA. All four runs per repository therefore count identical source material — react at `9b7a0d4029ee`, Vite at `e6f6b3e31192`.
+- **Commit pinning.** The baseline configuration ran first and recorded the resolved commit SHA; every other configuration pinned `refName` to that exact SHA. All four runs per repository therefore count identical source material — react at `9b7a0d4029ee`, Vite at `e6f6b3e31192`.
 - **Bounded execution.** Requests ran sequentially (concurrency 1) with no force-refresh and at most one retry per request — none was needed. Every run recorded the repository, commit, configuration, wall time, and returned totals; failures would have been recorded, never dropped.
 
 ## Key findings
@@ -100,11 +100,11 @@ The instrument itself worked: commit pinning, per-run timing, and totals were al
 
 - The sample is not random and n=2: these are two JavaScript/TypeScript tooling repositories. No claim about open source in general is possible from it.
 - Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.
-- A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. OctoCounts' production engine has since been upgraded to [tokei](https://github.com/XAMPPRocky/tokei) 14.0.0 (see the [counting methodology](https://octocounts.com/docs/methodology)); the pilot was not rerun, so these figures describe tokei-12.1 only.
+- A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. For the engine and filtering rules used in new reports, see the [counting methodology](https://octocounts.com/docs/methodology).
 
 ## Pilot follow-up
 
-The October 27 study above expands the sample to ten repositories and archives complete current-engine reports. It is a separate measurement set; these historical pilot rows remain unchanged.
+The October 27 study above expands the sample to ten repositories and archives complete tokei-14.0.0 reports. It is a separate measurement set; these historical pilot rows remain unchanged.
 
 ## Data
 

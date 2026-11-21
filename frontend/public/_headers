@@ -40,9 +40,8 @@
   Content-Type: application/json; charset=utf-8
   Cache-Control: public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400
 
-# The /research pilot dataset is JSON Lines; Pages would otherwise serve it as
-# octet-stream. Versioned data files are planned, so cache a day, not forever.
-/research/pilot-samples.jsonl
+# Research datasets are served as newline-delimited JSON.
+/research/*.jsonl
   Content-Type: application/x-ndjson; charset=utf-8
   Cache-Control: public, max-age=86400
   Access-Control-Allow-Origin: *

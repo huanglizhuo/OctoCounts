@@ -52,7 +52,7 @@
       "headline": "How Filtering Changes SLOC Counts: 10-Repository Study",
       "description": "A fixed-commit study of 10 repositories across seven ecosystems: 50 SLOC counts with complete JSON reports, effective filtering rules and reproducible evidence.",
       "datePublished": "2026-09-16",
-      "dateModified": "2026-10-27",
+      "dateModified": "2026-11-21",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -172,7 +172,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / Research</nav>
     <main>
-      <p class="meta">Updated October 27, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 21, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>How Filtering Changes SLOC Counts: 10-Repository Study</h1>
 
       <h2 id="cross-language-2026-10-27">Cross-language study — October 27, 2026</h2>
@@ -213,10 +213,10 @@
       <p>The question matters because SLOC comparisons are only valid when both sides were counted under the same configuration. New reports record known effective counting rules; older reports may lack that metadata. This pilot records its selected options but predates the current effective-policy record, which limits exact reproduction.</p>
 
       <h2>Method</h2>
-      <p>The pilot sampled two public GitHub repositories already present in the OctoCounts corpus &mdash; <a href="/github/react/react">react/react</a> (counted under its former <code>facebook/react</code> path; the repository has since moved organizations) and <a href="/github/vitejs/vite">vitejs/vite</a> &mdash; and counted each one under four configurations: the site default (docs, tests, and generated files all included), <code>exclude-tests</code>, <code>exclude-docs</code>, and <code>exclude-generated</code>. That is 2 repositories &times; 4 configurations = 8 counted runs, all recorded on 2026-09-08.</p>
+      <p>The pilot sampled two public GitHub repositories already present in the OctoCounts corpus &mdash; <a href="/github/react/react">react/react</a> (counted under its former <code>facebook/react</code> path; the repository has since moved organizations) and <a href="/github/vitejs/vite">vitejs/vite</a> &mdash; and counted each one under four configurations: the pilot baseline (docs, tests, and generated files all included), <code>exclude-tests</code>, <code>exclude-docs</code>, and <code>exclude-generated</code>. That is 2 repositories &times; 4 configurations = 8 counted runs, all recorded on 2026-09-08.</p>
       <p>Two design choices make the deltas pure configuration effects rather than drift:</p>
       <ul>
-        <li><strong>Commit pinning.</strong> The default configuration ran first and recorded the resolved commit SHA; every other configuration pinned <code>refName</code> to that exact SHA. All four runs per repository therefore count identical source material &mdash; react at <code>9b7a0d4029ee</code>, Vite at <code>e6f6b3e31192</code>.</li>
+        <li><strong>Commit pinning.</strong> The baseline configuration ran first and recorded the resolved commit SHA; every other configuration pinned <code>refName</code> to that exact SHA. All four runs per repository therefore count identical source material &mdash; react at <code>9b7a0d4029ee</code>, Vite at <code>e6f6b3e31192</code>.</li>
         <li><strong>Bounded execution.</strong> Requests ran sequentially (concurrency 1) with no force-refresh and at most one retry per request &mdash; none was needed. Every run recorded the repository, commit, configuration, wall time, and returned totals; failures would have been recorded, never dropped.</li>
       </ul>
 
@@ -241,11 +241,11 @@
       <ul>
         <li>The sample is not random and n=2: these are two JavaScript/TypeScript tooling repositories. No claim about open source in general is possible from it.</li>
         <li>Filtering is heuristic (path/extension based). "Generated" and "docs" classification cannot be perfect, and the measured deltas are bounded by that heuristic rather than ground truth.</li>
-        <li>A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. OctoCounts' production engine has since been upgraded to <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 14.0.0 (see the <a href="/docs/methodology">counting methodology</a>); the pilot was not rerun, so these figures describe tokei-12.1 only.</li>
+        <li>A single engine version (tokei-12.1) and a single collection date (2026-09-08): the results describe these repositories at these commits. For the engine and filtering rules used in new reports, see the <a href="/docs/methodology">counting methodology</a>.</li>
       </ul>
 
       <h2>Pilot follow-up</h2>
-      <p>The October 27 study above expands the sample to ten repositories and archives complete current-engine reports. It is a separate measurement set; these historical pilot rows remain unchanged.</p>
+      <p>The October 27 study above expands the sample to ten repositories and archives complete tokei-14.0.0 reports. It is a separate measurement set; these historical pilot rows remain unchanged.</p>
 
       <h2>Data</h2>
       <p>The complete pilot dataset is published as newline-delimited JSON, one recorded run per row (8 rows): <a href="/research/pilot-samples.jsonl">pilot-samples.jsonl</a>. Each row carries the repository, configuration options, pinned commit SHA, collection timestamp, outcome, wall time, engine version (<code>tokei-12.1</code>), and full totals (files, lines, code, comments, blanks). This is original data collected by OctoCounts; if you use it, please cite OctoCounts as the source and link to <a href="/research">octocounts.com/research</a>.</p>
