@@ -68,6 +68,7 @@ type CuratedCompareModel = {
   retentionText?: string;
   disclaimerText?: string;
   faq?: Array<{ question: string; answer: string }>;
+  relatedComparisons?: Array<{ slug: string; name: string }>;
   relatedLinks?: Array<{ href: string; label: string }>;
   editorial?: {
     scope: string;
@@ -201,6 +202,16 @@ function CuratedCompareBody({ model }: { model: CuratedCompareModel }) {
           ))}
         </div>
       ) : null}
+      {model.relatedComparisons?.length ? (
+        <section aria-label="Related comparisons">
+          <h2>Related comparisons</h2>
+          <ul>
+            {model.relatedComparisons.map(entry => (
+              <li key={entry.slug}><a href={`/compare/${entry.slug}`}>{entry.name}: lines of code compared</a></li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {model.relatedLinks?.length ? (
         <nav aria-label={t("curatedCompare.relatedAria")}>
           <ul>
@@ -288,6 +299,108 @@ export function DiffPage() {
         <p>{t("diff.help")}</p>
       </section>
       <DiffRefs showHelp={false} />
+    </MarketingShell>
+  );
+}
+
+// The /languages contract: the Pages Function builds one model
+// (functions/language-pages.js) and renders the SSR body, the Markdown twin
+// and the JSON-LD from it. This page re-renders the same model, so enabling
+// JavaScript keeps the leaderboard instead of discarding it. The model's
+// text is English whatever the interface language, like the curated
+// comparisons.
+type LanguagePageCell = { text: string; href?: string };
+type LanguagePageModel = {
+  kind: "hub" | "leaderboard";
+  language?: string;
+  heading: string;
+  intro: string;
+  columns: string[];
+  rows: LanguagePageCell[][];
+  afterTable: string;
+  faq: Array<{ question: string; answer: string }>;
+  comparisons?: Array<{ slug: string; name: string }>;
+  relatedLinks: Array<{ href: string; label: string }>;
+};
+
+function readLanguageModel(): LanguagePageModel | null {
+  const node = document.getElementById("octocounts-language-data");
+  if (!node?.textContent) return null;
+  try {
+    const model = JSON.parse(node.textContent) as LanguagePageModel;
+    return model && typeof model.heading === "string" && typeof model.intro === "string"
+      && Array.isArray(model.columns) && Array.isArray(model.rows) && Array.isArray(model.faq) ? model : null;
+  } catch {
+    return null;
+  }
+}
+
+export function LanguagePage() {
+  const { t } = useTranslation();
+  const model = useMemo(readLanguageModel, []);
+  if (!model) {
+    return (
+      <MarketingShell>
+        <section className="growth-hero tool-hero" aria-label={t("growth.explore.languageLeaderboards")}>
+          <h1>{t("growth.explore.languageLeaderboards")}</h1>
+          <p>{t("growth.error")}</p>
+        </section>
+      </MarketingShell>
+    );
+  }
+  const faqTitle = model.kind === "hub" ? "Language leaderboards FAQ" : `${model.language} leaderboard FAQ`;
+  return (
+    <MarketingShell>
+      <section className="growth-hero tool-hero" aria-label={model.heading}>
+        <span className="chart-tag">{model.kind === "hub" ? "Languages" : model.language}</span>
+        <h1>{model.heading}</h1>
+        <p>{model.intro}</p>
+      </section>
+      <section className="curated-compare-body" aria-label={model.heading}>
+        {model.rows.length ? (
+          <table className="language-table">
+            <thead>
+              <tr>{model.columns.map((column) => <th key={column}>{column}</th>)}</tr>
+            </thead>
+            <tbody>
+              {model.rows.map((row, index) => (
+                <tr key={index}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex}>{cell.href ? <a href={cell.href}>{cell.text}</a> : cell.text}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+        <p>{model.afterTable}</p>
+        <div className="how">
+          <h2>{faqTitle}</h2>
+          {model.faq.map((item) => (
+            <div className="step" key={item.question}>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </div>
+          ))}
+        </div>
+        {model.comparisons?.length ? (
+          <section aria-label="Curated comparisons">
+            <h2>Curated comparisons in {model.language}</h2>
+            <ul>
+              {model.comparisons.map((entry) => (
+                <li key={entry.slug}><a href={`/compare/${entry.slug}`}>{entry.name}: lines of code compared</a></li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        <nav aria-label="Related OctoCounts pages">
+          <ul>
+            {model.relatedLinks.map((link) => (
+              <li key={link.href}><a href={link.href}>{link.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </section>
     </MarketingShell>
   );
 }

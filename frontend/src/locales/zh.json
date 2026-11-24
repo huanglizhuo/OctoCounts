@@ -296,6 +296,7 @@
     "faq": "常见问题",
     "countLines": "统计代码行数（英文）",
     "languageBar": "语言条替代方案",
+    "languages": "语言榜单",
     "methodology": "统计方法",
     "allGuides": "全部指南（英文）",
     "badges": "徽章",
@@ -535,7 +536,7 @@
       },
       "popular": {
         "label": "热门",
-        "detail": "最多人查看"
+        "detail": "Star 最多"
       },
       "trending": {
         "label": "趋势",
@@ -544,6 +545,10 @@
       "hall": {
         "label": "大型仓库",
         "detail": "最大仓库"
+      },
+      "languages": {
+        "label": "语言",
+        "detail": "按语言"
       }
     },
     "index": {
@@ -596,7 +601,7 @@
       },
       "popular": {
         "title": "热门代码库报告",
-        "subtitle": "OctoCounts 站内热门报告，了解项目的代码规模与语言构成。"
+        "subtitle": "GitHub Star 最多的公开仓库报告，了解项目的代码规模与语言构成。"
       },
       "trending": {
         "title": "GitHub Trending 仓库",
@@ -668,6 +673,7 @@
     },
     "moreReports": "更多仓库报告",
     "explore": {
+      "languageLeaderboards": "语言榜单",
       "rank": "第 {{rank}} 名",
       "files_one": "{{value}} 个文件",
       "files_other": "{{value}} 个文件",
@@ -680,9 +686,9 @@
       "firstPage": "返回第一页",
       "statsPolicy": "统计汇总已保存的报告，包含重复分析与系统补录，不代表去重代码量或访客数。近期时间范围采用 UTC。",
       "recentPolicy": "按报告生成时间排序。最近分析不代表仓库最近有代码更新。",
-      "popularPolicy": "根据 OctoCounts 报告访问活跃度排序，不代表 GitHub Star 排名或独立访客数。",
+      "popularPolicy": "按各仓库最近一次分析时的 GitHub Star 数排序。Star 数是分析时的快照；没有记录 Star 数的仓库排在后面。",
       "largestCodebasesGuide": "按实测代码行数比较八个大型代码库",
-      "monolithsPolicy": "代码行不含注释和空行。报告采用公开统计口径，各仓库的分析日期可能不同。",
+      "monolithsPolicy": "代码行不含注释和空行。报告采用公开统计口径，各仓库的分析日期可能不同。主要语言为数据格式的仓库，以及与更大仓库几乎相同的副本，不在榜内。",
       "trendingOrder": "沿用 GitHub Trending 原始顺序，不按新增 Star 或代码规模排序。",
       "loading": "正在加载仓库与统计数据…",
       "refreshFailed": "刷新失败，仍显示上次可用的数据。",

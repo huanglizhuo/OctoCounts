@@ -149,3 +149,25 @@ export function relatedComparisons(repoFullName, topLanguageName) {
     .slice(0, 3);
   return [...new Set([...own, ...byLanguage])].slice(0, 4);
 }
+
+/// Comparisons that share a repository with `slug`: someone reading React
+/// vs Vue plausibly also wants React vs Angular or Svelte vs Vue. Registry
+/// order, never the comparison itself, at most six. Shared by the edge
+/// compare page and the client compare page.
+export function adjacentComparisons(slug) {
+  const entry = findCuratedComparison(slug);
+  if (!entry) return [];
+  const sides = [entry.left, entry.right].map(side => `${side.owner}/${side.repo}`.toLowerCase());
+  return COMPARE_REGISTRY
+    .filter(candidate => candidate.slug !== entry.slug
+      && [candidate.left, candidate.right].some(side => sides.includes(`${side.owner}/${side.repo}`.toLowerCase())))
+    .slice(0, 6);
+}
+
+/// The curated comparisons of one programming language, for the language
+/// leaderboards: what readers of the Rust leaderboard can compare next.
+export function comparisonsForLanguage(languageName) {
+  return (COMPARISONS_BY_LANGUAGE[languageName] || [])
+    .map(slug => findCuratedComparison(slug))
+    .filter(Boolean);
+}

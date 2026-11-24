@@ -48,6 +48,7 @@ const CuratedComparePage = React.lazy(() => import("./pages/marketing").then((m)
 const DiffPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.DiffPage })));
 const BadgesPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.BadgesPage })));
 const ExtensionPage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.ExtensionPage })));
+const LanguagePage = React.lazy(() => import("./pages/marketing").then((m) => ({ default: m.LanguagePage })));
 const EmbedPage = React.lazy(() => import("./embed").then((m) => ({ default: m.EmbedPage })));
 const GrowthPage = React.lazy(() => import("./pages/GrowthPage").then((m) => ({ default: m.GrowthPage })));
 
@@ -290,6 +291,9 @@ export function App() {
   // re-injects as #octocounts-compare-data. The curated page renders from that
   // model so enabling JS keeps the comparison instead of discarding it.
   if (routePath === "/compare") return <RoutedPage><ComparePage /></RoutedPage>;
+  // /languages and /languages/:slug: leaderboards whose model the Pages
+  // Function server-renders and re-injects as #octocounts-language-data.
+  if (routePath === "/languages" || routePath.startsWith("/languages/")) return <RoutedPage><LanguagePage /></RoutedPage>;
   if (routePath.startsWith("/compare/")) return <RoutedPage><CuratedComparePage /></RoutedPage>;
   if (routePath === "/diff") return <RoutedPage><DiffPage /></RoutedPage>;
   if (routePath === "/badges") return <RoutedPage><BadgesPage /></RoutedPage>;
@@ -852,9 +856,11 @@ function ToolsGrid() {
     { key: "compare", command: "open /compare?left=…&right=…", href: "/compare" },
     { key: "diff", command: "open /diff?repo=…&base=v1.0&head=v1.1", href: "/diff" },
     { key: "api", command: "GET https://api.octocounts.com/api/stats", href: "/docs/api" },
-    { key: "cli", command: "npx octocounts https://github.com/owner/repo --json", href: `${sourceRepoUrl}/tree/main/cli` },
-    { key: "action", command: "uses: huanglizhuo/OctoCounts/action@main", href: `${sourceRepoUrl}/tree/main/action` },
-    { key: "mcp", command: "npx octocounts-mcp", href: `${sourceRepoUrl}/tree/main/mcp` },
+    // Each tool links to its own guide rather than to a source directory, so
+    // a visitor lands on usage, options and limits before the code.
+    { key: "cli", command: "npx octocounts https://github.com/owner/repo --json", href: "/docs/cli" },
+    { key: "action", command: "uses: huanglizhuo/octocounts-sloc-diff-action@v1", href: "/docs/github-action" },
+    { key: "mcp", command: "npx octocounts-mcp", href: "/docs/mcp-server" },
   ];
 
   return (
@@ -1003,9 +1009,10 @@ function syncPageMetadata({
   const path = window.location.pathname;
   if (path === "/compare" || path === "/diff") {
     const title = path === "/compare" ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
+    // The same pair functions/[[path]].js server-renders for these routes.
     const description = path === "/compare"
-      ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
-      : "Compare source line count changes between two branches, tags, or commits in a public repository.";
+      ? "Compare two public GitHub repositories or refs side by side (files, code, comments, blanks, language mix), or browse curated line-count comparisons of popular tools."
+      : "Compare source line count changes between two branches, tags, or commits in a public GitHub repository: code, comment and blank line deltas, pinned to commits.";
     // Server-side injection (functions/[[path]].js) makes these indexable;
     // keep the client-side value aligned so hydration does not flip them to noindex.
     applyPageMetadata({ title, description, canonical: `${window.location.origin}${path}` });

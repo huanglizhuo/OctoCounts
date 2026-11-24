@@ -309,6 +309,7 @@
     "faq": "FAQ",
     "countLines": "Count lines of code",
     "languageBar": "Language bar alternative",
+    "languages": "Languages",
     "methodology": "Methodology",
     "allGuides": "All guides",
     "badges": "Badges",
@@ -548,7 +549,7 @@
       },
       "popular": {
         "label": "Popular",
-        "detail": "most viewed"
+        "detail": "most starred"
       },
       "trending": {
         "label": "Trending",
@@ -557,6 +558,10 @@
       "hall": {
         "label": "Monoliths",
         "detail": "largest repos"
+      },
+      "languages": {
+        "label": "Languages",
+        "detail": "by language"
       }
     },
     "index": {
@@ -609,7 +614,7 @@
       },
       "popular": {
         "title": "Popular codebase reports",
-        "subtitle": "Reports frequently accessed on OctoCounts. Explore their codebase size and language mix."
+        "subtitle": "The most-starred public GitHub repositories with an OctoCounts report. Explore their codebase size and language mix."
       },
       "trending": {
         "title": "Trending GitHub repositories",
@@ -681,6 +686,7 @@
     },
     "moreReports": "More repository reports",
     "explore": {
+      "languageLeaderboards": "Language leaderboards",
       "rank": "Rank {{rank}}",
       "files_one": "{{value}} file",
       "files_other": "{{value}} files",
@@ -693,9 +699,9 @@
       "firstPage": "Back to first page",
       "statsPolicy": "Counts aggregate stored reports, including repeat analyses and system backfills. They are not unique lines of code or visitor counts. Recent periods use UTC.",
       "recentPolicy": "Ordered by report generation time. A recent analysis does not necessarily mean the repository was recently updated.",
-      "popularPolicy": "Ranked by report access activity on OctoCounts, not GitHub stars or unique visitors.",
+      "popularPolicy": "Ranked by GitHub stars at each repository's last analysis. Star counts are snapshots, and repositories without a recorded count follow the ranked ones.",
       "largestCodebasesGuide": "Compare eight large codebases by measured lines of code",
-      "monolithsPolicy": "Code lines exclude comments and blank lines. Reports use the public counting profile and may have different analysis dates.",
+      "monolithsPolicy": "Code lines exclude comments and blank lines. Reports use the public counting profile and may have different analysis dates. Repositories whose largest language is a data format, and near-identical copies of a larger repository, are left out.",
       "trendingOrder": "GitHub Trending order, not sorted by stars gained or codebase size.",
       "loading": "Loading repositories and measurements…",
       "refreshFailed": "Refresh failed. Showing the last available data.",

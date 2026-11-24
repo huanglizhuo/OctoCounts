@@ -4194,6 +4194,34 @@ td.lang .row-share {
   font-size: var(--text-sm, 0.9em);
 }
 
+/* Language leaderboards: a plain data table, the same one the server renders
+   before React mounts. Scrolls sideways on narrow screens instead of
+   overflowing the page. */
+.language-table {
+  display: block;
+  max-width: 100%;
+  margin: var(--space-4, 1rem) 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+}
+
+.language-table th,
+.language-table td {
+  border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.language-table th:first-child,
+.language-table td:first-child,
+.language-table th:nth-child(2),
+.language-table td:nth-child(2) {
+  text-align: left;
+}
+
 /* Header and tool-page navigation: compact native menus, no horizontal rail. */
 .topbar-nav,
 .topbar-controls,

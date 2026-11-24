@@ -26,11 +26,11 @@
     "2026-11-24": "SEO/GEO round 7, after the 2026-11-23 review. Default counting scope: the methodology page (English and Chinese), the pillar guide (both languages), the API, FAQ, count-lines and cloc-comparison guides, llms.txt and llms-full.txt now state the canonical scope and list the seventeen directory names it excludes; the first API example no longer opts into an include-all count. Report template: visible links to the counted repository and commit, a main landmark in the server HTML, snippet-length title and description limits, and a Server-Timing header (REPORT_CONTENT_LASTMOD moves with the template)."
   },
   "comparePages": {
-    "lastmod": "2026-10-29",
-    "note": "Comparison titles shortened to \"X vs Y: lines of code compared\" and related links gained the guide hub and how-to guide; summaries and FAQs unchanged."
+    "lastmod": "2026-11-24",
+    "note": "2026-11-24: every curated comparison gained a Related comparisons block (the comparisons sharing one of its repositories) in the HTML, Markdown and client renderings, and a share card of its own two code-line figures in place of the site-wide image. Summaries, tables and FAQs unchanged. Earlier: comparison titles shortened to \"X vs Y: lines of code compared\" and related links gained the guide hub and how-to guide."
   },
   "pages": {
-    "https://octocounts.com/": "2026-10-25",
+    "https://octocounts.com/": "2026-11-24",
     "https://octocounts.com/compare": "2026-11-01",
     "https://octocounts.com/diff": "2026-10-25",
     "https://octocounts.com/stats": "2026-11-03",
@@ -40,9 +40,12 @@
     "https://octocounts.com/hall-of-monoliths": "2026-11-03",
     "https://octocounts.com/badges": "2026-11-01",
     "https://octocounts.com/extension": "2026-11-01",
-    "https://octocounts.com/docs": "2026-10-29",
+    "https://octocounts.com/docs": "2026-11-24",
     "https://octocounts.com/docs/github-sloc-counter": "2026-11-24",
     "https://octocounts.com/docs/api": "2026-11-24",
+    "https://octocounts.com/docs/cli": "2026-11-24",
+    "https://octocounts.com/docs/mcp-server": "2026-11-24",
+    "https://octocounts.com/docs/github-action": "2026-11-24",
     "https://octocounts.com/docs/methodology": "2026-11-24",
     "https://octocounts.com/docs/glossary": "2026-11-05",
     "https://octocounts.com/docs/faq": "2026-11-24",
@@ -64,7 +67,7 @@
     "https://octocounts.com/llms-full.txt": "2026-11-24",
     "https://octocounts.com/privacy": "2026-10-25",
     "https://octocounts.com/contact": "2026-09-30",
-    "https://octocounts.com/zh": "2026-10-25",
+    "https://octocounts.com/zh": "2026-11-24",
     "https://octocounts.com/zh/docs/github-sloc-counter": "2026-11-24",
     "https://octocounts.com/zh/docs/methodology": "2026-11-24"
   }

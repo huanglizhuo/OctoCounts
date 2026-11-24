@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts MCP server: SLOC for AI coding tools | OctoCounts</title>
+    <meta name="description" content="Give Claude, Cursor, or any MCP client the OctoCounts MCP server (npx octocounts-mcp) so it can analyze and compare public GitHub repositories by lines of code." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/mcp-server" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/mcp-server.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts MCP server: SLOC for AI coding tools | OctoCounts" />
+    <meta property="og:description" content="Let an AI coding assistant count lines of code itself: the OctoCounts MCP server exposes analyze_repo and compare_repos over stdio." />
+    <meta property="og:url" content="https://octocounts.com/docs/mcp-server" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts MCP server: SLOC for AI coding tools | OctoCounts" />
+    <meta name="twitter:description" content="Let an AI coding assistant count lines of code itself: the OctoCounts MCP server exposes analyze_repo and compare_repos over stdio." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts MCP server: line counts for AI coding assistants",
+      "description": "Give Claude, Cursor, or any MCP client the OctoCounts MCP server (npx octocounts-mcp) so it can analyze and compare public GitHub repositories by lines of code.",
+      "datePublished": "2026-11-24",
+      "dateModified": "2026-11-24",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/mcp-server",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "MCP server", "item": "https://octocounts.com/docs/mcp-server" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Which AI tools can use the OctoCounts MCP server?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Any client that supports the Model Context Protocol over stdio, including Claude and Cursor. The server is registered like any other local MCP server, with npx as the command and octocounts-mcp as the package."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is the OctoCounts MCP server free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. It calls the public OctoCounts API, which counts public GitHub repositories without an account or token. The API rate-limits how many analyses one IP address may start per minute; see the API docs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can the MCP server count a private repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. For private code, run tokei locally on the checkout instead."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between analyze_repo and compare_repos?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "analyze_repo returns the line counts of one repository or ref. compare_repos analyzes two repositories or refs and returns both results side by side with their counting-policy compatibility, so the assistant can state whether the two counts are comparable."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the MCP server copy repository code to my machine?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The server sends the repository URL to the OctoCounts API, which downloads the source archive for the requested commit and counts it with tokei. Only the resulting numbers travel back to the client."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "tokei",
+        "code metrics",
+        "developer tools"
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / MCP server</nav>
+    <main>
+      <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>OctoCounts MCP server: line counts for AI coding assistants</h1>
+      <p class="answer">The OctoCounts MCP server gives an AI coding assistant two tools, <code>analyze_repo</code> and <code>compare_repos</code>, for counting the source lines of code of public GitHub repositories. The assistant calls a tool with a repository URL; the server asks the OctoCounts API, waits for the analysis, and returns the totals with the counting rules that produced them. It runs over stdio through <code>npx octocounts-mcp</code>, needs no account or token, and never clones the repository to your machine.</p>
+      <h2>How do I add the OctoCounts MCP server to a client?</h2>
+      <p>Register the server in the MCP client configuration of Claude, Cursor, or any other MCP client:</p>
+      <pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;octocounts&quot;: {
+      &quot;command&quot;: &quot;npx&quot;,
+      &quot;args&quot;: [&quot;-y&quot;, &quot;octocounts-mcp&quot;]
+    }
+  }
+}</code></pre>
+      <p>To run it from a local checkout of the OctoCounts repository instead of the npm package, point <code>command</code> at <code>node</code> and <code>args</code> at <code>mcp/src/index.js</code> in that checkout, and set <code>OCTOCOUNTS_API_BASE</code> if the API does not live at its default address.</p>
+      <h2>Tools</h2>
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Required arguments</th><th>Optional arguments</th><th>Returns</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>analyze_repo</code></td><td><code>repo_url</code> (GitHub URL or <code>owner/repo</code>)</td><td><code>ref</code> (branch, tag, or commit SHA), <code>respect_gitattributes</code></td><td>Files, total lines, code lines, comments, blanks, and languages for the repository.</td></tr>
+          <tr><td><code>compare_repos</code></td><td><code>left_repo_url</code>, <code>right_repo_url</code></td><td><code>left_ref</code>, <code>right_ref</code>, <code>respect_gitattributes</code></td><td>A side-by-side comparison of two public GitHub repositories or refs.</td></tr>
+        </tbody>
+      </table>
+      <h2>What the tools return</h2>
+      <p>Both tools accept the optional boolean <code>respect_gitattributes</code>, which is off by default. Turning it on excludes repository-declared generated and vendored files under the canonical profile; <code>compare_repos</code> applies the same setting to both sides. Results carry the effective counting policy, or unknown for reports stored before options were recorded. Report links pin the saved result ID and the commit SHA.</p>
+      <p><code>compare_repos</code> output includes <code>counting_policy_compatibility</code>: <code>same</code>, <code>different</code>, or <code>unknown</code>. It also explains that deltas are net size changes between two counted trees, not the lines Git reports as added or deleted.</p>
+      <h2>How the server handles failures and cancellation</h2>
+      <p>Analysis requests use bounded safe retries, long-polling, and a five-minute total deadline. Errors keep the job ID and a recovery URL, so an analysis that finished after the client stopped waiting can still be collected. A stdio client may send <code>notifications/cancelled</code> with the original request ID; an HTTP request cancels its wait when the client disconnects. Cancellation stops the client&#x27;s wait only: a job the backend already accepted can still finish and be recovered. Saved records can expire from the cache.</p>
+      <h2>Scope and protocol</h2>
+      <p>The server analyzes public GitHub repositories only. Private repositories and source uploads are not supported, and no GitHub login is exchanged. It speaks MCP over stdio with newline-delimited JSON-RPC messages, one JSON object per line. <code>OCTOCOUNTS_API_BASE</code> overrides the API base and defaults to <code>https://api.octocounts.com</code>. The server is published on npm as <code>octocounts-mcp</code>. What the API stores is described in the <a href="/privacy">privacy policy</a>.</p>
+      <h2>MCP server FAQ</h2>
+      <h3>Which AI tools can use the OctoCounts MCP server?</h3>
+      <p>Any client that supports the Model Context Protocol over stdio, including Claude and Cursor. The server is registered like any other local MCP server, with npx as the command and octocounts-mcp as the package.</p>
+      <h3>Is the OctoCounts MCP server free?</h3>
+      <p>Yes. It calls the public OctoCounts API, which counts public GitHub repositories without an account or token. The API rate-limits how many analyses one IP address may start per minute; see the API docs.</p>
+      <h3>Can the MCP server count a private repository?</h3>
+      <p>No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. For private code, run tokei locally on the checkout instead.</p>
+      <h3>What is the difference between analyze_repo and compare_repos?</h3>
+      <p>analyze_repo returns the line counts of one repository or ref. compare_repos analyzes two repositories or refs and returns both results side by side with their counting-policy compatibility, so the assistant can state whether the two counts are comparable.</p>
+      <h3>Does the MCP server copy repository code to my machine?</h3>
+      <p>No. The server sends the repository URL to the OctoCounts API, which downloads the source archive for the requested commit and counts it with tokei. Only the resulting numbers travel back to the client.</p>
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/docs/cli">OctoCounts CLI: count SLOC from a terminal</a></li>
+        <li><a href="/docs/github-action">GitHub Action: SLOC diff on pull requests</a></li>
+        <li><a href="/docs/api">OctoCounts API docs</a></li>
+        <li><a href="/docs/methodology">OctoCounts Methodology</a></li>
+        <li><a href="/docs">All OctoCounts guides</a></li>
+      </ul></nav>
+    </main>
+  </body>
+</html>

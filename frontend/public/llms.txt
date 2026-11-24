@@ -32,6 +32,7 @@ Browser extension stores: [Chrome Web Store](https://chromewebstore.google.com/d
 - Branch/tag pattern: `https://octocounts.com/github/:owner/:repo/tree/:ref`
 - Commit pattern: `https://octocounts.com/github/:owner/:repo/commit/:sha`
 - Each cached report page includes a citable answer block, language table, JSON-LD, and an embedded machine-readable report summary.
+- Report sitemaps are split by tier: `sitemap-reports-core-N.xml` lists repositories with at least 1,000 GitHub stars when last analyzed, `sitemap-reports-tail-N.xml` the rest. `sitemap-languages.xml` lists the language leaderboards.
 
 ## API Summary
 
@@ -45,8 +46,11 @@ GET /api/seo/report?provider=github&owner=:owner&repo=:repo
 GET /api/seo/recent
 GET /api/seo/popular
 GET /api/seo/monoliths
-GET /api/seo/sitemap
+GET /api/seo/sitemap (accepts view=index|page|rotating, and tier=core|tail with view=page)
+GET /api/seo/languages
+GET /api/seo/language/:slug
 GET /og/github/:owner/:repo
+GET /og/compare?left=owner/repo&right=owner/repo
 GET /badge/:owner/:repo
 GET /badge/:owner/:repo/branch/:branch
 GET /badge/:owner/:repo/tag/:tag
@@ -59,11 +63,15 @@ GET /badge/:owner/:repo/commit/:sha
 
 - Web app: https://octocounts.com/
 - Recent reports: https://octocounts.com/recent
-- Popular reports: https://octocounts.com/popular
+- Popular reports (most-starred public GitHub repositories, ranked by GitHub stars at each repository's last analysis): https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
 - Public growth stats: https://octocounts.com/stats
-- Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Hall of Monoliths: https://octocounts.com/hall-of-monoliths (repositories whose largest language is a data format, and near-identical copies, are left out)
+- Language leaderboards (largest public GitHub repositories grouped by primary programming language): https://octocounts.com/languages
 - Compare two repositories (interactive tool and hub of curated comparisons): https://octocounts.com/compare
+- CLI (count a public GitHub repository from a terminal with npx octocounts): https://octocounts.com/docs/cli
+- GitHub Action (comment a pull request's SLOC change between base and head): https://octocounts.com/docs/github-action
+- MCP server (SLOC tools for AI coding assistants): https://octocounts.com/docs/mcp-server
 - Diff two refs of one repository: https://octocounts.com/diff
 - README badge builder: https://octocounts.com/badges
 - Browser extension landing page: https://octocounts.com/extension

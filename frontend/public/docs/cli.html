@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts CLI: count SLOC from a terminal | OctoCounts</title>
+    <meta name="description" content="Run npx octocounts on a public GitHub repository to print files, code, comment and blank lines per language in a terminal, with no clone and nothing to install." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/cli" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/cli.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="OctoCounts CLI: count SLOC from a terminal | OctoCounts" />
+    <meta property="og:description" content="Count the source lines of code of a public GitHub repository from a terminal with npx octocounts: files, code, comments and blanks per language, no clone." />
+    <meta property="og:url" content="https://octocounts.com/docs/cli" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts CLI: count SLOC from a terminal | OctoCounts" />
+    <meta name="twitter:description" content="Count the source lines of code of a public GitHub repository from a terminal with npx octocounts: files, code, comments and blanks per language, no clone." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts CLI: count lines of code from a terminal",
+      "description": "Run npx octocounts on a public GitHub repository to print files, code, comment and blank lines per language in a terminal, with no clone and nothing to install.",
+      "datePublished": "2026-11-24",
+      "dateModified": "2026-11-24",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/cli",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "CLI", "item": "https://octocounts.com/docs/cli" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is the OctoCounts CLI free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Counting public GitHub repositories is free and needs no account or API token. The public API rate-limits how many analyses one IP address may start per minute; see the API docs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the CLI clone the repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The CLI sends the repository URL to the OctoCounts API, which downloads the source archive for the requested commit and counts it with tokei. No Git history is transferred to your machine and no source code is written to disk."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can the CLI count a private repository?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. For private code, install tokei or cloc and run it on your checkout; the OctoCounts vs cloc guide shows the matching commands."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I get JSON from the OctoCounts CLI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Add --json. The CLI then prints the raw OctoCounts report JSON, which includes the per-language rows, the totals, the commit SHA, the tokei version, and the analysis options and counting policy that produced the numbers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I try the CLI without a network connection?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. npx octocounts --sample prints a bundled sample report without calling the API. Every other command needs network access to the OctoCounts API."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "tokei",
+        "code metrics",
+        "developer tools"
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / CLI</nav>
+    <main>
+      <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>OctoCounts CLI: count lines of code from a terminal</h1>
+      <p class="answer"><code>npx octocounts</code> counts the source lines of code of a public GitHub repository from a terminal. It sends the repository to the OctoCounts API, waits for the analysis, and prints files, total lines, code lines, comment lines and blank lines per language, or the whole report as JSON with <code>--json</code>. Nothing needs installing beyond Node.js, the repository is never cloned, and a repository that was already counted returns its cached report.</p>
+      <h2>How do I count a repository&#x27;s lines of code from the command line?</h2>
+      <p>Pass a public GitHub repository as <code>owner/repo</code> or as its full URL:</p>
+      <pre><code>npx octocounts vitejs/vite
+npx octocounts https://github.com/tokio-rs/axum --ref main
+npx octocounts rust-lang/rust --json</code></pre>
+      <p><code>--ref</code> selects a branch, tag, or commit SHA. Without it OctoCounts counts the repository&#x27;s default branch. The CLI needs Node.js and npm: <code>npx</code> downloads the <code>octocounts</code> package from npm the first time it runs.</p>
+      <h2>Options</h2>
+      <table>
+        <thead>
+          <tr><th>Option</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--ref &lt;ref&gt;</code></td><td>Count a specific branch, tag, or commit SHA.</td></tr>
+          <tr><td><code>--json</code></td><td>Print the raw OctoCounts report JSON instead of the table.</td></tr>
+          <tr><td><code>--api-base &lt;url&gt;</code></td><td>Use a local or alternate OctoCounts API.</td></tr>
+          <tr><td><code>--respect-gitattributes</code></td><td>Apply the repository&#x27;s declared generated and vendored exclusions. Off by default.</td></tr>
+          <tr><td><code>--sample</code></td><td>Print a local sample report without any network calls.</td></tr>
+          <tr><td><code>--help</code></td><td>Show the usage text.</td></tr>
+        </tbody>
+      </table>
+      <h2>What the CLI counts</h2>
+      <p>The CLI counts under the same default scope as every OctoCounts surface: documentation, test and generated directories are excluded, and dependency and build folders are always skipped. The output includes the effective counting policy, or <code>unknown</code> for reports stored before options were recorded. With <code>--respect-gitattributes</code>, OctoCounts also excludes files the repository marks as generated or vendored in <code>.gitattributes</code>; the flag is off by default and keeps existing cache keys. The full rules are on the <a href="/docs/methodology">methodology page</a>.</p>
+      <p>Report links pin the saved result ID and the commit. A saved result is a cache entry: it can expire or be replaced, so export the JSON when a count needs to be kept.</p>
+      <h2>How the CLI handles failures</h2>
+      <p>Requests allow three safe transient retries and a five-minute total deadline. An analyze request is retried only when the server explicitly rejected it before submission, so the same repository is never analyzed twice by accident. If a job times out, the error keeps its job ID and a recovery URL. The public API limits how many analyses one IP address may start; the limits are listed in the <a href="/docs/api">API docs</a>.</p>
+      <h2>CLI, web app, API, Action, or MCP server?</h2>
+      <ul>
+        <li>Use the <strong>CLI</strong> when a script, terminal, or CI job needs a line count on standard output.</li>
+        <li>Use the <a href="/">web app</a> for shareable reports, README badges, and side-by-side comparisons.</li>
+        <li>Use the <a href="/docs/api">API</a> when you are writing your own client.</li>
+        <li>Use the <a href="/docs/github-action">GitHub Action</a> to comment a pull request&#x27;s line-count change.</li>
+        <li>Use the <a href="/docs/mcp-server">MCP server</a> when an AI coding assistant should look a count up itself.</li>
+      </ul>
+      <h2>CLI FAQ</h2>
+      <h3>Is the OctoCounts CLI free?</h3>
+      <p>Yes. Counting public GitHub repositories is free and needs no account or API token. The public API rate-limits how many analyses one IP address may start per minute; see the API docs.</p>
+      <h3>Does the CLI clone the repository?</h3>
+      <p>No. The CLI sends the repository URL to the OctoCounts API, which downloads the source archive for the requested commit and counts it with tokei. No Git history is transferred to your machine and no source code is written to disk.</p>
+      <h3>Can the CLI count a private repository?</h3>
+      <p>No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. For private code, install tokei or cloc and run it on your checkout; the OctoCounts vs cloc guide shows the matching commands.</p>
+      <h3>How do I get JSON from the OctoCounts CLI?</h3>
+      <p>Add --json. The CLI then prints the raw OctoCounts report JSON, which includes the per-language rows, the totals, the commit SHA, the tokei version, and the analysis options and counting policy that produced the numbers.</p>
+      <h3>Can I try the CLI without a network connection?</h3>
+      <p>Yes. npx octocounts --sample prints a bundled sample report without calling the API. Every other command needs network access to the OctoCounts API.</p>
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/docs/api">OctoCounts API docs</a></li>
+        <li><a href="/docs/github-action">GitHub Action: SLOC diff on pull requests</a></li>
+        <li><a href="/docs/mcp-server">MCP server for AI coding assistants</a></li>
+        <li><a href="/docs/methodology">OctoCounts Methodology</a></li>
+        <li><a href="/docs/octocounts-vs-cloc">OctoCounts vs cloc: command mapping</a></li>
+        <li><a href="/docs">All OctoCounts guides</a></li>
+      </ul></nav>
+    </main>
+  </body>
+</html>

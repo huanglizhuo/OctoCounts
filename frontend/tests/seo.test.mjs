@@ -1097,7 +1097,7 @@ test("curated comparison SSR renders balanced citable content", async () => {
     assert.ok(dataset, `${slug} Dataset node`);
     assert.deepEqual(dataset.isBasedOn, [left.canonicalUrl, right.canonicalUrl]);
     assert.equal(dataset.url, `https://octocounts.com/compare/${slug}`);
-    assert.equal(dataset.dateModified, [left.generatedAt, right.generatedAt, "2026-10-29"].sort().at(-1));
+    assert.equal(dataset.dateModified, [left.generatedAt, right.generatedAt, "2026-11-24"].sort().at(-1));
     assert.equal(dataset.dateModified, model.updatedAt, `${slug} model updatedAt matches JSON-LD dateModified`);
     assert.ok(graph.some((node) => node["@type"] === "BreadcrumbList"), `${slug} breadcrumbs`);
 
@@ -3375,10 +3375,10 @@ test("comparison sitemap dates follow the newer of the two compared reports", as
     ]);
   });
   const xml = await (await onRequest(await renderedContext("/sitemap-compare.xml"))).text();
-  assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>\s*<lastmod>2026-11-02<\/lastmod>/);
+  assert.match(xml, /<loc>https:\/\/octocounts\.com\/compare\/react-vs-vue<\/loc>\s*<lastmod>2026-11-24<\/lastmod>/);
   assert.doesNotMatch(xml, /angular-vs-react/, "pairs without both reports stay out");
   const index = await (await onRequest(await renderedContext("/sitemap.xml"))).text();
-  assert.match(index, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<lastmod>2026-11-02<\/lastmod>/);
+  assert.match(index, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<lastmod>2026-11-24<\/lastmod>/);
   __resetCompareExistenceCacheForTests();
 });
 
@@ -3411,7 +3411,7 @@ test("data and prose formats stay consistent between the edge and backend", asyn
 test("the docs hub is a real page that every guide breadcrumb resolves to", async () => {
   const hub = await readFile(new URL("public/docs.html", ROOT), "utf8");
   const manifest = JSON.parse(await readFile(new URL("content/content-manifest.json", ROOT), "utf8"));
-  assert.equal(manifest.pages["https://octocounts.com/docs"], "2026-10-29");
+  assert.equal(manifest.pages["https://octocounts.com/docs"], "2026-11-24");
   assert.match(hub, /<link rel="canonical" href="https:\/\/octocounts\.com\/docs" \/>/);
   const { readdir } = await import("node:fs/promises");
   const slugs = (await readdir(new URL("public/docs/", ROOT))).filter((name) => name.endsWith(".html")).map((name) => name.slice(0, -5));

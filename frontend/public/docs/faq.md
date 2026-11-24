@@ -90,11 +90,11 @@ No. OctoCounts analyzes public repositories and stores only aggregated statistic
 
 ### Is there an API or CLI?
 
-The OctoCounts API is a public HTTP interface for counting source lines of code in public GitHub repositories without cloning them. Endpoints cover starting a SLOC analysis, fetching cached reports, checking individual analysis jobs, and generating README badges. The web compare and diff URL formats are also documented in the [API docs](https://octocounts.com/docs/api). Beyond the API, OctoCounts ships a CLI that runs through Node.js and npm via `npx octocounts`, an MCP server so AI assistants can pull SLOC data during conversations, and a GitHub Action that comments size deltas on pull requests. All of it requires no account or sign-up.
+The OctoCounts API is a public HTTP interface for counting source lines of code in public GitHub repositories without cloning them. Endpoints cover starting a SLOC analysis, fetching cached reports, checking individual analysis jobs, and generating README badges. The web compare and diff URL formats are also documented in the [API docs](https://octocounts.com/docs/api). Beyond the API, OctoCounts ships a [CLI](https://octocounts.com/docs/cli) that runs through Node.js and npm via `npx octocounts`, an [MCP server](https://octocounts.com/docs/mcp-server) so AI assistants can pull SLOC data during conversations, and a [GitHub Action](https://octocounts.com/docs/github-action) that comments size deltas on pull requests. All of it requires no account or sign-up.
 
 ### Can I use OctoCounts in CI or GitHub Actions?
 
-Yes. The OctoCounts GitHub Action runs on pull requests and comments how the change affects source lines of code, so reviewers see size deltas next to the diff. The CLI (`npx octocounts`) works in any terminal or CI script and outputs JSON that pipelines can consume for reporting or custom checks.
+Yes. The [OctoCounts GitHub Action](https://octocounts.com/docs/github-action) runs on pull requests and comments how the change affects source lines of code, so reviewers see size deltas next to the diff. The [CLI](https://octocounts.com/docs/cli) (`npx octocounts`) works in any terminal or CI script and outputs JSON that pipelines can consume for reporting or custom checks.
 
 ### What happens if a repository is too large?
 

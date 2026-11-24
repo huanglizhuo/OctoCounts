@@ -3,7 +3,8 @@ import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnap
 import { reportJsonLd } from "./report-schema.js";
 import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle, reportSourceLinks } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
-import { COMPARE_REGISTRY, findCuratedComparison, relatedComparisons } from "./compare-registry.js";
+import { adjacentComparisons, COMPARE_REGISTRY, findCuratedComparison, relatedComparisons } from "./compare-registry.js";
+import { LANGUAGES_PATH, LANGUAGE_HUB_TITLE, languageHubModel, languageLeaderboardModel, languagePageJsonLd } from "./language-pages.js";
 
 // The editorial corpus (~150 KB) is only read on curated /compare/* routes,
 // so load it on first use instead of parsing it on every isolate boot for
@@ -23,8 +24,8 @@ const BOOT_SCRIPT_HASH = "'sha256-bxjDuI3BgSvpGnuokvaivsaybH6c0rfAlo87mfb9ZcU='"
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-11-24" },
-  { loc: "https://octocounts.com/zh", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/zh", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/diff", lastmod: "2026-10-25" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-11-03" },
@@ -34,9 +35,12 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/hall-of-monoliths", lastmod: "2026-11-03" },
   { loc: "https://octocounts.com/badges", lastmod: "2026-11-01" },
   { loc: "https://octocounts.com/extension", lastmod: "2026-11-01" },
-  { loc: "https://octocounts.com/docs", lastmod: "2026-10-29" },
+  { loc: "https://octocounts.com/docs", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/github-sloc-counter", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/api", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/docs/cli", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/docs/mcp-server", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/docs/github-action", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-24" },
@@ -64,7 +68,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // the robots.txt pointer, so it loses nothing by staying out of the sitemaps.
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
-const COMPARE_CONTENT_LASTMOD = "2026-10-29";
+const COMPARE_CONTENT_LASTMOD = "2026-11-24";
 const REPORT_CONTENT_LASTMOD = "2026-11-24";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
@@ -194,9 +198,22 @@ async function routeRequest(context) {
     return compareSitemapResponse(context);
   }
 
-  const reportsSitemapPage = url.pathname.match(/^\/sitemap-reports-(\d+)\.xml$/);
+  if (url.pathname === "/sitemap-languages.xml") {
+    return languagesSitemapResponse(context);
+  }
+
+  // Report shards are split by tier (`-core-`: repositories with at least
+  // 1,000 GitHub stars; `-tail-`: the rest). The un-tiered files stay served
+  // so a sitemap index cached by a search engine keeps resolving.
+  const reportsSitemapPage = url.pathname.match(/^\/sitemap-reports-(?:(core|tail)-)?(\d+)\.xml$/);
   if (reportsSitemapPage) {
-    return reportsSitemapResponse(context, Number(reportsSitemapPage[1]));
+    return reportsSitemapResponse(context, { tier: reportsSitemapPage[1] ?? null, page: Number(reportsSitemapPage[2]) });
+  }
+  // Any other sitemap-looking URL is not a sitemap this site publishes:
+  // answer 404 here rather than letting the asset layer fall back to the
+  // SPA shell and return HTML 200 under a .xml address.
+  if (/^\/sitemap[^/]*\.xml$/.test(url.pathname)) {
+    return sitemapNotFoundResponse();
   }
 
   if (parts[0] === "github") {
@@ -225,6 +242,12 @@ async function routeRequest(context) {
 
   if (url.pathname === "/recent" || url.pathname === "/popular") {
     return listPageResponse(context, url.pathname.slice(1), url);
+  }
+
+  // Language leaderboards: the hub and one page per language, each with a
+  // Markdown twin.
+  if (routePath === LANGUAGES_PATH || routePath.startsWith(`${LANGUAGES_PATH}/`)) {
+    return languagePageResponse(context, routePath === LANGUAGES_PATH ? null : routePath.slice(LANGUAGES_PATH.length + 1), { markdown: markdownRequested });
   }
 
   if (url.pathname === "/trending.xml") {
@@ -337,7 +360,7 @@ const LEGACY_REPORT_REDIRECTS = {
   "github/huanglizhuo/octocount": "/github/huanglizhuo/OctoCounts",
 };
 
-const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc", "count-lines-without-cloning", "github-api-count-lines", "tokei-vs-cloc-vs-scc", "largest-codebases"]);
+const DOC_MARKDOWN_PAGES = new Set(["github-sloc-counter", "api", "cli", "mcp-server", "github-action", "methodology", "glossary", "faq", "octocounts-vs-cloc", "github-language-bar-alternative", "best-sloc-counter-tools", "tokei-online", "count-lines-of-code-github", "github-repository-size-checker", "octocounts-vs-tokei", "octocounts-vs-scc", "count-lines-without-cloning", "github-api-count-lines", "tokei-vs-cloc-vs-scc", "largest-codebases"]);
 
 async function docsMarkdownResponse(context, slug, options = {}) {
   const url = new URL(context.request.url);
@@ -601,6 +624,7 @@ function reportMarkdown(report, relatedReports = []) {
     "- [Popular SLOC reports](https://octocounts.com/popular)",
     "- [Trending GitHub repositories](https://octocounts.com/trending)",
     "- [Hall of Monoliths](https://octocounts.com/hall-of-monoliths)",
+    "- [Largest codebases by programming language](https://octocounts.com/languages)",
     ...relatedCompare.map((entry) => `- [${entry.name}](https://octocounts.com/compare/${entry.slug})`),
     "- [How to count lines of code in a GitHub repository](https://octocounts.com/docs/count-lines-of-code-github)",
     "- [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)",
@@ -779,9 +803,9 @@ function listPageFallback(kind) {
     recent:
       "This page lists the public GitHub repositories most recently measured by OctoCounts. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
     popular:
-      "This page ranks the OctoCounts reports that are viewed most often. Each entry links to a full source line count for a public GitHub repository, giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+      "This page ranks the OctoCounts reports of the most-starred public GitHub repositories, by GitHub stars at each repository's last analysis. Each entry links to a full source line count for a public GitHub repository, giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
     monoliths:
-      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by code lines, excluding comments and blank lines. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
+      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by code lines, which exclude comments and blank lines. Repositories whose largest language is a data format, and near-identical copies of a larger repository, are left out. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
   }[kind];
 
   return `<p>${intro}</p>
@@ -791,6 +815,7 @@ function listPageFallback(kind) {
       <li><a href="/recent">Recently analyzed repositories</a></li>
       <li><a href="/popular">Popular SLOC reports</a></li>
       <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
+      <li><a href="/languages">Largest codebases by programming language</a></li>
       ${kind === "monoliths" ? '<li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>' : ""}
       <li><a href="/trending">Trending GitHub repositories</a></li>
       <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
@@ -1020,6 +1045,7 @@ OctoCounts counts lines of code without cloning: it downloads a repository's sou
 - [Recently analyzed repositories](https://octocounts.com/recent)
 - [Popular SLOC reports](https://octocounts.com/popular)
 - [Hall of Monoliths: largest repositories by lines of code](https://octocounts.com/hall-of-monoliths)
+- [Largest codebases by programming language](https://octocounts.com/languages)
 - [How many lines of code? The largest codebases, counted](https://octocounts.com/docs/largest-codebases)
 - [How OctoCounts counts lines of code](https://octocounts.com/docs/methodology)
 `;
@@ -1104,8 +1130,8 @@ async function comparePageResponse(context, pathname) {
   const isCompare = pathname === "/compare";
   const title = isCompare ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
   const description = isCompare
-    ? "Compare files, code lines, comments, blanks, and language mix between two public repositories or refs."
-    : "Compare source line count changes between two branches, tags, or commits in a public repository.";
+    ? "Compare two public GitHub repositories or refs side by side (files, code, comments, blanks, language mix), or browse curated line-count comparisons of popular tools."
+    : "Compare source line count changes between two branches, tags, or commits in a public GitHub repository: code, comment and blank line deltas, pinned to commits.";
   // Example links use the repository's current canonical spelling. The React
   // repository lives at react/react since GitHub's 2026 transfer; the old
   // facebook/react paths still answer (308 via the rename-follow chain), but
@@ -1118,6 +1144,7 @@ async function comparePageResponse(context, pathname) {
     <li><a href="/popular">Popular SLOC reports</a></li>
     <li><a href="/trending">Trending GitHub repositories</a></li>
     <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/languages">Largest codebases by programming language</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/glossary">SLOC and code metrics glossary</a></li>
@@ -1220,6 +1247,7 @@ async function badgesPageResponse(context) {
     <li><a href="/">OctoCounts home: count any public GitHub repository</a></li>
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
+    <li><a href="/languages">Largest codebases by programming language</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
   </ul></nav>`;
@@ -1376,6 +1404,7 @@ async function extensionPageResponse(context, options = {}) {
     <li><a href="/">OctoCounts web app: count any public GitHub repository</a></li>
     <li><a href="/compare">Compare two repositories</a></li>
     <li><a href="/badges">GitHub SLOC badges for your README</a></li>
+    <li><a href="/languages">Largest codebases by programming language</a></li>
     <li><a href="/docs/github-sloc-counter">GitHub SLOC counter guide</a></li>
     <li><a href="/docs/methodology">Counting methodology</a></li>
     <li><a href="/docs/api">OctoCounts API docs</a></li>
@@ -1483,6 +1512,7 @@ Extension source code: [${content.sourceUrl}](${content.sourceUrl}).
 - [OctoCounts web app](https://octocounts.com/)
 - [Compare two repositories](https://octocounts.com/compare)
 - [GitHub SLOC badges for your README](https://octocounts.com/badges)
+- [Largest codebases by programming language](https://octocounts.com/languages)
 - [GitHub SLOC counter guide](https://octocounts.com/docs/github-sloc-counter)
 - [Counting methodology](https://octocounts.com/docs/methodology)
 - [OctoCounts API docs](https://octocounts.com/docs/api)
@@ -1595,7 +1625,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
     stale.set(entry.slug, { ...stale.get(entry.slug), markdown });
     return markdownResponse(markdown, "public, s-maxage=300, stale-while-revalidate=600", options);
   }
-  const html = injectCuratedCompare(await indexHtml(context), model);
+  const html = injectCuratedCompare(await indexHtml(context), { ...model, ogImage: `${apiBase(context)}${model.shareImage}` });
   stale.set(entry.slug, { ...stale.get(entry.slug), html });
   return htmlResponse(html, "public, s-maxage=300, stale-while-revalidate=600");
 }
@@ -1681,6 +1711,7 @@ async function buildCompareViewModel(entry, left, right) {
       { href: "/popular", label: "Popular SLOC reports" },
       { href: "/trending", label: "Trending GitHub repositories" },
       { href: "/hall-of-monoliths", label: "Hall of Monoliths" },
+      { href: "/languages", label: "Largest codebases by programming language" },
       { href: "/research", label: "Original research: how filtering changes SLOC counts" },
       { href: "/docs/count-lines-of-code-github", label: "How to count lines of code in a GitHub repository" },
       { href: "/docs/largest-codebases", label: "Largest codebases by lines of code" },
@@ -1690,6 +1721,12 @@ async function buildCompareViewModel(entry, left, right) {
       { href: "/docs/api", label: "OctoCounts API docs" },
       { href: "/docs", label: "All OctoCounts guides" },
     ],
+    // Comparisons that share a repository with this one, so the curated
+    // corpus links to itself instead of only to the hub and two reports.
+    relatedComparisons: adjacentComparisons(entry.slug).map(related => ({ slug: related.slug, name: related.name })),
+    // Path of the comparison's share card on the API host; the caller makes
+    // it absolute with its own API base.
+    shareImage: `/og/compare?left=${encodeURIComponent(`${entry.left.owner}/${entry.left.repo}`)}&right=${encodeURIComponent(`${entry.right.owner}/${entry.right.repo}`)}`,
     updatedAt: [left.generatedAt, right.generatedAt, COMPARE_CONTENT_LASTMOD].sort().at(-1),
   };
 }
@@ -1760,7 +1797,7 @@ ${model.disclaimerText}
 
 ${compareFaqMarkdown(model.faq)}
 
-## Related OctoCounts pages
+${model.relatedComparisons?.length ? `## Related comparisons\n\n${model.relatedComparisons.map(entry => `- [${entry.name}: lines of code compared](https://octocounts.com/compare/${entry.slug})`).join("\n")}\n\n` : ""}## Related OctoCounts pages
 
 ${model.relatedLinks.map((link) => `- [${link.label}](https://octocounts.com${link.href})`).join("\n")}
 `;
@@ -2089,14 +2126,15 @@ function injectCuratedCompare(index, model) {
     <li><a href="${escapeAttr(model.right.publicPath)}">${escapeHtml(model.right.repoFullName)} SLOC report</a></li>
     <li><a href="${escapeAttr(model.interactiveHref)}">Compare ${escapeHtml(model.left.repoFullName)} and ${escapeHtml(model.right.repoFullName)} interactively</a></li>
     ${[model.left, model.right].filter((side) => side.snapshotUrl).map((side) => `<li><a href="${escapeAttr(side.snapshotUrl)}">${escapeHtml(side.repoFullName)} saved report</a></li>`).join("")}
-  </ul><p>${escapeHtml(model.retentionText)}</p><p>${escapeHtml(model.disclaimerText)}</p>${compareFaqHtml(model.faq)}${internalLinks}</section>`;
+  </ul><p>${escapeHtml(model.retentionText)}</p><p>${escapeHtml(model.disclaimerText)}</p>${compareFaqHtml(model.faq)}${relatedComparisonsHtml(model.relatedComparisons)}${internalLinks}</section>`;
 
   return injectHeadAndNoscript(index, {
     title: model.title,
     description: model.description,
     canonical: model.canonical,
     robots: "index,follow,max-image-preview:large,max-snippet:-1",
-    ogImage: "https://octocounts.com/og-image.jpg",
+    ogImage: model.ogImage ?? "https://octocounts.com/og-image.jpg",
+    ogImageAlt: model.ogImage ? `${model.name} source lines of code compared: ${model.left.repoFullName} ${model.rows[2].left} code lines, ${model.right.repoFullName} ${model.rows[2].right} code lines` : undefined,
     jsonLd: compareJsonLd(model),
     mdAlternate: `${model.canonical}.md`,
     // Two machine-readable payloads for the client page: the full view model
@@ -2107,6 +2145,15 @@ function injectCuratedCompare(index, model) {
 <script type="application/json" id="octocounts-compare-prefill">${escapeScriptJson(model.prefill)}</script>`,
     bodyContent,
   });
+}
+
+/// Comparisons that share a repository with this page, as a list of
+/// links. Empty for a page whose neighbors are all in its own pair.
+function relatedComparisonsHtml(related = []) {
+  if (!related.length) return "";
+  return `<section><h2>Related comparisons</h2><ul>${related
+    .map(entry => `<li><a href="/compare/${escapeAttr(entry.slug)}">${escapeHtml(entry.name)}: lines of code compared</a></li>`)
+    .join("")}</ul></section>`;
 }
 
 function gitHubUrl(target) {
@@ -2268,12 +2315,142 @@ function injectCompareFallback(index, entry) {
   });
 }
 
-// Sitemap layout: /sitemap.xml is a sitemap index over three child files so
-// the ~4k programmatic /github/* report pages cannot bury the 20-odd core
-// pages and 100-odd curated comparisons in one 4,000-entry URL list. Search
-// engines report and crawl each child independently, which keeps crawl budget
-// on the pages that actually need indexing. Report pages are chunked because
-// that set keeps growing.
+/// /languages and /languages/:slug. The hub lists every language that has
+/// a leaderboard; a leaderboard ranks the largest repositories whose primary
+/// programming language is that language. The model comes from
+/// language-pages.js and rides into the client page as JSON.
+async function languagePageResponse(context, slug, options = {}) {
+  const path = slug === null ? LANGUAGES_PATH : `${LANGUAGES_PATH}/${slug}`;
+  const fallbackTitle = slug === null ? LANGUAGE_HUB_TITLE : "Language leaderboard | OctoCounts";
+  const index = await fetchLanguageIndex(context);
+  // An empty index is no hub: a page with no rows answers 404 below.
+  if (!index || (slug === null && !index.languages.length)) {
+    if (index && slug === null) return languageNotFoundResponse(context, slug);
+    return collectionUnavailableResponse(context, path, fallbackTitle, options);
+  }
+  let model;
+  if (slug === null) {
+    model = languageHubModel(index);
+  } else {
+    const summary = LANGUAGE_SLUG_PATTERN.test(slug) ? index.languages.find((entry) => entry.slug === slug) : null;
+    if (!summary) return languageNotFoundResponse(context, slug);
+    const page = await fetchLanguagePage(context, slug, summary, index.leaderboardSize);
+    if (!page) return collectionUnavailableResponse(context, path, fallbackTitle, options);
+    model = languageLeaderboardModel(page, index);
+  }
+  if (options.markdown) return markdownResponse(languagePageMarkdown(model), "public, s-maxage=300, stale-while-revalidate=600", options);
+  const html = injectHeadAndNoscript(await indexHtml(context), {
+    title: model.title,
+    description: model.description,
+    canonical: `https://octocounts.com${path}`,
+    robots: "index,follow,max-image-preview:large,max-snippet:-1",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: languagePageJsonLd(model),
+    mdAlternate: `https://octocounts.com${path}.md`,
+    extraHead: `<script type="application/json" id="octocounts-language-data">${escapeScriptJson(model)}</script>`,
+    bodyContent: languagePageHtml(model),
+  });
+  return htmlResponse(html, "public, s-maxage=300, stale-while-revalidate=600");
+}
+
+async function fetchLanguagePage(context, slug, summary, leaderboardSize) {
+  try {
+    const response = await fetch(`${apiBase(context)}/api/seo/language/${encodeURIComponent(slug)}`, {
+      headers: { accept: "application/json" }, signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const page = await response.json();
+    // The page must agree with the index entry it was looked up through, and
+    // every row must be a report this site can actually serve.
+    if (!page || page.slug !== slug || page.language !== summary.language
+      || !Number.isSafeInteger(page.repositories) || page.repositories !== summary.repositories
+      || !Array.isArray(page.reports) || !page.reports.length || page.reports.length > leaderboardSize) return null;
+    for (const report of page.reports) {
+      if (!report || typeof report.repoFullName !== "string" || typeof report.publicPath !== "string"
+        || typeof report.canonicalUrl !== "string" || report.canonicalUrl !== `https://octocounts.com${report.publicPath}`
+        || !REPORT_SITEMAP_LOC_PATTERN.test(report.canonicalUrl)
+        || !["code", "lines", "files"].every(key => Number.isSafeInteger(report.total?.[key]) && report.total[key] >= 0)
+        || !Number.isSafeInteger(report.languageCode) || report.languageCode < 0
+        || !Number.isFinite(report.languageShare) || report.languageShare < 0 || report.languageShare > 100
+        || typeof report.generatedAt !== "string" || !Number.isFinite(Date.parse(report.generatedAt))) return null;
+    }
+    if (!page.reports.every((report, position) => position === 0 || page.reports[position - 1].total.code >= report.total.code)) return null;
+    return page;
+  } catch {
+    return null;
+  }
+}
+
+/// A real 404 for a language without a leaderboard: a soft 200 would put a
+/// page with no content into the index.
+async function languageNotFoundResponse(context, slug) {
+  const path = slug === null ? LANGUAGES_PATH : `${LANGUAGES_PATH}/${slug}`;
+  const message = slug === null
+    ? "No language has enough measured repositories for a leaderboard yet."
+    : `OctoCounts has no ${escapeHtml(slug)} leaderboard.`;
+  return htmlResponse(injectHeadAndNoscript(await indexHtml(context), {
+    title: "Language leaderboard not found | OctoCounts",
+    description: "This language has no OctoCounts leaderboard. Browse the languages that have one.",
+    canonical: `https://octocounts.com${path}`,
+    robots: "noindex,follow,max-image-preview:large",
+    ogImage: "https://octocounts.com/og-image.jpg",
+    jsonLd: null,
+    bodyContent: `<section><h1>Language leaderboard not found</h1><p>${message} <a href="${LANGUAGES_PATH}">Browse the languages that have one</a>.</p></section>`,
+  }), "public, max-age=60", { status: 404 });
+}
+
+function languageTableHtml(model) {
+  if (!model.rows.length) return "";
+  return `<table class="language-table"><thead><tr>${model.columns.map(column => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead><tbody>${model.rows
+    .map(row => `<tr>${row.map(cell => `<td>${cell.href ? `<a href="${escapeAttr(cell.href)}">${escapeHtml(cell.text)}</a>` : escapeHtml(cell.text)}</td>`).join("")}</tr>`)
+    .join("")}</tbody></table>`;
+}
+
+function languagePageHtml(model) {
+  const faqTitle = model.kind === "hub" ? "Language leaderboards FAQ" : `${model.language} leaderboard FAQ`;
+  const related = `<nav aria-label="Related OctoCounts pages"><ul>${model.relatedLinks
+    .map(link => `<li><a href="${escapeAttr(link.href)}">${escapeHtml(link.label)}</a></li>`)
+    .join("")}</ul></nav>`;
+  // The curated comparisons of this language, where the registry has some.
+  const comparisons = model.comparisons?.length
+    ? `<section><h2>Curated comparisons in ${escapeHtml(model.language)}</h2><ul>${model.comparisons
+      .map(entry => `<li><a href="/compare/${escapeAttr(entry.slug)}">${escapeHtml(entry.name)}: lines of code compared</a></li>`)
+      .join("")}</ul></section>`
+    : "";
+  return `<section><h1>${escapeHtml(model.heading)}</h1><p>${escapeHtml(model.intro)}</p>${languageTableHtml(model)}<p>${escapeHtml(model.afterTable)}</p><h2>${escapeHtml(faqTitle)}</h2>${model.faq
+    .map(item => `<h3>${escapeHtml(item.question)}</h3>${answerHtml(item.answer)}`)
+    .join("")}${comparisons}${related}</section>`;
+}
+
+function languagePageMarkdown(model) {
+  const table = model.rows.length
+    ? `| ${model.columns.join(" | ")} |\n| ${model.columns.map(() => "---").join(" | ")} |\n${model.rows
+      .map(row => `| ${row.map(cell => (cell.href ? `[${cell.text}](${cell.href.startsWith("/") ? `https://octocounts.com${cell.href}` : cell.href})` : cell.text)).join(" | ")} |`)
+      .join("\n")}\n`
+    : "";
+  return `# ${model.heading}
+
+${model.intro}
+
+${table}
+${model.afterTable}
+
+## FAQ
+
+${model.faq.map(item => `### ${item.question}\n\n${item.answer}`).join("\n\n")}
+
+${model.comparisons?.length ? `## Curated comparisons in ${model.language}\n\n${model.comparisons.map(entry => `- [${entry.name}: lines of code compared](https://octocounts.com/compare/${entry.slug})`).join("\n")}\n\n` : ""}## Related OctoCounts pages
+
+${model.relatedLinks.map(link => `- [${link.label}](${link.href.startsWith("/") ? `https://octocounts.com${link.href}` : link.href})`).join("\n")}
+`;
+}
+
+// Sitemap layout: /sitemap.xml is a sitemap index over child files so the
+// programmatic /github/* report pages cannot bury the core pages and the
+// curated comparisons in one long URL list. Search engines report and crawl
+// each child independently, which keeps crawl budget on the pages that need
+// it and lets Search Console show each group on its own. Report pages are
+// split by tier and chunked, because that set keeps growing.
 const REPORTS_SITEMAP_PAGE_SIZE = 10_000;
 
 function sitemapCacheHeaders() {
@@ -2300,6 +2477,13 @@ ${entry.lastmod ? `    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n` : ""}  
 const compareInventoryRepos = [...new Set(COMPARE_REGISTRY.flatMap(({ left, right }) =>
   [left, right].map(({ owner, repo }) => `${owner}/${repo}`)))].join(",");
 
+/// One bounded view of the report inventory. The API answers three shapes
+/// and this function returns one:
+/// - view=rotating → { locs }
+/// - view=page    → { entries }
+/// - view=index   → { entries (the requested repositories), shards }
+/// where every shard is { file, tier, page, lastmod }. `tier` is "core",
+/// "tail" or null for the flat files an older API still serves.
 async function fetchSitemapView(context, params) {
   try {
     const response = await fetch(`${apiBase(context)}/api/seo/sitemap?${new URLSearchParams(params)}`, {
@@ -2307,24 +2491,85 @@ async function fetchSitemapView(context, params) {
     });
     if (!response.ok) return null;
     const payload = await response.json();
-    // Older API nodes ignore query parameters and return the complete array.
+    // The oldest API nodes ignore query parameters and return the complete
+    // array. They carry no star counts, so every report is long tail there.
     if (Array.isArray(payload)) {
       const entries = filterReportSitemapEntries(payload);
       if (params.view === "rotating") return { locs: rotatingReportLocs(entries, Number(params.day)) };
-      if (params.view === "page") return { entries: entries.slice((params.page - 1) * REPORTS_SITEMAP_PAGE_SIZE, params.page * REPORTS_SITEMAP_PAGE_SIZE) };
+      if (params.view === "page") {
+        const page = Number(params.page);
+        return { entries: params.tier === "core" ? [] : entries.slice((page - 1) * REPORTS_SITEMAP_PAGE_SIZE, page * REPORTS_SITEMAP_PAGE_SIZE) };
+      }
       const shards = [];
-      for (let i = 0; i < entries.length; i += REPORTS_SITEMAP_PAGE_SIZE) shards.push(maxLastmod(entries.slice(i, i + REPORTS_SITEMAP_PAGE_SIZE)));
+      for (let i = 0; i < entries.length; i += REPORTS_SITEMAP_PAGE_SIZE) {
+        shards.push({ file: `sitemap-reports-${shards.length + 1}`, tier: null, page: shards.length + 1, lastmod: maxLastmod(entries.slice(i, i + REPORTS_SITEMAP_PAGE_SIZE)) });
+      }
       return { entries, shards };
     }
     if (!Array.isArray(payload?.entries)) return null;
     const entries = filterReportSitemapEntries(payload.entries);
     if (params.view === "rotating") return { locs: entries.map(entry => entry.loc) };
-    if (params.view === "index" && (!Array.isArray(payload.shards) || !payload.shards.every(date => /^\d{4}-\d{2}-\d{2}$/.test(date)))) return null;
-    return { entries, shards: payload.shards };
+    if (params.view === "page") return { entries };
+    const shards = normalizeSitemapShards(payload.shards);
+    return shards ? { entries, shards } : null;
   } catch {
     return null;
   }
 }
+
+/// Shards as the API describes them: objects since the tier split, bare
+/// dates before it. Null when the shape is neither, so the caller answers
+/// 503 rather than publishing an index that hides report pages.
+function normalizeSitemapShards(shards) {
+  if (!Array.isArray(shards) || shards.length === 0) return null;
+  if (shards.every(date => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    return shards.map((lastmod, index) => ({ file: `sitemap-reports-${index + 1}`, tier: null, page: index + 1, lastmod }));
+  }
+  if (!shards.every(shard => shard && ["core", "tail"].includes(shard.tier)
+    && Number.isSafeInteger(shard.page) && shard.page > 0
+    && typeof shard.lastmod === "string" && /^\d{4}-\d{2}-\d{2}$/.test(shard.lastmod))) return null;
+  return shards.map(shard => ({ file: `sitemap-reports-${shard.tier}-${shard.page}`, tier: shard.tier, page: shard.page, lastmod: shard.lastmod }));
+}
+
+const LANGUAGE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
+
+/// The languages that have a leaderboard, validated, or null. Shared by the
+/// language pages and the language sitemap.
+function validLanguageIndex(index) {
+  if (!index || !Array.isArray(index.languages) || !Number.isSafeInteger(index.minRepositories) || index.minRepositories < 1
+    || !Number.isSafeInteger(index.leaderboardSize) || index.leaderboardSize < 1 || index.languages.length > 500) return null;
+  const seen = new Set();
+  for (const entry of index.languages) {
+    if (!entry || typeof entry.language !== "string" || !entry.language || entry.language.length > 60
+      || typeof entry.slug !== "string" || !LANGUAGE_SLUG_PATTERN.test(entry.slug) || seen.has(entry.slug)
+      || !Number.isSafeInteger(entry.repositories) || entry.repositories < 1
+      || !Number.isSafeInteger(entry.code) || entry.code < 0 || !Number.isSafeInteger(entry.lines) || entry.lines < 0) return null;
+    seen.add(entry.slug);
+  }
+  return index;
+}
+
+/// One /api/seo/languages fetch per isolate per 15 minutes: the set of
+/// languages changes only as reports arrive, and both the language pages and
+/// the language sitemap read it on every request.
+async function fetchLanguageIndex(context) {
+  const scratch = envScratchMap(context.env);
+  const cached = scratch.get("languages:index");
+  if (cached && Date.now() - cached.at < LANGUAGE_INDEX_TTL_MS && validLanguageIndex(cached.index)) return cached.index;
+  try {
+    const response = await fetch(`${apiBase(context)}/api/seo/languages`, {
+      headers: { accept: "application/json" }, signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const index = validLanguageIndex(await response.json());
+    if (index) scratch.set("languages:index", { at: Date.now(), index });
+    return index;
+  } catch {
+    return null;
+  }
+}
+
+const LANGUAGE_INDEX_TTL_MS = 15 * 60_000;
 
 function sitemapUnavailableResponse() {
   return new Response("Sitemap temporarily unavailable\n", {
@@ -2431,7 +2676,12 @@ async function sitemapIndexResponse(context) {
   // Only the report-page count is unknown up front (compare is a single file
   // and the static list is compiled in), so skip the compare-existence scan
   // here: the index is the hottest sitemap request crawlers make.
-  const view = await fetchSitemapView(context, { view: "index", repos: compareInventoryRepos });
+  const [view, languages] = await Promise.all([
+    fetchSitemapView(context, { view: "index", repos: compareInventoryRepos }),
+    // A backend that predates the language leaderboards answers 404 here;
+    // the index then simply has no language child.
+    fetchLanguageIndex(context).catch(() => null),
+  ]);
   if (!view) return sitemapUnavailableResponse();
   // Include a child's freshest lastmod only when its underlying dates are known.
   const snapshot = await trendingSnapshot(context);
@@ -2443,9 +2693,12 @@ async function sitemapIndexResponse(context) {
   const children = [
     { loc: "https://octocounts.com/sitemap-static.xml", lastmod: snapshot ? staticLastmod : undefined },
     { loc: "https://octocounts.com/sitemap-compare.xml", lastmod: maxLastmod([...compareLastmods(view.entries).values()].map((lastmod) => ({ lastmod }))) },
-    ...view.shards.map((date, i) => ({
-      loc: `https://octocounts.com/sitemap-reports-${i + 1}.xml`,
-      lastmod: date > REPORT_CONTENT_LASTMOD ? date : REPORT_CONTENT_LASTMOD,
+    // Leaderboards are live collections: no lastmod, like the other
+    // collections, rather than a date that does not track their content.
+    ...(languages && languages.languages.length ? [{ loc: "https://octocounts.com/sitemap-languages.xml" }] : []),
+    ...view.shards.map((shard) => ({
+      loc: `https://octocounts.com/${shard.file}.xml`,
+      lastmod: shard.lastmod > REPORT_CONTENT_LASTMOD ? shard.lastmod : REPORT_CONTENT_LASTMOD,
     })),
   ];
   const sitemaps = children
@@ -2492,11 +2745,27 @@ function sitemapNotFoundResponse() {
   });
 }
 
-async function reportsSitemapResponse(context, page) {
+async function reportsSitemapResponse(context, { tier = null, page }) {
   if (!Number.isSafeInteger(page) || page < 1) return sitemapNotFoundResponse();
-  const view = await fetchSitemapView(context, { view: "page", page });
+  const params = { view: "page", page };
+  // The legacy flat files carry no tier: an API that predates the split
+  // answers them as before, and a tiered API answers them from the full list.
+  if (tier) params.tier = tier;
+  const view = await fetchSitemapView(context, params);
   if (!view) return sitemapUnavailableResponse();
   return view.entries.length ? urlsetResponse(view.entries) : sitemapNotFoundResponse();
+}
+
+/// `/sitemap-languages.xml`: the language hub and one URL per leaderboard.
+async function languagesSitemapResponse(context) {
+  const index = await fetchLanguageIndex(context);
+  if (!index) return sitemapUnavailableResponse();
+  // Without a leaderboard there is no hub page either (it answers 404).
+  if (!index.languages.length) return sitemapNotFoundResponse();
+  return urlsetResponse([
+    { loc: "https://octocounts.com/languages" },
+    ...index.languages.map((entry) => ({ loc: `https://octocounts.com/languages/${entry.slug}` })),
+  ]);
 }
 
 async function trendingSnapshot(context) {
@@ -2537,7 +2806,7 @@ function listPageMeta(kind) {
   if (kind === "recent") {
     return {
       title: "Recently analyzed repositories | OctoCounts",
-      description: "Recently analyzed public GitHub repositories with source line count reports.",
+      description: "Recently analyzed public GitHub repositories with source line count reports: files, code, comment and blank lines per language, pinned to the commit counted.",
       canonical: "https://octocounts.com/recent",
       breadcrumbLabel: "Recent reports",
     };
@@ -2549,17 +2818,17 @@ function listPageMeta(kind) {
       // "largest repositories by SLOC" keeps the ranking keyword and the
       // site's core term without SERP truncation.
       title: "Hall of Monoliths: largest repositories by SLOC | OctoCounts",
-      description: "A live OctoCounts leaderboard of large public GitHub repositories ranked by total source lines of code.",
+      description: "A live leaderboard of the largest public GitHub repositories by source lines of code. Data-only repositories and near-identical copies are left out.",
       canonical: "https://octocounts.com/hall-of-monoliths",
       breadcrumbLabel: "Hall of Monoliths",
     };
   }
   return {
     title: "Popular SLOC reports | OctoCounts",
-    // /popular ranks by real access counts, not star counts — say so, and
-    // name the metrics a reader gets (SEO audit: 76 chars wasted half the
-    // SERP snippet).
-    description: "Most-opened OctoCounts reports: file, code, comment, and blank line counts for popular public GitHub repositories, ranked by reader traffic.",
+    // /popular ranks by GitHub stars at each repository's last analysis.
+    // Access counts let a few repeatedly opened personal repositories hold
+    // the top of the page; stars track what the wider public knows.
+    description: "The most-starred public GitHub repositories with an OctoCounts report: file, code, comment and blank line counts, ranked by GitHub stars.",
     canonical: "https://octocounts.com/popular",
     breadcrumbLabel: "Popular reports",
   };
@@ -2601,7 +2870,8 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
     <li><a href="/recent">Recently analyzed repositories</a></li>
     <li><a href="/popular">Popular SLOC reports</a></li>
     <li><a href="/trending">Trending GitHub repositories</a></li>
-    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>${relatedCompareHtml}
+    <li><a href="/hall-of-monoliths">Hall of Monoliths</a></li>
+    <li><a href="/languages">Largest codebases by programming language</a></li>${relatedCompareHtml}
     ${repoBadgesCta}
     ${repoDiffCta}
     <li><a href="/docs/count-lines-of-code-github">How to count lines of code in a GitHub repository</a></li>

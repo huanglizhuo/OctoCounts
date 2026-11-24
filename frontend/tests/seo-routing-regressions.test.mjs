@@ -85,15 +85,23 @@ test("the sitemap index and second shard request bounded API views", async (t) =
   const entry = { loc: "https://octocounts.com/github/octo/last", lastmod: "2026-11-17", total: { files: 8 } };
   const calls = [];
   t.mock.method(globalThis, "fetch", async raw => {
-    const query = new URL(raw).searchParams;
+    const url = new URL(raw);
+    // A backend that predates the language leaderboards: no language child.
+    if (url.pathname === "/api/seo/languages") return new Response(null, { status: 404 });
+    const query = url.searchParams;
     calls.push(query.get("view"));
+    // The pre-tier index shape: bare dates, one file per 10,000 reports.
     if (query.get("view") === "index") return Response.json({ shards: ["2026-11-13", "2026-11-17"], entries: [] });
     assert.equal(query.get("page"), "2");
+    assert.equal(query.get("tier"), null, "legacy files are asked for without a tier");
     return Response.json({ entries: [entry] });
   });
   const index = await onRequest(context("/sitemap.xml"));
+  const indexXml = await index.text();
   // A shard never reports a date older than the report template's own.
-  assert.match(await index.text(), /sitemap-reports-2\.xml<\/loc>\s*<lastmod>2026-11-24/);
+  assert.match(indexXml, /sitemap-reports-2\.xml<\/loc>\s*<lastmod>2026-11-24/);
+  assert.match(indexXml, /sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-24/);
+  assert.doesNotMatch(indexXml, /sitemap-languages|sitemap-reports-core|sitemap-reports-tail/);
   const shard = await onRequest(context("/sitemap-reports-2.xml"));
   assert.ok((await shard.text()).includes(entry.loc));
   assert.deepEqual(calls, ["index", "page"]);

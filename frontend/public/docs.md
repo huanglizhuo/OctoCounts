@@ -1,6 +1,6 @@
 # OctoCounts guides: counting lines of code in GitHub repositories
 
-Updated October 29, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories. These guides explain how to count lines of code in a GitHub repository with or without cloning it, how tokei, cloc, scc, and GitHub's language bar differ, how OctoCounts counts and how to cite its numbers, and how to use its API, README badges, and browser extension.
 
@@ -36,6 +36,12 @@ Canonical page: https://octocounts.com/docs
 - [SLOC glossary](https://octocounts.com/docs/glossary): code lines, comment lines, blank lines, physical and logical SLOC.
 - [FAQ](https://octocounts.com/docs/faq): privacy, private repositories, badges, limits, and how OctoCounts compares to local tools.
 - [API docs](https://octocounts.com/docs/api): analyze public repositories and fetch cached reports, badges, compare, and diff URLs.
+
+## Terminals, CI and AI assistants
+
+- [OctoCounts CLI: count SLOC from a terminal](https://octocounts.com/docs/cli): `npx octocounts` prints per-language line counts or JSON, with no clone.
+- [SLOC diff GitHub Action for pull requests](https://octocounts.com/docs/github-action): comment a pull request's line-count change between base and head.
+- [OctoCounts MCP server: SLOC for AI coding tools](https://octocounts.com/docs/mcp-server): `analyze_repo` and `compare_repos` for Claude, Cursor, and other MCP clients.
 
 ## 简体中文
 

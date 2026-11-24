@@ -25,7 +25,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         <footer>
           <span>{t("growth.footerTagline")}</span>
           <span>
-            <a href={exploreHref("/stats", i18n.language)}>{t("growth.nav.stats.label")}</a> &middot; <a href={exploreHref("/recent", i18n.language)}>{t("growth.nav.recent.label")}</a> &middot; <a href={exploreHref("/popular", i18n.language)}>{t("growth.nav.popular.label")}</a> &middot; <a href={exploreHref("/trending", i18n.language)}>{t("growth.nav.trending.label")}</a> &middot; <a href={exploreHref("/hall-of-monoliths", i18n.language)}>{t("growth.nav.hall.label")}</a> &middot; <a href="/extension">{t("footer.extension")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
+            <a href={exploreHref("/stats", i18n.language)}>{t("growth.nav.stats.label")}</a> &middot; <a href={exploreHref("/recent", i18n.language)}>{t("growth.nav.recent.label")}</a> &middot; <a href={exploreHref("/popular", i18n.language)}>{t("growth.nav.popular.label")}</a> &middot; <a href={exploreHref("/trending", i18n.language)}>{t("growth.nav.trending.label")}</a> &middot; <a href={exploreHref("/hall-of-monoliths", i18n.language)}>{t("growth.nav.hall.label")}</a> &middot; <a href="/languages">{t("footer.languages")}</a> &middot; <a href="/extension">{t("footer.extension")}</a> &middot; <a href="/badges">{t("footer.badges")}</a> &middot; <a href="/privacy">{t("footer.privacy")}</a>
           </span>
         </footer>
       </main>

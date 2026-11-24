@@ -12,6 +12,7 @@ export const publicReportLinks = [
   { href: "/popular", key: "popular" },
   { href: "/trending", key: "trending" },
   { href: "/hall-of-monoliths", key: "hall" },
+  { href: "/languages", key: "languages" },
 ];
 
 type MenuId = "explore" | "tools" | "install" | "site";

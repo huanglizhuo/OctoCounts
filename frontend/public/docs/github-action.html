@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SLOC diff GitHub Action for pull requests | OctoCounts</title>
+    <meta name="description" content="Comment a pull request&#x27;s line-count change with the OctoCounts GitHub Action: code, comment and blank line deltas between base and head, plus both reports." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/docs/github-action" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/docs/github-action.md" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:title" content="SLOC diff GitHub Action for pull requests | OctoCounts" />
+    <meta property="og:description" content="Comment the line-count change of every pull request: the OctoCounts GitHub Action compares base and head with tokei and links both reports." />
+    <meta property="og:url" content="https://octocounts.com/docs/github-action" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SLOC diff GitHub Action for pull requests | OctoCounts" />
+    <meta name="twitter:description" content="Comment the line-count change of every pull request: the OctoCounts GitHub Action compares base and head with tokei and links both reports." />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-x: hidden; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "OctoCounts GitHub Action: comment SLOC changes on pull requests",
+      "description": "Comment a pull request's line-count change with the OctoCounts GitHub Action: code, comment and blank line deltas between base and head, plus both reports.",
+      "datePublished": "2026-11-24",
+      "dateModified": "2026-11-24",
+      "author": {
+        "@type": "Person",
+        "@id": "https://github.com/huanglizhuo",
+        "name": "huanglizhuo",
+        "url": "https://github.com/huanglizhuo"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://octocounts.com/#organization",
+        "name": "OctoCounts",
+        "url": "https://octocounts.com/"
+      },
+      "mainEntityOfPage": "https://octocounts.com/docs/github-action",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", ".answer"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://octocounts.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "https://octocounts.com/docs" },
+        { "@type": "ListItem", "position": 3, "name": "GitHub Action", "item": "https://octocounts.com/docs/github-action" }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is the OctoCounts GitHub Action free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. It calls the public OctoCounts API, which counts public GitHub repositories without an account or token. The API rate-limits how many analyses one IP address may start per minute; see the API docs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the action upload my code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The action sends the repository name and the two refs to the OctoCounts API, which downloads the source archives from GitHub and counts them with tokei. The workflow does not check out or upload the code for the count."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which refs does the action compare?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "By default the pull request's base SHA and head SHA. base-ref and head-ref accept any branch, tag, or SHA of the repository when the comparison should use other refs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I see the comment without posting it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Set comment: false and the action prints the Markdown it would have posted instead of writing to the pull request."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the action work on private repositories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. To measure a private repository inside CI, run tokei or cloc on the checked-out code instead."
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://github.com/huanglizhuo",
+      "name": "huanglizhuo",
+      "url": "https://github.com/huanglizhuo",
+      "sameAs": [
+        "https://github.com/huanglizhuo"
+      ],
+      "knowsAbout": [
+        "source lines of code",
+        "tokei",
+        "code metrics",
+        "developer tools"
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / GitHub Action</nav>
+    <main>
+      <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <h1>OctoCounts GitHub Action: comment SLOC changes on pull requests</h1>
+      <p class="answer">The OctoCounts GitHub Action comments on a pull request with the change in source lines of code between the base and head refs: files, total lines, code lines, comment lines and blank lines before and after, with a link to the full OctoCounts report. It runs on pull_request events, counts both refs under the same rules, and needs only the token GitHub already provides to the workflow. The repository is never cloned by the action itself; the OctoCounts API counts both refs.</p>
+      <h2>How do I add an SLOC diff comment to pull requests?</h2>
+      <p>Add the action to a workflow that runs on pull requests. It needs permission to write pull-request comments:</p>
+      <pre><code>name: SLOC diff
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sloc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: huanglizhuo/octocounts-sloc-diff-action@v1
+        with:
+          github-token: ${{ github.token }}</code></pre>
+      <p>The action is listed on GitHub Marketplace as OctoCounts SLOC Diff. The OctoCounts repository keeps the development copy under <code>action/</code>.</p>
+      <h2>Inputs</h2>
+      <table>
+        <thead>
+          <tr><th>Input</th><th>Default</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>github-token</code></td><td><code>${{ github.token }}</code></td><td>Required. Token used to create or update the pull-request comment.</td></tr>
+          <tr><td><code>repo</code></td><td>The current repository</td><td>The repository to analyze, in <code>owner/name</code> form.</td></tr>
+          <tr><td><code>base-ref</code></td><td><code>pull_request.base.sha</code></td><td>Base ref, which may be a branch, tag, or SHA.</td></tr>
+          <tr><td><code>head-ref</code></td><td><code>pull_request.head.sha</code></td><td>Head ref, which may be a branch, tag, or SHA.</td></tr>
+          <tr><td><code>api-base</code></td><td><code>https://api.octocounts.com</code></td><td>OctoCounts API base URL.</td></tr>
+          <tr><td><code>comment</code></td><td><code>true</code></td><td>Whether to create or update the pull-request comment. Set <code>false</code> to print the Markdown without posting it.</td></tr>
+          <tr><td><code>respect-gitattributes</code></td><td><code>false</code></td><td>Apply repository linguist-generated and linguist-vendored declarations to both refs.</td></tr>
+        </tbody>
+      </table>
+      <h2>What the comment reports</h2>
+      <p>The comment states the net change in counted size between the base and head refs and links to the full OctoCounts report. Both refs are counted with the same canonical options; the comment says whether the effective policies match and links both saved results. The delta is a net size change between two counted trees, not the number of lines Git lists as added or deleted.</p>
+      <p>Set <code>respect-gitattributes: true</code> to exclude repository-declared generated and vendored files from both counts. It is off by default.</p>
+      <h2>How the action handles failures</h2>
+      <p>Each analysis has a five-minute total deadline with bounded safe retries and long-polling. A failure keeps the job ID so the analysis can be recovered. GitHub comment writes have a 30-second request timeout and are never replayed automatically, so a write whose outcome is unknown is not repeated. Saved report IDs stay subject to cache retention.</p>
+      <h2>Requirements and scope</h2>
+      <p>The action works on public GitHub repositories; private repositories and source uploads are not supported, and no OctoCounts account is needed. The workflow needs the <code>pull-requests: write</code> permission to post the comment. Counting follows the rules on the <a href="/docs/methodology">methodology page</a>, and the underlying endpoints are described in the <a href="/docs/api">API docs</a>.</p>
+      <h2>GitHub Action FAQ</h2>
+      <h3>Is the OctoCounts GitHub Action free?</h3>
+      <p>Yes. It calls the public OctoCounts API, which counts public GitHub repositories without an account or token. The API rate-limits how many analyses one IP address may start per minute; see the API docs.</p>
+      <h3>Does the action upload my code?</h3>
+      <p>No. The action sends the repository name and the two refs to the OctoCounts API, which downloads the source archives from GitHub and counts them with tokei. The workflow does not check out or upload the code for the count.</p>
+      <h3>Which refs does the action compare?</h3>
+      <p>By default the pull request&#x27;s base SHA and head SHA. base-ref and head-ref accept any branch, tag, or SHA of the repository when the comparison should use other refs.</p>
+      <h3>Can I see the comment without posting it?</h3>
+      <p>Yes. Set comment: false and the action prints the Markdown it would have posted instead of writing to the pull request.</p>
+      <h3>Does the action work on private repositories?</h3>
+      <p>No. OctoCounts analyzes public GitHub repositories only and does not accept source uploads. To measure a private repository inside CI, run tokei or cloc on the checked-out code instead.</p>
+      <nav aria-label="Related OctoCounts pages"><ul>
+        <li><a href="/docs/cli">OctoCounts CLI: count SLOC from a terminal</a></li>
+        <li><a href="/docs/mcp-server">MCP server for AI coding assistants</a></li>
+        <li><a href="/docs/api">OctoCounts API docs</a></li>
+        <li><a href="/docs/methodology">OctoCounts Methodology</a></li>
+        <li><a href="/docs">All OctoCounts guides</a></li>
+      </ul></nav>
+    </main>
+  </body>
+</html>

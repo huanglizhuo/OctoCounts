@@ -30,7 +30,7 @@ Every OctoCounts surface counts under one default scope: documentation, test and
 
 ## MCP Server
 
-OctoCounts publishes an MCP (Model Context Protocol) server so AI coding tools (Claude, Cursor, and any MCP client) can pull SLOC reports directly. The npm package is `octocounts-mcp`, and the server speaks MCP over stdio. It exposes two tools:
+OctoCounts publishes an MCP (Model Context Protocol) server so AI coding tools (Claude, Cursor, and any MCP client) can pull SLOC reports directly. Guide: https://octocounts.com/docs/mcp-server. The npm package is `octocounts-mcp`, and the server speaks MCP over stdio. It exposes two tools:
 
 - `analyze_repo`: count files, total lines, code lines, comment lines, blank lines, and per-language totals for a public GitHub repository.
 - `compare_repos`: compare two public GitHub repositories or refs.
@@ -54,7 +54,7 @@ The server calls the public OctoCounts API; the `OCTOCOUNTS_API_BASE` environmen
 
 ## CLI
 
-`octocounts` is an npm CLI that counts a public GitHub repository without cloning, powered by the OctoCounts API with tokei under the hood:
+`octocounts` is an npm CLI that counts a public GitHub repository without cloning, powered by the OctoCounts API with tokei under the hood. Guide: https://octocounts.com/docs/cli.
 
 ```sh
 npx octocounts vitejs/vite
@@ -66,7 +66,7 @@ Options: `--ref <ref>` (branch, tag, or commit SHA), `--json` (print the raw rep
 
 ## GitHub Action
 
-`huanglizhuo/octocounts-sloc-diff-action` (GitHub Marketplace) comments on pull requests with the SLOC change between the base and head refs, with a link to the full OctoCounts report:
+`huanglizhuo/octocounts-sloc-diff-action` (GitHub Marketplace) comments on pull requests with the SLOC change between the base and head refs, with a link to the full OctoCounts report. Guide: https://octocounts.com/docs/github-action.
 
 ```yaml
 - uses: huanglizhuo/octocounts-sloc-diff-action@v1
@@ -92,13 +92,17 @@ For private repositories, run tokei locally.
 
 - Home: https://octocounts.com/
 - Recent reports: https://octocounts.com/recent
-- Popular reports: https://octocounts.com/popular
+- Popular reports (most-starred public GitHub repositories, ranked by GitHub stars at each repository's last analysis): https://octocounts.com/popular
 - Daily GitHub Trending reports: https://octocounts.com/trending
-- Hall of Monoliths: https://octocounts.com/hall-of-monoliths
+- Hall of Monoliths (repositories whose largest language is a data format, and near-identical copies, are left out): https://octocounts.com/hall-of-monoliths
+- Language leaderboards (the largest public GitHub repositories grouped by primary programming language; a language needs ten repositories to have a page, a page lists up to 50): https://octocounts.com/languages
 - Public growth stats: https://octocounts.com/stats
 - Compare hub and interactive tool (compare two repositories, forks, branches, tags, or commits): https://octocounts.com/compare
 - Diff two refs of one repository: https://octocounts.com/diff
 - README badge builder: https://octocounts.com/badges
+- CLI guide (count a public GitHub repository from a terminal with npx octocounts): https://octocounts.com/docs/cli
+- GitHub Action guide (comment a pull request's SLOC change between base and head): https://octocounts.com/docs/github-action
+- MCP server guide (SLOC tools for AI coding assistants): https://octocounts.com/docs/mcp-server
 - Browser extension landing page: https://octocounts.com/extension
 - Curated comparisons (server-rendered "X vs Y" SLOC pages, e.g. React vs Vue): https://octocounts.com/compare/react-vs-vue
 - All guides (docs hub): https://octocounts.com/docs
@@ -123,6 +127,10 @@ For private repositories, run tokei locally.
 - Research (ten repositories, five configurations, archived full reports; separate historical pilot): https://octocounts.com/research
 - About: https://octocounts.com/about
 - Sitemap: https://octocounts.com/sitemap.xml
+
+## Report Sitemap Tiers
+
+The report sitemap is split in two. `sitemap-reports-core-N.xml` lists repositories that had at least 1,000 GitHub stars when OctoCounts last analyzed them; `sitemap-reports-tail-N.xml` lists every other report. The split gives search engines, and Search Console's per-sitemap reports, a set of repositories with plausible search demand. Star counts are snapshots, not live counts. `sitemap-languages.xml` lists the language hub and every leaderboard.
 
 ## Report URL Patterns
 
@@ -265,8 +273,11 @@ GET /api/seo/report?provider=github&owner=:owner&repo=:repo
 GET /api/seo/recent
 GET /api/seo/popular
 GET /api/seo/monoliths
-GET /api/seo/sitemap
+GET /api/seo/sitemap (accepts view=index|page|rotating, and tier=core|tail with view=page)
+GET /api/seo/languages
+GET /api/seo/language/:slug
 GET /og/github/:owner/:repo
+GET /og/compare?left=owner/repo&right=owner/repo
 GET /badge/:owner/:repo
 GET /badge/:owner/:repo/branch/:branch
 GET /badge/:owner/:repo/tag/:tag
