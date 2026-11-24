@@ -1,19 +1,13 @@
-use std::time::Duration;
-
 use axum::{
     extract::{ConnectInfo, Extension, Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
 use chrono::NaiveDate;
-use uuid::Uuid;
 
 use crate::{
     api::AppState,
-    coordinator::{job_is_finished, AnalysisCoordinator},
-    models::{
-        AnalysisSource, AnalyzeRequest, AnalyzeResponse, JobStatus, Report, RepositoryProvider,
-    },
+    models::{Report, ReportRefKind, RepositoryProvider},
     ratelimit::client_ip,
     repo_history::ensure_repo_history,
 };
@@ -121,7 +115,7 @@ pub async fn badge_branch(
         ),
         owner,
         repo,
-        Some(branch),
+        Some((branch, ReportRefKind::Tree)),
         false,
         params,
     )
@@ -143,7 +137,7 @@ pub async fn badge_tag(
         ),
         owner,
         repo,
-        Some(tag),
+        Some((tag, ReportRefKind::Tree)),
         true,
         params,
     )
@@ -165,7 +159,7 @@ pub async fn badge_commit(
         ),
         owner,
         repo,
-        Some(sha),
+        Some((sha, ReportRefKind::Commit)),
         true,
         params,
     )
@@ -198,10 +192,11 @@ async fn serve_badge(
     ip: Option<std::net::IpAddr>,
     owner: String,
     repo: String,
-    ref_name: Option<String>,
+    reference: Option<(String, ReportRefKind)>,
     is_immutable: bool,
     params: BadgeParams,
 ) -> Response {
+    let (ref_name, ref_kind) = reference.unzip();
     let generation = state.caches.generation();
     let cache = if is_immutable {
         "public, max-age=300, s-maxage=604800"
@@ -217,7 +212,7 @@ async fn serve_badge(
         &state.caches.badge_svg
     };
     let cache_key = format!(
-        "{generation}:{}",
+        "{generation}:{ref_kind:?}:{}",
         badge_cache_key(&owner, &repo, ref_name.as_deref(), &params)
     );
     if let Some(svg) = svg_cache.get(&cache_key).await {
@@ -228,58 +223,46 @@ async fn serve_badge(
         return limited;
     }
 
-    let request = AnalyzeRequest {
-        repo_url: format!("https://github.com/{}/{}", owner, repo),
-        ref_name,
-        force_refresh: false,
-        options: Default::default(),
-        source: AnalysisSource::Api,
-    };
-
-    // Only successful renders are memoized. Pending ("...") and error ("—")
-    // badges are transient states that must be re-checked on the next request,
-    // which is also why they keep their `no-cache, no-store` header.
-    let report = match state.coordinator.submit(request).await {
-        Ok(AnalyzeResponse::Cached { report, .. }) => report,
-        Ok(AnalyzeResponse::Job { job_id, .. }) => {
-            match wait_for_job(&state.coordinator, job_id, Duration::from_secs(30)).await {
-                Some(report) => report,
-                None => {
-                    return svg_response(render_pending_for_params(&params), "no-cache, no-store")
-                }
+    let store = state.coordinator.store();
+    let result = async {
+        let (owner, repo) = store
+            .redirect_target(RepositoryProvider::GitHub, &owner, &repo)
+            .await?
+            .unwrap_or((owner, repo));
+        let card = match ref_name {
+            Some(reference) => {
+                store
+                    .report_card_at_ref(
+                        RepositoryProvider::GitHub,
+                        &owner,
+                        &repo,
+                        &reference,
+                        ref_kind,
+                    )
+                    .await?
             }
+            None => {
+                store
+                    .latest_report_card(RepositoryProvider::GitHub, &owner, &repo)
+                    .await?
+            }
+        };
+        match card.and_then(|card| card.report_id) {
+            Some(id) => store.report(&id).await,
+            None => Ok(None),
         }
+    }
+    .await;
+    let report = match result {
+        Ok(Some(report)) => report,
+        Ok(None) => return svg_response(render_pending_for_params(&params), "no-cache, no-store"),
         Err(_) => return svg_response(render_error_for_params(&params), "no-cache, no-store"),
     };
-
     let svg = render_for_params(&report, &params);
     if generation == state.caches.generation() {
         svg_cache.insert(cache_key, svg.clone()).await;
     }
     svg_response(svg, cache)
-}
-
-/// Blocks the badge request until its analysis finishes, or gives up and lets
-/// the caller render the pending badge.
-///
-/// The wait is event-driven: the first status check is immediate (an already
-/// finished job used to cost a mandatory 500ms sleep) and the job's own worker
-/// wakes this task the instant it commits a result, instead of this task
-/// rediscovering it on the next 500ms database poll.
-async fn wait_for_job(
-    coordinator: &AnalysisCoordinator,
-    job_id: Uuid,
-    timeout: Duration,
-) -> Option<Report> {
-    let job = coordinator
-        .await_job(job_id, timeout, |job| job_is_finished(job.status))
-        .await
-        .ok()??;
-    if job.status != JobStatus::Completed {
-        return None;
-    }
-    let report_id = job.report_id?;
-    coordinator.store().report(&report_id).await.ok().flatten()
 }
 
 fn svg_response(body: String, cache_control: &'static str) -> Response {
@@ -655,8 +638,7 @@ fn single_badge_svg(label: &str, value: &str, color: &str) -> String {
 /// that needs to *be* an image has to be built server-side.
 ///
 /// Shares its data path with the JSON endpoint at `repo_history::repo_history`
-/// via `ensure_repo_history` — the first request for a repo from either
-/// endpoint triggers the same one-time watch/backfill. Only the star series
+/// via `ensure_repo_history` to read history and register the Star watch. Only the star series
 /// is rendered here; the SLOC series has no SVG badge (it lives on the
 /// interactive report-page chart only).
 pub async fn star_history_badge(

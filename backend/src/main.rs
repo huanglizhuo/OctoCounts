@@ -2,6 +2,7 @@ mod analyzer;
 mod api;
 mod attributes;
 mod badge;
+mod bandwidth;
 mod cache;
 mod config;
 mod coordinator;
@@ -118,7 +119,8 @@ async fn main() -> anyhow::Result<()> {
             config.analysis_concurrency,
             indexnow,
             metrics.clone(),
-        ),
+        )
+        .with_policy(crate::bandwidth::Policy::from_env()?),
         caches: AppCaches::new(),
         metrics,
         rate_limits: RateLimits::new(),

@@ -335,6 +335,7 @@ pub struct GrowthRepositoryStat {
 
 #[derive(Debug, Clone)]
 pub struct RepoRef {
+    pub default_head: bool,
     pub provider: RepositoryProvider,
     pub owner: String,
     pub repo: String,

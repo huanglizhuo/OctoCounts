@@ -76,7 +76,7 @@ const SLOC_SAMPLE_LANGUAGE_CAP: usize = 40;
 /// code descending, capped at [`SLOC_SAMPLE_LANGUAGE_CAP`] entries — the
 /// top-N is what a language-evolution chart needs, and the cap keeps a
 /// stored sample's row small. `None` when the analysis saw no code at all.
-fn sloc_sample_languages(report: &Report) -> Option<SlocLanguages> {
+pub(crate) fn sloc_sample_languages(report: &Report) -> Option<SlocLanguages> {
     let mut languages: Vec<(&str, i64)> = report
         .languages
         .iter()
@@ -185,28 +185,11 @@ pub(crate) async fn ensure_repo_history(
     }
     let star_history = store.star_history(provider, owner, repo).await?;
 
-    // SLOC backfill has no access restriction, but is only implemented for
-    // GitHub so far (commit-listing and archive download both go through
-    // `GitHubClient`'s GitHub-specific paths).
-    if matches!(provider, RepositoryProvider::GitHub)
-        && store
-            .start_sloc_backfill_if_needed(provider, owner, repo, state.sloc_backfill_reclaim_after)
-            .await?
-    {
-        spawn_sloc_backfill(
-            state.clone(),
-            provider,
-            owner.to_string(),
-            repo.to_string(),
-            state.sloc_history_max_points,
-            state.sloc_backfill_wall_clock,
-        );
-    }
-
     let sloc_history = store.sloc_history(provider, owner, repo).await?;
-    let sloc_backfill_in_progress = store
-        .sloc_backfill_in_progress(provider, owner, repo)
-        .await?;
+    let sloc_backfill_in_progress = state.coordinator.history_enabled("backfill", owner, repo)
+        && store
+            .sloc_backfill_in_progress(provider, owner, repo)
+            .await?;
 
     let star_backfilled = store
         .star_history_is_backfilled(provider, owner, repo)
@@ -325,30 +308,6 @@ pub async fn repo_history(
             .await;
     }
 
-    // A series with suspect points triggers a bounded, cooldown-guarded
-    // re-sample of the offending commits. Not while the SLOC backfill is
-    // still running — the backfill may still be about to overwrite those
-    // rows, and the response above is deliberately uncached in that state.
-    // The trigger itself only spawns; the request path never waits on the
-    // re-analysis.
-    if !sloc_backfill_in_progress && !suspect_indices.is_empty() {
-        let samples: Vec<(NaiveDate, String)> = suspect_indices
-            .iter()
-            .filter_map(|&index| {
-                sloc_history
-                    .get(index)
-                    .map(|(date, _, commit_sha, _)| (*date, commit_sha.clone()))
-            })
-            .take(SLOC_RESAMPLE_MAX_POINTS)
-            .collect();
-        spawn_sloc_resample(
-            state.clone(),
-            query.owner.clone(),
-            query.repo.clone(),
-            samples,
-        );
-    }
-
     Ok((repo_history_cache_headers(), Json(response)))
 }
 
@@ -461,7 +420,7 @@ async fn resample_sloc_point(
         options: Default::default(),
         source: AnalysisSource::SlocBackfill,
     };
-    let report = match state.coordinator.submit(request).await {
+    let report = match state.coordinator.submit_history(request, "repair").await {
         Ok(AnalyzeResponse::Cached { report, .. }) => report,
         Ok(AnalyzeResponse::Job { job_id, .. }) => {
             let job = state
@@ -630,7 +589,7 @@ async fn run_sloc_backfill(
             source: AnalysisSource::SlocBackfill,
         };
 
-        let report = match state.coordinator.submit(request).await {
+        let report = match state.coordinator.submit_history(request, "backfill").await {
             Ok(AnalyzeResponse::Cached { report, .. }) => report,
             Ok(AnalyzeResponse::Job { job_id, .. }) => {
                 let job = match state
@@ -708,7 +667,7 @@ async fn run_sloc_backfill(
     Ok(resolvable == 0 || recorded > 0)
 }
 
-/// Keeps a completed repo's SLOC curve fresh: resolves the default branch's
+/// Keeps an explicitly tracked repo's SLOC curve fresh: resolves the default branch's
 /// current HEAD and, only when it differs from the newest recorded snapshot's
 /// commit, runs one analysis and records today's point. The SHA gate bounds
 /// the task's cost to repos that actually received commits — an unchanged
@@ -758,9 +717,13 @@ pub(crate) async fn run_sloc_forward_sample(
         options: Default::default(),
         source: AnalysisSource::SlocBackfill,
     };
-    let total_lines = match state.coordinator.submit(request).await.map_err(|error| {
-        anyhow::anyhow!("forward sample submit failed: {}", error.body().message)
-    })? {
+    let total_lines = match state
+        .coordinator
+        .submit_history(request, "forward")
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!("forward sample submit failed: {}", error.body().message)
+        })? {
         AnalyzeResponse::Cached { report, .. } => report.total.code as i64,
         AnalyzeResponse::Job { job_id, .. } => {
             let job = state
@@ -802,12 +765,12 @@ pub(crate) async fn run_sloc_forward_sample(
     Ok(())
 }
 
-/// The SLOC counterpart of `main.rs`'s star snapshot task: once per
-/// `interval_seconds` for the whole cluster (`Store::run_if_due`), walks every
-/// repo whose backfill completed and refreshes today's point when the repo has
-/// moved. Without it the recorded series freezes on the day of the first view
-/// — the exact bug that motivated the adaptive-sampling redesign.
+/// Runs only the archive tasks explicitly configured for individual repositories.
 pub(crate) fn spawn_sloc_forward_task(state: AppState, interval_seconds: u64) {
+    let tracked = state.coordinator.tracked_repos().to_vec();
+    if tracked.is_empty() {
+        return;
+    }
     tokio::spawn(async move {
         let store = state.coordinator.store().clone();
         let every = Duration::from_secs(interval_seconds);
@@ -816,12 +779,26 @@ pub(crate) fn spawn_sloc_forward_task(state: AppState, interval_seconds: u64) {
             let ran = store
                 .run_if_due("sloc-forward", every, || async {
                     let mut updated = 0u64;
-                    for (provider, owner, repo) in store.watched_sloc_repos().await? {
-                        match run_sloc_forward_sample(&state, provider, &owner, &repo).await {
-                            Ok(()) => updated += 1,
-                            Err(error) => {
-                                tracing::warn!(%error, %owner, %repo, "sloc forward sample failed")
+                    for (kind, owner, repo) in &tracked {
+                        let provider = RepositoryProvider::GitHub;
+                        match kind.as_str() {
+                            "forward" => match run_sloc_forward_sample(&state, provider, owner, repo).await {
+                                Ok(()) => updated += 1,
+                                Err(error) => tracing::warn!(%error, %owner, %repo, "forward sample failed"),
+                            },
+                            "backfill" => {
+                                if store.start_sloc_backfill_if_needed(provider, owner, repo, state.sloc_backfill_reclaim_after).await? {
+                                    spawn_sloc_backfill(state.clone(), provider, owner.clone(), repo.clone(), state.sloc_history_max_points, state.sloc_backfill_wall_clock);
+                                }
                             }
+                            "repair" => {
+                                let history = store.sloc_history(provider, owner, repo).await?;
+                                let lines = history.iter().map(|point| point.1).collect::<Vec<_>>();
+                                let samples: Vec<_> = suspect_sloc_indices(&lines).into_iter().take(SLOC_RESAMPLE_MAX_POINTS)
+                                    .map(|i| (history[i].0, history[i].2.clone())).collect();
+                                if !samples.is_empty() { spawn_sloc_resample(state.clone(), owner.clone(), repo.clone(), samples); }
+                            }
+                            _ => unreachable!("validated on startup"),
                         }
                     }
                     tracing::info!(updated, "sloc forward sampling pass completed");

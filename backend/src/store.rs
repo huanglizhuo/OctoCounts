@@ -2137,13 +2137,44 @@ impl Store {
         source: &str,
         languages: Option<std::collections::BTreeMap<String, i64>>,
     ) -> anyhow::Result<()> {
+        self.write_sloc_snapshot(
+            provider,
+            owner,
+            repo,
+            date,
+            total_lines,
+            commit_sha,
+            source,
+            languages,
+            None,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn write_sloc_snapshot(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+        date: NaiveDate,
+        total_lines: i64,
+        commit_sha: &str,
+        source: &str,
+        languages: Option<std::collections::BTreeMap<String, i64>>,
+        observed_branch: Option<&str>,
+    ) -> anyhow::Result<()> {
         let languages_json = languages
             .map(|languages| serde_json::to_string(&languages))
             .transpose()?;
         sqlx::query(
             r#"
             INSERT INTO sloc_snapshots (provider, owner, repo, snapshot_date, total_lines, commit_sha, source, languages)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8
+            WHERE $9::text IS NULL OR EXISTS (
+                SELECT 1 FROM repository_refs WHERE provider = $1 AND owner = lower($2)
+                  AND repo = lower($3) AND ref_name = $9 AND commit_sha = $6 FOR SHARE
+            )
             ON CONFLICT (provider, owner, repo, snapshot_date)
             DO UPDATE SET
                 total_lines = EXCLUDED.total_lines,
@@ -2161,6 +2192,7 @@ impl Store {
         .bind(commit_sha)
         .bind(source)
         .bind(languages_json)
+        .bind(observed_branch)
         .execute(&self.pool)
         .await?;
 
@@ -2251,6 +2283,7 @@ impl Store {
     /// Repos whose SLOC backfill has completed at least once — the forward
     /// sampler's work list. Repos still mid-backfill are excluded on purpose:
     /// their freshness is the backfill's job until it finishes.
+    #[cfg(test)]
     pub async fn watched_sloc_repos(
         &self,
     ) -> anyhow::Result<Vec<(RepositoryProvider, String, String)>> {

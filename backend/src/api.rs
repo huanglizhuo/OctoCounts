@@ -45,10 +45,18 @@ pub struct AppState {
     pub github_extension_oauth_client_secret: Option<String>,
 }
 
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeQuery {
+    #[serde(default)]
+    cache_only: bool,
+}
+
 pub async fn analyze(
     State(state): State<AppState>,
     connect_info: Option<Extension<ConnectInfo<std::net::SocketAddr>>>,
     headers: HeaderMap,
+    Query(query): Query<AnalyzeQuery>,
     Json(request): Json<AnalyzeRequest>,
 ) -> Result<Json<AnalyzeResponse>, ApiError> {
     // Per-IP token buckets. `connect_info` is absent only in tests driving the
@@ -60,15 +68,18 @@ pub async fn analyze(
         if let Err(seconds) = state.rate_limits.analyze.check(&ip) {
             return Err(ApiError::rate_limited(seconds));
         }
-        // `force_refresh` pays for a full archive download and bypasses the
-        // report cache, so it draws from a much smaller quota of its own.
+        // Forced ref lookups bypass the GitHub metadata cache.
         if request.force_refresh {
             if let Err(seconds) = state.rate_limits.force_refresh.check(&ip) {
                 return Err(ApiError::rate_limited(seconds));
             }
         }
     }
-    state.coordinator.submit(request).await.map(Json)
+    state
+        .coordinator
+        .submit(request, query.cache_only)
+        .await
+        .map(Json)
 }
 
 /// The longest `?wait=` this endpoint honours. Comfortably under the idle

@@ -21,12 +21,13 @@ export async function analyzeRepository(request: {
   repoUrl: string;
   refName: string;
   forceRefresh: boolean;
+  cacheOnly?: boolean;
   options?: AnalysisOptions;
   source?: AnalysisSource;
   signal?: AbortSignal;
   onRetry?: (waitMs: number) => void;
 }): Promise<AnalyzeResponse> {
-  return fetchJson<AnalyzeResponse>("/api/analyze", {
+  return fetchJson<AnalyzeResponse>(request.cacheOnly ? "/api/analyze?cacheOnly=true" : "/api/analyze", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

@@ -117,7 +117,7 @@ export function useAnalysisRunner({
 
   useEffect(() => () => { activeController.current?.abort(); clearDeadline(deadlineTimer); }, []);
 
-  const runAnalysis = async (forceRefresh: boolean, overrides?: { repoUrl?: string; refName?: string; reportId?: string }) => {
+  const runAnalysis = async (forceRefresh: boolean, overrides?: { repoUrl?: string; refName?: string; reportId?: string; cacheOnly?: boolean }) => {
     const operation = operationRef.current + 1;
     operationRef.current = operation;
     activeController.current?.abort();
@@ -164,7 +164,7 @@ export function useAnalysisRunner({
     try {
       const result = overrides?.reportId
         ? { kind: "cached" as const, reportId: overrides.reportId, report: await fetchJson<Report>(`/api/reports/${encodeURIComponent(overrides.reportId)}`, { signal: controller.signal }) }
-        : await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, options: analysisOptions, signal: controller.signal, onRetry: (waitMs) => { if (operation === operationRef.current) setWaitingMessage(i18n.t("error.retryAfter", { seconds: Math.ceil(waitMs / 1000) })); } });
+        : await analyzeRepository({ repoUrl: effectiveRepoUrl, refName: effectiveRefName, forceRefresh, cacheOnly: overrides?.cacheOnly, options: analysisOptions, signal: controller.signal, onRetry: (waitMs) => { if (operation === operationRef.current) setWaitingMessage(i18n.t("error.retryAfter", { seconds: Math.ceil(waitMs / 1000) })); } });
       if (operation !== operationRef.current) return;
       if (result.kind === "cached") {
         clearDeadline(deadlineTimer);
@@ -185,6 +185,7 @@ export function useAnalysisRunner({
     } catch (err) {
       if (operation !== operationRef.current || (err instanceof DOMException && err.name === "AbortError")) return;
       clearDeadline(deadlineTimer);
+      if (overrides?.cacheOnly && err instanceof ApiRequestError && err.status === 404) return;
       setError(overrides?.reportId && err instanceof ApiRequestError && err.status === 404
         ? { code: "snapshot_unavailable", message: i18n.t("error.snapshotUnavailable") }
         : toAnalysisError(err));

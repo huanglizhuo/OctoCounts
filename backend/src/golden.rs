@@ -705,6 +705,7 @@ async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
         .await
         .unwrap();
     let mut reference = crate::models::RepoRef {
+        default_head: false,
         provider: RepositoryProvider::GitHub,
         owner: "octo".into(),
         repo: "aliases".into(),
@@ -720,7 +721,7 @@ async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
             reference.clone(),
             options.clone(),
             AnalysisSource::Web,
-            false,
+            "interactive",
         )
         .await
         .unwrap_or_else(|error| panic!("{}", error.body().message));
@@ -750,6 +751,35 @@ async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
     .unwrap();
     assert_eq!(count, 1, "an alias does not create another report");
 
+    // A cached canonical HEAD supplies today's point; browsing or a named tag cannot.
+    assert!(harness
+        .store
+        .sloc_history(reference.provider, "octo", "aliases")
+        .await
+        .unwrap()
+        .is_empty());
+    reference.default_head = true;
+    reference.ref_name = "main".into();
+    for kind in ["lookup", "interactive", "interactive"] {
+        harness
+            .coordinator
+            .submit_resolved(
+                reference.clone(),
+                options.clone(),
+                AnalysisSource::Web,
+                kind,
+            )
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.body().message));
+        let points = harness
+            .store
+            .sloc_history(reference.provider, "octo", "aliases")
+            .await
+            .unwrap();
+        assert_eq!(points.len(), usize::from(kind == "interactive"));
+    }
+    reference.default_head = false;
+
     // Two resolved names join the same pre-existing active commit job.
     reference.commit_sha = "2222222222222222222222222222222222222222".into();
     let (job, _) = harness
@@ -772,7 +802,7 @@ async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
                 reference.clone(),
                 options.clone(),
                 AnalysisSource::Web,
-                false,
+                "interactive",
             )
             .await
             .unwrap_or_else(|error| panic!("{}", error.body().message));
@@ -835,7 +865,7 @@ async fn seo_named_aliases_survive_cache_hits_active_jobs_and_renames() {
     reference.repo = "renamed-aliases".into();
     let result = harness
         .coordinator
-        .submit_resolved(reference, options, AnalysisSource::Web, false)
+        .submit_resolved(reference, options, AnalysisSource::Web, "interactive")
         .await
         .unwrap_or_else(|error| panic!("{}", error.body().message));
     assert!(matches!(

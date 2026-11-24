@@ -121,7 +121,7 @@ function _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLa
       renderIdle(root, () => {
         teardownCardHost(host);
         _analyzing = true;
-        _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: false, cardTitle, gen });
+        _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: true, cardTitle, gen });
       }, cardTitle);
     }
     return true;
@@ -149,13 +149,17 @@ function _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLa
       },
       onError: (error) => {
         if (_generation !== gen) return;
+        if (error.code === 'analysis_required') {
+          renderIdle(root, () => { renderLoading(root, ctx); runAnalysis(true); }, cardTitle);
+          return;
+        }
         _disabled = true;
         saveError(error, owner, repo);
         renderError(root, error, ctx, () => {
           if (_generation !== gen) return;
           _disabled = false;
           renderLoading(root, ctx, 'analyzing');
-          runAnalysis(false);
+          runAnalysis(true);
         });
       },
     });
@@ -167,7 +171,7 @@ function _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLa
   } else {
     renderIdle(root, () => {
       renderLoading(root, ctx);
-      runAnalysis(false);
+      runAnalysis(true);
     }, cardTitle);
   }
 
@@ -188,7 +192,7 @@ function _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLa
       if (_generation !== gen) return;
       _analyzing = false;
       _disabled = true;
-      saveError(error, owner, repo);
+      if (error.code !== 'analysis_required') saveError(error, owner, repo);
     },
   });
 }

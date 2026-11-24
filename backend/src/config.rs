@@ -38,11 +38,7 @@ pub struct Config {
     /// view may re-claim it. Clamped to exceed the wall-clock budget so a
     /// legitimately running backfill is never double-claimed mid-flight.
     pub sloc_backfill_reclaim_after_seconds: u64,
-    /// How often the SLOC forward-sampling task refreshes today's point for
-    /// every repo whose backfill completed. Each pass costs one cheap ref
-    /// resolution per repo, plus one analysis only for repos whose HEAD
-    /// commit actually moved (SHA gate). Without it the recorded series
-    /// freezes on the day of the first view.
+    /// Interval between passes over the explicit history sampling list.
     pub sloc_forward_interval_seconds: u64,
     /// How often the SLOC compaction task soft-deletes aged snapshot points
     /// (weekly buckets inside a year, monthly beyond; first/last/min/max per

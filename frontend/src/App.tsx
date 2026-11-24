@@ -432,7 +432,7 @@ export function App() {
       // auto-run: it would clear the seed, flash the runner, and re-download
       // what the page already has. Force refresh is still available by hand.
       if (ssrSeed && !initialRequest.analysisOptions && !initialRequest.reportId) return;
-      void runAnalysis(false, initialRequest.reportId ? { reportId: initialRequest.reportId } : undefined);
+      void runAnalysis(false, initialRequest.reportId ? { reportId: initialRequest.reportId } : { cacheOnly: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -149,6 +149,7 @@ pub struct AnalysisCoordinator {
     semaphore: Arc<Semaphore>,
     admission: Arc<Semaphore>,
     indexnow: Option<IndexNowService>,
+    policy: Arc<crate::bandwidth::Policy>,
     events: Arc<JobEvents>,
     metrics: Arc<Metrics>,
 }
@@ -167,6 +168,7 @@ impl AnalysisCoordinator {
             semaphore: Arc::new(Semaphore::new(concurrency)),
             admission: Arc::new(Semaphore::new(concurrency + MAX_QUEUED_ANALYSES)),
             indexnow,
+            policy: Default::default(),
             events: Arc::new(JobEvents::default()),
             metrics,
         }
@@ -274,15 +276,96 @@ impl AnalysisCoordinator {
         self.events.publish(job_id);
     }
 
-    pub async fn submit(&self, request: AnalyzeRequest) -> Result<AnalyzeResponse, ApiError> {
-        let options = request.options.clone();
-        let source = request.source;
+    pub async fn submit(
+        &self,
+        request: AnalyzeRequest,
+        cache_only: bool,
+    ) -> Result<AnalyzeResponse, ApiError> {
+        // Historical provenance is assigned only by internal callers.
+        let mut request = request;
+        if request.source == AnalysisSource::SlocBackfill {
+            request.source = AnalysisSource::Api;
+        }
+        let kind = match request.source {
+            _ if cache_only => "lookup",
+            AnalysisSource::Seed | AnalysisSource::GitHubTrending => "seed",
+            AnalysisSource::Extension if !request.force_refresh => "lookup",
+            _ => "interactive",
+        };
+        if kind == "lookup" && request.options == crate::models::AnalysisOptions::canonical() {
+            let (owner, repo) =
+                GitHubClient::parse_repo_owner_name(&request.repo_url).map_err(ApiError::from)?;
+            let provider = crate::models::RepositoryProvider::GitHub;
+            let (owner, repo) = self
+                .store
+                .redirect_target(provider, &owner, &repo)
+                .await
+                .map_err(ApiError::internal)?
+                .unwrap_or((owner, repo));
+            let card = match request.ref_name.as_deref().filter(|s| !s.trim().is_empty()) {
+                Some(reference) => {
+                    self.store
+                        .report_card_at_ref(provider, &owner, &repo, reference, None)
+                        .await
+                }
+                None => self.store.latest_report_card(provider, &owner, &repo).await,
+            }
+            .map_err(ApiError::internal)?;
+            if let Some(id) = card.and_then(|card| card.report_id) {
+                if let Some(mut report) =
+                    self.store.report(&id).await.map_err(ApiError::internal)?
+                {
+                    report.cached = true;
+                    return Ok(AnalyzeResponse::Cached {
+                        report_id: id,
+                        report,
+                    });
+                }
+            }
+            return Err(Self::lookup_miss());
+        }
+        self.resolve_and_submit(request, kind).await
+    }
+
+    fn lookup_miss() -> ApiError {
+        ApiError::not_found(
+            "analysis_required",
+            "No cached analysis for this revision. Run an analysis on OctoCounts.",
+        )
+    }
+
+    pub fn with_policy(mut self, policy: crate::bandwidth::Policy) -> Self {
+        self.policy = Arc::new(policy);
+        self
+    }
+    pub fn tracked_repos(&self) -> &[(String, String, String)] {
+        &self.policy.tracked
+    }
+    pub fn history_enabled(&self, kind: &str, owner: &str, repo: &str) -> bool {
+        self.tracked_repos().iter().any(|(k, o, r)| {
+            k == kind && o.eq_ignore_ascii_case(owner) && r.eq_ignore_ascii_case(repo)
+        })
+    }
+
+    pub async fn submit_history(
+        &self,
+        request: AnalyzeRequest,
+        kind: &'static str,
+    ) -> Result<AnalyzeResponse, ApiError> {
+        self.resolve_and_submit(request, kind).await
+    }
+
+    async fn resolve_and_submit(
+        &self,
+        request: AnalyzeRequest,
+        kind: &'static str,
+    ) -> Result<AnalyzeResponse, ApiError> {
         let repo_ref = self
             .github
             .resolve_ref(&request.repo_url, request.ref_name, request.force_refresh)
             .await
             .map_err(ApiError::from)?;
-        self.submit_resolved(repo_ref, options, source, request.force_refresh)
+        self.submit_resolved(repo_ref, request.options, request.source, kind)
             .await
     }
 
@@ -291,7 +374,7 @@ impl AnalysisCoordinator {
         repo_ref: RepoRef,
         options: crate::models::AnalysisOptions,
         source: AnalysisSource,
-        force_refresh: bool,
+        kind: &'static str,
     ) -> Result<AnalyzeResponse, ApiError> {
         let analysis_key = analyzer::analysis_key(&options);
         // Rename-follow. The resolution filed the repository under the API's
@@ -342,7 +425,7 @@ impl AnalysisCoordinator {
             tracing::warn!(%error, "could not record resolved repository ref");
         }
 
-        if !force_refresh {
+        if kind != "repair" {
             if let Some(report) = self
                 .store
                 .cached_report_for_provider(
@@ -356,6 +439,12 @@ impl AnalysisCoordinator {
                 .map_err(ApiError::internal)?
             {
                 self.metrics.record_cache_hit();
+                if kind == "interactive"
+                    && repo_ref.default_head
+                    && options == crate::models::AnalysisOptions::canonical()
+                {
+                    self.record_observation(&report, &repo_ref.ref_name).await;
+                }
                 return Ok(AnalyzeResponse::Cached {
                     report_id: report.id.clone(),
                     report,
@@ -364,6 +453,9 @@ impl AnalysisCoordinator {
             self.metrics.record_cache_miss();
         }
 
+        if kind == "lookup" {
+            return Err(Self::lookup_miss());
+        }
         let key = JobKey {
             provider: repo_ref.provider,
             owner: &repo_ref.owner,
@@ -396,7 +488,14 @@ impl AnalysisCoordinator {
             .await
             .map_err(ApiError::internal)?;
         if created {
-            self.spawn_analysis_job(job.id, repo_ref, options, analysis_key, source, admission);
+            self.spawn_analysis_job(
+                job.id,
+                repo_ref,
+                options,
+                analysis_key,
+                (source, kind),
+                admission,
+            );
         }
 
         Ok(AnalyzeResponse::Job {
@@ -411,7 +510,7 @@ impl AnalysisCoordinator {
         repo_ref: RepoRef,
         options: crate::models::AnalysisOptions,
         analysis_key: String,
-        source: AnalysisSource,
+        work: (AnalysisSource, &'static str),
         admission: OwnedSemaphorePermit,
     ) {
         let coordinator = self.clone();
@@ -430,7 +529,7 @@ impl AnalysisCoordinator {
                 }
             };
             tokio::select! {
-                () = coordinator.run_analysis_job(job_id, repo_ref, options, analysis_key, source) => {}
+                () = coordinator.run_analysis_job(job_id, repo_ref, options, analysis_key, work) => {}
                 _ = heartbeat => {}
             }
         });
@@ -442,8 +541,9 @@ impl AnalysisCoordinator {
         repo_ref: RepoRef,
         options: crate::models::AnalysisOptions,
         analysis_key: String,
-        source: AnalysisSource,
+        work: (AnalysisSource, &'static str),
     ) {
+        let (source, kind) = work;
         let Ok(_permit) = self.semaphore.acquire().await else {
             self.set_job_failed(job_id, "internal", "analysis worker is unavailable")
                 .await;
@@ -452,6 +552,33 @@ impl AnalysisCoordinator {
 
         self.set_job_running(job_id).await;
 
+        if source == AnalysisSource::SlocBackfill
+            && !self.history_enabled(kind, &repo_ref.owner, &repo_ref.repo)
+        {
+            self.set_job_failed(
+                job_id,
+                "sampling_paused",
+                "Automatic history sampling is paused",
+            )
+            .await;
+            return;
+        }
+        let observed = kind == "interactive"
+            && repo_ref.default_head
+            && options == crate::models::AnalysisOptions::canonical();
+        let credit = match self.policy.reserve(kind) {
+            Ok(credit) => credit,
+            Err(error) => {
+                tracing::warn!(%error, %job_id, kind, "archive admission deferred");
+                self.set_job_failed(
+                    job_id,
+                    "bandwidth_budget",
+                    "Download budget unavailable; please try again later",
+                )
+                .await;
+                return;
+            }
+        };
         let archive = match self
             .github
             .archive_reader(
@@ -473,6 +600,15 @@ impl AnalysisCoordinator {
             }
         };
 
+        let denied = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let archive = match credit {
+            Some(credit) => Box::new(crate::bandwidth::MeteredReader {
+                archive,
+                credit,
+                denied: denied.clone(),
+            }) as Box<dyn std::io::Read + Send>,
+            None => archive,
+        };
         match analyzer::analyze(AnalysisInput {
             repo_ref,
             archive,
@@ -481,7 +617,17 @@ impl AnalysisCoordinator {
         })
         .await
         {
-            Ok(report) => complete_job(self, job_id, report, source).await,
+            Ok(report) => {
+                complete_job(self, job_id, report, source, observed).await;
+            }
+            Err(_) if denied.load(std::sync::atomic::Ordering::Relaxed) => {
+                self.set_job_failed(
+                    job_id,
+                    "bandwidth_budget",
+                    "Download budget unavailable; please try again later",
+                )
+                .await;
+            }
             // The size limit now trips mid-stream rather than after the
             // download, but it is the same user-facing failure, so it keeps
             // reporting through the same error code.
@@ -498,6 +644,26 @@ impl AnalysisCoordinator {
             }
         }
     }
+    async fn record_observation(&self, report: &crate::models::Report, branch: &str) {
+        let r = &report.repository;
+        if let Err(error) = self
+            .store
+            .write_sloc_snapshot(
+                r.provider,
+                &r.owner,
+                &r.name,
+                chrono::Utc::now().date_naive(),
+                report.total.code as i64,
+                &report.commit_sha,
+                "observed",
+                crate::repo_history::sloc_sample_languages(report),
+                Some(branch),
+            )
+            .await
+        {
+            tracing::warn!(%error, "could not record observed SLOC");
+        }
+    }
 }
 
 async fn complete_job(
@@ -505,6 +671,7 @@ async fn complete_job(
     job_id: Uuid,
     report: crate::models::Report,
     source: AnalysisSource,
+    observed: bool,
 ) {
     let report_id = report.id.clone();
     if let Err(error) = coordinator.store.save_report(&report, source).await {
@@ -513,6 +680,11 @@ async fn complete_job(
             .set_job_failed(job_id, "internal", "failed to save report")
             .await;
         return;
+    }
+    if observed {
+        coordinator
+            .record_observation(&report, &report.ref_name)
+            .await;
     }
     // Use the public query's canonical-options/history eligibility before notifying crawlers.
     if let Some(indexnow) = &coordinator.indexnow {
@@ -631,6 +803,7 @@ mod tests {
         let options = AnalysisOptions::default();
         let analysis_key = analyzer::analysis_key(&options);
         let reference = RepoRef {
+            default_head: false,
             provider: RepositoryProvider::GitHub,
             owner: "octo".into(),
             repo: "cached".into(),
@@ -674,7 +847,7 @@ mod tests {
             let options = options.clone();
             async move {
                 let result = coordinator
-                    .submit_resolved(repo.clone(), options, AnalysisSource::Web, false)
+                    .submit_resolved(repo.clone(), options, AnalysisSource::Web, "interactive")
                     .await;
                 (repo, result)
             }
@@ -708,11 +881,21 @@ mod tests {
         assert_eq!(coordinator.admission.available_permits(), 0);
         let (repo, job_id) = &accepted[0];
         let reused = coordinator
-            .submit_resolved(repo.clone(), options.clone(), AnalysisSource::Web, true)
+            .submit_resolved(
+                repo.clone(),
+                options.clone(),
+                AnalysisSource::Web,
+                "interactive",
+            )
             .await;
         assert!(matches!(reused, Ok(AnalyzeResponse::Job { job_id: id, .. }) if id == *job_id));
         let cached = coordinator
-            .submit_resolved(reference, options.clone(), AnalysisSource::Web, false)
+            .submit_resolved(
+                reference,
+                options.clone(),
+                AnalysisSource::Web,
+                "interactive",
+            )
             .await;
         assert!(matches!(cached, Ok(AnalyzeResponse::Cached { .. })));
 
@@ -737,7 +920,12 @@ mod tests {
         .unwrap();
         // A released slot accepts new work again; no stale queue entry remains.
         let retry = coordinator
-            .submit_resolved(accepted[0].0.clone(), options, AnalysisSource::Web, true)
+            .submit_resolved(
+                accepted[0].0.clone(),
+                options,
+                AnalysisSource::Web,
+                "interactive",
+            )
             .await;
         let Ok(AnalyzeResponse::Job { job_id, .. }) = retry else {
             panic!("capacity was not released");

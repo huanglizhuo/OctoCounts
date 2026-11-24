@@ -232,6 +232,7 @@ struct GraphQlError {
 #[derive(Debug, PartialEq, Eq)]
 enum GraphQlOutcome {
     Resolved {
+        default_head: bool,
         /// The repository URL exactly as GitHub's API reported it — the
         /// canonical spelling of the same repository, used only to adopt
         /// canonical *casing* for the requested owner/repo. Never persisted
@@ -290,6 +291,9 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
                 return GraphQlOutcome::Unusable;
             }
             GraphQlOutcome::Resolved {
+                default_head: repository.default_branch_ref.as_ref().is_some_and(|b| {
+                    b.name == ref_name && b.target.as_ref().is_some_and(|t| t.oid == object.oid)
+                }),
                 canonical_url: repository.url,
                 ref_name: ref_name.to_string(),
                 stars: repository.stargazer_count,
@@ -307,6 +311,7 @@ fn interpret_graphql(response: GraphQlResponse, requested_ref: Option<&str>) -> 
                 return GraphQlOutcome::Failed(GraphQlFailure::RefNotFound);
             };
             GraphQlOutcome::Resolved {
+                default_head: true,
                 canonical_url: repository.url.clone(),
                 ref_name: repository
                     .default_branch_ref
@@ -1092,7 +1097,6 @@ impl GitHubClient {
         self
     }
 
-    #[cfg(test)]
     pub fn parse_repo_owner_name(input: &str) -> Result<(String, String), GitHubError> {
         let target = Self::parse_repo_url(input)?;
         Ok((target.owner, target.repo))
@@ -1140,6 +1144,7 @@ impl GitHubClient {
                 .await
             {
                 GraphQlOutcome::Resolved {
+                    default_head,
                     canonical_url,
                     ref_name,
                     stars,
@@ -1153,6 +1158,7 @@ impl GitHubClient {
                     // identity we file under.
                     let filing = canonical_filing(&owner, &repo, &canonical_url);
                     let repo_ref = RepoRef {
+                        default_head,
                         provider: RepositoryProvider::GitHub,
                         html_url: github_html_url(&filing.owner, &filing.repo),
                         owner: filing.owner,
@@ -1207,6 +1213,7 @@ impl GitHubClient {
         let commit_sha = self.resolve_commit(&owner, &repo, &ref_name).await?;
 
         let repo_ref = RepoRef {
+            default_head: ref_name == repo_body.default_branch,
             provider: RepositoryProvider::GitHub,
             html_url: github_html_url(&owner, &repo),
             owner,
@@ -1306,6 +1313,7 @@ impl GitHubClient {
             .map(|(owner, _)| owner.to_string())
             .unwrap_or_else(|| target.owner.clone());
         let repo_ref = RepoRef {
+            default_head: ref_name == project_body.default_branch,
             provider: RepositoryProvider::GitLab,
             owner,
             repo: target.repo,
@@ -1729,6 +1737,7 @@ mod tests {
 
     fn sample_ref(sha: &str) -> RepoRef {
         RepoRef {
+            default_head: false,
             provider: RepositoryProvider::GitHub,
             owner: "tokio-rs".to_string(),
             repo: "axum".to_string(),
@@ -1796,6 +1805,7 @@ mod tests {
         assert_eq!(
             outcome,
             GraphQlOutcome::Resolved {
+                default_head: true,
                 canonical_url: "https://github.com/tokio-rs/axum".to_string(),
                 ref_name: "main".to_string(),
                 stars: None,
@@ -1821,6 +1831,7 @@ mod tests {
         assert_eq!(
             outcome,
             GraphQlOutcome::Resolved {
+                default_head: false,
                 canonical_url: "https://github.com/torvalds/linux".to_string(),
                 ref_name: "v6.6".to_string(),
                 stars: None,

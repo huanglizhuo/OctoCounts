@@ -346,6 +346,7 @@ fn fixture_input(
 ) -> AnalysisInput {
     AnalysisInput {
         repo_ref: RepoRef {
+            default_head: false,
             provider: RepositoryProvider::GitHub,
             owner: "octocounts".to_string(),
             repo: "fixture".to_string(),
