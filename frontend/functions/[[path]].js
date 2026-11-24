@@ -5,6 +5,7 @@ import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguag
 import { comparePolicies } from "./counting-policy.js";
 import { adjacentComparisons, COMPARE_REGISTRY, findCuratedComparison, relatedComparisons } from "./compare-registry.js";
 import { LANGUAGES_PATH, LANGUAGE_HUB_TITLE, languageHubModel, languageLeaderboardModel, languagePageJsonLd } from "./language-pages.js";
+import { DIFF_GUIDE } from "./diff-copy.js";
 
 // The editorial corpus (~150 KB) is only read on curated /compare/* routes,
 // so load it on first use instead of parsing it on every isolate boot for
@@ -27,7 +28,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/zh", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-11-01" },
-  { loc: "https://octocounts.com/diff", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/diff", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/stats", lastmod: "2026-11-03" },
   { loc: "https://octocounts.com/recent", lastmod: "2026-11-03" },
   { loc: "https://octocounts.com/popular", lastmod: "2026-11-03" },
@@ -46,10 +47,10 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-11-05" },
-  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-11-05" },
+  { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/tokei-online", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/count-lines-of-code-github", lastmod: "2026-11-24" },
-  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-10-25" },
+  { loc: "https://octocounts.com/docs/github-repository-size-checker", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/octocounts-vs-tokei", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/octocounts-vs-scc", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/count-lines-without-cloning", lastmod: "2026-10-27" },
@@ -58,8 +59,8 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/largest-codebases", lastmod: "2026-11-21" },
   { loc: "https://octocounts.com/research", lastmod: "2026-11-21" },
   { loc: "https://octocounts.com/about", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/privacy", lastmod: "2026-10-25" },
-  { loc: "https://octocounts.com/contact", lastmod: "2026-09-30" },
+  { loc: "https://octocounts.com/privacy", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/contact", lastmod: "2026-11-24" },
 ];
 
 // llms.txt / llms-full.txt are intentionally absent from every XML sitemap:
@@ -1125,13 +1126,25 @@ function breadcrumbItemList(label, canonicalUrl) {
   };
 }
 
+/// The diff tool's explanation and FAQ, from diff-copy.js. The /diff page
+/// is a tool whose server HTML used to hold one sentence: a crawler saw no
+/// answer to "how do line counts change between two commits", and a visitor
+/// had to run the tool to learn what the result means.
+function diffGuideHtml() {
+  return `<p>${escapeHtml(DIFF_GUIDE.intro)}</p>${DIFF_GUIDE.sections
+    .map((section) => `<h2>${escapeHtml(section.h2)}</h2>${section.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}`)
+    .join("")}<h2>${escapeHtml(DIFF_GUIDE.faqTitle)}</h2>${DIFF_GUIDE.faq
+    .map((item) => `<h3>${escapeHtml(item.question)}</h3><p>${escapeHtml(item.answer)}</p>`)
+    .join("")}`;
+}
+
 async function comparePageResponse(context, pathname) {
   const index = await indexHtml(context);
   const isCompare = pathname === "/compare";
   const title = isCompare ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
   const description = isCompare
     ? "Compare two public GitHub repositories or refs side by side (files, code, comments, blanks, language mix), or browse curated line-count comparisons of popular tools."
-    : "Compare source line count changes between two branches, tags, or commits in a public GitHub repository: code, comment and blank line deltas, pinned to commits.";
+    : DIFF_GUIDE.description;
   // Example links use the repository's current canonical spelling. The React
   // repository lives at react/react since GitHub's 2026 transfer; the old
   // facebook/react paths still answer (308 via the rename-follow chain), but
@@ -1153,6 +1166,7 @@ async function comparePageResponse(context, pathname) {
   const curatedLinks = isCompare
     ? `<section><h2>Curated comparisons</h2><p>Server-rendered source line count comparisons for popular frameworks and tools:</p><ul>${COMPARE_REGISTRY.map((entry) => `<li><a href="/compare/${entry.slug}">${escapeHtml(entry.name)}</a></li>`).join("")}</ul><p>OctoCounts also publishes original research on how measurement choices affect line counts: <a href="/research">How test, docs, and generated-file filtering changes SLOC counts</a> (10-repository study, October 2026).</p></section>`
     : "";
+  const diffGuide = isCompare ? "" : diffGuideHtml();
 
   return htmlResponse(
     injectHeadAndNoscript(index, {
@@ -1191,9 +1205,21 @@ async function comparePageResponse(context, pathname) {
               sameAs: PERSON_SAME_AS,
             },
           },
+          // The diff page's FAQ; the hydrated page renders the same questions
+          // and answers from diff-copy.js, so the schema describes what is
+          // visible before and after JavaScript runs.
+          ...(isCompare ? [] : [{
+            "@type": "FAQPage",
+            "@id": `https://octocounts.com${pathname}#faq`,
+            mainEntity: DIFF_GUIDE.faq.map((item) => ({
+              "@type": "Question",
+              name: item.question,
+              acceptedAnswer: { "@type": "Answer", text: item.answer },
+            })),
+          }]),
         ],
       },
-      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${curatedLinks}${internalLinks}</section>`,
+      bodyContent: `<section><h1>${escapeHtml(pageHeading(title))}</h1><p>${escapeHtml(description)}</p><p>JavaScript runs the comparison in your browser; this summary exists so the link preview and crawlers see a real page.</p>${example}${diffGuide}${curatedLinks}${internalLinks}</section>`,
     }),
     "public, s-maxage=300, stale-while-revalidate=600"
   );

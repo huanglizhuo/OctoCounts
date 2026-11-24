@@ -33,6 +33,20 @@
 /zh/docs/*
   Cache-Control: public, max-age=3600
 
+# The remaining static pages. Served without a rule they left the browser
+# revalidating on every visit, unlike the guides; these change only with a
+# deploy, and a deploy invalidates the edge copy.
+/docs
+/research
+/about
+/contact
+/privacy
+  Cache-Control: public, max-age=3600
+
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=3600
+
 /docs/*
   Cache-Control: public, max-age=3600
 

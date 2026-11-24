@@ -3,18 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Get in touch with the OctoCounts team. Report bugs, request features, or ask questions." />
+    <meta name="description" content="Report bugs, request features or ask questions through OctoCounts GitHub issues, with the repository URL, the report's commit and the behavior you expected." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
     <link rel="canonical" href="https://octocounts.com/contact" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="OctoCounts" />
     <meta property="og:title" content="Contact the OctoCounts maintainer | OctoCounts" />
-    <meta property="og:description" content="Report bugs, request features, or ask questions about OctoCounts via GitHub issues." />
+    <meta property="og:description" content="Report bugs, request features or ask questions about OctoCounts through its GitHub issues; guides and docs are linked for common questions." />
     <meta property="og:url" content="https://octocounts.com/contact" />
     <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Contact the OctoCounts maintainer | OctoCounts" />
-    <meta name="twitter:description" content="Report bugs, request features, or ask questions about OctoCounts via GitHub issues." />
+    <meta name="twitter:description" content="Report bugs, request features or ask questions about OctoCounts through its GitHub issues; guides and docs are linked for common questions." />
     <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
     <title>Contact the OctoCounts maintainer | OctoCounts</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -51,7 +51,7 @@
       <h1>Contact</h1>
 
       <h2>Bug Reports &amp; Feature Requests</h2>
-      <p>Open an issue on GitHub. This is the fastest way to get a response.</p>
+      <p>OctoCounts is maintained by one developer. Open an issue on GitHub; it is the fastest way to get a response.</p>
       <p><a href="https://github.com/huanglizhuo/OctoCounts/issues">github.com/huanglizhuo/OctoCounts/issues</a></p>
 
       <h2>What to Include</h2>
@@ -60,6 +60,19 @@
         <li>Expected vs. actual behavior</li>
         <li>Browser and OS (for frontend issues)</li>
         <li>Screenshots if applicable</li>
+        <li>For a wrong line count: the commit SHA, the date and the counting rules printed on the report page</li>
+      </ul>
+
+      <h2>Before reporting a line count that looks wrong</h2>
+      <p>OctoCounts counts the source archive at one commit with tokei, under rules the report page prints: the commit SHA, the engine version and the excluded directories. A local tool on a different checkout, at a different version, or with different exclusions can report different totals. By default documentation, test and generated directories are excluded. The <a href="/docs/methodology">counting methodology</a> explains each rule, and the <a href="/docs/largest-codebases">largest codebases guide</a> shows how a count is cited with its commit and date.</p>
+
+      <h2>Guides and documentation</h2>
+      <p>Common questions are answered in the guides:</p>
+      <ul>
+        <li><a href="/docs/faq">FAQ</a>: privacy, private repositories, badges, limits and local tools</li>
+        <li><a href="/docs/api">API docs</a>: analyze public repositories and fetch cached reports</li>
+        <li><a href="/docs/cli">CLI</a>, <a href="/docs/github-action">GitHub Action</a> and <a href="/docs/mcp-server">MCP server</a></li>
+        <li><a href="/docs">All guides</a></li>
       </ul>
 
       <h2>Source Code</h2>
@@ -74,7 +87,7 @@
       "@context": "https://schema.org",
       "@type": "ContactPage",
       "name": "Contact OctoCounts",
-      "description": "Get in touch with the OctoCounts team: report bugs, request features, or ask questions via GitHub issues.",
+      "description": "Contact the OctoCounts maintainer: report bugs, request features, or ask questions via GitHub issues.",
       "url": "https://octocounts.com/contact",
       "mainEntity": {
         "@type": "Organization",

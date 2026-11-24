@@ -459,7 +459,7 @@
   "compare": {
     "cancelled": "Comparison stopped. Your inputs and previous result are preserved.",
     "draftChanged": "Inputs changed. Run again to update this result.",
-    "title": "Compare Repos",
+    "title": "Compare repository SLOC",
     "subtitle": "forks, alternatives, or branches",
     "help": "Compare total SLOC, code lines, language mix, and deltas between two public repositories or refs.",
     "leftRepo": "Left repository",
@@ -522,7 +522,7 @@
     "relatedAria": "Related OctoCounts pages"
   },
   "diff": {
-    "title": "Ref Diff",
+    "title": "Compare branch SLOC diff",
     "subtitle": "branch, tag, or commit deltas",
     "help": "Compare one repository across two refs to estimate growth between releases, branches, or pull request endpoints.",
     "repo": "Repository",

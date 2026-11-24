@@ -6,6 +6,7 @@ import { MarketingShell } from "../growth/MarketingShell";
 import { StoreLink } from "../StoreLink";
 
 import { COMPARE_REGISTRY } from "../../functions/compare-registry.js";
+import { DIFF_GUIDE } from "../../functions/diff-copy.js";
 
 // Marketing/growth pages (stats, recent, popular, trending, hall of
 // monoliths, compare, diff). main.tsx lazy-imports these so the home page
@@ -299,6 +300,28 @@ export function DiffPage() {
         <p>{t("diff.help")}</p>
       </section>
       <DiffRefs showHelp={false} />
+      {/* The explanation and FAQ the server HTML carries (diff-copy.js): the
+          page publishes them as FAQPage schema, so they must stay visible
+          after hydration. English like the server copy, whatever the UI
+          language. */}
+      <section className="curated-compare-body" lang="en" aria-label={DIFF_GUIDE.faqTitle}>
+        <p>{DIFF_GUIDE.intro}</p>
+        {DIFF_GUIDE.sections.map((section) => (
+          <div key={section.h2}>
+            <h2>{section.h2}</h2>
+            {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          </div>
+        ))}
+        <div className="how">
+          <h2>{DIFF_GUIDE.faqTitle}</h2>
+          {DIFF_GUIDE.faq.map((item) => (
+            <div className="step" key={item.question}>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </MarketingShell>
   );
 }

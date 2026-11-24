@@ -1009,9 +1009,9 @@ function syncPageMetadata({
   const path = window.location.pathname;
   if (path === "/compare" || path === "/diff") {
     const title = path === "/compare" ? "Compare repository SLOC | OctoCounts" : "Compare branch SLOC diff | OctoCounts";
-    // The same pair functions/[[path]].js server-renders for these routes.
     const description = path === "/compare"
       ? "Compare two public GitHub repositories or refs side by side (files, code, comments, blanks, language mix), or browse curated line-count comparisons of popular tools."
+      // The same pair functions/[[path]].js server-renders for these routes.
       : "Compare source line count changes between two branches, tags, or commits in a public GitHub repository: code, comment and blank line deltas, pinned to commits.";
     // Server-side injection (functions/[[path]].js) makes these indexable;
     // keep the client-side value aligned so hydration does not flip them to noindex.

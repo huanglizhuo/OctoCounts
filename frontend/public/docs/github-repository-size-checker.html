@@ -52,7 +52,7 @@
       "headline": "GitHub repo size checker: check a repository before cloning",
       "description": "Check a GitHub repository's size before cloning: the REST API size field, shallow clones, git-sizer, and no-clone SLOC reports, with real numbers.",
       "datePublished": "2026-10-07",
-      "dateModified": "2026-10-25",
+      "dateModified": "2026-11-24",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -154,7 +154,7 @@
   <body>
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / repository size checker</nav>
     <main>
-      <p class="meta">Updated October 25, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>GitHub repo size checker: check before cloning</h1>
       <p class="answer">There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API <code>size</code> field (a one-line <code>curl</code>, no clone), a shallow clone (<code>git clone --depth 1</code>), GitHub's git-sizer tool on a full clone, a local line counter such as <a href="https://github.com/XAMPPRocky/tokei">tokei</a> or <a href="https://github.com/AlDanial/cloc">cloc</a> on a checkout, and a no-clone SLOC report from <a href="/">OctoCounts</a>. They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.</p>
       <p class="note">Every number on this page was checked on October 7, 2026. SLOC figures come from OctoCounts reports that name their exact commit SHA and tokei version; byte figures come from GitHub's REST API <code>size</code> field, which GitHub documents as calculated hourly.</p>
@@ -212,7 +212,7 @@ git -C kubernetes count-objects -vH   # size-pack: how much history you actually
           <tr><td><a href="https://github.com/kubernetes/kubernetes">kubernetes/kubernetes</a></td><td>1,529,410 KB (&asymp;1.5 GB)</td><td>—</td><td>—</td><td>Go</td></tr>
         </tbody>
       </table>
-      <p>The linux line counts come from the cached OctoCounts report at commit <code>67f0943b394d</code> (counted October 5, 2026 with tokei 14.0.0): 42,571,003 total lines, of which 32,353,830 are code, 4,868,080 comments, and 5,349,093 blanks, across 50 languages. The firefox figures come from its <a href="/github/mozilla-firefox/firefox">OctoCounts report</a> of the same date (139,651 files, 24,523,020 code lines, top language C++). Where a cell is marked "—" the figure was not measured for this page; the point of the table is that the two columns are independent measurements, not two views of one number.</p>
+      <p>The linux line counts come from the cached OctoCounts report at commit <code>67f0943b394d</code> (counted October 5, 2026 with tokei 14.0.0): 42,571,003 total lines, of which 32,353,830 are code, 4,868,080 comments, and 5,349,093 blanks, across 50 languages. The firefox figures come from its <a href="/github/mozilla-firefox/firefox">OctoCounts report</a> of the same date (139,651 files, 24,523,020 code lines, top language C++). Where a cell is marked "—" the figure was not measured for this page; the point of the table is that the two columns are independent measurements, not two views of one number. A later measurement exists: the <a href="/docs/largest-codebases#november-2026">largest codebases guide</a> counted a newer Linux commit on November 18, 2026 with tokei 15.0.0 under the canonical options, which exclude test, documentation and generated directories, so its figures differ from the October 5 count above. Cite whichever count you use with its own date, engine version and rules.</p>
 
       <h2>Which check should I use?</h2>
       <table>

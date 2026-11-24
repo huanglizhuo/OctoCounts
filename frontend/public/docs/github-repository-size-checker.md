@@ -1,6 +1,6 @@
 # GitHub repo size checker: check before cloning
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are five practical ways to check how big a GitHub repository is before you clone it: GitHub's REST API `size` field (a one-line `curl`, no clone), a shallow clone (`git clone --depth 1`), GitHub's git-sizer tool on a full clone, a local line counter such as [tokei](https://github.com/XAMPPRocky/tokei) or [cloc](https://github.com/AlDanial/cloc) on a checkout, and a no-clone SLOC report from [OctoCounts](https://octocounts.com/). They answer different questions — bytes of history, snapshot download cost, or lines of source code — so this page shows when each one is the right check, with real numbers for torvalds/linux, mozilla-firefox/firefox, and kubernetes/kubernetes.
 
@@ -72,7 +72,7 @@ Both kinds of measurement, side by side. Byte figures are GitHub's REST API `siz
 | [mozilla-firefox/firefox](https://octocounts.com/github/mozilla-firefox/firefox) | not checked | 139,651 | 24,523,020 | C++ |
 | [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes) | 1,529,410 KB (≈1.5 GB) | — | — | Go |
 
-The linux line counts come from the cached OctoCounts report at commit `67f0943b394d` (counted October 5, 2026 with tokei 14.0.0): 42,571,003 total lines, of which 32,353,830 are code, 4,868,080 comments, and 5,349,093 blanks, across 50 languages. The firefox figures come from its [OctoCounts report](https://octocounts.com/github/mozilla-firefox/firefox) of the same date (139,651 files, 24,523,020 code lines, top language C++). Where a cell is marked "—" the figure was not measured for this page; the point of the table is that the two columns are independent measurements, not two views of one number.
+The linux line counts come from the cached OctoCounts report at commit `67f0943b394d` (counted October 5, 2026 with tokei 14.0.0): 42,571,003 total lines, of which 32,353,830 are code, 4,868,080 comments, and 5,349,093 blanks, across 50 languages. The firefox figures come from its [OctoCounts report](https://octocounts.com/github/mozilla-firefox/firefox) of the same date (139,651 files, 24,523,020 code lines, top language C++). Where a cell is marked "—" the figure was not measured for this page; the point of the table is that the two columns are independent measurements, not two views of one number. A later measurement exists: the [largest codebases guide](https://octocounts.com/docs/largest-codebases#november-2026) counted a newer Linux commit on November 18, 2026 with tokei 15.0.0 under the canonical options, which exclude test, documentation and generated directories, so its figures differ from the October 5 count above. Cite whichever count you use with its own date, engine version and rules.
 
 ## Which check should I use?
 
