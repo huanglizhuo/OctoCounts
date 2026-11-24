@@ -432,7 +432,13 @@ export function App() {
       // auto-run: it would clear the seed, flash the runner, and re-download
       // what the page already has. Force refresh is still available by hand.
       if (ssrSeed && !initialRequest.analysisOptions && !initialRequest.reportId) return;
-      void runAnalysis(false, initialRequest.reportId ? { reportId: initialRequest.reportId } : { cacheOnly: true });
+      // Trending's missing-count link is an explicit Analyze action. A direct
+      // visit or reload of the same report URL only looks up a saved result.
+      const fromTrending = document.referrer && new URL(document.referrer);
+      const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      const analyzeTrending = navigation?.type === "navigate" && fromTrending
+        && fromTrending.origin === window.location.origin && fromTrending.pathname === "/trending";
+      void runAnalysis(false, initialRequest.reportId ? { reportId: initialRequest.reportId } : { cacheOnly: !analyzeTrending });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

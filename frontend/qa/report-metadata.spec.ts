@@ -41,7 +41,7 @@ for (const suffix of ["", "/tree/main", "/tree/deadbee", `/commit/${commit}`, "/
     let analyses = 0;
     await page.route("**/api/**", (route) => route.fulfill({ status: 404, json: { error: "No additional report data in this fixture" } }));
     await page.route("**/api/repo-info?**", (route) => route.fulfill({ json: {} }));
-    await page.route("**/api/analyze", async (route) => {
+    await page.route(url => url.pathname === "/api/analyze", async (route) => {
       analyses += 1;
       await route.fulfill({ status: 500, json: { error: "seed must not trigger analysis" } });
     });
@@ -79,7 +79,7 @@ for (const suffix of ["", "/tree/main", "/tree/deadbee", `/commit/${commit}`, "/
     if (!suffix) {
       const liveUrl = new URL("/github/example/repository/tree/main", baseURL).href;
       await expect(page.locator("#readme-badge code")).toContainText(`](${liveUrl})`);
-      await page.route("**/api/analyze", (route) => route.fulfill({ json: {
+      await page.route(url => url.pathname === "/api/analyze", (route) => route.fulfill({ json: {
         kind: "cached", reportId: "next-report", report: {
           ...summary,
           id: "next-report",

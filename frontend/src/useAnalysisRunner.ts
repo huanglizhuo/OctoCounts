@@ -185,7 +185,7 @@ export function useAnalysisRunner({
     } catch (err) {
       if (operation !== operationRef.current || (err instanceof DOMException && err.name === "AbortError")) return;
       clearDeadline(deadlineTimer);
-      if (overrides?.cacheOnly && err instanceof ApiRequestError && err.status === 404) return;
+      if (overrides?.cacheOnly && err instanceof ApiRequestError && err.code === "analysis_required") return;
       setError(overrides?.reportId && err instanceof ApiRequestError && err.status === 404
         ? { code: "snapshot_unavailable", message: i18n.t("error.snapshotUnavailable") }
         : toAnalysisError(err));

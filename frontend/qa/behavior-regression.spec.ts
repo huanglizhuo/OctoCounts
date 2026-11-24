@@ -171,7 +171,7 @@ test.describe("analysis behavior regressions", () => {
 
   test("a snapshot URL restores its analysis options before the first request", async ({ page }) => {
     let received: Record<string, unknown> | null = null;
-    await page.route("**/api/analyze", async (route) => {
+    await page.route(url => url.pathname === "/api/analyze" && url.searchParams.get("cacheOnly") === "true", async (route) => {
       received = route.request().postDataJSON() as Record<string, unknown>;
       await route.fulfill({ json: { kind: "cached", reportId: "snapshot", report: reportFor("https://github.com/example/snapshot", 444, received!.options as any) } });
     });
@@ -475,7 +475,7 @@ test.describe("report page structure and growth history", () => {
 
   test("growth exposes a textual history summary and discloses different report metrics", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
-    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "axis", report: reportFor("https://github.com/example/widgets", 1500) } }));
+    await page.route(url => url.pathname === "/api/analyze" && url.searchParams.get("cacheOnly") === "true", (route) => route.fulfill({ json: { kind: "cached", reportId: "axis", report: reportFor("https://github.com/example/widgets", 1500) } }));
     await page.goto(`${BASE_URL}/github/example/widgets`);
     await expect(page.locator(".growth-stage")).toHaveAttribute("aria-label", /1,000→1,400/);
     await expect(page.locator(".growth-wrap .visually-hidden")).toContainText("2026-01-01");
@@ -486,7 +486,7 @@ test.describe("report page structure and growth history", () => {
 
   test("a pinned-ref report keeps its metrics separate from the history", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
-    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "pinned", report: { ...reportFor("https://github.com/example/widgets", 2500), refName: "v1.0.0" } } }));
+    await page.route(url => url.pathname === "/api/analyze" && url.searchParams.get("cacheOnly") === "true", (route) => route.fulfill({ json: { kind: "cached", reportId: "pinned", report: { ...reportFor("https://github.com/example/widgets", 2500), refName: "v1.0.0" } } }));
     await page.goto(`${BASE_URL}/github/example/widgets/tree/v1.0.0`);
     await expect(page.locator(".report-route-sub")).toContainText("SLOC report · v1.0.0");
     await expect(page.locator(".growth-this-report")).toContainText("2,500");
@@ -496,7 +496,7 @@ test.describe("report page structure and growth history", () => {
 
   test("an interactive default-branch report cannot rewrite the historical series", async ({ page }) => {
     await page.route("**/api/seo/repo-history?*", (route) => route.fulfill({ json: historyFixture(SAMPLES) }));
-    await page.route("**/api/analyze", (route) => route.fulfill({ json: { kind: "cached", reportId: "merged", report: reportFor("https://github.com/example/widgets", 2500) } }));
+    await page.route(url => url.pathname === "/api/analyze" && url.searchParams.get("cacheOnly") === "true", (route) => route.fulfill({ json: { kind: "cached", reportId: "merged", report: reportFor("https://github.com/example/widgets", 2500) } }));
     await page.goto(`${BASE_URL}/github/example/widgets`);
     await expect(page.locator(".growth-stage")).toHaveAttribute("aria-label", /1,000→1,400/);
     await expect(page.locator(".growth-this-report")).toContainText("2,500");
