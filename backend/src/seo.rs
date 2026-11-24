@@ -256,14 +256,17 @@ pub async fn report(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
 ) -> Result<(HeaderMap, Json<SeoReport>), ApiError> {
+    let reference = query.ref_name.as_deref().filter(|value| !value.is_empty());
     let generation = state.caches.generation();
     let cache_key = format!("{generation}:{}", seo_report_cache_key(&query));
     if let Some(report) = state.caches.seo_report.get(&cache_key).await {
-        return Ok((seo_report_cache_headers(), Json(report)));
+        return Ok((
+            seo_report_response_headers(&report, reference.is_some()),
+            Json(report),
+        ));
     }
 
     let provider = parse_provider(&query.provider)?;
-    let reference = query.ref_name.as_deref().filter(|value| !value.is_empty());
     let Some((card, canonical_slug)) = resolve_report_card(
         &state,
         provider,
@@ -290,7 +293,10 @@ pub async fn report(
             .await;
     }
 
-    Ok((seo_report_cache_headers(), Json(report)))
+    Ok((
+        seo_report_response_headers(&report, reference.is_some()),
+        Json(report),
+    ))
 }
 
 /// The report card a request for `owner/repo` should be answered from, and the
@@ -834,6 +840,27 @@ fn related_cache_headers(list: &RelatedList) -> HeaderMap {
 
 fn seo_report_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=60, s-maxage=604800, stale-while-revalidate=3600")
+}
+
+/// Cache policy plus the search-index directive. This JSON is the machine
+/// reading of a repository's public report page, so it names that page as its
+/// canonical and a search engine that crawls the API consolidates there
+/// instead of filing a JSON URL. Two cases have no page to point at: a report
+/// below the indexable floor (its HTML route answers 404) and a ref-scoped
+/// lookup (the tree and root URLs may or may not share a canonical). Both
+/// carry `noindex`.
+fn seo_report_response_headers(report: &SeoReport, ref_scoped: bool) -> HeaderMap {
+    let mut headers = seo_report_cache_headers();
+    let indexable = !ref_scoped && report.total.files >= MIN_INDEXABLE_REPORT_FILES;
+    match crate::index_policy::report_canonical_link(&report.public_path, indexable) {
+        Some(link) => {
+            headers.insert(header::LINK, link);
+        }
+        None => {
+            crate::index_policy::set_noindex(&mut headers);
+        }
+    }
+    headers
 }
 
 pub(crate) fn cache_headers(cache_control: &'static str) -> HeaderMap {

@@ -10,6 +10,7 @@ mod error;
 mod github;
 #[cfg(test)]
 mod golden;
+mod index_policy;
 mod indexnow;
 mod metrics;
 mod models;
@@ -215,6 +216,21 @@ fn build_router(state: AppState) -> Router {
     let routes = Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route("/readyz", get(readyz))
+        .route(
+            "/robots.txt",
+            get(|| async {
+                (
+                    [
+                        (
+                            axum::http::header::CONTENT_TYPE,
+                            "text/plain; charset=utf-8",
+                        ),
+                        (axum::http::header::CACHE_CONTROL, "public, max-age=3600"),
+                    ],
+                    index_policy::ROBOTS_TXT,
+                )
+            }),
+        )
         .route("/internal/stats", get(api::internal_stats))
         .route("/api/analyze", post(api::analyze))
         .route("/api/jobs/{job_id}", get(api::job_status))
@@ -290,6 +306,11 @@ const BUILD: &str = match option_env!("OCTOCOUNTS_BUILD") {
 /// `image/*` (with an explicit carve-out for `image/svg+xml`). That means the
 /// already-compressed PNGs from `/og/...` are passed through untouched while the
 /// badge SVGs still get compressed.
+///
+/// Outermost, `index_policy::tag_indexing` marks every machine-readable
+/// response with its search-index directive, including the error responses
+/// the fallback produces; it runs outside the build-header layer for the same
+/// reason `x-octocounts-build` does.
 fn apply_middleware<S>(router: Router<S>) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -303,6 +324,7 @@ where
         ))
         .layer(CorsLayer::permissive().expose_headers([axum::http::header::RETRY_AFTER]))
         .layer(CompressionLayer::new())
+        .layer(axum::middleware::from_fn(index_policy::tag_indexing))
         .layer(TraceLayer::new_for_http())
 }
 
@@ -513,6 +535,170 @@ mod tests {
                 .unwrap();
             assert_eq!(response.headers()["x-octocounts-build"], BUILD, "{uri}");
         }
+    }
+
+    /// The API host answers its own robots.txt: before this it returned 404,
+    /// which left the machine-readable routes without a stated policy.
+    #[tokio::test]
+    async fn robots_txt_is_served_without_an_index_directive() {
+        let app = apply_middleware(Router::new().route(
+            "/robots.txt",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                    index_policy::ROBOTS_TXT,
+                )
+            }),
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/robots.txt")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "text/plain; charset=utf-8"
+        );
+        assert!(response
+            .headers()
+            .get(&index_policy::X_ROBOTS_TAG)
+            .is_none());
+        let body = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
+        assert_eq!(body, index_policy::ROBOTS_TXT);
+    }
+
+    /// Through the production stack (middleware included): a badge is
+    /// noindex, a saved report's JSON is left index-neutral.
+    #[tokio::test]
+    async fn production_stack_tags_badges_and_leaves_saved_report_json_alone() {
+        let app = apply_middleware(
+            Router::new()
+                .route("/badge/{owner}/{repo}", get(|| async { "<svg/>" }))
+                .route("/api/reports/{id}", get(|| async { "{}" })),
+        );
+        for (uri, expected) in [
+            ("/badge/octo/count", Some("noindex")),
+            ("/api/reports/abc", None),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{uri}");
+            assert_eq!(
+                response
+                    .headers()
+                    .get(&index_policy::X_ROBOTS_TAG)
+                    .and_then(|value| value.to_str().ok()),
+                expected,
+                "{uri}"
+            );
+        }
+    }
+
+    /// The report JSON names its HTML page as canonical; a report below the
+    /// indexable floor has no HTML page and answers noindex instead.
+    #[tokio::test]
+    async fn seo_report_json_states_its_html_page_as_canonical() {
+        use crate::models::{AnalysisOptions, AnalysisSource};
+        let Some((app, pool, schema)) = test_app().await else {
+            eprintln!("skipping: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let store = Store::new(pool.clone());
+        for (owner, files, id) in [
+            ("octo", 5usize, "1111111111111111"),
+            ("thin", 4, "2222222222222222"),
+        ] {
+            let report: crate::models::Report = serde_json::from_value(serde_json::json!({
+                "id": id,
+                "repository": {
+                    "provider": "github", "owner": owner, "name": "count",
+                    "htmlUrl": format!("https://github.com/{owner}/count")
+                },
+                "refName": "main",
+                "commitSha": "abc123",
+                "generatedAt": chrono::Utc::now(),
+                "durationMs": 42,
+                "cached": false,
+                "tokeiVersion": "tokei-test",
+                "analysisKey": "tokei-test:default",
+                "analysisOptions": AnalysisOptions::canonical(),
+                "languages": [{
+                    "name": "Rust",
+                    "stats": { "files": files, "lines": 10, "code": 5, "comments": 2, "blanks": 3 },
+                    "children": []
+                }],
+                "total": { "files": files, "lines": 10, "code": 5, "comments": 2, "blanks": 3 }
+            }))
+            .unwrap();
+            store
+                .save_report(&report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+
+        for (owner, indexable) in [("octo", true), ("thin", false)] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!(
+                            "/api/seo/report?provider=github&owner={owner}&repo=count"
+                        ))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{owner}");
+            if indexable {
+                assert_eq!(
+                    response.headers()[header::LINK],
+                    "<https://octocounts.com/github/octo/count>; rel=\"canonical\"",
+                    "{owner}"
+                );
+                assert!(response
+                    .headers()
+                    .get(&index_policy::X_ROBOTS_TAG)
+                    .is_none());
+            } else {
+                // Below the floor the HTML page answers 404, so no canonical
+                // exists for the JSON to point at.
+                assert_eq!(response.headers()[&index_policy::X_ROBOTS_TAG], "noindex");
+                assert!(response.headers().get(header::LINK).is_none());
+            }
+        }
+
+        // A ref-scoped lookup cannot say which page is canonical.
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/seo/report?provider=github&owner=octo&repo=count&refName=main")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[&index_policy::X_ROBOTS_TAG], "noindex");
+
+        pool.close().await;
+        let pool = PgPoolOptions::new()
+            .connect(&std::env::var("TEST_DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        drop_schema(&pool, &schema).await;
     }
 
     #[tokio::test]
