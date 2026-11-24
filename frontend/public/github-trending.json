@@ -1,24 +1,24 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-23T10:42:20.202Z",
-  "date": "2026-11-23",
+  "generatedAt": "2026-11-24T12:24:54.870Z",
+  "date": "2026-11-24",
   "repositories": [
     {
       "rank": 1,
       "owner": "elementalsouls",
       "name": "Claude-BugHunter",
       "fullName": "elementalsouls/Claude-BugHunter",
-      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 82 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
+      "description": "A Claude Code skill bundle for bug hunting and external red-team work - 84 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
       "language": "Python",
-      "starsToday": 1716,
-      "totalStars": 18708,
+      "starsToday": 1833,
+      "totalStars": 20634,
       "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
       "publicPath": "/github/elementalsouls/Claude-BugHunter",
       "sloc": {
-        "code": 11502,
-        "generatedAt": "2026-11-23T10:42:01.044Z",
-        "reportId": "57c34f284bd7412f291144d2d29852441724213dafc77c980ec32ce6bb8a662a"
+        "code": 13503,
+        "generatedAt": "2026-11-24T11:07:32.775Z",
+        "reportId": "d00f121a81f49f33c38b2d288a59564e108ca67f16fd092761138d5d78554820"
       }
     },
     {
@@ -28,8 +28,8 @@
       "fullName": "obra/superpowers",
       "description": "An agentic skills framework & software development methodology that works.",
       "language": "Shell",
-      "starsToday": 788,
-      "totalStars": 324544,
+      "starsToday": 1006,
+      "totalStars": 325552,
       "htmlUrl": "https://github.com/obra/superpowers",
       "publicPath": "/github/obra/superpowers",
       "sloc": {
@@ -45,8 +45,8 @@
       "fullName": "HKUDS/CLI-Anything",
       "description": "\"CLI-Anything: Making ALL Software Agent-Native\" -- CLI-Hub: https://clianything.cc/",
       "language": "Python",
-      "starsToday": 699,
-      "totalStars": 63132,
+      "starsToday": 1075,
+      "totalStars": 64248,
       "htmlUrl": "https://github.com/HKUDS/CLI-Anything",
       "publicPath": "/github/HKUDS/CLI-Anything",
       "sloc": {
@@ -62,8 +62,8 @@
       "fullName": "jingyaogong/minimind",
       "description": "🧠 两小时从 0 训出你的 64M 大模型。Train your own 64M LLM from scratch in 2 hours.",
       "language": "Python",
-      "starsToday": 473,
-      "totalStars": 69155,
+      "starsToday": 727,
+      "totalStars": 69906,
       "htmlUrl": "https://github.com/jingyaogong/minimind",
       "publicPath": "/github/jingyaogong/minimind",
       "sloc": {
@@ -79,14 +79,14 @@
       "fullName": "cursor/plugins",
       "description": "Cursor plugin specification and official plugins",
       "language": "TypeScript",
-      "starsToday": 294,
-      "totalStars": 18628,
+      "starsToday": 359,
+      "totalStars": 19014,
       "htmlUrl": "https://github.com/cursor/plugins",
       "publicPath": "/github/cursor/plugins",
       "sloc": {
-        "code": 26462,
-        "generatedAt": "2026-11-22T01:21:14.111Z",
-        "reportId": "4bdbfbf6a2f30ac17417e7cfa2fff4437abe8e93b957e22081039cc954197faf"
+        "code": 26486,
+        "generatedAt": "2026-11-24T10:54:48.412Z",
+        "reportId": "6f7788e6f0f0133ad56bdbc13981724c54127b1380650d7b65c2ae3ee9fedab5"
       }
     },
     {
@@ -96,14 +96,14 @@
       "fullName": "firecrawl/firecrawl",
       "description": "Knowledge infrastructure to make your agents smarter. Search, scrape and access 550+ data providers through one API.",
       "language": "TypeScript",
-      "starsToday": 915,
-      "totalStars": 207405,
+      "starsToday": 990,
+      "totalStars": 208409,
       "htmlUrl": "https://github.com/firecrawl/firecrawl",
       "publicPath": "/github/firecrawl/firecrawl",
       "sloc": {
-        "code": 305098,
-        "generatedAt": "2026-11-23T06:57:37.142Z",
-        "reportId": "777fbaa2d8a5e8141fc4b45260ce84892b423d2d52acf543af77d635a751f487"
+        "code": 307923,
+        "generatedAt": "2026-11-24T03:18:59.190Z",
+        "reportId": "ecacda114bb255cf030c554b35687fb51d0fb112c6516f24ab86d2e3dd30e77d"
       }
     },
     {
@@ -113,14 +113,14 @@
       "fullName": "nginx/nginx",
       "description": "The official NGINX Open Source repository.",
       "language": "C",
-      "starsToday": 163,
-      "totalStars": 32961,
+      "starsToday": 158,
+      "totalStars": 33126,
       "htmlUrl": "https://github.com/nginx/nginx",
       "publicPath": "/github/nginx/nginx",
       "sloc": {
-        "code": 189059,
-        "generatedAt": "2026-11-18T16:41:39.372Z",
-        "reportId": "f070a9c034e01db83a23478c28e2f235cb73028acb34645c80d5af0c3c83c61e"
+        "code": 189061,
+        "generatedAt": "2026-11-23T15:41:58.039Z",
+        "reportId": "a2bfaa95bb26338d40e02681e68f0cc36755ac42b223b4e5fd2800fde12ec14d"
       }
     },
     {
@@ -130,14 +130,14 @@
       "fullName": "openvinotoolkit/openvino",
       "description": "OpenVINO™ is an open source toolkit for optimizing and deploying AI inference",
       "language": "C++",
-      "starsToday": 158,
-      "totalStars": 12181,
+      "starsToday": 187,
+      "totalStars": 12376,
       "htmlUrl": "https://github.com/openvinotoolkit/openvino",
       "publicPath": "/github/openvinotoolkit/openvino",
       "sloc": {
-        "code": 1198575,
-        "generatedAt": "2026-11-23T09:09:28.457Z",
-        "reportId": "a4117b3168bd7d219aa660b9526643cfb9a3cf3b4450e8401c8c6b50fab528b0"
+        "code": 1200236,
+        "generatedAt": "2026-11-24T12:25:24.252Z",
+        "reportId": "a2b54a7fb8ee89e791117b9a7f64b3471b580a7ee08dbc0a32cfd43db30592d2"
       }
     },
     {
@@ -147,14 +147,14 @@
       "fullName": "cathrynlavery/diagram-design",
       "description": "Editorial diagram design for Claude Code, Codex, GitHub Copilot, Cursor, Factory Droid, Qoder, and Pi. 52 diagram types. Self-contained HTML + SVG. No shadows. No Mermaid slop.",
       "language": "HTML",
-      "starsToday": 518,
-      "totalStars": 70625,
+      "starsToday": 794,
+      "totalStars": 71461,
       "htmlUrl": "https://github.com/cathrynlavery/diagram-design",
       "publicPath": "/github/cathrynlavery/diagram-design",
       "sloc": {
-        "code": 93482,
-        "generatedAt": "2026-11-23T10:42:56.043Z",
-        "reportId": "8f7c93b1e2976789ed6179e43fe554bb3afab482e2a1fb8e46f454cb1435f20b"
+        "code": 94402,
+        "generatedAt": "2026-11-23T12:26:50.411Z",
+        "reportId": "a09fbbc3f9a508ab765947130bed3395d304e4ffd017d477f31f55eb4e4fe121"
       }
     },
     {
@@ -164,14 +164,14 @@
       "fullName": "mvanhorn/last30days-skill",
       "description": "AI agent skill that researches any topic across Reddit, X, YouTube, HN, Polymarket, and the web - then synthesizes a grounded summary",
       "language": "Python",
-      "starsToday": 668,
-      "totalStars": 73071,
+      "starsToday": 695,
+      "totalStars": 73805,
       "htmlUrl": "https://github.com/mvanhorn/last30days-skill",
       "publicPath": "/github/mvanhorn/last30days-skill",
       "sloc": {
-        "code": 88824,
-        "generatedAt": "2026-11-23T02:48:44.848Z",
-        "reportId": "e7298d771911f53d9f9776e927f4ccd1ddc86532226a1d6a1c36a1da4a857dd9"
+        "code": 104226,
+        "generatedAt": "2026-11-24T12:25:29.187Z",
+        "reportId": "e3930bb491e7fc07d375b884ece9c0a51c0357a53d1e039cfc3fdf9f6c96b5ea"
       }
     },
     {
@@ -181,14 +181,14 @@
       "fullName": "google-labs-code/stitch-skills",
       "description": "A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open standard, for compatibility with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.",
       "language": "TypeScript",
-      "starsToday": 494,
-      "totalStars": 12084,
+      "starsToday": 401,
+      "totalStars": 12503,
       "htmlUrl": "https://github.com/google-labs-code/stitch-skills",
       "publicPath": "/github/google-labs-code/stitch-skills",
       "sloc": {
-        "code": 4713,
-        "generatedAt": "2026-11-20T20:53:18.887Z",
-        "reportId": "5adbab05b8fce795557241a766fe4cb9efde735f442b0086dda308fb29773973"
+        "code": 4817,
+        "generatedAt": "2026-11-23T19:06:16.523Z",
+        "reportId": "3c8e376fe9fdff825dc0ce36b34aea68d96413b9a26e69f8140ba02b1e6b9ffe"
       }
     },
     {
@@ -198,8 +198,8 @@
       "fullName": "mjmirza/app-store-compliance",
       "description": "Avoid common App Store and Google Play rejections. Open playbook and pre-submission guard with 124 documented rejection patterns and fixes, privacy manifest and Data safety checks, 112 tracked deadlines (EU AI Act, DSA, COPPA, age laws), and a skill for AI coding agents.",
       "language": "Shell",
-      "starsToday": 621,
-      "totalStars": 4394,
+      "starsToday": 936,
+      "totalStars": 5394,
       "htmlUrl": "https://github.com/mjmirza/app-store-compliance",
       "publicPath": "/github/mjmirza/app-store-compliance",
       "sloc": {
@@ -215,14 +215,14 @@
       "fullName": "Tracer-Cloud/opensre",
       "description": "The open-source agent for CI/CD reliability.",
       "language": "Python",
-      "starsToday": 399,
-      "totalStars": 14590,
+      "starsToday": 408,
+      "totalStars": 15015,
       "htmlUrl": "https://github.com/Tracer-Cloud/opensre",
       "publicPath": "/github/Tracer-Cloud/opensre",
       "sloc": {
-        "code": 267873,
-        "generatedAt": "2026-11-22T15:32:43.365Z",
-        "reportId": "7c5a94924a8140c3fff0131491e2b572d41556b3e65efe74fef08216793412b9"
+        "code": 268463,
+        "generatedAt": "2026-11-23T21:07:22.655Z",
+        "reportId": "0073006cfb55e9ac493a0c4beecb15ea2b4a8cb02f28861b7c4e1bc60e9135ec"
       }
     },
     {
@@ -232,14 +232,14 @@
       "fullName": "toeverything/AFFiNE",
       "description": "There can be more than Notion and Miro. AFFiNE(pronounced [ə‘fain]) is a next-gen knowledge base that brings planning, sorting and creating all together. Privacy first, open-source, customizable and ready to use.",
       "language": "TypeScript",
-      "starsToday": 542,
-      "totalStars": 77077,
+      "starsToday": 589,
+      "totalStars": 77684,
       "htmlUrl": "https://github.com/toeverything/AFFiNE",
       "publicPath": "/github/toeverything/AFFiNE",
       "sloc": {
-        "code": 934649,
-        "generatedAt": "2026-11-23T10:42:51.823Z",
-        "reportId": "86d61ae253fd258eaa225f3bf9e7cb754772e36a51a094b3af4382e67b0f53b2"
+        "code": 937209,
+        "generatedAt": "2026-11-24T11:41:48.331Z",
+        "reportId": "fecfa5eab7106de93d41125ac40ee6c8f8db7482cfa563feba57d9504a35b814"
       }
     },
     {
@@ -249,14 +249,14 @@
       "fullName": "XiaoYouChR/Ghost-Downloader-3",
       "description": "The only downloader you need. 下载器的集大成者。",
       "language": "Python",
-      "starsToday": 701,
-      "totalStars": 15799,
+      "starsToday": 1102,
+      "totalStars": 16946,
       "htmlUrl": "https://github.com/XiaoYouChR/Ghost-Downloader-3",
       "publicPath": "/github/XiaoYouChR/Ghost-Downloader-3",
       "sloc": {
-        "code": 167533,
-        "generatedAt": "2026-11-23T10:42:53.910Z",
-        "reportId": "4c2687122d8b4f0506462b4cd6dad10ea56f4cfa0cd16cefbf266c59d7482f36"
+        "code": 168039,
+        "generatedAt": "2026-11-24T12:25:26.718Z",
+        "reportId": "965090760631879482e827acee972c6128885c6a4378c97eb5d93accec5770f7"
       }
     },
     {
@@ -266,14 +266,14 @@
       "fullName": "zhouxiaoka/autoclip",
       "description": "AutoClip｜一个链接，一键出片。开源 AI 视频剪辑桌面工具，将播客、访谈、课程等长视频自动剪成短视频，生成字幕、封面和发布文案，适配抖音、小红书、TikTok、Reels 与 YouTube Shorts。Open-source AI video clipping & content repurposing.",
       "language": "Python",
-      "starsToday": 641,
-      "totalStars": 14002,
+      "starsToday": 981,
+      "totalStars": 15033,
       "htmlUrl": "https://github.com/zhouxiaoka/autoclip",
       "publicPath": "/github/zhouxiaoka/autoclip",
       "sloc": {
-        "code": 166549,
-        "generatedAt": "2026-11-23T10:43:05.537Z",
-        "reportId": "afb1c9add34d1d7afbfb22c8140779f5112450b61812df52dff1e64254d6ce6c"
+        "code": 183451,
+        "generatedAt": "2026-11-24T08:27:50.601Z",
+        "reportId": "9fedcaf4c7648dc4576bb22eb38e604ebbbc0b53c12314c08d2370aa37a3541d"
       }
     }
   ]
