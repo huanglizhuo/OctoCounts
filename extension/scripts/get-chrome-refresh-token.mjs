@@ -12,6 +12,7 @@
 // (Or set CHROME_CLIENT_ID / CHROME_CLIENT_SECRET and run with no args.)
 
 import { createServer } from "node:http";
+import { writeFileSync } from "node:fs";
 
 const clientId = process.argv[2] ?? process.env.CHROME_CLIENT_ID;
 const clientSecret = process.argv[3] ?? process.env.CHROME_CLIENT_SECRET;
@@ -87,8 +88,8 @@ if (!tokens.refresh_token) {
   process.exit(1);
 }
 
-console.log("refresh_token (store as GitHub secret CHROME_REFRESH_TOKEN):");
-console.log("");
-console.log(`  ${tokens.refresh_token}`);
-console.log("");
+const outFile = ".chrome-refresh-token.txt";
+writeFileSync(outFile, tokens.refresh_token, { mode: 0o600 });
+console.log(`refresh_token written to ${outFile} (chmod 600) — not printed to stdout to avoid leaking it into logs.`);
+console.log("Copy its contents into the GitHub secret CHROME_REFRESH_TOKEN, then delete the file.");
 console.log("Keep it secret; it does not expire unless you revoke it.");
