@@ -2,22 +2,45 @@
 
 > 配套计划:[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)。本手册是 sitemap 拆分 + llms 移出 sitemap + FAQ 强化上线后的**必须手动步骤**与验证清单。GSC/Bing Webmaster 需要账号权限,无法从仓库自动化(SG-10 遗留)。
 
-更新：2026-11-05。URL 数量以当次线上 sitemap 为准；下列检查不代表已经部署、提交或收录。
+更新：2026-11-24。URL 数量以当次线上 sitemap 为准；下列检查不代表已经部署、提交或收录。
+
+## 0. 2026-11-24 这一版的部署顺序
+
+边缘（Cloudflare Pages）与后端（sloc-infra）可以独立部署，边缘代码同时兼容新旧两版 API，所以顺序不影响可用性。要让全部功能生效：
+
+1. **后端先迁移再部署。** 这一版给 `reports` 表增加了两个物化列（`stars`、`primary_language`），由现有统计触发器推导并为 canonical 行回填。按 sloc-infra 的 `README.md`「Ship a new app version」执行：在 VPS-B 先跑 `bash scripts/migrate-db.sh`（使用新 tag 的镜像），再在两个节点部署。没有迁移就部署新镜像，`/api/seo/sitemap`、`/popular` 和语言榜单接口会因缺列而返回 500。
+2. **部署后清理 CDN 缓存**：`cf cache purge -z octocounts.com --body '{"tags":["octo-api","octo-html"]}' --force`。否则缓存的 API 响应不带新的索引指令头，缓存的 HTML 还是旧模板。
+3. 部署 Pages 后执行第 1 节的检查。
+
+回滚到 `v0.7.47` 不需要撤销迁移：旧镜像不读这两列，触发器多推导两列无害。
 
 ## 1. 部署后立即验证(无需任何账号)
 
 ```sh
-# sitemap index 结构正确(应列出 sitemap-static/compare/reports-1)
-curl -s https://octocounts.com/sitemap.xml | head -20
+# sitemap index 结构正确(应列出 static、compare、languages、reports-core-1、reports-tail-1)
+curl -s https://octocounts.com/sitemap.xml | grep -o '<loc>[^<]*</loc>'
 
-# 三个子 sitemap 均 200,且内容归属正确
-curl -s -o /dev/null -w "static: %{http_code}\n"  https://octocounts.com/sitemap-static.xml
-curl -s -o /dev/null -w "compare: %{http_code}\n" https://octocounts.com/sitemap-compare.xml
-curl -s -o /dev/null -w "reports: %{http_code}\n"  https://octocounts.com/sitemap-reports-1.xml
+# 各子 sitemap 均 200
+for f in static compare languages reports-core-1 reports-tail-1; do
+  curl -s -o /dev/null -w "$f: %{http_code}\n" "https://octocounts.com/sitemap-$f.xml"
+done
+# 分层前的旧文件名仍然可用(200)
+curl -s -o /dev/null -w "legacy reports: %{http_code}\n" https://octocounts.com/sitemap-reports-1.xml
 
 # 任何 sitemap XML 中都不得再出现 llms 条目(应无输出)
 curl -s https://octocounts.com/sitemap-static.xml  | grep -c llms || true
 curl -s https://octocounts.com/sitemap-compare.xml | grep -c llms || true
+
+# 这一版新增的页面与响应头
+curl -s -o /dev/null -w "languages: %{http_code}\n"        https://octocounts.com/languages
+curl -s -o /dev/null -w "cli guide: %{http_code}\n"        https://octocounts.com/docs/cli
+curl -s -o /dev/null -w "mcp guide: %{http_code}\n"        https://octocounts.com/docs/mcp-server
+curl -s -o /dev/null -w "action guide: %{http_code}\n"     https://octocounts.com/docs/github-action
+curl -s -o /dev/null -w "api robots: %{http_code}\n"       https://api.octocounts.com/robots.txt
+curl -sI https://api.octocounts.com/api/stats | grep -i x-robots-tag          # noindex
+curl -sI "https://api.octocounts.com/api/seo/report?provider=github&owner=react&repo=react" | grep -i '^link'  # canonical
+curl -sI "https://api.octocounts.com/og/compare?left=react/react&right=vuejs/core" | grep -i content-type  # image/png
+curl -sI https://octocounts.com/github/react/react | grep -i server-timing
 
 # 爬虫 UA 抽查 SSR(应 200 且 title 含 "source lines of code" 或具体仓库名)
 curl -s -A "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" \
@@ -42,6 +65,8 @@ INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
 ```
 
 注意:`--core` 依赖线上已部署拆分后的子 sitemap;若 404 会显式报错,不会静默截断。
+
+自 2026-11-24 起，后端每天自动读取 `sitemap-static.xml`、`sitemap-compare.xml` 和 `sitemap-languages.xml` 并提交其中的 URL（启动约 90 秒后跑第一次，之后全集群每天一次）。`--core` 仍可用于发布后的立即推送；脚本提交的是 static 与 compare 两个 sitemap。
 
 ## 3. Google Search Console(需账号)
 

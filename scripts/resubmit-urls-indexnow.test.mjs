@@ -89,18 +89,33 @@ test("extractSitemapLocs pulls every loc, tolerating whitespace", () => {
   assert.deepEqual(extractSitemapLocs(xml), ["https://octocounts.com/", "https://octocounts.com/docs/faq"]);
 });
 
-test("fetchCoreUrls merges the static and compare children, deduplicated", async () => {
+test("fetchCoreUrls merges the static, compare and language children, deduplicated", async () => {
   const fetched = [];
   const fetchImpl = async (url) => {
     fetched.push(url);
     if (url.endsWith("/sitemap-static.xml")) {
       return new Response("<urlset><url><loc>https://octocounts.com/</loc></url><url><loc>https://octocounts.com/docs/faq</loc></url></urlset>", { status: 200 });
     }
+    if (url.endsWith("/sitemap-languages.xml")) {
+      return new Response("<urlset><url><loc>https://octocounts.com/languages</loc></url></urlset>", { status: 200 });
+    }
     return new Response("<urlset><url><loc>https://octocounts.com/compare/react-vs-vue</loc></url><url><loc>https://octocounts.com/</loc></url></urlset>", { status: 200 });
   };
   const urls = await fetchCoreUrls({ host: "octocounts.com", fetchImpl });
-  assert.deepEqual(fetched, ["https://octocounts.com/sitemap-static.xml", "https://octocounts.com/sitemap-compare.xml"]);
-  assert.deepEqual(urls, ["https://octocounts.com/", "https://octocounts.com/docs/faq", "https://octocounts.com/compare/react-vs-vue"]);
+  assert.deepEqual(fetched, ["https://octocounts.com/sitemap-static.xml", "https://octocounts.com/sitemap-compare.xml", "https://octocounts.com/sitemap-languages.xml"]);
+  assert.deepEqual(urls, ["https://octocounts.com/", "https://octocounts.com/docs/faq", "https://octocounts.com/compare/react-vs-vue", "https://octocounts.com/languages"]);
+
+  // The language sitemap is optional until the backend publishes the
+  // leaderboards: a 404 skips it, any other status is a hard error.
+  const withoutLanguages = (status) => async (url) => (url.endsWith("/sitemap-languages.xml")
+    ? new Response("language sitemap", { status })
+    : new Response("<urlset><url><loc>https://octocounts.com/docs/faq</loc></url></urlset>", { status: 200 }));
+  const partial = await fetchCoreUrls({ host: "octocounts.com", fetchImpl: withoutLanguages(404) });
+  assert.deepEqual(partial, ["https://octocounts.com/docs/faq"]);
+  await assert.rejects(
+    () => fetchCoreUrls({ host: "octocounts.com", fetchImpl: withoutLanguages(503) }),
+    /sitemap-languages\.xml answered 503/,
+  );
 
   // A missing child (split sitemap not deployed yet) is a hard error, not a
   // silently truncated submission.

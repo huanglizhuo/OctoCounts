@@ -23,9 +23,10 @@ Install the extension for stats directly on GitHub, or use the web app for publi
 | [Web app](https://octocounts.com/) | Analyze public GitHub repositories and share a live report or a fixed saved result. |
 | [Browser extension](extension/README.md) | Show SLOC directly inside GitHub's repository sidebar in Chrome, Edge, or Firefox. |
 | [Public stats](https://octocounts.com/stats) | See aggregate report totals, largest repos, language coverage, and source breakdown. |
-| [GitHub Action](action/README.md) | Comment SLOC changes on pull requests. |
-| [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. |
-| [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. |
+| [Language leaderboards](https://octocounts.com/languages) | See the largest public GitHub repositories grouped by primary programming language. |
+| [GitHub Action](action/README.md) | Comment SLOC changes on pull requests. Guide: [octocounts.com/docs/github-action](https://octocounts.com/docs/github-action). |
+| [CLI](cli/README.md) | Run `npx octocounts https://github.com/owner/repo --json`. Guide: [octocounts.com/docs/cli](https://octocounts.com/docs/cli). |
+| [MCP server](mcp/README.md) | Give agents and developer assistants access to SLOC reports. Guide: [octocounts.com/docs/mcp-server](https://octocounts.com/docs/mcp-server). |
 | [README badges](#badges) | Add a live SLOC badge that links to the repository report page. |
 | [Research](https://octocounts.com/research) | Original research: a 10-repository study of how test/doc/generated-file filtering affects SLOC counts. |
 

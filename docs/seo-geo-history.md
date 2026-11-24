@@ -1,6 +1,6 @@
 # OctoCounts SEO/GEO 历史与状态(合并档案)
 
-> 本文档合并并取代了四份历史文档:`docs/research/GEO-optimization-report.md`(2026-08-28 诊断)、`GEO-ANALYSIS.md`(2026-09-16 快照)、`SEO-GEO-optimize-plan.md`(2026-09-08 计划,第 1–3 轮)与根目录的 `SEO-INDEX-GEO-PLAN-2026-09-19.md`(第 4 轮,已移至本目录)。当前活跃文档:**[seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md)(第 5 轮事故修复)、[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)(第 4 轮方案)、[seo-index-runbook.md](seo-index-runbook.md)(部署手册)、[seo-geo-measurement.md](seo-geo-measurement.md)(SG-10 测量)、[ai-crawling-policy.md](ai-crawling-policy.md)(爬虫策略)**。
+> 本文档合并并取代了四份历史文档:`docs/research/GEO-optimization-report.md`(2026-08-28 诊断)、`GEO-ANALYSIS.md`(2026-09-16 快照)、`SEO-GEO-optimize-plan.md`(2026-09-08 计划,第 1–3 轮)与根目录的 `SEO-INDEX-GEO-PLAN-2026-09-19.md`(第 4 轮,已移至本目录)。当前活跃文档:**[seo-geo-round7-2026-11-24.md](seo-geo-round7-2026-11-24.md)(第 7 轮)、[seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md)(第 5 轮事故修复)、[seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md)(第 4 轮方案)、[seo-index-runbook.md](seo-index-runbook.md)(部署手册)、[seo-geo-measurement.md](seo-geo-measurement.md)(SG-10 测量)、[ai-crawling-policy.md](ai-crawling-policy.md)(爬虫策略)**。
 
 ## 1. 四轮时间线
 
@@ -10,6 +10,8 @@
 | 第 1–3 轮 | 2026-09-08 计划,09-16/17 部署 | SG-01…SG-10 任务(见 §2) | 完成(遗留见 §4) |
 | 第 4 轮 | 2026-09-19 | sitemap 拆分、llms 移出 XML sitemap、FAQ 可引用性、IndexNow 验证/推送 | 完成,方案见 [seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md) |
 | 第 5 轮 | 2026-10-16 | GitHub 改名事故修复:7 个 compare 页 503(注册表旧名 + 改名自愈)、9 个 404(sitemap 门控同口径)、sitemap index lastmod | 完成,方案见 [seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md) |
+| 第 6 轮 | 2026-10-29 至 11-21 | 渲染一致性(客户端 DOM 保留 SSR 内容)、Explore 集合页、内容准确性审计、设计.md 仓库路由、历史测量溯源 | 完成,记录见各次审计目录 |
+| 第 7 轮 | 2026-11-24 | 默认口径同步、API 主机索引边界、报告页模板、报告 sitemap 分层、语言榜单、对比页互链、CLI/Action/MCP 落地页 | 完成,站外动作与产品决策遗留,见 [seo-geo-round7-2026-11-24.md](seo-geo-round7-2026-11-24.md) |
 
 ## 2. 第 1–3 轮(SG-01…SG-10)做了什么
 
@@ -40,10 +42,13 @@
 
 | 项 | 说明 |
 |---|---|
-| SG-08 剩余 | 真实 Googlebot/Bingbot/GPTBot 穿透 Cloudflare 的生产验证(5 项复选框) |
-| SG-10 基线 | GSC/Bing Webmaster/umami 后台接入,每 2 周对照 runbook §5 指标 |
-| 报告页/对比页程序化段落 | citability 39–49,可程序化强化(第 4 轮只做了 FAQ) |
-| GSC/Bing 手动步骤 | 部署后按 runbook §3/§4 执行(重新提交 sitemap、请求收录、--core 推送) |
+| SG-08 剩余 | 真实 Googlebot/Bingbot/GPTBot 穿透 Cloudflare 的生产验证(5 项复选框)。2026-11-23 用 19 种模拟 UA 确认源站返回完整 HTML 且无挑战页;模拟 UA 不能代替真实爬虫日志 |
+| SG-10 基线 | GSC/Bing Webmaster/umami 后台接入,每 2 周对照 runbook §5 指标;`docs/chatgpt-geo-baseline.csv` 的结果字段仍为空 |
+| 报告页收录 | 2026-11-24 起报告 sitemap 分为 core(≥ 1,000 star)与 tail 两层,并有 `/languages` 枢纽页。按层在 GSC 记录收录数,再决定是否调整收录门槛 |
+| 站外品牌提及 | 需要维护者本人在第三方站点进行,清单见第 7 轮记录与 `.seo-audit/BACKLINK-PLAN.md` |
+| Cloudflare 设置 | JavaScript Detections 的内联脚本被哈希式 CSP 拦截,需在控制台关闭或改为 nonce 式 CSP |
+| 产品决策 | Dataset 的数据许可;公开仓库转私有后的报告下架流程 |
+| GSC/Bing 手动步骤 | 部署后按 runbook §3/§4 执行(重新提交 sitemap、请求收录)。IndexNow 核心页由后端每日自动提交 |
 
 ## 5. 中长期路线(自旧档案合并,仍然有效)
 

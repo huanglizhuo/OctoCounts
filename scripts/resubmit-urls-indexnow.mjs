@@ -115,13 +115,22 @@ export function extractSitemapLocs(xml) {
 }
 
 // FIX-5: the core sitemap children are the canonical "pages worth indexing"
-// list (static pages + curated comparisons, no /github/* report pages).
-// Submitting them once after a deploy nudges IndexNow engines to recrawl the
-// pages that actually rank, instead of waiting for organic rediscovery.
+// list (static pages, curated comparisons and language leaderboards; no
+// /github/* report pages). Submitting them once after a deploy nudges
+// IndexNow engines to recrawl the pages that actually rank, instead of
+// waiting for organic rediscovery. The backend repeats this daily since
+// 2026-11-24; this remains the immediate post-release push.
 export async function fetchCoreUrls({ host = DEFAULT_HOST, fetchImpl = fetch } = {}) {
   const urls = [];
-  for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml"]) {
+  for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-languages.xml"]) {
     const response = await fetchImpl(`https://${host}${path}`);
+    // The language sitemap exists only once the backend serves the language
+    // leaderboards. Before that it is a 404: a missing optional child is
+    // reported and skipped, while any other failure stays a hard error.
+    if (response.status === 404 && path === "/sitemap-languages.xml") {
+      console.error(`${path} answered 404 — language leaderboards not published yet, skipping`);
+      continue;
+    }
     if (!response.ok) throw new Error(`${path} answered ${response.status} — deploy the split sitemap first`);
     const locs = extractSitemapLocs(await response.text());
     if (!locs.length) throw new Error(`${path} contains no URLs`);
@@ -146,7 +155,7 @@ async function main(argv) {
 
   if (!files.length && !flags.includes("--core")) {
     console.error("usage: node scripts/resubmit-urls-indexnow.mjs <bing-export.csv | url-list.txt> [more files...]");
-    console.error("       node scripts/resubmit-urls-indexnow.mjs --core        # submit the static+compare sitemap URLs");
+    console.error("       node scripts/resubmit-urls-indexnow.mjs --core        # submit the static, compare and language sitemap URLs");
     console.error("       node scripts/resubmit-urls-indexnow.mjs --verify-key  # check https://<host>/<key>.txt serves INDEXNOW_KEY");
     console.error("env: INDEXNOW_KEY (required), INDEXNOW_HOST, INDEXNOW_ENDPOINT, DRY_RUN=1");
     process.exitCode = 1;
@@ -162,7 +171,7 @@ async function main(argv) {
   }
   if (flags.includes("--core")) {
     const core = await fetchCoreUrls({ host });
-    console.error(`--core: ${core.length} URLs from ${host}/sitemap-static.xml + /sitemap-compare.xml`);
+    console.error(`--core: ${core.length} URLs from ${host}/sitemap-static.xml + /sitemap-compare.xml + /sitemap-languages.xml`);
     urls.push(...core);
   }
   const unique = [...new Set(urls)];

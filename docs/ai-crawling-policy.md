@@ -87,6 +87,29 @@ ChatGPT-User user-initiated), Google "AI features and your website",
 Cloudflare cache-key documentation.
 
 
+## API host index boundary (2026-11-24)
+
+`api.octocounts.com` serves JSON, SVG badges and PNG share images. None of
+those URLs is a landing page, so the boundary is stated on every response
+(`backend/src/index_policy.rs`):
+
+- `/api/*` reads, `/badge/*`, `/og/*` and `/internal/*` answer
+  `X-Robots-Tag: noindex` on success. Failure responses carry no directive,
+  so an outage cannot deindex anything.
+- `/api/seo/report` names its HTML page through a canonical `Link` header.
+  A report below the indexable file floor has no HTML page and a ref-scoped
+  lookup has no single canonical page; both answer `noindex` instead.
+- A saved report's JSON (`/api/reports/:id`) is left index-neutral: Dataset
+  markup names it as its download.
+- `https://api.octocounts.com/robots.txt` allows crawling and excludes only
+  writes and per-request job state (`/api/analyze`, `/api/jobs/`,
+  `/api/auth/`, `/internal/`). Crawling stays open because robots.txt can
+  never see a `noindex` on a URL it blocks.
+
+The Cloudflare cache rule (`sloc-infra`) already caches these routes by
+path prefix; after deploying the backend, purge the `octo-api` cache tag so
+cached responses pick up the new headers.
+
 ## Independent Chinese pages
 
 The Chinese homepage is `/zh`; `/?lng=zh` permanently redirects there. The
