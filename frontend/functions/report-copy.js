@@ -81,11 +81,20 @@ export function primaryLanguagePhrase(languages, totalCode) {
   return `${outweighed ? "top programming language" : "top language"}: ${primary.name} ${primary.percent.toFixed(1)}%`;
 }
 
+const BRAND_SUFFIX = " | OctoCounts";
+/// What a SERP shows of a title before truncating it.
+const TITLE_LIMIT = 60;
+/// What a SERP shows of a description before truncating it.
+const DESCRIPTION_LIMIT = 160;
+
 export function reportPageTitle({ repoFullName, total, analysisOptions }) {
   const label = analysisOptionsLabel(analysisOptions);
-  return label
-    ? `${repoFullName}: ${formatCount(total.code)} code lines (${label}) | OctoCounts`
-    : `${repoFullName}: ${formatCount(total.code)} lines of code | OctoCounts`;
+  const title = label
+    ? `${repoFullName}: ${formatCount(total.code)} code lines (${label})`
+    : `${repoFullName}: ${formatCount(total.code)} lines of code`;
+  // The brand suffix goes first when a long owner/repo would otherwise push
+  // the line count past the truncation point.
+  return title.length + BRAND_SUFFIX.length > TITLE_LIMIT ? title : `${title}${BRAND_SUFFIX}`;
 }
 
 /// languageCount is the report's full language count; SEO payloads carry
@@ -96,7 +105,29 @@ export function reportPageDescription({ repoFullName, total, languages, language
   const languagesCounted = Number.isSafeInteger(languageCount) ? languageCount : Array.isArray(languages) ? languages.length : 0;
   const phrase = primaryLanguagePhrase(languages, total.code);
   const rules = isCanonicalAnalysisOptions(analysisOptions) ? " Tests, docs and generated files excluded." : "";
-  return `${repoFullName} has ${count} across ${formatCount(total.files)} files and ${formatCount(languagesCounted)} languages${phrase ? `; ${phrase}` : ""}.${rules}`;
+  const subject = `${repoFullName} has ${count}`;
+  // Long repository names need the snippet's room. Detail is dropped in
+  // order of how little a search snippet needs it: the file count, then the
+  // top language. The counting-scope sentence goes last, because it is what
+  // keeps the figure from being read as a whole-repository count.
+  for (const description of [
+    `${subject} across ${formatCount(total.files)} files and ${formatCount(languagesCounted)} languages${phrase ? `; ${phrase}` : ""}.${rules}`,
+    `${subject} across ${formatCount(languagesCounted)} languages${phrase ? `; ${phrase}` : ""}.${rules}`,
+    `${subject} across ${formatCount(languagesCounted)} languages.${rules}`,
+    `${subject}.${rules}`,
+  ]) {
+    if (description.length <= DESCRIPTION_LIMIT) return description;
+  }
+  return `${subject}.`;
+}
+
+/// Links to the counted source: the repository and the exact commit. Derived
+/// from the report's own identity, never from a URL a payload carries, so the
+/// page's outbound links cannot name a different repository than the page.
+export function reportSourceLinks({ provider, owner, repo, commitSha }) {
+  if (provider !== "github" || !owner || !repo || !commitSha) return null;
+  const repositoryUrl = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  return { repositoryUrl, commitUrl: `${repositoryUrl}/tree/${encodeURIComponent(commitSha)}`, shortSha: commitSha.slice(0, 12) };
 }
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];

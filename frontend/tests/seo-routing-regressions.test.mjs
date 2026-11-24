@@ -92,7 +92,8 @@ test("the sitemap index and second shard request bounded API views", async (t) =
     return Response.json({ entries: [entry] });
   });
   const index = await onRequest(context("/sitemap.xml"));
-  assert.match(await index.text(), /sitemap-reports-2\.xml<\/loc>\s*<lastmod>2026-11-17/);
+  // A shard never reports a date older than the report template's own.
+  assert.match(await index.text(), /sitemap-reports-2\.xml<\/loc>\s*<lastmod>2026-11-24/);
   const shard = await onRequest(context("/sitemap-reports-2.xml"));
   assert.ok((await shard.text()).includes(entry.loc));
   assert.deepEqual(calls, ["index", "page"]);

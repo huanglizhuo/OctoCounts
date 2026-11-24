@@ -3,13 +3,16 @@
 // createRoot() discards that markup and Google indexes the rendered DOM. The
 // same builders (functions/report-copy.js, compare-registry.js) render them
 // here so both versions of the page say the same thing, word for word.
-import { primaryLanguage, reportCapsuleText, reportFaq, reportInsightsText } from "../../functions/report-copy.js";
+import { primaryLanguage, reportCapsuleText, reportFaq, reportInsightsText, reportSourceLinks } from "../../functions/report-copy.js";
 import { relatedComparisons } from "../../functions/compare-registry.js";
 import type { Report } from "../types";
 
 export function ReportAbout({ report }: { report: Report }) {
   const copy = { ...report, repoFullName: `${report.repository.owner}/${report.repository.name}` };
   const comparisons = relatedComparisons(copy.repoFullName, primaryLanguage(report.languages, report.total.code)?.name);
+  // Same links the server HTML renders under the citation: the counted
+  // repository and the exact commit, built from the report's own identity.
+  const source = reportSourceLinks({ provider: "github", owner: report.repository.owner, repo: report.repository.name, commitSha: report.commitSha });
   // English like the server copy it mirrors, whatever the UI language.
   return (
     <section className="report-about" lang="en" aria-labelledby="report-about-title">
@@ -17,6 +20,12 @@ export function ReportAbout({ report }: { report: Report }) {
         <h2 id="report-about-title">About this report</h2>
       </div>
       <p>{reportCapsuleText(copy)}</p>
+      {source ? (
+        <p>
+          Source: <a href={source.repositoryUrl}>{copy.repoFullName} on GitHub</a> · counted commit{" "}
+          <a href={source.commitUrl}>{source.shortSha}</a>
+        </p>
+      ) : null}
       <p>{reportInsightsText(copy)}</p>
       <p>
         See the <a href="/docs/glossary">SLOC and code metrics glossary</a> and{" "}

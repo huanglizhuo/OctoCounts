@@ -4160,32 +4160,38 @@ td.lang .row-share {
 }
 
 /* Server-rendered report/list/compare content injected by the edge function
-   into #root. These rules only match before React mounts (createRoot().render
-   discards the block), so they style the pre-hydration table without touching
-   the app's own tables (those use .report / .compare-table). */
-#root > section {
+   into #root, inside a <main class="oc-ssr"> landmark. These rules only match
+   before React mounts (createRoot().render discards the block), so they style
+   the pre-hydration table without touching the app's own tables (those use
+   .report / .compare-table) or the app's own <main class="page">. */
+#root > main.oc-ssr {
   max-width: 72rem;
   margin: 0 auto;
   padding: var(--space-6, 1.5rem) var(--space-4, 1rem);
 }
 
-#root > section table {
+#root > main.oc-ssr table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95em;
   font-variant-numeric: tabular-nums;
 }
 
-#root > section th,
-#root > section td {
+#root > main.oc-ssr th,
+#root > main.oc-ssr td {
   border: 1px solid var(--rule, rgba(128, 128, 128, 0.35));
   padding: 0.35rem 0.6rem;
   text-align: right;
 }
 
-#root > section th:first-child,
-#root > section td:first-child {
+#root > main.oc-ssr th:first-child,
+#root > main.oc-ssr td:first-child {
   text-align: left;
+}
+
+/* The links to the counted source, under the report citation. */
+.report-source {
+  font-size: var(--text-sm, 0.9em);
 }
 
 /* Header and tool-page navigation: compact native menus, no horizontal rail. */

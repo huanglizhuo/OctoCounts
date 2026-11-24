@@ -1,7 +1,7 @@
 import { renderExplore, explorePreloads, validateExploreList, validateExploreStats } from "../.generated/explore-ssr.js";
 import { trendingSloc, trendingReportPath, trendingIsStale, validateTrendingSnapshot } from "./trending-sloc.js";
 import { reportJsonLd } from "./report-schema.js";
-import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle } from "./report-copy.js";
+import { MIN_INDEXABLE_REPORT_FILES, MIN_RELATED_PEER_CODE_LINES, primaryLanguage, primaryLanguagePhrase, readableDate, reportCapsuleText, reportFaq, reportInsightsText, reportPageDescription, reportPageTitle, reportSourceLinks } from "./report-copy.js";
 import { comparePolicies } from "./counting-policy.js";
 import { COMPARE_REGISTRY, findCuratedComparison, relatedComparisons } from "./compare-registry.js";
 
@@ -65,7 +65,7 @@ const STATIC_SITEMAP_ENTRIES = [
 // The homepage's own visible freshness line and the curated /compare/* pages
 // follow the manifest too.
 const COMPARE_CONTENT_LASTMOD = "2026-10-29";
-const REPORT_CONTENT_LASTMOD = "2026-11-05";
+const REPORT_CONTENT_LASTMOD = "2026-11-24";
 const LIVE_COLLECTION_PATHS = new Set(["/stats", "/recent", "/popular", "/hall-of-monoliths"]);
 
 export async function onRequest(context) {
@@ -444,7 +444,11 @@ async function reportResponse(context, route, options = {}) {
   // "missing"/"unavailable" exits below simply leave its promise unresolved
   // without rejection risk.
   const relatedPromise = fetchRelatedReports(context, route);
+  // Server-Timing for this route: the two upstream waits and the render.
+  const spans = {};
+  const reportStarted = Date.now();
   const result = options.result ?? await fetchSeoReport(context, route);
+  spans.report = Date.now() - reportStarted;
   if (result.state === "missing") {
     if (requestUrl.searchParams.has("reportId")) {
       const message = "This saved result is no longer available. Open the repository report to request a new analysis.";
@@ -521,6 +525,7 @@ async function reportResponse(context, route, options = {}) {
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
   const relatedReports = await relatedPromise;
+  spans.related = Date.now() - reportStarted - spans.report;
   // The store matches owner/repo case-sensitively, so a mistyped or
   // mixed-case external link (e.g. /github/Facebook/React) resolves to the
   // canonical casing only via the report itself. 308 it so link equity lands
@@ -549,9 +554,12 @@ async function reportResponse(context, route, options = {}) {
   if (options.markdown) {
     const response = markdownResponse(reportMarkdown(report, relatedReports), report.isSnapshot ? "private, no-store" : cacheControl, options);
     response.headers.set("cache-tag", dependencyTags);
+    response.headers.set("server-timing", serverTiming(spans));
     return response;
   }
+  const renderStarted = Date.now();
   const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
+  spans.render = Date.now() - renderStarted;
   if (report.isSnapshot) {
     return htmlResponse(html, "private, no-store", {});
   }
@@ -562,12 +570,13 @@ async function reportResponse(context, route, options = {}) {
   if (validators.some((value) => value.trim() === "*" || value.trim().replace(/^W\//, "") === etag.slice(2))) {
     return new Response(null, {
       status: 304,
-      headers: { "cache-control": cacheControl, "cache-tag": dependencyTags, etag, ...securityHeaders() },
+      headers: { "cache-control": cacheControl, "cache-tag": dependencyTags, etag, "server-timing": serverTiming(spans), ...securityHeaders() },
     });
   }
   const response = htmlResponse(html, cacheControl);
   response.headers.set("etag", etag);
   response.headers.set("cache-tag", dependencyTags);
+  response.headers.set("server-timing", serverTiming(spans));
   return response;
 }
 
@@ -606,11 +615,12 @@ function reportMarkdown(report, relatedReports = []) {
         .map((item) => `- [${item.repoFullName}](https://octocounts.com${item.publicPath}) — ${item.topLanguage || "mixed"}, ${formatNumber(item.totalCode)} code lines`)
         .join("\n")}\n`
     : "";
+  const source = reportSourceLinks(report);
   return `# ${report.repoFullName} SLOC report
 
 > ${report.citation}
 
-${reportCapsuleText(report)}
+${source ? `Source: [${report.repoFullName} on GitHub](${source.repositoryUrl}) · counted commit [${source.shortSha}](${source.commitUrl})\n\n` : ""}${reportCapsuleText(report)}
 
 ${reportLeadText(report)}
 
@@ -666,6 +676,17 @@ async function fetchRelatedReports(context, route) {
   } catch {
     return [];
   }
+}
+
+/// Server-Timing value for the report route, so a slow cold render can be
+/// attributed to the report lookup, the optional related lookup or the render
+/// instead of guessed. Durations are milliseconds with one decimal; a span
+/// that was never measured is left out rather than reported as zero.
+function serverTiming(spans) {
+  return Object.entries(spans)
+    .filter(([, milliseconds]) => Number.isFinite(milliseconds) && milliseconds >= 0)
+    .map(([name, milliseconds]) => `${name};dur=${Math.round(milliseconds * 10) / 10}`)
+    .join(", ");
 }
 
 async function listPageResponse(context, kind, url) {
@@ -2605,7 +2626,14 @@ function injectReport(index, report, apiBaseUrl, relatedReports = []) {
   // The h1 is the repository (owner/repo): the page's subject and the value
   // the client-side hero renders on /github/ routes — semantically consistent
   // pre- and post-hydration, and never a second "OctoCounts" h1.
-  const table = `<section><h1>${escapeHtml(report.repoFullName)}</h1><p>${escapeHtml(reportCapsuleText(report))}</p><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+  // Visible links to the counted source. The repository used to appear only
+  // inside JSON-LD and the embedded JSON, so a reader without JavaScript had
+  // no way through to the code these numbers describe.
+  const source = reportSourceLinks(report);
+  const sourceHtml = source
+    ? `<p class="report-source">Source: <a href="${escapeAttr(source.repositoryUrl)}">${escapeHtml(report.repoFullName)} on GitHub</a> &middot; counted commit <a href="${escapeAttr(source.commitUrl)}">${escapeHtml(source.shortSha)}</a></p>`
+    : "";
+  const table = `<section><h1>${escapeHtml(report.repoFullName)}</h1><p>${escapeHtml(reportCapsuleText(report))}</p><p id="octocounts-citation">${escapeHtml(report.citation)}</p>${sourceHtml}${ogImageHtml}${lead}${reportInsights(report)}<table><thead><tr><th>Language</th><th>Files</th><th>Lines</th><th>Code</th><th>Comments</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   // Peer links between report pages: every long-tail /github/* URL both
   // receives and hands out crawl paths, so the report corpus is a web instead
   // of a list of dead ends reachable only from /recent and /popular.
@@ -2790,7 +2818,14 @@ function injectHeadAndNoscript(index, meta) {
   }
   // Explore hydrates the shared React tree. Other routes keep readable facts
   // inside #root for no-JS clients until createRoot replaces their fallback.
-  html = html.replace('<div id="root"></div>', () => `<div id="root"${meta.explore ? ` data-oc-ssr="explore" data-oc-hydrate="explore" data-oc-locale="${meta.explore}"` : ""}>${meta.bodyContent}</div>`);
+  // Edge-rendered bodies get a <main> landmark: the shell's own <main> is the
+  // no-JavaScript fallback this function removes, and a reader without
+  // JavaScript would otherwise land on a page with none. Explore SSR already
+  // renders the app tree with its <main>.
+  const body = meta.bodyContent
+    ? meta.explore ? meta.bodyContent : `<main id="main" class="oc-ssr">${meta.bodyContent}</main>`
+    : "";
+  html = html.replace('<div id="root"></div>', () => `<div id="root"${meta.explore ? ` data-oc-ssr="explore" data-oc-hydrate="explore" data-oc-locale="${meta.explore}"` : ""}>${body}</div>`);
   if (meta.explore) html = html.replace(/<html lang="[^"]*"/, `<html lang="${meta.explore}"`);
   return html;
 }

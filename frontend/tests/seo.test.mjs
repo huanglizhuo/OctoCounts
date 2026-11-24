@@ -442,9 +442,14 @@ test("report SSR replaces homepage schema and fallback content", async () => {
     const response = await onRequest(await renderedContext("/github/octo-org/octo-repo"));
     const html = await response.text();
     // SSR facts render inside #root as visible HTML (replaced on hydration),
-    // not inside a noscript block.
+    // not inside a noscript block, inside a <main> landmark so the pre-JS
+    // page has one.
     assert.equal((html.match(/<noscript>/g) ?? []).length, 0);
-    assert.match(html, /<div id="root"><section>/);
+    assert.match(html, /<div id="root"><main id="main" class="oc-ssr"><section>/);
+    assert.equal((html.match(/<main[ >]/g) ?? []).length, 1);
+    // The counted source is one click away without JavaScript.
+    assert.match(html, /Source: <a href="https:\/\/github\.com\/octo-org\/octo-repo">octo-org\/octo-repo on GitHub<\/a> &middot; counted commit <a href="https:\/\/github\.com\/octo-org\/octo-repo\/tree\/[a-f0-9]+">[a-f0-9]{7,40}<\/a>/);
+    assert.match(response.headers.get("server-timing") ?? "", /report;dur=[\d.]+/);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1);
     assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, 1);
     assert.match(html, /Repository size insights/);
@@ -597,7 +602,7 @@ test("generated sitemap gives Trending and reports only truthful lastmod values"
     assert.doesNotMatch(staticXml, /<changefreq>|<priority>/);
 
     const reportsXml = await (await onRequest(await renderedContext("/sitemap-reports-1.xml", snapshot))).text();
-    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-11-05<\/lastmod>/);
+    assert.match(reportsXml, /<loc>https:\/\/octocounts\.com\/github\/octo\/repo<\/loc>\s*<lastmod>2026-11-24<\/lastmod>/);
     assert.doesNotMatch(reportsXml, /<changefreq>|<priority>/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -736,7 +741,7 @@ test("sitemap index lists the child sitemaps and keeps text assets out of every 
     const expectedStaticMax = staticDates.reduce((a, b) => (b > a ? b : a));
     assert.match(indexXml, new RegExp(`<loc>https://octocounts\\.com/sitemap-static\\.xml</loc>\\s*<lastmod>${expectedStaticMax}</lastmod>`));
     assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-compare\.xml<\/loc>\s*<\/sitemap>/);
-    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-05<\/lastmod>/);
+    assert.match(indexXml, /<loc>https:\/\/octocounts\.com\/sitemap-reports-1\.xml<\/loc>\s*<lastmod>2026-11-24<\/lastmod>/);
 
     for (const path of ["/sitemap-static.xml", "/sitemap-compare.xml", "/sitemap-reports-1.xml"]) {
       const xml = await (await onRequest(await renderedContext(path, {
@@ -1027,7 +1032,7 @@ test("curated comparison SSR renders balanced citable content", async () => {
     assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" \/>/);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1, `${slug} single h1`);
     assert.equal((html.match(/<noscript>/g) ?? []).length, 0, `${slug} no noscript`);
-    assert.match(html, /<div id="root"><section>/, `${slug} SSR content in root`);
+    assert.match(html, /<div id="root"><main id="main" class="oc-ssr"><section>/, `${slug} SSR content in root`);
     assert.equal((html.match(/type="application\/ld\+json"/g) ?? []).length, 1, `${slug} single JSON-LD block`);
 
     // Totals comparison table and balanced, disclaimer-first copy.
@@ -1742,7 +1747,7 @@ test("report SSR omits the similar section when the related API fails or misbeha
       restore();
     }
     assert.doesNotMatch(html, /Similar repository reports/);
-    assert.match(html, /<div id="root"><section>/);
+    assert.match(html, /<div id="root"><main id="main" class="oc-ssr"><section>/);
   }
 });
 
@@ -3297,18 +3302,62 @@ test("canonical report metadata stays short, names its rules once, and skips dat
     const body = html.split('<div id="root">')[1];
     assert.match(html, /<title>octo-org\/octo-repo: 93,452 lines of code \| OctoCounts<\/title>/);
     assert.doesNotMatch(html, /\(tests excluded/);
-    assert.match(html, /<meta name="description" content="octo-org\/octo-repo has 93,452 lines of code across 120 files and 3 languages; top programming language: TypeScript 32\.3%\. Tests, docs and generated files excluded\." \/>/);
+    // 163 characters with the file count: the snippet limit drops that
+    // detail first and keeps the counting scope.
+    assert.match(html, /<meta name="description" content="octo-org\/octo-repo has 93,452 lines of code across 3 languages; top programming language: TypeScript 32\.3%\. Tests, docs and generated files excluded\." \/>/);
     assert.match(body, /Top programming language: TypeScript 32\.3%\. Generated on <time datetime="2026-10-23T03:09:39\.242\+00:00">October 23, 2026<\/time>/);
     assert.match(body, /canonical public options/);
     assert.doesNotMatch(body, /242465275|reproduction requires|Unknown rules in older reports/, "no raw timestamps or repeated hedges in the visible body");
     const markdown = await (await onRequest(await renderedContext("/github/octo-org/octo-repo?format=md"))).text();
     assert.match(markdown, /Top programming language: TypeScript 32\.3%\. Generated on October 23, 2026\./);
+    assert.match(markdown, /Source: \[octo-org\/octo-repo on GitHub\]\(https:\/\/github\.com\/octo-org\/octo-repo\) · counted commit \[[a-f0-9]+\]\(https:\/\/github\.com\/octo-org\/octo-repo\/tree\/[a-f0-9]+\)/);
   } finally {
     globalThis.fetch = originalFetch;
   }
   const copy = await import("../functions/report-copy.js");
   const narrowed = { ...canonicalOptions, includeDocs: true, includeGenerated: true };
   assert.equal(copy.reportPageTitle({ repoFullName: "a/b", total: { code: 1234 }, analysisOptions: narrowed }), "a/b: 1,234 code lines (tests excluded) | OctoCounts");
+
+  // A long repository name must not push the line count out of the snippet.
+  const long = {
+    repoFullName: "PrimeIntellect-ai/prime-agent",
+    total: { files: 1203, code: 459981 },
+    languages: [{ name: "Rust", stats: { code: 422832 } }],
+    languageCount: 13,
+    analysisOptions: canonicalOptions,
+  };
+  assert.equal(copy.reportPageTitle(long), "PrimeIntellect-ai/prime-agent: 459,981 lines of code");
+  // Exactly 160 characters: everything fits.
+  assert.equal(
+    copy.reportPageDescription(long),
+    "PrimeIntellect-ai/prime-agent has 459,981 lines of code across 1,203 files and 13 languages; top language: Rust 91.9%. Tests, docs and generated files excluded.",
+  );
+  // Over the limit: the file count goes first, the top language next, and
+  // the counting scope last; a name that leaves no room gets the figure alone.
+  const dataHeavy = { total: { files: 67, code: 19257 }, languages: [{ name: "JSON", stats: { code: 12000 } }, { name: "TSX", stats: { code: 6178 } }], languageCount: 13, analysisOptions: canonicalOptions };
+  const longer = { ...dataHeavy, repoFullName: "christianrowlands/wavedigger" };
+  assert.equal(
+    copy.reportPageDescription(longer),
+    "christianrowlands/wavedigger has 19,257 lines of code across 13 languages; top programming language: TSX 32.1%. Tests, docs and generated files excluded.",
+  );
+  const noRoomForTopLanguage = { ...longer, languages: [{ name: "JSON", stats: { code: 12000 } }, { name: "Visual Basic .NET", stats: { code: 6178 } }], languageCount: 140 };
+  assert.equal(
+    copy.reportPageDescription(noRoomForTopLanguage),
+    "christianrowlands/wavedigger has 19,257 lines of code across 140 languages. Tests, docs and generated files excluded.",
+  );
+  const name80 = `${"a".repeat(39)}/${"b".repeat(40)}`;
+  assert.equal(copy.reportPageDescription({ ...long, repoFullName: name80 }), `${name80} has 459,981 lines of code. Tests, docs and generated files excluded.`);
+  const name95 = `${"a".repeat(39)}/${"b".repeat(55)}`;
+  assert.equal(copy.reportPageDescription({ ...long, repoFullName: name95 }), `${name95} has 459,981 lines of code.`);
+  assert.equal(copy.reportPageTitle({ ...long, repoFullName: name95 }), `${name95}: 459,981 lines of code`);
+  // Source links come from the report identity, never from a payload URL.
+  assert.deepEqual(copy.reportSourceLinks({ provider: "github", owner: "o", repo: "r", commitSha: "abcdef1234567890" }), {
+    repositoryUrl: "https://github.com/o/r",
+    commitUrl: "https://github.com/o/r/tree/abcdef1234567890",
+    shortSha: "abcdef123456",
+  });
+  assert.equal(copy.reportSourceLinks({ provider: "github", owner: "o", repo: "r" }), null);
+  assert.equal(copy.reportSourceLinks({ provider: "gitlab", owner: "o", repo: "r", commitSha: "abc" }), null);
   assert.equal(copy.analysisOptionsLabel(undefined), null, "unrecorded options claim nothing");
   assert.equal(copy.primaryLanguagePhrase([{ name: "Markdown", stats: { code: 9 } }], 9), "top language: Markdown 100.0%", "prose-only repositories keep their real top language");
 });

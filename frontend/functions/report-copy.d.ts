@@ -27,6 +27,7 @@ export function primaryLanguage(languages: CopyLanguage[], totalCode: number): {
 export function primaryLanguagePhrase(languages: CopyLanguage[], totalCode: number): string;
 export function reportPageTitle(report: Pick<CopyReport, "repoFullName" | "total" | "analysisOptions">): string;
 export function reportPageDescription(report: CopyReport): string;
+export function reportSourceLinks(report: { provider?: string; owner?: string; repo?: string; commitSha?: string }): { repositoryUrl: string; commitUrl: string; shortSha: string } | null;
 export function readableDate(value: string): string;
 export function reportCapsuleText(report: ProseReport): string;
 export function reportInsightsText(report: ProseReport): string;
