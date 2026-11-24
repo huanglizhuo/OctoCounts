@@ -108,12 +108,15 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let metrics = Arc::new(Metrics::new());
+    let indexnow = IndexNowService::start(config.indexnow.clone());
+    // A day's cadence for the pages a deploy changes; see the task.
+    spawn_indexnow_core_task(store.clone(), indexnow.clone());
     let state = AppState {
         coordinator: AnalysisCoordinator::new(
             store,
             github,
             config.analysis_concurrency,
-            IndexNowService::start(config.indexnow.clone()),
+            indexnow,
             metrics.clone(),
         ),
         caches: AppCaches::new(),
@@ -170,6 +173,39 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     Ok(())
+}
+
+/// Announces the site's core pages to IndexNow once a day, for the whole
+/// cluster rather than per node.
+///
+/// A finished report already announces itself, but the static pages, the
+/// curated comparisons and the language leaderboards change only with a
+/// deploy, and nothing told IndexNow about a deploy: the runbook asked for a
+/// manual `--core` run after each release. Reading the site's own sitemaps
+/// keeps the URL list out of the backend. The first pass runs shortly after
+/// startup so a new release's pages are announced the day they ship, and a
+/// failed pass is not recorded as done, so the next loop retries it.
+fn spawn_indexnow_core_task(store: Store, indexnow: Option<IndexNowService>) {
+    tokio::spawn(async move {
+        let Some(indexnow) = indexnow else {
+            return;
+        };
+        // Let a freshly started process finish booting first.
+        tokio::time::sleep(Duration::from_secs(90)).await;
+        loop {
+            let ran = store
+                .run_if_due("indexnow-core", Duration::from_secs(86_400), || async {
+                    let count = indexnow.submit_core_urls().await?;
+                    tracing::info!(count, "IndexNow core sitemap pass queued URLs");
+                    Ok(())
+                })
+                .await;
+            if let Err(error) = ran {
+                tracing::warn!(%error, "IndexNow core sitemap pass failed");
+            }
+            tokio::time::sleep(store::BACKGROUND_CHECK_EVERY).await;
+        }
+    });
 }
 
 /// `DATABASE_URL` fit for an error message: startup errors land in container

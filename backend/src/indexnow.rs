@@ -126,10 +126,86 @@ impl IndexNowService {
             tracing::warn!("IndexNow worker is unavailable; dropping URL submission");
         }
     }
+
+    /// The site whose pages the backend announces, derived from the same
+    /// host the submissions name.
+    pub fn site_base(&self) -> String {
+        format!("https://{}", self.config.host)
+    }
+
+    /// Queues every URL of the site's core sitemaps: the static pages, the
+    /// curated comparisons and the language leaderboards.
+    ///
+    /// A finished report already announces itself through `submit_report`,
+    /// but these three groups change only with a deploy, and nothing told
+    /// IndexNow about a deploy: the runbook asked for a manual `--core` run
+    /// after each release. The list is read from the site's own sitemaps so
+    /// the edge remains the single place that decides what is indexable. A
+    /// sitemap that cannot be read fails the pass, which is then retried on
+    /// the next loop instead of being recorded as done.
+    pub async fn submit_core_urls(&self) -> anyhow::Result<usize> {
+        let client = Client::builder().timeout(self.config.timeout).build()?;
+        let base = self.site_base();
+        self.submit_sitemaps(&client, &base).await
+    }
+
+    /// `submit_core_urls` with the HTTP client and site base supplied, so it
+    /// can be exercised against a local server.
+    pub async fn submit_sitemaps(&self, client: &Client, site_base: &str) -> anyhow::Result<usize> {
+        let mut submitted = 0usize;
+        for path in CORE_SITEMAPS {
+            let response = client.get(format!("{site_base}{path}")).send().await?;
+            let status = response.status();
+            if !status.is_success() {
+                anyhow::bail!("sitemap {path} answered {status}");
+            }
+            let body = response.text().await?;
+            if body.len() > MAX_CORE_SITEMAP_BYTES {
+                anyhow::bail!("sitemap {path} is larger than {MAX_CORE_SITEMAP_BYTES} bytes");
+            }
+            for loc in sitemap_locs(&body) {
+                // `submit` drops anything that is not a canonical URL on the
+                // configured host, so a foreign or variant URL in a sitemap
+                // never reaches IndexNow.
+                self.submit(loc);
+                submitted += 1;
+            }
+        }
+        Ok(submitted)
+    }
+}
+
+/// The sitemaps whose URLs change only with a deploy.
+const CORE_SITEMAPS: [&str; 3] = [
+    "/sitemap-static.xml",
+    "/sitemap-compare.xml",
+    "/sitemap-languages.xml",
+];
+
+/// The three core sitemaps hold a few hundred short URLs. Anything larger is
+/// not one of them.
+const MAX_CORE_SITEMAP_BYTES: usize = 2_000_000;
+
+/// `<loc>` values of a sitemap body, XML-unescaped and whitespace-trimmed.
+/// Sitemap XML escapes only the few characters below, so a small unescape is
+/// enough; there is no entity handling to get wrong.
+fn sitemap_locs(body: &str) -> impl Iterator<Item = String> + '_ {
+    body.match_indices("<loc>").map(|(start, _)| {
+        let rest = &body[start + "<loc>".len()..];
+        let end = rest.find("</loc>").unwrap_or(rest.len());
+        rest[..end]
+            .trim()
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+    })
 }
 
 /// Only canonical https URLs on the configured host are submitted; query
-/// variants and fragments are never eligible.
+/// variants and fragments are never eligible. The homepage is eligible: the
+/// core sitemap pass announces it like every other page.
 fn is_eligible_url(config: &IndexNowConfig, raw: &str) -> bool {
     let Ok(url) = url::Url::parse(raw) else {
         return false;
@@ -141,7 +217,7 @@ fn is_eligible_url(config: &IndexNowConfig, raw: &str) -> bool {
             == Some(true)
         && url.query().is_none()
         && url.fragment().is_none()
-        && url.path().len() > 1
+        && !url.path().is_empty()
 }
 
 async fn run_worker(
@@ -224,7 +300,7 @@ mod tests {
     use crate::models::{
         AnalysisOptions, LanguageReport, LanguageStats, Report, Repository, RepositoryProvider,
     };
-    use axum::{extract::State, routing::post, Json, Router};
+    use axum::{extract::State, response::IntoResponse, routing::post, Json, Router};
     use chrono::Utc;
     use std::sync::Mutex;
 
@@ -356,7 +432,8 @@ mod tests {
             &config,
             "http://octocounts.com/github/octo/count"
         ));
-        assert!(!is_eligible_url(&config, "https://octocounts.com/"));
+        assert!(is_eligible_url(&config, "https://octocounts.com/"));
+        assert!(is_eligible_url(&config, "https://octocounts.com"));
         assert!(!is_eligible_url(&config, "not a url"));
     }
 
@@ -502,6 +579,169 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(request_count(&requests), 0);
+    }
+
+    /// One server answers both the sitemaps and IndexNow.
+    async fn start_site_mock(
+        sitemaps: std::collections::HashMap<&'static str, (&'static str, StatusCode)>,
+    ) -> (String, Arc<Mutex<Vec<serde_json::Value>>>) {
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let state = MockState {
+            requests: requests.clone(),
+            respond: Arc::new(|_| StatusCode::OK),
+        };
+        let sitemaps = std::sync::Arc::new(sitemaps);
+        let app = Router::new()
+            .route("/indexnow", post(mock_handler))
+            .fallback(move |uri: axum::http::Uri| {
+                let sitemaps = sitemaps.clone();
+                async move {
+                    match sitemaps.get(uri.path()) {
+                        Some((body, status)) => {
+                            (*status, [("content-type", "application/xml")], *body).into_response()
+                        }
+                        None => StatusCode::NOT_FOUND.into_response(),
+                    }
+                }
+            })
+            .with_state(state);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        (format!("http://{addr}"), requests)
+    }
+
+    fn submitted_urls(requests: &Arc<Mutex<Vec<serde_json::Value>>>) -> Vec<String> {
+        let mut urls = Vec::new();
+        for request in requests.lock().unwrap().iter() {
+            urls.extend(
+                request["urlList"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|value| value.as_str().unwrap().to_string()),
+            );
+        }
+        urls.sort();
+        urls
+    }
+
+    /// The pass submits every URL of the three core sitemaps, once each, and
+    /// nothing that is not a canonical URL on the site.
+    #[tokio::test]
+    async fn core_pass_submits_every_core_sitemap_url() {
+        // One mock answers IndexNow; another serves the sitemaps. The URLs in
+        // those sitemaps name the service's configured host, which no server
+        // has to answer for: IndexNow receives the names, nothing fetches them.
+        let (endpoint, requests) = start_mock(|_| StatusCode::OK).await;
+        let mut sitemaps = std::collections::HashMap::new();
+        for (path, body) in [
+            ("/sitemap-static.xml", "<urlset><url><loc>https://octocounts.com/</loc></url><url><loc>  https://octocounts.com/docs/a&amp;b </loc></url></urlset>"),
+            ("/sitemap-compare.xml", "<urlset><url><loc>https://octocounts.com/compare/react-vs-vue</loc></url><url><loc>https://example.com/github/o/r</loc></url><url><loc>https://octocounts.com/github/o/r?ref=main</loc></url></urlset>"),
+            ("/sitemap-languages.xml", "<urlset><url><loc>https://octocounts.com/languages</loc></url><url><loc>https://octocounts.com/languages/rust</loc></url></urlset>"),
+        ] {
+            sitemaps.insert(path, (body, StatusCode::OK));
+        }
+        let (site, site_requests) = start_site_mock(sitemaps).await;
+        let service = IndexNowService::start(test_config(endpoint)).unwrap();
+        assert_eq!(service.site_base(), "https://octocounts.com");
+
+        let client = Client::new();
+        let count = service.submit_sitemaps(&client, &site).await.unwrap();
+
+        // Seven URLs were read; IndexNow receives the five canonical ones.
+        assert_eq!(count, 7);
+        wait_for_requests(&requests, 1).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(
+            submitted_urls(&requests),
+            [
+                "https://octocounts.com/".to_string(),
+                "https://octocounts.com/compare/react-vs-vue".to_string(),
+                "https://octocounts.com/docs/a&b".to_string(),
+                "https://octocounts.com/languages".to_string(),
+                "https://octocounts.com/languages/rust".to_string(),
+            ]
+        );
+        let reads = site_requests.lock().unwrap().len();
+        assert_eq!(reads, 0, "sitemap reads are not IndexNow posts");
+    }
+
+    /// A sitemap that is missing or unreadable fails the pass, so the caller
+    /// does not record a day's work as done.
+    #[tokio::test]
+    async fn core_pass_fails_when_a_sitemap_is_unreadable() {
+        let empty = std::collections::HashMap::new();
+        let (site, requests) = start_site_mock(empty).await;
+        let mut config = test_config(format!("{site}/indexnow"));
+        config.host = site.trim_start_matches("http://").to_string();
+        let service = IndexNowService::start(config).unwrap();
+        let client = Client::new();
+        let error = service
+            .submit_sitemaps(&client, &site)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("/sitemap-static.xml"), "{error}");
+        assert!(error.contains("404"), "{error}");
+        assert_eq!(request_count(&requests), 0);
+
+        let mut sitemaps = std::collections::HashMap::new();
+        sitemaps.insert(
+            "/sitemap-static.xml",
+            ("<urlset>", StatusCode::SERVICE_UNAVAILABLE),
+        );
+        let (site, requests) = start_site_mock(sitemaps).await;
+        let mut config = test_config(format!("{site}/indexnow"));
+        config.host = site.trim_start_matches("http://").to_string();
+        let service = IndexNowService::start(config).unwrap();
+        let error = service
+            .submit_sitemaps(&client, &site)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("503"), "{error}");
+        assert_eq!(request_count(&requests), 0);
+
+        // A body over the size cap is refused before it is parsed.
+        let mut sitemaps = std::collections::HashMap::new();
+        sitemaps.insert("/sitemap-static.xml", ("<urlset>", StatusCode::OK));
+        sitemaps.insert("/sitemap-compare.xml", ("<loc>x</loc>", StatusCode::OK));
+        sitemaps.insert(
+            "/sitemap-languages.xml",
+            (
+                ("<urlset>".to_string() + &"x".repeat(MAX_CORE_SITEMAP_BYTES)).leak()
+                    as &'static str,
+                StatusCode::OK,
+            ),
+        );
+        let (site, requests) = start_site_mock(sitemaps).await;
+        let mut config = test_config(format!("{site}/indexnow"));
+        config.host = site.trim_start_matches("http://").to_string();
+        let service = IndexNowService::start(config).unwrap();
+        let error = service
+            .submit_sitemaps(&client, &site)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("larger than"), "{error}");
+        assert_eq!(request_count(&requests), 0);
+    }
+
+    #[test]
+    fn sitemap_locs_are_unescaped_and_trimmed() {
+        let body = "<urlset><url><loc> https://octocounts.com/a&amp;b </loc><lastmod>x</lastmod></url><url><loc>https://octocounts.com/&lt;c&gt;&quot;d&quot;</loc></url></urlset>";
+        let locs: Vec<String> = sitemap_locs(body).collect();
+        assert_eq!(
+            locs,
+            [
+                "https://octocounts.com/a&b",
+                "https://octocounts.com/<c>\"d\""
+            ]
+        );
+        assert_eq!(sitemap_locs("<urlset></urlset>").count(), 0);
     }
 
     #[tokio::test]
