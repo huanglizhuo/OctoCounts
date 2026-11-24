@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-11-21
+Last-Updated: 2026-11-24
 
 ## What OctoCounts Does
 
@@ -26,7 +26,7 @@ The browser extension is available from the Chrome Web Store, Microsoft Edge Add
 5. The report is cached by repository, commit SHA, tokei version, and analysis options.
 6. Cached reports power public report pages, badges, API responses, Open Graph images, and index pages.
 
-Default ignored folders include `.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, and `vendor`. Users may also ignore additional directories or languages and choose whether docs, tests, or generated files are included. Optional respectGitattributes applies repository-declared linguist-generated and linguist-vendored exclusions; it is off by default and does not run Linguist heuristics.
+Every OctoCounts surface counts under one default scope: documentation, test and generated directories are excluded unless a caller explicitly opts back in. The web app form, README badges and embeds, the CLI, the MCP server, the GitHub Action and every public report page all start from this scope. The exclusion is directory-based, so a directory with one of these names is skipped wherever it appears in the tree: .cache, .generated, .git, .next, __tests__, build, dist, doc, docs, documentation, fixtures, gen, generated, node_modules, target, test, tests, vendor. Of these, the dependency, build and version-control folders (.cache, .git, .next, build, dist, node_modules, target, vendor) are always skipped; the remaining names come from the three inclusion toggles (includeDocs, includeTests, includeGenerated), which are off by default. Turning a toggle on counts that category for the whole repository and produces a separate saved result that never replaces the canonical public report. The rule is a scope, not a purity claim: files outside those directories still count, including a root README.md, JSON lockfiles and Rust #[cfg(test)] modules inside source files. Each report's counting rules block lists the directories it actually excluded. Users may also ignore additional directories or languages. Optional respectGitattributes applies repository-declared linguist-generated and linguist-vendored exclusions; it is off by default and does not run Linguist heuristics.
 
 ## MCP Server
 
@@ -280,16 +280,11 @@ GET /badge/:owner/:repo/commit/:sha
   "repoUrl": "https://github.com/owner/repo",
   "refName": "main",
   "forceRefresh": false,
-  "options": {
-    "profile": "default",
-    "ignoredDirs": [],
-    "ignoredLanguages": [],
-    "includeDocs": true,
-    "includeTests": true,
-    "includeGenerated": true
-  }
+  "source": "api"
 }
 ```
+
+With no `options` object, the analysis counts under the canonical public options described above: docs, tests and generated directories are excluded, the same scope the website's report pages and badges use. To count a category, pass `options` with `includeDocs`, `includeTests`, or `includeGenerated` set to `true`; each flag turned on counts that category for the whole repository, and flags left out keep the canonical exclusion. Omitting `options` or sending an empty `options` object uses the canonical exclusions. A partial object overrides only the supplied flags. For example, `{"includeTests": true}` inside `options` includes test directories and keeps docs and generated directories excluded. Such a run is a different measurement of the same repository and is stored as its own saved result.
 
 ## Badge Examples
 

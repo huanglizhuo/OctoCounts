@@ -58,7 +58,7 @@
   "description": "了解 OctoCounts 如何使用 tokei 统计代码行数：提交 SHA、源码归档、目录排除、.gitattributes 声明、缓存规则、版本比较和结果引用。",
   "inLanguage": "zh-Hans",
   "datePublished": "2026-10-18",
-  "dateModified": "2026-10-30",
+  "dateModified": "2026-11-24",
   "author": {
     "@type": "Person",
     "@id": "https://github.com/huanglizhuo",
@@ -133,7 +133,7 @@
     <nav aria-label="主导航"><a href="/zh">OctoCounts 中文首页</a> · <a href="/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="/zh/docs/methodology">计数方法</a> · <a href="/docs/methodology" hreflang="en" lang="en">English</a></nav>
     <main>
       <h1>OctoCounts 代码行数统计方法与规则</h1>
-      <p>更新于 2026-10-30 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p>更新于 2026-11-24 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <p>OctoCounts 将公开 GitHub 仓库的分支、标签或提交解析为确定的提交 SHA，下载对应源码归档，再使用 <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 按语言统计文件、代码行、注释行和空白行。缓存键包含仓库、提交 SHA、tokei 版本及分析选项。复现或比较结果时，必须同时保留输入版本和实际统计规则。</p>
       <p>规范页面：https://octocounts.com/zh/docs/methodology</p>
       <p><a href="https://octocounts.com/zh">中文首页</a> · <a href="https://octocounts.com/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="https://octocounts.com/docs/methodology">English version</a> · <a href="https://octocounts.com/zh/docs/methodology.md">Markdown 版本</a></p>
@@ -146,16 +146,27 @@
       <p>缓存键包含仓库提供方、所有者、仓库名、提交 SHA、tokei 版本和实际分析选项。在缓存仍可用时，对同一提交和同一组选项的重复请求可复用报告。分支和标签可能移动；记录 ref 名称不能替代记录提交 SHA。</p>
       <p>报告的 countingPolicy 记录生效的包含开关、排除目录、忽略语言及仓库声明模式。缺少此元数据的旧报告应显示规则未知。比较前还需核对策略版本和 tokei 版本，不能将未知规则当作兼容。</p>
       <h2>默认排除的目录</h2>
-      <p>默认会跳过以下依赖、构建或缓存目录：</p>
+      <p>OctoCounts 的所有入口默认使用同一统计口径：除非调用方显式开启，否则默认排除文档、测试和生成文件目录。网页应用、README 徽章与嵌入卡片、CLI、MCP server、GitHub Action 以及所有公开报告页都从这一口径开始。排除按目录名进行：源码树中任何位置出现的同名目录都会被跳过。默认口径的报告排除：</p>
       <pre><code>.cache
+.generated
 .git
 .next
+__tests__
 build
 dist
+doc
+docs
+documentation
+fixtures
+gen
+generated
 node_modules
 target
+test
+tests
 vendor</code></pre>
-      <p>目录排除按完整、区分大小写的路径分量匹配，不支持 glob 通配符。tokei 还会应用自身的语言识别、隐藏文件和忽略文件遍历规则。仅源码模式强制排除文档、测试和生成目录；具体分析范围应以报告中的实际规则为准。目录过滤并不保证识别所有生成文件。</p>
+      <p>其中依赖、构建和版本控制目录（<code>.cache</code>、<code>.git</code>、<code>.next</code>、<code>build</code>、<code>dist</code>、<code>node_modules</code>、<code>target</code>、<code>vendor</code>）始终跳过。其余目录名来自三个包含开关（<code>includeDocs</code>、<code>includeTests</code>、<code>includeGenerated</code>），它们默认关闭；打开其中一个会统计整个仓库中对应的类别，并生成单独的保存结果。这条规则是统计范围，不是纯度保证：这些目录之外的文件仍会被统计，包括根目录的 <code>README.md</code>、JSON 锁文件，以及源码文件内的 <code>#[cfg(test)]</code> 模块。每份报告的“统计规则”区块列出它实际排除的目录。</p>
+      <p>目录排除按完整、区分大小写的路径分量匹配，不支持 glob 通配符。tokei 还会应用自身的语言识别、隐藏文件和忽略文件遍历规则。仅源码模式始终排除文档、测试和生成目录，即使某个开关要求包含它们；具体分析范围应以报告中的实际规则为准。</p>
       <h2>可选的 .gitattributes 声明过滤</h2>
       <p>仓库声明过滤默认关闭。启用 respectGitattributes 后，服务会读取 linguist-generated 与 linguist-vendored 声明。标记为生成的文件通常被排除，只有 includeGenerated 开启时才允许保留；仅源码模式仍会排除它们。声明模式开启时，被标记为 vendored 的文件会被排除。</p>
       <p>Git check-attr 负责处理嵌套优先级、宏、引号路径以及 unset 或 unspecified 覆盖。只有设为 set 或 true 的属性触发排除。硬性目录排除先执行，不能被声明覆盖。服务端和用户级 Git 配置、属性被隔离；这个功能不运行 GitHub Linguist 的启发式识别，也不改变 tokei 的语言分类器。</p>
@@ -169,7 +180,7 @@ vendor</code></pre>
       <h2>报告指标</h2>
       <ul><li>文件数（Files）：tokei 识别为源码或支持的文本格式的文件数。</li><li>总行数（Total lines）：代码行、注释行与空白行之和。</li><li>代码行（Code lines）：语言解析器识别出的代码行。</li><li>注释行（Comments）：按对应语言规则识别的行注释和块注释。</li><li>空白行（Blanks）：只含空白字符的行。</li><li>语言（Languages）：识别出的编程语言和文件类型，按代码行数排序。</li></ul>
       <h2>已知限制</h2>
-      <ul><li>在线服务仅分析公开 GitHub 仓库；不分析私有代码，也不接受源码上传。</li><li>结果反映单次提交的源码归档，不反映完整历史。</li><li>文档、测试、生成文件、依赖目录和被忽略语言的处理取决于生效选项。</li><li>语言与文件分类遵循 tokei 的规则，不能直接等同于 GitHub 语言条的字节占比。</li><li>空仓库、不可用仓库、私有仓库或过大的仓库可能分析失败。</li></ul>
+      <ul><li>在线服务仅分析公开 GitHub 仓库；不分析私有代码，也不接受源码上传。</li><li>结果反映单次提交的源码归档，不反映完整历史。</li><li>依赖、构建、文档、测试和生成文件目录默认排除，调用方可以按类别重新开启；排除按规则进行，这些目录之外的文件仍会被统计。</li><li>语言与文件分类遵循 tokei 的规则，不能直接等同于 GitHub 语言条的字节占比。</li><li>空仓库、不可用仓库、私有仓库或过大的仓库可能分析失败。</li></ul>
       <p><a href="https://octocounts.com/research">过滤选项试点研究（英文）</a> 提供了真实仓库的示例。该研究使用的引擎版本和采集时间以研究页为准，不能当作当前生产版本已复测的结果。</p>
       <h2>推荐的引用方式</h2>
       <pre><code>截至 {日期}，{owner}/{repo} 在提交 {sha} 下有 {文件数} 个文件，

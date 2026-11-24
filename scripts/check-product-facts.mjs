@@ -82,6 +82,9 @@ const forbidden = [
   { pattern: /link the pinned report for each repository so readers can reproduce|highest comment share among the C and C\+\+ codebases/i, reason: "historical table lacks saved reports and does not support this ranking" },
   { pattern: /recounting the same commit returns the identical numbers|same program reading the same (?:bytes|files)|reports always state their configuration|same repo, commit, and options returns identical numbers|re-analyzing the same commit with the same options returns identical numbers/i, reason: "reproduction also requires matching actual source, engine and effective rules; older policy metadata may be absent" },
   { pattern: /totals can differ by a few percent|raw measurements behind this claim/i, reason: "the filtering pilot is not a cross-tool or local-versus-server parity benchmark" },
+  // The pre-unification default: only build/VCS folders skipped, docs/tests/generated up to the caller.
+  { pattern: /Source-only forces docs, tests and generated directory exclusions|may be included or excluded depending on (?:the )?analysis options|skips heavy dependency and build folders by default|choose whether docs, tests, or generated files are included|Generated and heavy dependency folders|are ignored by default so vendored code does not inflate the count|how doc and test files can be included or excluded|Dependency and build folders \([^)]*\) are skipped by default/i, reason: "docs, tests and generated directories are excluded under the canonical default scope (facts.defaultScope)" },
+  { pattern: /默认会跳过以下依赖、构建或缓存目录|但这不代表所有自动生成文件都已被识别|仅源码模式强制排除|的处理取决于生效选项/, reason: "默认统计口径已排除文档、测试和生成文件目录（facts.defaultScope）" },
 ];
 
 for (const [file, text] of contents) {
@@ -225,6 +228,50 @@ if (Array.isArray(ignoredDirs)) {
   }
 } else {
   note("product-facts.json: facts.defaultIgnoredDirs.value must be an array");
+}
+
+// ---------- the default scope agrees with the engine and every file that describes it ----------
+
+// The analyzer, not the fact sheet, decides which directories the canonical
+// options skip: read its four literal lists so the sheet cannot drift.
+const analyzer = await readFile(path.join(ROOT, "backend", "src", "analyzer.rs"), "utf8").catch(() => "");
+const engineDirs = [];
+for (const literal of ['"docs", "doc", "documentation"', '"test", "tests", "__tests__", "fixtures"', '"generated", "gen", ".generated"']) {
+  if (!analyzer.includes(literal)) note(`backend/src/analyzer.rs: directory list [${literal}] not found; update the default-scope check`);
+  engineDirs.push(...(literal.match(/"([^"]+)"/g) ?? []).map((name) => name.slice(1, -1)));
+}
+const baseBlock = analyzer.match(/const IGNORED_DIRS: &\[&str\] = &\[([\s\S]*?)\];/);
+if (!baseBlock) note("backend/src/analyzer.rs: IGNORED_DIRS not found; update the default-scope check");
+engineDirs.push(...(baseBlock?.[1].match(/"([^"]+)"/g) ?? []).map((name) => name.slice(1, -1)));
+const expectedDirs = [...new Set(engineDirs)].sort();
+const sameList = (candidate) => Array.isArray(candidate) && candidate.length === expectedDirs.length && [...candidate].sort().every((dir, index) => dir === expectedDirs[index]);
+if (expectedDirs.length && !sameList(ignoredDirs)) {
+  note(`product-facts.json: facts.defaultIgnoredDirs.value differs from analyzer.rs (${expectedDirs.join(", ")})`);
+}
+
+const scope = facts.facts?.defaultScope;
+if (!scope?.statement || !scope?.statementZh || !sameList(scope?.value?.excludedDirectories)) {
+  note("product-facts.json: facts.defaultScope must carry statement, statementZh and the engine's excludedDirectories");
+} else if (expectedDirs.length) {
+  const escapeRe = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Every file that explains the default scope: the one-sentence statement,
+  // and — where the scope is spelled out rather than summarized — each
+  // directory name as its own token (not as a substring of another).
+  for (const [file, statement, listsDirectories] of [
+    ["frontend/public/docs/methodology.md", scope.statement, true],
+    ["frontend/public/docs/methodology.html", scope.statement, true],
+    ["frontend/public/llms-full.txt", scope.statement, true],
+    ["frontend/public/llms.txt", scope.statement, false],
+    ["frontend/public/zh/docs/methodology.md", scope.statementZh, true],
+    ["frontend/public/zh/docs/methodology.html", scope.statementZh, true],
+  ]) {
+    const text = contents.get(path.join(ROOT, file)) ?? "";
+    if (!text.includes(statement)) note(`${file}: missing the default-scope statement from product-facts.json`);
+    if (!listsDirectories) continue;
+    for (const dir of expectedDirs) {
+      if (!new RegExp(`(?<![\\w.-])${escapeRe(dir)}(?![\\w-])`).test(text)) note(`${file}: default-scope directory "${dir}" is not listed`);
+    }
+  }
 }
 
 // ---------- the running tokei version ----------

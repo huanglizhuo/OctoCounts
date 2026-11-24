@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "verifiedAt": "2026-10-25",
+  "verifiedAt": "2026-11-24",
   "product": "OctoCounts",
   "facts": {
     "publicRepositoryProviders": {
@@ -55,21 +55,80 @@
         "backend SeoReport.tokeiVersion (backend/src/seo.rs)"
       ]
     },
+    "defaultScope": {
+      "value": {
+        "profile": "default",
+        "includeDocs": false,
+        "includeTests": false,
+        "includeGenerated": false,
+        "excludedDirectories": [
+          ".cache",
+          ".generated",
+          ".git",
+          ".next",
+          "__tests__",
+          "build",
+          "dist",
+          "doc",
+          "docs",
+          "documentation",
+          "fixtures",
+          "gen",
+          "generated",
+          "node_modules",
+          "target",
+          "test",
+          "tests",
+          "vendor"
+        ],
+        "alwaysSkipped": [
+          ".cache",
+          ".git",
+          ".next",
+          "build",
+          "dist",
+          "node_modules",
+          "target",
+          "vendor"
+        ]
+      },
+      "statement": "Every OctoCounts surface counts under one default scope: documentation, test and generated directories are excluded unless a caller explicitly opts back in.",
+      "statementZh": "OctoCounts 的所有入口默认使用同一统计口径：除非调用方显式开启，否则默认排除文档、测试和生成文件目录。",
+      "claim": "The web form, README badges and embeds, the CLI, the MCP server, the GitHub Action and every public report page start from the canonical options. Turning an include toggle on counts that category for the whole repository and produces a separate saved result that never replaces the canonical public report.",
+      "sources": [
+        "backend/src/models.rs AnalysisOptions::canonical()",
+        "backend/src/analyzer.rs IGNORED_DIRS and effective_ignored_dirs",
+        "frontend/src/AnalysisOptionsPanel.tsx defaultAnalysisOptions",
+        "README.md — Counting scope",
+        "frontend/public/docs/methodology.html — Default Exclusions"
+      ],
+      "notes": "2026-11-24: public copy caught up with the 2026-11 profile unification. Until then methodology, the guides and llms-full.txt described only the eight build/VCS folders as the default and left docs/tests/generated to the caller. check-product-facts.mjs derives the directory list from analyzer.rs and asserts the statement in every file that describes the default."
+    },
     "defaultIgnoredDirs": {
       "value": [
         ".cache",
+        ".generated",
         ".git",
         ".next",
+        "__tests__",
         "build",
         "dist",
+        "doc",
+        "docs",
+        "documentation",
+        "fixtures",
+        "gen",
+        "generated",
         "node_modules",
         "target",
+        "test",
+        "tests",
         "vendor"
       ],
-      "claim": "These directories are skipped by default.",
+      "claim": "A default-scope report skips these directory names wherever they appear in the tree; the last ten come from the include toggles, which are off by default.",
       "sources": [
-        "frontend/src/constants.ts defaultIgnoredDirs",
-        "frontend/public/docs/methodology.html"
+        "backend/src/analyzer.rs effective_ignored_dirs for AnalysisOptions::canonical()",
+        "frontend/public/docs/methodology.html — Default Exclusions"
       ]
     },
     "analysisOptions": {

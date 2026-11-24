@@ -1,6 +1,6 @@
 # OctoCounts FAQ
 
-Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free source lines of code (SLOC) counter for public GitHub repositories. It shows files, total lines, code lines, comments, blanks, and per-language totals without cloning: the requested branch, tag, or commit SHA is resolved to an exact commit and counted with [tokei](https://github.com/XAMPPRocky/tokei), an open-source Rust line counter. No account is required, private repositories are not supported, and results can be exported as plain text, JSON, or a PNG card.
 
@@ -60,11 +60,11 @@ Yes. The /compare page compares any two public GitHub repositories, branches, ta
 
 ### How does OctoCounts count lines of code?
 
-OctoCounts resolves the requested branch, tag, or commit SHA to one pinned commit, downloads that exact ref's GitHub source archive (a compressed tarball, not a full git clone), extracts it, and counts every source file with tokei. Heavy dependency folders such as `.git`, `node_modules`, `target`, `dist`, and `vendor` are ignored by default so vendored code does not inflate the count. The full counting rules are documented in the [methodology](https://octocounts.com/docs/methodology).
+OctoCounts resolves the requested branch, tag, or commit SHA to one pinned commit, downloads that exact ref's GitHub source archive (a compressed tarball, not a full git clone), extracts it, and counts the source files with tokei. Dependency, build, documentation, test and generated directories such as `.git`, `node_modules`, `target`, `docs`, `tests`, and `generated` are excluded by default so vendored code, tests and docs do not inflate the count; files outside those directories still count. The full counting rules are documented in the [methodology](https://octocounts.com/docs/methodology).
 
 ### How is OctoCounts different from GitHub's language bar?
 
-OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar shows each language's share of counted bytes, not file counts or lines. Linguist excludes files it identifies as generated, vendored, or documentation by default, subject to repository overrides. See [GitHub Linguist’s counting rules](https://github.com/github-linguist/linguist/blob/main/docs/how-linguist-works.md). OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency folders like `node_modules` and `vendor` excluded by default. The result is a count a reviewer can reproduce: same commit, same engine version, same effective counting rules. OctoCounts also gives every analysis a shareable URL with a citation block, while GitHub's bar has no permalink. See the full [GitHub language bar alternative](https://octocounts.com/docs/github-language-bar-alternative) comparison for a worked example (statements verified 2026).
+OctoCounts differs from GitHub's language bar by reporting absolute counts instead of percentages. GitHub's language bar shows each language's share of counted bytes, not file counts or lines. Linguist excludes files it identifies as generated, vendored, or documentation by default, subject to repository overrides. See [GitHub Linguist’s counting rules](https://github.com/github-linguist/linguist/blob/main/docs/how-linguist-works.md). OctoCounts reports actual numbers — files, total lines, code lines, comments, blanks, and per-language totals — pinned to a specific commit, with dependency, build, documentation, test and generated directories excluded by default. The result is a count a reviewer can reproduce: same commit, same engine version, same effective counting rules. OctoCounts also gives every analysis a shareable URL with a citation block, while GitHub's bar has no permalink. See the full [GitHub language bar alternative](https://octocounts.com/docs/github-language-bar-alternative) comparison for a worked example (statements verified 2026).
 
 ### How is OctoCounts different from running tokei or cloc locally?
 
@@ -76,7 +76,7 @@ A cached report is a stored SLOC result keyed by repository, commit SHA, tokei v
 
 ### How accurate are OctoCounts reports?
 
-Reports are exact for the downloaded source archive and selected analysis options. They reflect the public archive at one commit, not the full git history.
+Reports are exact for the downloaded source archive and selected analysis options. They reflect the public archive at one commit, not the full git history or excluded files. Dependency, build, documentation, test and generated directories are excluded by default; a caller can opt a category back in.
 
 ## Privacy, API, and project
 

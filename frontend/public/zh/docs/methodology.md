@@ -1,6 +1,6 @@
 # OctoCounts 代码行数统计方法与规则
 
-更新于 2026-10-30 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
+更新于 2026-11-24 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts 将公开 GitHub 仓库的分支、标签或提交解析为确定的提交 SHA，下载对应源码归档，再使用 [tokei](https://github.com/XAMPPRocky/tokei) 按语言统计文件、代码行、注释行和空白行。缓存键包含仓库、提交 SHA、tokei 版本及分析选项。复现或比较结果时，必须同时保留输入版本和实际统计规则。
 
@@ -31,20 +31,32 @@ SLOC 是源代码行数，用于描述源码规模。OctoCounts 将代码、注�
 
 ## 默认排除的目录
 
-默认会跳过以下依赖、构建或缓存目录：
+OctoCounts 的所有入口默认使用同一统计口径：除非调用方显式开启，否则默认排除文档、测试和生成文件目录。网页应用、README 徽章与嵌入卡片、CLI、MCP server、GitHub Action 以及所有公开报告页都从这一口径开始。排除按目录名进行：源码树中任何位置出现的同名目录都会被跳过。默认口径的报告排除：
 
 ```
 .cache
+.generated
 .git
 .next
+__tests__
 build
 dist
+doc
+docs
+documentation
+fixtures
+gen
+generated
 node_modules
 target
+test
+tests
 vendor
 ```
 
-目录排除按完整、区分大小写的路径分量匹配，不支持 glob 通配符。tokei 还会应用自身的语言识别、隐藏文件和忽略文件遍历规则。仅源码模式强制排除文档、测试和生成目录；具体分析范围应以报告中的实际规则为准。目录过滤并不保证识别所有生成文件。
+其中依赖、构建和版本控制目录（.cache、.git、.next、build、dist、node_modules、target、vendor）始终跳过。其余目录名来自三个包含开关（includeDocs、includeTests、includeGenerated），它们默认关闭；打开其中一个会统计整个仓库中对应的类别，并生成单独的保存结果。这条规则是统计范围，不是纯度保证：这些目录之外的文件仍会被统计，包括根目录的 README.md、JSON 锁文件，以及源码文件内的 #[cfg(test)] 模块。每份报告的“统计规则”区块列出它实际排除的目录。
+
+目录排除按完整、区分大小写的路径分量匹配，不支持 glob 通配符。tokei 还会应用自身的语言识别、隐藏文件和忽略文件遍历规则。仅源码模式始终排除文档、测试和生成目录，即使某个开关要求包含它们；具体分析范围应以报告中的实际规则为准。
 
 ## 可选的 .gitattributes 声明过滤
 
@@ -79,7 +91,7 @@ Git check-attr 负责处理嵌套优先级、宏、引号路径以及 unset 或 
 
 - 在线服务仅分析公开 GitHub 仓库；不分析私有代码，也不接受源码上传。
 - 结果反映单次提交的源码归档，不反映完整历史。
-- 文档、测试、生成文件、依赖目录和被忽略语言的处理取决于生效选项。
+- 依赖、构建、文档、测试和生成文件目录默认排除，调用方可以按类别重新开启；排除按规则进行，这些目录之外的文件仍会被统计。
 - 语言与文件分类遵循 tokei 的规则，不能直接等同于 GitHub 语言条的字节占比。
 - 空仓库、不可用仓库、私有仓库或过大的仓库可能分析失败。
 

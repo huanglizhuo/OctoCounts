@@ -1,6 +1,6 @@
 # GitHub 代码行数统计：OctoCounts SLOC 使用指南
 
-更新于 2026-10-18 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
+更新于 2026-11-24 · 维护者：[huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts 是免费的公开 GitHub 仓库代码行数统计工具。粘贴仓库链接即可按语言查看文件数、代码行、注释行和空白行，无需在本地克隆仓库。服务端下载指定提交的源码归档，再使用开源统计引擎 [tokei](https://github.com/XAMPPRocky/tokei) 计数。
 
@@ -32,7 +32,7 @@ GitHub 语言条主要体现语言的字节占比，不能直接当作代码行�
 
 OctoCounts 校验公开仓库地址，将所选 ref 解析为提交 SHA，下载该提交的源码归档，在临时目录解压后应用过滤规则，再由 tokei 统计。缓存键包含仓库、提交 SHA、tokei 版本和分析选项。同一个分支或标签以后可能指向不同提交，不能仅凭 ref 名称认为数值固定。
 
-报告描述的是下载到的源码树在指定规则下的统计结果。默认会跳过 `node_modules`、`vendor`、`target`、`build`、`dist` 等目录，但这不代表所有自动生成文件都已被识别。语言分类、忽略文件和过滤选项都会影响结果。详细规则见 [中文计数方法说明](https://octocounts.com/zh/docs/methodology)。
+报告描述的是下载到的源码树在指定规则下的统计结果。默认统计口径会跳过依赖、构建、文档、测试和生成文件目录（如 `node_modules`、`target`、`docs`、`tests`、`generated`），但排除按目录名进行，这些目录之外的同类别文件仍会被统计。语言分类、忽略文件和过滤选项都会影响结果。详细规则见 [中文计数方法说明](https://octocounts.com/zh/docs/methodology)。
 
 ## 在线使用 tokei
 

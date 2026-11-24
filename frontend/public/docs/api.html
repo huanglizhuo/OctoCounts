@@ -36,7 +36,7 @@
       "headline": "OctoCounts API Docs",
       "description": "API documentation for public GitHub repository SLOC analysis, jobs, reports, badges, compare URLs, and diff URLs.",
       "datePublished": "2026-06-12",
-      "dateModified": "2026-11-19",
+      "dateModified": "2026-11-24",
       "mainEntityOfPage": "https://octocounts.com/docs/api",
       "speakable": {
         "@type": "SpeakableSpecification",
@@ -85,7 +85,15 @@
           "name": "How do I analyze a public GitHub repository?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "POST https://api.octocounts.com/api/analyze with a JSON body containing repoUrl and optionally refName, forceRefresh, source, and analysis options such as ignoredDirs, ignoredLanguages, includeDocs, includeTests, and includeGenerated. refName may be a branch, tag, or commit SHA; if omitted, the repository default branch is used."
+            "text": "POST https://api.octocounts.com/api/analyze with a JSON body containing repoUrl and optionally refName, forceRefresh, source, and analysis options such as ignoredDirs, ignoredLanguages, includeDocs, includeTests, and includeGenerated. refName may be a branch, tag, or commit SHA; if omitted, the repository default branch is used. Without options, docs, tests and generated directories are excluded."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I include tests, docs, or generated files in a count?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Send an options object with includeDocs, includeTests, or includeGenerated set to true; each flag turned on counts that category for the whole repository. Flags you leave out keep the canonical exclusion, and the result is stored as its own saved report, separate from the canonical public report."
           }
         },
         {
@@ -146,7 +154,7 @@
     <main>
     <h1>OctoCounts API Docs</h1>
     <p class="answer">OctoCounts is a free API for counting source lines of code in public GitHub repositories. A client posts a repository URL and an optional branch, tag, or commit SHA to the analyze endpoint, polls the returned job, and fetches a report with files, total lines, code lines, comments, blanks, and per-language totals. No account or API token is required, and reports are cached by commit SHA, tokei version, and analysis options.</p>
-    <p class="meta">Updated November 19, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+    <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
     <p class="note">OctoCounts analyzes public GitHub repositories only. Analysis does not require GitHub account access, does not support private repositories, and does not accept source-code uploads.</p>
 
     <h2>How do I analyze a public GitHub repository?</h2>
@@ -157,7 +165,19 @@ Content-Type: application/json
   "repoUrl": "https://github.com/owner/repo",
   "refName": "main",
   "forceRefresh": false,
-  "source": "api",
+  "source": "api"
+}</code></pre>
+    <p><code>repoUrl</code> supports public <code>github.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch. <code>source</code> is optional and may be <code>web</code>, <code>extension</code>, <code>github_action</code>, <code>cli</code>, <code>mcp</code>, <code>api</code>, <code>seed</code>, <code>github_trending</code>, <code>sloc_backfill</code>, or <code>unknown</code>; it is used only for aggregate source breakdowns.</p>
+    <p>With no <code>options</code> object, the analysis counts under the canonical public options: documentation, test and generated directories are excluded, the same scope the website&#x27;s report pages, badges and embeds use.</p>
+
+    <h2>How do I include tests, docs, or generated files?</h2>
+    <p>Pass an <code>options</code> object and turn a category on explicitly. This request counts the whole repository:</p>
+    <pre><code>POST https://api.octocounts.com/api/analyze
+Content-Type: application/json
+
+{
+  "repoUrl": "https://github.com/owner/repo",
+  "refName": "main",
   "options": {
     "profile": "default",
     "ignoredDirs": [],
@@ -167,7 +187,7 @@ Content-Type: application/json
     "includeGenerated": true
   }
 }</code></pre>
-    <p><code>repoUrl</code> supports public <code>github.com</code> repositories. <code>refName</code> may be a branch, tag, or commit SHA. If omitted, OctoCounts uses the repository default branch. <code>source</code> is optional and may be <code>web</code>, <code>extension</code>, <code>github_action</code>, <code>cli</code>, <code>mcp</code>, <code>api</code>, <code>seed</code>, <code>github_trending</code>, <code>sloc_backfill</code>, or <code>unknown</code>; it is used only for aggregate source breakdowns.</p>
+    <p>Omitting options or sending an empty options object uses the canonical exclusions for docs, tests and generated directories. A partial object overrides only the supplied flags. For example, <code>{"includeTests": true}</code> inside options includes test directories and keeps docs and generated directories excluded. Such a run is a different measurement of the same repository: it is stored and shared as its own saved result and never replaces the canonical public report. Every report&#x27;s <code>countingPolicy</code> records the toggles and directory exclusions that produced it.</p>
 
     <h2>How do I check the status of an analysis job?</h2>
     <pre><code>GET https://api.octocounts.com/api/jobs/:jobId</code></pre>
@@ -188,7 +208,7 @@ Content-Type: application/json
 <p>Live ref links, live badges and live embeds use the canonical public options: default profile, docs/tests/generated directory exclusions, empty custom ignores and repository declarations off. They follow the selected ref and may update at different times because of caching. Share uses fixed results by default; choose live mode explicitly. A comparison is marked unknown if either report lacks countingPolicy; matching options alone do not prove that an old report used the same rules.</p>
 <h2>How do I opt into repository-declared filtering?</h2>
 <p>Set options.respectGitattributes to true and options.includeGenerated to false to exclude files declared linguist-generated in .gitattributes. Files declared linguist-vendored are excluded whenever this mode is enabled. IncludeGenerated: true keeps generated declarations; source-only still excludes them. Off is the default and keeps existing cache keys and counting behavior.</p>
-<p>Omitting options or sending an empty options object uses the canonical exclusions for docs, tests and generated directories. A partial object overrides only the supplied flags. For example, <code>{"includeTests": true}</code> inside options includes test directories and keeps docs and generated directories excluded. Git evaluates nested declarations, macros, quoted paths, unset and unspecified overrides. Only set or true activates exclusion. Directory exclusions run first and cannot be restored by declarations. This mode reads repository declarations only and does not implement the full GitHub Linguist classifier.</p>
+<p>Git evaluates nested declarations, macros, quoted paths, unset and unspecified overrides. Only set or true activates exclusion. Directory exclusions run first and cannot be restored by declarations. This mode reads repository declarations only and does not implement the full GitHub Linguist classifier.</p>
 <p>New reports include countingPolicy with effective rules and repositoryAttributes.status (off, not_found or applied), plus generatedFiles, vendoredFiles and excludedFiles. These are files removed by declaration filtering after extraction, not source-line totals; overlapping generated/vendored exclusions count once in excludedFiles. Old reports may omit countingPolicy and must be displayed as unknown. Filtering failures fail the analysis rather than silently using other rules.</p>
 <h2>What public stats are available?</h2>
     <pre><code>GET https://api.octocounts.com/api/stats</code></pre>
@@ -232,7 +252,10 @@ https://octocounts.com/diff?repo=...&amp;base=...&amp;head=...</code></pre>
     <p>No. The OctoCounts API requires no GitHub account access, no API token, and no sign-up. It analyzes public github.com repositories only, does not support private repositories, and does not accept source-code uploads.</p>
 
     <h3>How do I analyze a public GitHub repository?</h3>
-    <p>POST <code>https://api.octocounts.com/api/analyze</code> with a JSON body containing <code>repoUrl</code> and optionally <code>refName</code>, <code>forceRefresh</code>, <code>source</code>, and analysis options. <code>refName</code> may be a branch, tag, or commit SHA; if omitted, OctoCounts uses the repository default branch.</p>
+    <p>POST <code>https://api.octocounts.com/api/analyze</code> with a JSON body containing <code>repoUrl</code> and optionally <code>refName</code>, <code>forceRefresh</code>, <code>source</code>, and analysis options. <code>refName</code> may be a branch, tag, or commit SHA; if omitted, OctoCounts uses the repository default branch. Without <code>options</code>, docs, tests and generated directories are excluded.</p>
+
+    <h3>How do I include tests, docs, or generated files in a count?</h3>
+    <p>Send an <code>options</code> object with <code>includeDocs</code>, <code>includeTests</code>, or <code>includeGenerated</code> set to <code>true</code>; each flag turned on counts that category for the whole repository. Flags you leave out keep the canonical exclusion, and the result is stored as its own saved report, separate from the canonical public report.</p>
 
     <h3>How do I check the status of an analysis job?</h3>
     <p>Poll <code>GET https://api.octocounts.com/api/jobs/:jobId</code>. Jobs return <code>queued</code>, <code>running</code>, <code>completed</code>, or <code>failed</code>, and completed jobs include a <code>reportId</code> that you pass to the report endpoint.</p>

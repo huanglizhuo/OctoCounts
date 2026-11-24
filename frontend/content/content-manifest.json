@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-21",
+  "updated": "2026-11-24",
   "purpose": "Per-URL record of real content changes (SG-07). A page's lastmod changes ONLY when that page's content, key links, or structured facts change — build changes, unrelated commits, and date-only edits never bump it. frontend/functions/[[path]].js (STATIC_SITEMAP_ENTRIES) mirrors this file; tests assert the sync. llms.txt / llms-full.txt stay recorded here as a content-change log but are intentionally NOT sitemap entries (text/plain assets do not belong in XML sitemaps). Update the manifest and the functions mirror together in the same change.",
   "provenance": {
     "2026-09-05": "Inherited from the pre-manifest blanket date (2026-09-05 site-wide update). Replace with the page's true content-change date next time that page actually changes; do not bulk-edit.",
@@ -40,16 +40,16 @@
     "https://octocounts.com/badges": "2026-11-01",
     "https://octocounts.com/extension": "2026-11-01",
     "https://octocounts.com/docs": "2026-10-29",
-    "https://octocounts.com/docs/github-sloc-counter": "2026-10-25",
-    "https://octocounts.com/docs/api": "2026-11-19",
-    "https://octocounts.com/docs/methodology": "2026-10-30",
+    "https://octocounts.com/docs/github-sloc-counter": "2026-11-24",
+    "https://octocounts.com/docs/api": "2026-11-24",
+    "https://octocounts.com/docs/methodology": "2026-11-24",
     "https://octocounts.com/docs/glossary": "2026-11-05",
-    "https://octocounts.com/docs/faq": "2026-11-05",
-    "https://octocounts.com/docs/octocounts-vs-cloc": "2026-11-05",
+    "https://octocounts.com/docs/faq": "2026-11-24",
+    "https://octocounts.com/docs/octocounts-vs-cloc": "2026-11-24",
     "https://octocounts.com/docs/github-language-bar-alternative": "2026-11-05",
     "https://octocounts.com/docs/best-sloc-counter-tools": "2026-11-05",
     "https://octocounts.com/docs/tokei-online": "2026-11-05",
-    "https://octocounts.com/docs/count-lines-of-code-github": "2026-11-05",
+    "https://octocounts.com/docs/count-lines-of-code-github": "2026-11-24",
     "https://octocounts.com/docs/github-repository-size-checker": "2026-10-25",
     "https://octocounts.com/docs/octocounts-vs-tokei": "2026-11-05",
     "https://octocounts.com/docs/octocounts-vs-scc": "2026-11-05",
@@ -59,12 +59,12 @@
     "https://octocounts.com/docs/largest-codebases": "2026-11-21",
     "https://octocounts.com/research": "2026-11-21",
     "https://octocounts.com/about": "2026-10-25",
-    "https://octocounts.com/llms.txt": "2026-11-21",
-    "https://octocounts.com/llms-full.txt": "2026-11-21",
+    "https://octocounts.com/llms.txt": "2026-11-24",
+    "https://octocounts.com/llms-full.txt": "2026-11-24",
     "https://octocounts.com/privacy": "2026-10-25",
     "https://octocounts.com/contact": "2026-09-30",
     "https://octocounts.com/zh": "2026-10-25",
-    "https://octocounts.com/zh/docs/github-sloc-counter": "2026-10-18",
-    "https://octocounts.com/zh/docs/methodology": "2026-10-30"
+    "https://octocounts.com/zh/docs/github-sloc-counter": "2026-11-24",
+    "https://octocounts.com/zh/docs/methodology": "2026-11-24"
   }
 }

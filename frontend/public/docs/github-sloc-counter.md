@@ -1,6 +1,6 @@
 # GitHub SLOC Counter Guide
 
-Updated October 25, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories. Paste a repository URL, optionally pick a branch, tag, or commit SHA, and OctoCounts downloads the source archive, counts every file with [tokei](https://github.com/XAMPPRocky/tokei), and returns files, total lines, code lines, comments, blanks, and per-language totals. Reports are cached by commit SHA and can be exported as plain text, JSON, or a PNG card, or added to a README as a live badge.
 
@@ -31,7 +31,7 @@ A worked example: the [live report for React](https://octocounts.com/github/reac
 
 1. The repository URL is validated and the requested branch, tag, or commit SHA is resolved to an exact commit.
 2. The backend downloads the compressed source archive of that commit — not the git history.
-3. The extracted tree is counted with tokei, skipping heavy dependency and build folders such as `node_modules`, `target`, `dist`, and `vendor` by default.
+3. The extracted tree is counted with tokei under the default scope: dependency, build, documentation, test and generated directories such as `node_modules`, `target`, `docs`, `tests`, and `generated` are excluded unless a caller opts back in.
 4. The report is cached by repository, commit SHA, tokei version, and analysis options — matching retained entries can be reused when the engine version and effective rules also match.
 
 The full pipeline, including how counting policy metadata and optional repository-declared filtering (`.gitattributes` linguist markers) work, is documented in the [counting methodology](https://octocounts.com/docs/methodology).

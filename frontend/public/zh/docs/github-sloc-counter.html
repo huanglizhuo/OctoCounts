@@ -58,7 +58,7 @@
   "description": "免费统计公开 GitHub 仓库的代码行数、文件数和语言分布。了解 SLOC 的含义、分析步骤、仓库比较、报告导出与固定引用方式，无需在本地克隆仓库。",
   "inLanguage": "zh-Hans",
   "datePublished": "2026-10-18",
-  "dateModified": "2026-10-18",
+  "dateModified": "2026-11-24",
   "author": {
     "@type": "Person",
     "@id": "https://github.com/huanglizhuo",
@@ -149,7 +149,7 @@
     <nav aria-label="主导航"><a href="/zh">OctoCounts 中文首页</a> · <a href="/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="/zh/docs/methodology">计数方法</a> · <a href="/docs/github-sloc-counter" hreflang="en" lang="en">English</a></nav>
     <main>
       <h1>GitHub 代码行数统计：OctoCounts SLOC 使用指南</h1>
-      <p>更新于 2026-10-18 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p>更新于 2026-11-24 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <p>OctoCounts 是免费的公开 GitHub 仓库代码行数统计工具。粘贴仓库链接即可按语言查看文件数、代码行、注释行和空白行，无需在本地克隆仓库。服务端下载指定提交的源码归档，再使用开源统计引擎 <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 计数。</p>
       <p>规范页面：https://octocounts.com/zh/docs/github-sloc-counter</p>
       <p><a href="https://octocounts.com/zh">开始统计代码行数</a> · <a href="https://octocounts.com/docs/github-sloc-counter">English version</a> · <a href="https://octocounts.com/zh/docs/github-sloc-counter.md">Markdown 版本</a></p>
@@ -163,7 +163,7 @@
       <p>GitHub 语言条主要体现语言的字节占比，不能直接当作代码行数。OctoCounts 使用 tokei 的语言识别和行分类规则；同一语言的字节占比与代码行占比可能不同。详见 <a href="https://octocounts.com/docs/github-language-bar-alternative">GitHub 语言条与代码行统计的区别（英文）</a>。</p>
       <h2>统计流程与准确性</h2>
       <p>OctoCounts 校验公开仓库地址，将所选 ref 解析为提交 SHA，下载该提交的源码归档，在临时目录解压后应用过滤规则，再由 tokei 统计。缓存键包含仓库、提交 SHA、tokei 版本和分析选项。同一个分支或标签以后可能指向不同提交，不能仅凭 ref 名称认为数值固定。</p>
-      <p>报告描述的是下载到的源码树在指定规则下的统计结果。默认会跳过 <code>node_modules</code>、<code>vendor</code>、<code>target</code>、<code>build</code>、<code>dist</code> 等目录，但这不代表所有自动生成文件都已被识别。语言分类、忽略文件和过滤选项都会影响结果。详细规则见 <a href="https://octocounts.com/zh/docs/methodology">中文计数方法说明</a>。</p>
+      <p>报告描述的是下载到的源码树在指定规则下的统计结果。默认统计口径会跳过依赖、构建、文档、测试和生成文件目录（如 <code>node_modules</code>、<code>target</code>、<code>docs</code>、<code>tests</code>、<code>generated</code>），但排除按目录名进行，这些目录之外的同类别文件仍会被统计。语言分类、忽略文件和过滤选项都会影响结果。详细规则见 <a href="https://octocounts.com/zh/docs/methodology">中文计数方法说明</a>。</p>
       <h2>在线使用 tokei</h2>
       <p>OctoCounts 为 tokei 提供在线入口，适合无需安装命令行工具就查看公开仓库。它不是所有本地 tokei 参数的通用替代品。若需分析私有代码、完整控制文件范围或保留离线结果，可在本地运行 tokei，并记录引擎版本和参数。两种方式的结果只有在输入源码和生效规则一致时才适合直接比较。</p>
       <h2>比较两个仓库或两个版本</h2>

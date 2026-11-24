@@ -1,6 +1,6 @@
 # How to count lines of code in a GitHub repository
 
-Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 There are four practical ways to count lines of code in a GitHub repository: a no-install web counter, a browser extension that adds counts to github.com, plain git commands on a clone, and a dedicated counter like [cloc](https://github.com/AlDanial/cloc) or [tokei](https://github.com/XAMPPRocky/tokei) on a clone. This page shows each method with its exact commands and trade-offs, starting with the no-install web workflow.
 
@@ -38,7 +38,7 @@ No. The GitHub REST API has no endpoint that returns line counts for a repositor
 1. OctoCounts validates the public repository URL and resolves the requested branch, tag, or commit SHA.
 2. The backend downloads a source archive for that exact ref instead of cloning full git history.
 3. The extracted source tree is counted with tokei.
-4. Generated and heavy dependency folders such as `.git`, `node_modules`, `target`, `dist`, and `vendor` are ignored by default.
+4. Dependency, build, documentation, test and generated directories such as `.git`, `node_modules`, `target`, `docs`, `tests`, and `generated` are excluded by default.
 5. The report is cached by repository, commit SHA, tokei version, and analysis options.
 
 For the full counting policy, cache key, exclusions, limitations, and citation format, see the [OctoCounts methodology](https://octocounts.com/docs/methodology). For measured examples of how the exclusion options change the reported numbers, see the [pilot study on SLOC filtering effects](https://octocounts.com/research). Agent-readable context is also available in [/llms.txt](https://octocounts.com/llms.txt) and [/llms-full.txt](https://octocounts.com/llms-full.txt).
@@ -58,7 +58,7 @@ Each metric is defined precisely in the [SLOC glossary](https://octocounts.com/d
 
 ## Do comment and blank lines count as lines of code?
 
-It depends on the tool, and the distinction is the whole point of SLOC. `wc -l` counts everything; tokei and cloc separate code lines from comment lines and blank lines, and "SLOC" usually means the code-line figure. OctoCounts reports all three categories side by side, and its [counting methodology page](https://octocounts.com/docs/methodology) documents exactly which directories are ignored by default (`node_modules`, `build`, `dist`, `vendor`, and friends), how doc and test files can be included or excluded, and how each language classifies comments — so a number you cite can be reproduced.
+It depends on the tool, and the distinction is the whole point of SLOC. `wc -l` counts everything; tokei and cloc separate code lines from comment lines and blank lines, and "SLOC" usually means the code-line figure. OctoCounts reports all three categories side by side, and its [counting methodology page](https://octocounts.com/docs/methodology) documents exactly which directories are excluded by default (`node_modules`, `build`, `dist`, `docs`, `tests`, `generated`, and friends), how a caller can opt a category back in, and how each language classifies comments — so a number you cite can be reproduced.
 
 ## Does OctoCounts support private repositories?
 

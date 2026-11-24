@@ -1,6 +1,6 @@
 # OctoCounts Methodology
 
-Updated October 30, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with [tokei](https://github.com/XAMPPRocky/tokei), an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.
 
@@ -29,24 +29,36 @@ Reports are cached by repository provider, owner, repository name, commit SHA, t
 
 ## Default Exclusions
 
-OctoCounts skips heavy dependency and build folders by default so counts represent the source tree rather than installed dependencies or generated output.
+Every OctoCounts surface counts under one default scope: documentation, test and generated directories are excluded unless a caller explicitly opts back in. The web app form, README badges and embeds, the CLI, the MCP server, the GitHub Action and every public report page all start from this scope. The exclusion is directory-based: a directory with one of these names is skipped wherever it appears in the tree. A default-scope report excludes:
 
 ```
 .cache
+.generated
 .git
 .next
+__tests__
 build
 dist
+doc
+docs
+documentation
+fixtures
+gen
+generated
 node_modules
 target
+test
+tests
 vendor
 ```
+
+Of these, the dependency, build and version-control folders (`.cache`, `.git`, `.next`, `build`, `dist`, `node_modules`, `target`, `vendor`) are always skipped. The remaining names come from the three inclusion toggles (`includeDocs`, `includeTests`, `includeGenerated`), which are off by default; turning one on counts the whole repository for that category and produces a separate saved result. The rule is a scope, not a purity claim: files outside those directories still count, including a root `README.md`, JSON lockfiles and `#[cfg(test)]` modules inside source files. Each report's counting rules block lists the directories it actually excluded.
 
 ## Counting policy and comparable results
 
 Code lines measure source size under the stated rules, not quality, productivity, effort or executable statements. Total lines are code + comments + blanks. The report's countingPolicy records the effective inclusion toggles, exact directory exclusions, ignored languages and declaration mode. Old reports without this metadata show unknown.
 
-Directory exclusions match exact, case-sensitive path components, not globs. Tokei also applies its own language detection, hidden-file and ignore-file traversal defaults. Source-only forces docs, tests and generated directory exclusions. Compare and diff check policy version, tokei version and effective rules; the same declaration mode still applies each repository's own declarations.
+Directory exclusions match exact, case-sensitive path components, not globs. Tokei also applies its own language detection, hidden-file and ignore-file traversal defaults. The source-only profile always excludes docs, tests and generated directories, even when a toggle asks to include them. Compare and diff check policy version, tokei version and effective rules; the same declaration mode still applies each repository's own declarations.
 
 Diff reports a net size change between two counted trees (head minus base). It is not Git's added/deleted line count. Percentage change uses the base count; a zero base and positive head is shown as New.
 
@@ -81,7 +93,7 @@ Saved reports remain subject to cache cleanup and replacement. Missing fixed rep
 
 - OctoCounts analyzes public GitHub repositories only.
 - Counts reflect the source archive at one commit, not the full repository history.
-- Generated files, dependency folders, docs, tests, and ignored languages may be included or excluded depending on analysis options.
+- Dependency, build, documentation, test and generated directories are excluded by default; a caller can opt a category back in. The exclusions are rule-based, so files outside those directories still count.
 - Language classification follows tokei's rules and supported file types.
 - GitHub repositories that are empty, private, unavailable, or too large may fail analysis.
 

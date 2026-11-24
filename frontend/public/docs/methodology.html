@@ -51,7 +51,7 @@
       "headline": "OctoCounts Methodology",
       "description": "How OctoCounts counts public GitHub repository source lines of code with archive downloads, commit pinning, tokei, ignored folders, cache keys, and limitations.",
       "datePublished": "2026-07-06",
-      "dateModified": "2026-10-30",
+      "dateModified": "2026-11-24",
       "author": {
         "@type": "Person",
         "@id": "https://github.com/huanglizhuo",
@@ -140,7 +140,7 @@
     <nav><a href="/">OctoCounts</a> / <a href="/docs">Docs</a> / Methodology</nav>
     <p><a href="/zh/docs/methodology" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></p>
     <main>
-      <p class="meta">Updated October 30, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p class="meta">Updated November 24, 2026 &middot; Maintained by <a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
       <h1>OctoCounts Methodology</h1>
       <p class="answer">OctoCounts is a free SLOC counter for public GitHub repositories that counts source lines of code with <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, an open-source line counter written in Rust. For every analysis it resolves the requested branch, tag, or commit SHA to an exact commit, downloads the source archive for that ref instead of cloning git history, and caches the report by repository, commit SHA, tokei version, and analysis options.</p>
       <p class="note">OctoCounts counts public GitHub repository source trees at a pinned ref. It does not clone full git history, does not require account access for analysis, and does not analyze private repositories.</p>
@@ -163,19 +163,30 @@
       <p>Reports are cached by repository provider, owner, repository name, commit SHA, tokei version, and active analysis options. Repeated requests for the same commit and options return the cached report instead of downloading and counting again.</p>
 
       <h2>Default Exclusions</h2>
-      <p>OctoCounts skips heavy dependency and build folders by default so counts represent the source tree rather than installed dependencies or generated output.</p>
+      <p>Every OctoCounts surface counts under one default scope: documentation, test and generated directories are excluded unless a caller explicitly opts back in. The web app form, README badges and embeds, the CLI, the MCP server, the GitHub Action and every public report page all start from this scope. The exclusion is directory-based: a directory with one of these names is skipped wherever it appears in the tree. A default-scope report excludes:</p>
       <pre><code>.cache
+.generated
 .git
 .next
+__tests__
 build
 dist
+doc
+docs
+documentation
+fixtures
+gen
+generated
 node_modules
 target
+test
+tests
 vendor</code></pre>
+      <p>Of these, the dependency, build and version-control folders (<code>.cache</code>, <code>.git</code>, <code>.next</code>, <code>build</code>, <code>dist</code>, <code>node_modules</code>, <code>target</code>, <code>vendor</code>) are always skipped. The remaining names come from the three inclusion toggles (<code>includeDocs</code>, <code>includeTests</code>, <code>includeGenerated</code>), which are off by default; turning one on counts the whole repository for that category and produces a separate saved result. The rule is a scope, not a purity claim: files outside those directories still count, including a root <code>README.md</code>, JSON lockfiles and <code>#[cfg(test)]</code> modules inside source files. Each report&#x27;s counting rules block lists the directories it actually excluded.</p>
 
       <h2>Counting policy and comparable results</h2>
 <p>Code lines measure source size under the stated rules, not quality, productivity, effort or executable statements. Total lines are code + comments + blanks. The report&#x27;s countingPolicy records the effective inclusion toggles, exact directory exclusions, ignored languages and declaration mode. Old reports without this metadata show unknown.</p>
-<p>Directory exclusions match exact, case-sensitive path components, not globs. Tokei also applies its own language detection, hidden-file and ignore-file traversal defaults. Source-only forces docs, tests and generated directory exclusions. Compare and diff check policy version, tokei version and effective rules; the same declaration mode still applies each repository&#x27;s own declarations.</p>
+<p>Directory exclusions match exact, case-sensitive path components, not globs. Tokei also applies its own language detection, hidden-file and ignore-file traversal defaults. The source-only profile always excludes docs, tests and generated directories, even when a toggle asks to include them. Compare and diff check policy version, tokei version and effective rules; the same declaration mode still applies each repository&#x27;s own declarations.</p>
 <p>Diff reports a net size change between two counted trees (head minus base). It is not Git&#x27;s added/deleted line count. Percentage change uses the base count; a zero base and positive head is shown as New.</p>
 <h2>Repository declarations in .gitattributes</h2>
 <p>Repository-declared filtering is optional and off by default. Enable respectGitattributes to apply linguist-generated and linguist-vendored. Generated declarations are excluded unless includeGenerated is true; source-only always excludes them. Vendored declarations are excluded whenever the mode is on.</p>
@@ -203,7 +214,7 @@ vendor</code></pre>
       <ul>
         <li>OctoCounts analyzes public GitHub repositories only.</li>
         <li>Counts reflect the source archive at one commit, not the full repository history.</li>
-        <li>Generated files, dependency folders, docs, tests, and ignored languages may be included or excluded depending on analysis options.</li>
+        <li>Dependency, build, documentation, test and generated directories are excluded by default; a caller can opt a category back in. The exclusions are rule-based, so files outside those directories still count.</li>
         <li>Language classification follows tokei's rules and supported file types.</li>
         <li>GitHub repositories that are empty, private, unavailable, or too large may fail analysis.</li>
       </ul>

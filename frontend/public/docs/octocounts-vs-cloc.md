@@ -1,6 +1,6 @@
 # OctoCounts vs cloc, scc, and tokei
 
-Updated November 5, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
+Updated November 24, 2026 · Maintained by [huanglizhuo](https://github.com/huanglizhuo)
 
 OctoCounts is a free web service for counting source lines of code in public GitHub repositories, while [cloc](https://github.com/AlDanial/cloc), [tokei](https://github.com/XAMPPRocky/tokei), and [scc](https://github.com/boyter/scc) are command-line tools that count local checkouts, including private code. OctoCounts runs tokei on a downloaded source archive, pins the report to a commit SHA, and adds caching, shareable report URLs, README badges, and an API — no installation required.
 
@@ -57,7 +57,7 @@ For public GitHub repositories, OctoCounts is that alternative — it produces c
 | cloc habit | OctoCounts equivalent |
 |---|---|
 | `cloc .` in a checkout | Paste the repository URL into the [web app](/) — no checkout step at all |
-| `cloc --exclude-dir=node_modules` | Dependency and build folders (`node_modules`, `target`, `dist`, `vendor`, …) are skipped by default; custom ignores are part of the analysis options |
+| `cloc --exclude-dir=node_modules` | Dependency, build, documentation, test and generated folders (`node_modules`, `target`, `dist`, `docs`, `tests`, `generated`, …) are excluded by default; custom ignores are part of the analysis options |
 | `cloc --include-lang=Rust` | The per-language table is always shown; [badges](/badges) take `?lang=Rust` for a single-language count |
 | `cloc --json` | Export a report as JSON, or fetch it via the [API](/docs/api) |
 | `cloc --vcs=git` | Counts the source archive after filtering; this is not a Git-tracked-files mode |
