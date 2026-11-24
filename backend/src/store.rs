@@ -56,6 +56,10 @@ macro_rules! card_projection {
 /// backfill's final) analysis of HEAD. Every other source is always eligible.
 ///
 /// The argument is the `reports` table alias (or name) in the host query.
+///
+/// This form looks the newest live snapshot up once *per candidate row*, which
+/// is right for a query that reaches a handful of rows. A query that visits a
+/// large share of the table must use [`latest_eligible_hashed!`] instead.
 macro_rules! latest_eligible {
     ($t:literal) => {
         concat!(
@@ -74,6 +78,63 @@ macro_rules! latest_eligible {
             $t,
             ".repo AND s.superseded_at IS NULL ",
             "ORDER BY s.snapshot_date DESC LIMIT 1))"
+        )
+    };
+}
+
+/// The set the hashed form of [`latest_eligible!`] tests against: every
+/// repository's newest live SLOC snapshot, built once per query. It must be
+/// the first CTE of the host query (`WITH `, this macro, then either another
+/// CTE or the main `SELECT`). The one-argument form restricts the set to one
+/// provider, for a host query that only lists that provider; the argument may
+/// be a bind such as `"$1"`.
+macro_rules! live_snapshots_cte {
+    ($provider:literal) => {
+        concat!(
+            "live_snapshots AS MATERIALIZED (",
+            "SELECT DISTINCT ON (provider, owner, repo) provider, owner, repo, commit_sha ",
+            "FROM sloc_snapshots WHERE superseded_at IS NULL AND provider = ",
+            $provider,
+            " ORDER BY provider, owner, repo, snapshot_date DESC)"
+        )
+    };
+    () => {
+        concat!(
+            "live_snapshots AS MATERIALIZED (",
+            "SELECT DISTINCT ON (provider, owner, repo) provider, owner, repo, commit_sha ",
+            "FROM sloc_snapshots WHERE superseded_at IS NULL",
+            " ORDER BY provider, owner, repo, snapshot_date DESC)"
+        )
+    };
+}
+
+/// [`latest_eligible!`] for a query that visits a large share of `reports`:
+/// the public lists, the sitemap, the cleanup pass.
+///
+/// Same test, answered from a set built once by [`live_snapshots_cte!`] and
+/// hashed by the planner. The correlated form runs its snapshot subquery once
+/// per candidate row, which on the production corpus (260k reports) cost 6-8 s
+/// per query, more than the edge's upstream budget: every cold leaderboard
+/// answered 503. Both forms select the same rows, because `sloc_snapshots` is
+/// unique per `(provider, owner, repo, snapshot_date)`, so "the newest live
+/// snapshot" is one well-defined row however it is found.
+///
+/// The argument is the `reports` table alias (or name) in the host query.
+macro_rules! latest_eligible_hashed {
+    ($t:literal) => {
+        concat!(
+            "(",
+            $t,
+            ".source <> 'sloc_backfill' OR (",
+            $t,
+            ".provider, ",
+            $t,
+            ".owner, ",
+            $t,
+            ".repo, ",
+            $t,
+            ".commit_sha) IN (",
+            "SELECT provider, owner, repo, commit_sha FROM live_snapshots))"
         )
     };
 }
@@ -814,16 +875,26 @@ impl Store {
         Ok(total)
     }
 
-    /// Fills `stars` and `primary_language` for rows that predate the columns.
+    /// Fills `stars` and `primary_language` for canonical rows the trigger
+    /// never filled: those that predate the columns, and those an older
+    /// binary wrote while a deploy was in flight.
     ///
-    /// Only canonical rows are visited: every other row can never stand as its
-    /// repository's public report, so its copy of these columns is never
-    /// read. The walk is keyset-paginated on `id` rather than selected with
-    /// `IS NULL`, because both columns legitimately stay NULL (a report stored
-    /// without a star count, or one with no programming language), so a NULL
-    /// cannot mark a row as not yet visited. Neither trigger fires: this
-    /// statement does not touch `body`, and the cache-purge trigger watches
-    /// identity columns only.
+    /// Only rows where a column is still NULL are visited, which keeps the
+    /// pass short enough to run at every startup. Since v0.7.48 the trigger
+    /// fills both for every row written, so what is left is about 2% of the
+    /// canonical rows on the production corpus; visiting all of them instead
+    /// took 256 batches and 345 s on every deploy.
+    ///
+    /// Only canonical rows can matter: every other row can never stand as its
+    /// repository's public report, so its copy of these columns is never read.
+    ///
+    /// A NULL is not proof that a row was never visited: both columns
+    /// legitimately stay NULL (a report stored without a star count, or one
+    /// with no programming language), so such a row is selected again each
+    /// time. The walk is keyset-paginated on `id` and the cursor advances past
+    /// every selected row whether or not its values changed, so it always
+    /// ends. Neither trigger fires: this statement does not touch `body`, and
+    /// the cache-purge trigger watches identity columns only.
     async fn backfill_popularity_columns(&self) -> anyhow::Result<u64> {
         const BATCH: i64 = 1_000;
 
@@ -837,7 +908,9 @@ impl Store {
                     primary_language = {primary}
                 WHERE id IN (
                     SELECT id FROM reports
-                    WHERE options_canonical AND id > $1
+                    WHERE options_canonical
+                      AND (stars IS NULL OR primary_language IS NULL)
+                      AND id > $1
                     ORDER BY id
                     LIMIT $2
                 )
@@ -855,10 +928,17 @@ impl Store {
                 return Ok(total);
             }
             total += rows.len() as u64;
+            // Every selected row is returned, but `RETURNING` follows the
+            // statement's own row order, not the selection's `ORDER BY id`: a
+            // row that stays NULL must not be selected again by the next batch
+            // because it happened to come back last, so the cursor is the
+            // largest id of the batch.
             cursor = rows
-                .last()
+                .iter()
                 .map(|row| row.try_get::<String, _>("id"))
-                .transpose()?
+                .collect::<Result<Vec<_>, sqlx::Error>>()?
+                .into_iter()
+                .max()
                 .unwrap_or_default();
         }
     }
@@ -2601,8 +2681,11 @@ impl Store {
         min_repositories: i64,
     ) -> anyhow::Result<Vec<LanguageStat>> {
         let rows = sqlx::query(concat!(
+            "WITH ",
+            live_snapshots_cte!("'github'"),
+            ",
+            per_repository AS (",
             r#"
-            WITH per_repository AS (
                 SELECT DISTINCT ON (provider, owner, repo)
                     total_files, total_code, total_lines, primary_language
                 FROM reports
@@ -2610,7 +2693,7 @@ impl Store {
             canonical_options_sql!("reports"),
             r#"
                   AND "#,
-            latest_eligible!("reports"),
+            latest_eligible_hashed!("reports"),
             r#"
                 ORDER BY provider, owner, repo, created_at DESC, id
             )
@@ -2652,8 +2735,11 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<LanguageReportRow>> {
         let rows = sqlx::query(concat!(
+            "WITH ",
+            live_snapshots_cte!("'github'"),
+            ",
+            per_repository AS (",
             r#"
-            WITH per_repository AS (
                 SELECT DISTINCT ON (provider, owner, repo)
                     id, owner, repo, total_files, total_code, total_lines, stars, top_language
                 FROM reports
@@ -2661,7 +2747,7 @@ impl Store {
             canonical_options_sql!("reports"),
             r#"
                   AND "#,
-            latest_eligible!("reports"),
+            latest_eligible_hashed!("reports"),
             r#"
                   AND primary_language = $3
                 ORDER BY provider, owner, repo, created_at DESC, id
@@ -2741,6 +2827,8 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<RelatedReportRow>> {
         let rows = sqlx::query(concat!(
+            "WITH ",
+            live_snapshots_cte!("$1"),
             r#"
             SELECT
                 deduped.provider AS provider,
@@ -2767,8 +2855,7 @@ impl Store {
             canonical_options_sql!("reports"),
             r#"
                       AND "#,
-            // Build the latest live snapshot set once, rather than per history row.
-            "(reports.source <> 'sloc_backfill' OR (reports.provider, reports.owner, reports.repo, reports.commit_sha) IN (SELECT DISTINCT ON (provider, owner, repo) provider, owner, repo, commit_sha FROM sloc_snapshots WHERE superseded_at IS NULL AND provider = $1 ORDER BY provider, owner, repo, snapshot_date DESC))",
+            latest_eligible_hashed!("reports"),
             r#"
                     ORDER BY provider, owner, repo, created_at DESC
                 ) filtered
@@ -2911,6 +2998,8 @@ impl Store {
     /// the question entirely.
     pub async fn sitemap_entries(&self) -> anyhow::Result<Vec<SitemapRow>> {
         let rows = sqlx::query(concat!(
+            "WITH ",
+            live_snapshots_cte!("'github'"),
             r#"
             SELECT
                 r.provider AS provider,
@@ -2933,7 +3022,7 @@ impl Store {
             canonical_options_sql!("reports"),
             r#"
                       AND "#,
-            latest_eligible!("reports"),
+            latest_eligible_hashed!("reports"),
             r#"
                     ORDER BY provider, owner, repo, created_at DESC, id
                 ) latest
@@ -3275,6 +3364,8 @@ impl Store {
             // not re-analyzed within the 30-day minimum. When only such reports
             // are left, the cap yields rather than the pages.
             let deleted = sqlx::query(concat!(
+                "WITH ",
+                live_snapshots_cte!(),
                 r#"
                 DELETE FROM reports
                 WHERE id IN (
@@ -3287,7 +3378,7 @@ impl Store {
                         WHERE "#,
                 canonical_options_sql!("r"),
                 " AND ",
-                latest_eligible!("r"),
+                latest_eligible_hashed!("r"),
                 r#"
                         ORDER BY r.provider, lower(r.owner), lower(r.repo), r.created_at DESC
                     )
@@ -3992,6 +4083,8 @@ impl ReportOrder {
         match self {
             Self::Recent => {
                 concat!(
+                    "WITH ",
+                    live_snapshots_cte!(),
                     card_projection!(),
                     r#"
                     FROM (
@@ -4003,7 +4096,7 @@ impl ReportOrder {
                     canonical_options_sql!("reports"),
                     r#"
                               AND "#,
-                    latest_eligible!("reports"),
+                    latest_eligible_hashed!("reports"),
                     r#"
                             ORDER BY provider, owner, repo, created_at DESC
                         ) latest
@@ -4018,6 +4111,8 @@ impl ReportOrder {
             }
             Self::Popular => {
                 concat!(
+                    "WITH ",
+                    live_snapshots_cte!(),
                     card_projection!(),
                     r#"
                     FROM (
@@ -4030,7 +4125,7 @@ impl ReportOrder {
                     canonical_options_sql!("reports"),
                     r#"
                               AND "#,
-                    latest_eligible!("reports"),
+                    latest_eligible_hashed!("reports"),
                     r#"
                             ORDER BY provider, owner, repo, stars DESC NULLS LAST, access_count DESC, last_accessed_at DESC, created_at DESC
                         ) popular
@@ -4064,17 +4159,22 @@ fn monolith_card_sql() -> &'static str {
         format!(
             "{projection}{head}{canonical}{middle}{eligible}{tail}",
             projection = card_projection!(),
-            head = r#"
+            head = concat!(
+                r#"
                     FROM (
-                        WITH per_repository AS (
+                        WITH "#,
+                live_snapshots_cte!("'github'"),
+                r#",
+                        per_repository AS (
                             SELECT DISTINCT ON (provider, owner, repo)
                                 id, total_code, total_files, top_language, stars, access_count, created_at
                             FROM reports
                             WHERE provider = 'github' AND "#,
+            ),
             canonical = canonical_options_sql!("reports"),
             middle = r#"
                               AND "#,
-            eligible = latest_eligible!("reports"),
+            eligible = latest_eligible_hashed!("reports"),
             tail = r#"
                             ORDER BY provider, owner, repo, created_at DESC, id
                         ),
@@ -4083,24 +4183,32 @@ fn monolith_card_sql() -> &'static str {
                             WHERE total_files >= $4
                               AND COALESCE(top_language, '') <> ALL({formats}::text[])
                         ),
-                        ranked AS (
-                            SELECT c.*,
-                                   EXISTS (
-                                       SELECT 1 FROM codebases o
-                                       WHERE o.id <> c.id
-                                         AND o.total_code >= {copy_floor}
-                                         AND c.total_code >= {copy_floor}
-                                         AND o.top_language IS NOT DISTINCT FROM c.top_language
-                                         AND o.total_code BETWEEN c.total_code * (1 - {tolerance})
-                                                             AND c.total_code * (1 + {tolerance})
-                                         AND (COALESCE(o.stars, -1), o.access_count, o.total_code, o.id)
-                                             > (COALESCE(c.stars, -1), c.access_count, c.total_code, c.id)
-                                   ) AS is_copy
-                            FROM codebases c
+                        -- Only a codebase at or above the floor can be a copy or
+                        -- its source, so the comparison is a self-join of the
+                        -- large ones (424 rows squared on the production corpus),
+                        -- not a probe of every codebase for each of them.
+                        large AS MATERIALIZED (
+                            SELECT * FROM codebases WHERE total_code >= {copy_floor}
+                        ),
+                        -- The row comparison ends in `id`, so no codebase
+                        -- matches itself.
+                        copies AS (
+                            SELECT c.id
+                            FROM large c
+                            JOIN large o
+                              ON o.top_language IS NOT DISTINCT FROM c.top_language
+                             AND o.total_code BETWEEN c.total_code * (1 - {tolerance})
+                                                 AND c.total_code * (1 + {tolerance})
+                             AND (COALESCE(o.stars, -1), o.access_count, o.total_code, o.id)
+                                 > (COALESCE(c.stars, -1), c.access_count, c.total_code, c.id)
                         )
-                        SELECT id, total_code, created_at
-                        FROM ranked
-                        WHERE NOT is_copy
+                        -- A join rather than `NOT EXISTS`: under `OR`, Postgres
+                        -- re-runs an EXISTS subquery for every large codebase
+                        -- instead of hashing it once.
+                        SELECT c.id, c.total_code, c.created_at
+                        FROM codebases c
+                        LEFT JOIN copies copy ON copy.id = c.id
+                        WHERE c.total_code < {copy_floor} OR copy.id IS NULL
                         ORDER BY total_code DESC, created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
@@ -5157,7 +5265,7 @@ mod tests {
             (None, None)
         );
         let visited = store.store.backfill_popularity_columns().await.unwrap();
-        assert_eq!(visited, 4, "every canonical row is visited once");
+        assert_eq!(visited, 4, "every row with a NULL column is visited");
         assert_eq!(
             popularity_columns(&store, "stars-known").await,
             (Some(1_200), Some("Rust".to_string()))
@@ -5174,8 +5282,37 @@ mod tests {
             popularity_columns(&store, "stars-malformed").await,
             (None, Some("Go".to_string()))
         );
-        // Idempotent: a second pass changes nothing.
-        assert_eq!(store.store.backfill_popularity_columns().await.unwrap(), 4);
+
+        // A star count that stays unknown leaves its column NULL, so the next
+        // pass selects that row again: NULL cannot tell "no star count" from
+        // "not filled yet". Rows with both columns filled are not revisited,
+        // and a row an older binary wrote without them is picked up here.
+        sqlx::query("UPDATE reports SET stars = 7 WHERE id = 'stars-data-heavy'")
+            .execute(&store.store.pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE reports SET stars = NULL WHERE id = 'stars-known'")
+            .execute(&store.store.pool)
+            .await
+            .unwrap();
+        let visited = store.store.backfill_popularity_columns().await.unwrap();
+        assert_eq!(
+            visited, 3,
+            "the two unknown star counts and the cleared row"
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-known").await,
+            (Some(1_200), Some("Rust".to_string()))
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-data-heavy").await,
+            (Some(7), Some("TypeScript".to_string())),
+            "a filled row is not rewritten"
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-unknown").await,
+            (None, None)
+        );
         store.drop_schema().await;
     }
 

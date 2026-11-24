@@ -11,7 +11,7 @@
 | 第 4 轮 | 2026-09-19 | sitemap 拆分、llms 移出 XML sitemap、FAQ 可引用性、IndexNow 验证/推送 | 完成,方案见 [seo-geo-plan-2026-09-19.md](seo-geo-plan-2026-09-19.md) |
 | 第 5 轮 | 2026-10-16 | GitHub 改名事故修复:7 个 compare 页 503(注册表旧名 + 改名自愈)、9 个 404(sitemap 门控同口径)、sitemap index lastmod | 完成,方案见 [seo-geo-round5-2026-10-16.md](seo-geo-round5-2026-10-16.md) |
 | 第 6 轮 | 2026-10-29 至 11-21 | 渲染一致性(客户端 DOM 保留 SSR 内容)、Explore 集合页、内容准确性审计、设计.md 仓库路由、历史测量溯源 | 完成,记录见各次审计目录 |
-| 第 7 轮 | 2026-11-24 | 默认口径同步、API 主机索引边界、报告页模板、报告 sitemap 分层、语言榜单、对比页互链、CLI/Action/MCP 落地页 | 完成,站外动作与产品决策遗留,见 [seo-geo-round7-2026-11-24.md](seo-geo-round7-2026-11-24.md) |
+| 第 7 轮 | 2026-11-24 | 默认口径同步、API 主机索引边界、报告页模板、报告 sitemap 分层、语言榜单、对比页互链、CLI/Action/MCP 落地页 | 完成,发布后以 v0.7.49 修复冷语言页 503(全表查询 6–8 秒降至 1 秒级);站外动作与产品决策遗留,见 [seo-geo-round7-2026-11-24.md](seo-geo-round7-2026-11-24.md) |
 
 ## 2. 第 1–3 轮(SG-01…SG-10)做了什么
 

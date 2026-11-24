@@ -36,7 +36,7 @@
 
 | 项 | 实现 |
 |---|---|
-| 数据模型 | `reports` 新增两个物化列：`stars`（分析时的 GitHub star 数）和 `primary_language`（最大的编程语言，跳过数据与文档格式）。由现有统计触发器推导，并为 canonical 行做键集分页回填。回填只更新这两列，不触发缓存清理 |
+| 数据模型 | `reports` 新增两个物化列：`stars`（分析时的 GitHub star 数）和 `primary_language`（最大的编程语言，跳过数据与文档格式）。由现有统计触发器推导，并为 canonical 行回填。回填只更新这两列，不触发缓存清理；自 v0.7.49 起每次启动只访问仍为空值的行 |
 | `/popular` | 按 stars 排序，访问活跃度只作平手裁决。生产只读采样（2026-11-24）：10,362 个可索引仓库全部带有 star 数，≥ 1,000 星的 3,819 个 |
 | `/hall-of-monoliths` | 排除最大语言为数据格式的仓库；100 万行以上、同语言、行数相差 2% 以内的两个仓库只保留 star 较多的一个。两个榜单都只列 GitHub 仓库（站点没有 `/gitlab` 路由） |
 | 报告 sitemap | 按层拆分：`sitemap-reports-core-N.xml`（≥ 1,000 星）和 `sitemap-reports-tail-N.xml`（其余）。索引视图描述分片，分页视图接受 `tier`。旧的未分层文件和旧版 API 的纯日期索引仍然可用；其它 sitemap 形态的 URL 返回 404 |
@@ -60,7 +60,7 @@
 - 前端：`npm test` 通过（CSP 哈希、78 项单元测试、产品事实检查 63 个文件、构建、160 项 SEO 测试、资源预算）。预算：首页 JS 157.5/165 KiB，报告页 187.0/200 KiB，工具页 168.9/175 KiB。
 - 浏览器：`npm run test:qa` 93 项通过。另对 `/languages`、`/languages/rust`、`/compare/react-vs-vue`、`/diff` 做了 Chromium 冒烟检查（真实边缘函数产出服务端 HTML，加生产构建的资源）：水合后的页面保留标题、表格、FAQ 和相关链接，H1 与 `<main>` 各一个，1280px 和 390px 都没有横向溢出，没有页面错误。
 - 后端：`cargo fmt --check`、`cargo clippy --all-targets --locked -- -D warnings` 通过；`cargo test --locked` 在带 PostgreSQL 的本地实例上 286 项通过，另有 1 项独立测试通过。两个 golden 文件按预期只减少了旧数据里的 GitLab 行。
-- 以上是本地验证。生产部署后的冒烟检查见 runbook。
+- 以上是本地验证。v0.7.48 上线后按 runbook 第 1 节做了生产冒烟：sitemap 分层、新增落地页、API 索引头、报告页和对比页模板、巨型榜过滤都符合预期；语言榜单页暴露了一个冷查询超时问题，见第六节。
 
 ## 四、未做与遗留
 
@@ -79,7 +79,7 @@
 部署后立即：
 
 - `/sitemap.xml` 列出 `sitemap-languages.xml`、`sitemap-reports-core-1.xml`、`sitemap-reports-tail-1.xml`；旧的 `/sitemap-reports-1.xml` 仍返回 200。
-- `/languages` 和若干 `/languages/:slug` 返回 200，含标题、表格和 FAQ；`/languages/unknown` 返回 404。
+- `/languages` 和若干 `/languages/:slug` 返回 200，含标题、表格和 FAQ；`/languages/unknown` 返回 404。要包含一个从没被请求过的语言页（第六节）。
 - `/popular` 首屏不再是维护者自己的仓库；`/hall-of-monoliths` 不再出现内核拷贝和数据文件仓库。
 - 任意报告页含 “Source: owner/repo on GitHub” 链接和 `<main>`；响应带 `server-timing`。
 - `https://api.octocounts.com/robots.txt` 返回 200；`/api/stats` 带 `x-robots-tag: noindex`；`/api/seo/report?...` 带 canonical `link`。
@@ -92,3 +92,38 @@
 - 记录 `/languages` 及各榜单页的收录数量和曝光。
 - 重新采样报告页冷渲染的 `server-timing`，判断 1 秒以上的耗时落在哪一段。
 - 11/26 的 GSC 复查（`docs/seo-audit-2026-11-19/indexing-baseline.md`）照常执行。
+
+## 六、发布后修复（v0.7.49）
+
+v0.7.48 上线后冒烟：已访问过的 `/languages/rust`、`/languages/typescript`、`/languages/cpp` 返回 200，但从没被请求过的语言页（`/languages/go`、`/languages/python`、`/languages/java`）首次请求一律 503，耗时 8.3 秒。
+
+原因在“一行报告能否作为仓库当前报告”的判定（`latest_eligible!`）：回填采样行只有落在仓库的最新快照上才算数，而这条判定对 `reports` 的每一行都执行一次快照子查询。生产库有 26 万行报告。主节点（数据库在本地）的实测耗时：
+
+| 查询 | v0.7.48 | v0.7.49 |
+|---|---|---|
+| 语言索引 | 6.4–7.4 秒 | 0.8 秒 |
+| 语言榜单（Rust） | 2.1 秒 | 0.6 秒 |
+| 最新列表 | 7.0–7.5 秒 | 1.1–1.7 秒 |
+| 热门列表 | 6.9–7.2 秒 | 1.2–1.5 秒 |
+| 巨型榜 | 7.2–8.7 秒 | 1.1–1.4 秒 |
+| sitemap 清单 | 6.0–6.4 秒 | 1.0 秒 |
+| 清理任务的保留集 | 6.2 秒 | 0.7 秒 |
+
+边缘函数请求上游的超时是 8 秒。后端的进程内缓存每次部署后是冷的，之后每 15 分钟失效一次，所以失效后的第一个请求会超时。直接访问 `api.octocounts.com` 看到 `cf-cache-status: HIT` 不说明页面正常：边缘函数对同一 zone 主机的子请求不经过 CDN 缓存。
+
+| 项 | 实现 |
+|---|---|
+| 哈希写法 | 新增 `live_snapshots_cte!` 和 `latest_eligible_hashed!`：查询先把“每个仓库的最新快照”建一次，再做哈希成员测试。语义不变，因为 `sloc_snapshots` 在 `(provider, owner, repo, snapshot_date)` 上唯一，最新快照是确定的一行。语言索引、语言榜单、sitemap 清单、最新与热门列表、巨型榜、清理任务和相关报告都改用它。按单个或少量仓库查找的三个查询保留逐行写法 |
+| 巨型榜的复制判定 | v0.7.48 的写法对每个百万行以上的仓库扫描全部候选（424 × 8,272 次过滤）。现在只比较百万行以上的仓库（424 × 424），并用 LEFT JOIN 排除副本。`OR NOT EXISTS` 写法会让 Postgres 对每个候选行重算子查询，实测仍要 3 秒多，所以没有采用 |
+| 人气列回填 | v0.7.48 每次启动都访问全部 25.6 万行 canonical 报告（256 批，迁移实测 345 秒）。现在只访问 `stars` 或 `primary_language` 仍为空的行，旧版本在发布窗口写入的空值行会在下一次启动时补上。同时修正了游标：取一批里最大的 id，而不是 `RETURNING` 的最后一行（后者的顺序没有保证） |
+
+验证（2026-11-24）：
+
+- 生产库只读查询，新旧写法返回的行相同：语言索引和语言榜单、sitemap 清单、清理保留集（11,297 个仓库）的差集为 0；最新和热门列表前 500 名位置相同；巨型榜全部 8,136 行排名相同。最新、热门、巨型榜三项用的是两个版本各自编译出的 SQL 原文。
+- 本地：`cargo fmt --check`、clippy 通过，287 项测试通过（带 PostgreSQL）。
+
+教训：
+
+- 新增对外页面前，要在生产数据量上量一遍冷查询。本地测试库只有几十行，8 秒和 0.8 秒的差别在本地看不出来。
+- 冒烟要包含从没被请求过的页面。重复访问同一个语言页只会命中缓存。
+- 剩下的约 1 秒是对 `reports` 的顺序扫描（26 万行里筛出 2.4 万行候选）。要再快需要新的部分索引，留作后续优化。

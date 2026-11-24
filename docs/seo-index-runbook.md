@@ -14,6 +14,8 @@
 
 回滚到 `v0.7.47` 不需要撤销迁移：旧镜像不读这两列，触发器多推导两列无害。
 
+**v0.7.49（同日）** 没有数据库迁移，只改了查询：按常规流程更新 tag、在两个节点部署即可。这一版起，启动时的人气列回填只访问仍为空的行，不再有全表回填。回滚到 `v0.7.48` 可以运行，但后端缓存失效后，语言榜单等页面的第一次请求会 503（原因见 [seo-geo-round7-2026-11-24.md](seo-geo-round7-2026-11-24.md) 第六节）。
+
 ## 1. 部署后立即验证(无需任何账号)
 
 ```sh
@@ -47,6 +49,14 @@ curl -s -A "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.h
   https://octocounts.com/compare/react-vs-vue | grep -o '<title>[^<]*</title>'
 curl -s -A "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)" \
   https://octocounts.com/docs/faq | grep -o '<title>[^<]*</title>'
+
+# 冷请求：后端部署完立即请求一次。每个接口都必须 200 且明显快于 8 秒
+# (边缘函数的上游超时)；部署后进程内缓存是空的，这一次量到的就是冷耗时
+for p in languages language/go recent popular monoliths sitemap; do
+  curl -s -o /dev/null -w "cold api $p: %{http_code} %{time_starttransfer}s\n" "https://api.octocounts.com/api/seo/$p"
+done
+# 从没被请求过的语言页必须 200。重复访问同一个语言页只会命中缓存
+curl -s -o /dev/null -w "cold language page: %{http_code} %{time_starttransfer}s\n" https://octocounts.com/languages/kotlin
 ```
 
 ## 2. IndexNow(Bing 及其他 IndexNow 引擎)
@@ -105,4 +115,4 @@ INDEXNOW_KEY=<key> node scripts/resubmit-urls-indexnow.mjs --core
 
 ## 6. 回滚
 
-全部改动为前端静态资产/边缘函数/脚本,revert 对应 commit 即可。robots.txt 的 Sitemap 行未变,GSC/Bing 配置无需回滚。
+边缘改动（静态资产、边缘函数、脚本）revert 对应 commit 即可。后端改动（v0.7.48 起）按 sloc-infra 的 `README.md` 把 `OCTO_TAG` 改回旧 tag，并在两个节点重新部署。robots.txt 的 Sitemap 行未变，GSC/Bing 配置无需回滚。
