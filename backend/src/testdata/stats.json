@@ -172,23 +172,6 @@
         "files": 16346,
         "lines": 2846077
       }
-    },
-    {
-      "generatedAt": "2024-05-20T17:30:15Z",
-      "htmlUrl": "https://gitlab.com/gitlab-org/ci-cd/gitlab-runner",
-      "owner": "gitlab-org/ci-cd",
-      "provider": "gitlab",
-      "publicPath": "/gitlab/gitlab-org/ci-cd/gitlab-runner",
-      "refName": "main",
-      "repo": "gitlab-runner",
-      "topLanguage": "Go",
-      "total": {
-        "blanks": 31818,
-        "code": 350000,
-        "comments": 50000,
-        "files": 2189,
-        "lines": 431818
-      }
     }
   ],
   "totals": {

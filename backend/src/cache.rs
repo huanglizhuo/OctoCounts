@@ -12,7 +12,7 @@ use moka::{future::Cache, policy::EvictionPolicy};
 use crate::{
     models::GrowthStats,
     repo_history::RepoHistoryResponse,
-    seo::{RelatedList, SeoList, SeoReport, SitemapInventory},
+    seo::{LanguageIndex, LanguagePage, RelatedList, SeoList, SeoReport, SitemapInventory},
 };
 
 #[derive(Clone)]
@@ -25,6 +25,11 @@ pub struct AppCaches {
     pub seo_monoliths: Cache<String, SeoList>,
     pub seo_sitemap: Cache<String, Arc<SitemapInventory>>,
     pub seo_related: Cache<String, RelatedList>,
+    /// The per-language leaderboard index (one entry) and each language's
+    /// leaderboard. Both read materialized columns only, so a miss is cheap;
+    /// the TTL keeps a page from moving under a crawler mid-crawl.
+    pub seo_languages: Cache<String, LanguageIndex>,
+    pub seo_language: Cache<String, LanguagePage>,
     /// Combined star + SLOC history responses. The one-time watch/backfill
     /// trigger only runs on a cache miss (see `repo_history::repo_history`),
     /// so this TTL also bounds how often that check re-runs, not just how
@@ -57,6 +62,8 @@ impl AppCaches {
         self.seo_popular.invalidate_all();
         self.seo_monoliths.invalidate_all();
         self.seo_sitemap.invalidate_all();
+        self.seo_languages.invalidate_all();
+        self.seo_language.invalidate_all();
         self.seo_repo_history.invalidate_all();
         self.og_png.invalidate_all();
         self.badge_svg.invalidate_all();
@@ -73,6 +80,8 @@ impl AppCaches {
             seo_popular: ttl_cache(100, Duration::from_secs(300)),
             seo_monoliths: ttl_cache(100, Duration::from_secs(900)),
             seo_sitemap: ttl_cache(1, Duration::from_secs(900)),
+            seo_languages: ttl_cache(1, Duration::from_secs(900)),
+            seo_language: ttl_cache(200, Duration::from_secs(900)),
             // Sized for the whole report inventory: a miss is a multi-second
             // scan, and peers only change when new reports land.
             seo_related: ttl_cache(10_000, Duration::from_secs(21_600)),

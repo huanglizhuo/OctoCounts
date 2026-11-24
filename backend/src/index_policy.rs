@@ -54,10 +54,8 @@ pub async fn tag_indexing(request: Request, next: Next) -> Response {
 pub fn apply(path: &str, status: StatusCode, headers: &mut HeaderMap) {
     // Only a successful response is a resource worth keeping out of an index;
     // an outage's 503 must never read as "this URL should not be indexed".
-    if status.is_success() {
-        if robots_tag_for(path).is_some() {
-            set_noindex(headers);
-        }
+    if status.is_success() && robots_tag_for(path).is_some() {
+        set_noindex(headers);
     }
 }
 

@@ -494,6 +494,7 @@ async fn seo_sitemap_matches_golden() {
     let body: serde_json::Value = serde_json::from_str(&body).unwrap();
     for query in [
         "view=page&page=1",
+        "view=page&tier=tail&page=1",
         "view=rotating&day=123",
         "view=index&repos=rust-lang%2Frust",
     ] {
@@ -502,9 +503,25 @@ async fn seo_sitemap_matches_golden() {
         let view: serde_json::Value = serde_json::from_str(&view).unwrap();
         assert_eq!(view["entries"], serde_json::json!([body[1]]));
         if query.starts_with("view=index") {
-            assert_eq!(view["shards"], serde_json::json!(["2024-03-14"]));
+            // The fixture repository has no star count, so it is long tail.
+            assert_eq!(
+                view["shards"],
+                serde_json::json!([{ "tier": "tail", "page": 1, "lastmod": "2024-03-14", "urls": 1 }])
+            );
         }
     }
+    // The core shard lists only repositories at or above the star floor.
+    let (status, view) = harness
+        .get("/api/seo/sitemap?view=page&tier=core&page=1")
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let view: serde_json::Value = serde_json::from_str(&view).unwrap();
+    assert_eq!(view["entries"], serde_json::json!([]));
+    // An unknown tier is a client error, never an empty sitemap.
+    let (status, _) = harness
+        .get("/api/seo/sitemap?view=page&tier=other&page=1")
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     harness.drop_schema().await;
 }
 

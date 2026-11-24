@@ -1,8 +1,9 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::{header, HeaderMap, HeaderValue},
     Json,
 };
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -136,6 +137,10 @@ pub struct SitemapEntry {
     /// this nested `total` shape — the one the report payloads themselves use —
     /// or the flat `totalFiles`/`totalLines`/`totalCode` spelling.
     total: SitemapTotals,
+    /// The repository's star count at analysis time, for the tier split. An
+    /// older API node omits the field, which the edge reads as long tail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stars: Option<i64>,
 }
 
 /// The subset of [`LanguageStats`] the sitemap consumer filters on.
@@ -498,12 +503,43 @@ pub async fn monoliths(
 const SITEMAP_PAGE_SIZE: usize = 10_000;
 const ROTATING_LINKS: usize = 64;
 
+/// A repository's report joins the core sitemap shard when the repository had
+/// at least this many GitHub stars when it was last analyzed; every other
+/// report goes to the long-tail shard. The split gives search engines, and
+/// Search Console's per-sitemap reports, a set of repositories with plausible
+/// search demand instead of one undifferentiated list of ten thousand URLs.
+/// Stars are a snapshot, not a live count.
+pub const CORE_SITEMAP_MIN_STARS: i64 = 1_000;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SitemapTier {
+    Core,
+    Tail,
+}
+
+/// One report sitemap file the edge serves.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SitemapShard {
+    pub tier: SitemapTier,
+    /// 1-based, within the tier.
+    pub page: usize,
+    /// The newest report date in the shard; the edge raises it to its own
+    /// template date.
+    pub lastmod: String,
+    pub urls: usize,
+}
+
 pub struct SitemapInventory {
     // Keep the original API response, including its recency ordering.
     raw: Vec<SitemapEntry>,
     eligible: std::collections::BTreeMap<String, usize>,
+    /// Every eligible report, in the raw ordering.
     ordered: Vec<usize>,
-    shard_dates: Vec<String>,
+    core: Vec<usize>,
+    tail: Vec<usize>,
+    shards: Vec<SitemapShard>,
 }
 
 impl SitemapInventory {
@@ -517,22 +553,49 @@ impl SitemapInventory {
             }
         }
         let ordered: Vec<usize> = eligible.values().copied().collect();
-        let shard_dates = ordered
-            .chunks(SITEMAP_PAGE_SIZE)
-            .filter_map(|chunk| chunk.iter().map(|&i| &raw[i].lastmod).max().cloned())
-            .collect();
+        let (core, tail): (Vec<usize>, Vec<usize>) = ordered.iter().copied().partition(|&i| {
+            raw[i]
+                .stars
+                .is_some_and(|stars| stars >= CORE_SITEMAP_MIN_STARS)
+        });
+        let mut shards = Vec::new();
+        for (tier, members) in [(SitemapTier::Core, &core), (SitemapTier::Tail, &tail)] {
+            for (page, chunk) in members.chunks(SITEMAP_PAGE_SIZE).enumerate() {
+                let lastmod = chunk
+                    .iter()
+                    .filter_map(|&i| raw[i].lastmod.parse::<chrono::NaiveDate>().ok())
+                    .max()
+                    .map(|date| date.to_string())
+                    .unwrap_or_default();
+                shards.push(SitemapShard {
+                    tier,
+                    page: page + 1,
+                    lastmod,
+                    urls: chunk.len(),
+                });
+            }
+        }
         Self {
             raw,
             eligible,
             ordered,
-            shard_dates,
+            core,
+            tail,
+            shards,
         }
     }
 
-    fn page(&self, page: usize) -> &[usize] {
+    /// One sitemap file. `None` selects the legacy single list, which
+    /// predates the tiers; a tier selects that tier's list.
+    fn page(&self, tier: Option<SitemapTier>, page: usize) -> &[usize] {
+        let members = match tier {
+            None => &self.ordered,
+            Some(SitemapTier::Core) => &self.core,
+            Some(SitemapTier::Tail) => &self.tail,
+        };
         page.checked_sub(1)
             .and_then(|p| p.checked_mul(SITEMAP_PAGE_SIZE))
-            .and_then(|start| self.ordered.get(start..))
+            .and_then(|start| members.get(start..))
             .map(|tail| &tail[..tail.len().min(SITEMAP_PAGE_SIZE)])
             .unwrap_or_default()
     }
@@ -555,6 +618,7 @@ pub struct SitemapQuery {
     page: Option<usize>,
     day: Option<u64>,
     repos: Option<String>,
+    tier: Option<SitemapTier>,
 }
 
 pub async fn sitemap(
@@ -588,6 +652,7 @@ pub async fn sitemap(
                     lines: row.total_lines,
                     code: row.total_code,
                 },
+                stars: row.stars,
             })
             .collect();
         let value = std::sync::Arc::new(SitemapInventory::new(entries));
@@ -603,13 +668,13 @@ pub async fn sitemap(
     struct View<'a> {
         entries: Vec<&'a SitemapEntry>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        shards: Option<&'a [String]>,
+        shards: Option<&'a [SitemapShard]>,
     }
     let payload = match query.view.as_deref() {
         None => return Ok((headers, Json(&inventory.raw)).into_response()),
         Some("page") if query.page.is_some_and(|page| page > 0) => {
             let entries: Vec<_> = inventory
-                .page(query.page.unwrap())
+                .page(query.tier, query.page.unwrap())
                 .iter()
                 .map(|&i| &inventory.raw[i])
                 .collect();
@@ -639,7 +704,7 @@ pub async fn sitemap(
                 .collect();
             View {
                 entries,
-                shards: Some(&inventory.shard_dates),
+                shards: Some(&inventory.shards),
             }
         }
         _ => {
@@ -671,6 +736,9 @@ fn sitemap_shards_cover_eligible_urls_once() {
                 lines: 20,
                 code: 15,
             },
+            // Every second report comes from a well-starred repository, so the
+            // core and tail shards interleave in the raw ordering.
+            stars: (i % 2 == 0).then_some(CORE_SITEMAP_MIN_STARS),
         })
         .collect();
     let mut duplicate = entries[0].clone();
@@ -681,12 +749,13 @@ fn sitemap_shards_cover_eligible_urls_once() {
     thin.total.files = 1;
     entries.push(thin);
     let inventory = SitemapInventory::new(entries);
-    assert_eq!(inventory.page(1).len(), SITEMAP_PAGE_SIZE);
-    assert_eq!(inventory.page(2), &[0]);
-    assert_eq!(inventory.shard_dates, ["2026-10-01", "2026-11-19"]);
-    assert!(inventory.page(3).is_empty());
-    assert!(inventory.page(usize::MAX).is_empty());
-    assert_eq!(inventory.ordered.len(), SITEMAP_PAGE_SIZE + 1);
+    let eligible = SITEMAP_PAGE_SIZE + 1;
+    // The legacy single list still covers everything, once.
+    assert_eq!(inventory.page(None, 1).len(), SITEMAP_PAGE_SIZE);
+    assert_eq!(inventory.page(None, 2), &[0]);
+    assert!(inventory.page(None, 3).is_empty());
+    assert!(inventory.page(None, usize::MAX).is_empty());
+    assert_eq!(inventory.ordered.len(), eligible);
     assert!(inventory
         .ordered
         .windows(2)
@@ -695,6 +764,92 @@ fn sitemap_shards_cover_eligible_urls_once() {
         inventory.rotating(1)[0].loc,
         inventory.raw[inventory.ordered[64]].loc
     );
+
+    // Tiers: every eligible report lands in exactly one tier, core first.
+    let core = inventory.page(Some(SitemapTier::Core), 1);
+    let tail = inventory.page(Some(SitemapTier::Tail), 1);
+    assert_eq!(core.len() + tail.len(), eligible);
+    assert!(core.iter().all(|&i| inventory.raw[i]
+        .stars
+        .is_some_and(|s| s >= CORE_SITEMAP_MIN_STARS)));
+    assert!(tail.iter().all(|&i| inventory.raw[i].stars.is_none()));
+    let mut covered: Vec<usize> = core.iter().chain(tail).copied().collect();
+    covered.sort_unstable();
+    let mut every: Vec<usize> = inventory.ordered.clone();
+    every.sort_unstable();
+    assert_eq!(covered, every);
+    assert_eq!(
+        inventory.shards,
+        [
+            SitemapShard {
+                tier: SitemapTier::Core,
+                page: 1,
+                lastmod: "2026-11-19".into(),
+                urls: eligible.div_ceil(2)
+            },
+            SitemapShard {
+                tier: SitemapTier::Tail,
+                page: 1,
+                lastmod: "2026-10-01".into(),
+                urls: eligible / 2
+            },
+        ]
+    );
+    assert!(
+        inventory
+            .shards
+            .iter()
+            .map(|shard| shard.urls)
+            .sum::<usize>()
+            == eligible
+    );
+}
+
+/// Below the star floor, or with no star count, a report is long tail.
+#[test]
+fn sitemap_tier_follows_the_star_floor() {
+    let entry = |name: &str, stars: Option<i64>| SitemapEntry {
+        loc: format!("https://octocounts.com/github/o/{name}"),
+        lastmod: "2026-11-01".into(),
+        total: SitemapTotals {
+            files: 9,
+            lines: 9,
+            code: 9,
+        },
+        stars,
+    };
+    let inventory = SitemapInventory::new(vec![
+        entry("at-floor", Some(CORE_SITEMAP_MIN_STARS)),
+        entry("below-floor", Some(CORE_SITEMAP_MIN_STARS - 1)),
+        entry("no-count", None),
+        entry("huge", Some(i64::MAX)),
+    ]);
+    assert_eq!(inventory.core.len(), 2);
+    assert_eq!(inventory.tail.len(), 2);
+    assert_eq!(
+        inventory
+            .shards
+            .iter()
+            .map(|shard| (shard.tier, shard.urls))
+            .collect::<Vec<_>>(),
+        [(SitemapTier::Core, 2), (SitemapTier::Tail, 2)]
+    );
+}
+
+#[test]
+fn language_slugs_are_url_safe_and_stable() {
+    assert_eq!(language_slug("Rust"), "rust");
+    assert_eq!(language_slug("TypeScript"), "typescript");
+    assert_eq!(language_slug("C++"), "cpp");
+    assert_eq!(language_slug("C#"), "c-sharp");
+    assert_eq!(language_slug("F#"), "f-sharp");
+    assert_eq!(language_slug("Objective-C"), "objective-c");
+    assert_eq!(language_slug("Objective-C++"), "objective-cpp");
+    assert_eq!(language_slug("Visual Basic .NET"), "visual-basic-net");
+    assert_eq!(language_slug("PO File"), "po-file");
+    assert_eq!(language_slug("C"), "c");
+    assert!(language_slug(&"x".repeat(80)).len() <= 48);
+    assert!(language_slug("日本語").is_empty());
 }
 
 pub(crate) fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError> {
@@ -705,6 +860,241 @@ pub(crate) fn parse_provider(value: &str) -> Result<RepositoryProvider, ApiError
             "provider must be github or gitlab",
         )
     })
+}
+
+/// A language gets a leaderboard only when at least this many repositories
+/// have it as their primary programming language.
+pub const LANGUAGE_MIN_REPOSITORIES: i64 = 10;
+/// The index stops here so the hub page stays a page.
+const LANGUAGE_INDEX_LIMIT: usize = 120;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageSummary {
+    pub language: String,
+    pub slug: String,
+    pub repositories: i64,
+    pub code: i64,
+    pub lines: i64,
+}
+
+/// `GET /api/seo/languages`: the languages that have a leaderboard.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageIndex {
+    pub languages: Vec<LanguageSummary>,
+    pub min_repositories: i64,
+    pub leaderboard_size: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageLeaderboardEntry {
+    pub repo_full_name: String,
+    pub public_path: String,
+    pub canonical_url: String,
+    pub total: SitemapTotals,
+    /// Code lines in this page's language alone.
+    pub language_code: i64,
+    /// `language_code` as a share of the repository's code lines, 0–100.
+    pub language_share: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stars: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_language: Option<String>,
+    pub generated_at: String,
+}
+
+/// `GET /api/seo/language/:slug`: one language's leaderboard.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguagePage {
+    pub language: String,
+    pub slug: String,
+    pub repositories: i64,
+    pub code: i64,
+    pub reports: Vec<LanguageLeaderboardEntry>,
+}
+
+/// URL path segment for a tokei language name. Lowercase, digits and hyphens;
+/// the `#`/`++` families get the spelling people search for.
+pub fn language_slug(name: &str) -> String {
+    let lower = name.trim().to_lowercase();
+    let spelled = match lower.as_str() {
+        "c++" => Some("cpp"),
+        "c#" => Some("c-sharp"),
+        "f#" => Some("f-sharp"),
+        "objective-c++" => Some("objective-cpp"),
+        _ => None,
+    };
+    if let Some(slug) = spelled {
+        return slug.to_string();
+    }
+    if lower.is_empty() {
+        return String::new();
+    }
+    let mut slug: String = lower
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect();
+    let significant = slug.trim_end_matches('-').len();
+    slug.truncate(significant);
+    let mut compact = String::with_capacity(slug.len());
+    for ch in slug.chars() {
+        if ch != '-' || !compact.ends_with('-') {
+            compact.push(ch);
+        }
+    }
+    let shortened: String = compact.chars().take(48).collect();
+    shortened.trim_end_matches('-').to_string()
+}
+
+/// `true` for a slug this module can have produced; anything else never
+/// matches a language and is not worth a database lookup.
+fn is_language_slug(slug: &str) -> bool {
+    !slug.is_empty()
+        && slug.len() <= 48
+        && slug
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+        && !slug.starts_with('-')
+        && !slug.ends_with('-')
+}
+
+async fn load_language_index(state: &AppState) -> anyhow::Result<LanguageIndex> {
+    let stats = state
+        .coordinator
+        .store()
+        .language_index(MIN_INDEXABLE_REPORT_FILES as i64, LANGUAGE_MIN_REPOSITORIES)
+        .await?;
+    // Two names can collapse to one slug ("C Sharp" and "C#"); the language
+    // with more code keeps it and the other has no page rather than a shared one.
+    let mut languages = Vec::new();
+    let mut taken = std::collections::HashSet::new();
+    for stat in stats {
+        if languages.len() == LANGUAGE_INDEX_LIMIT {
+            break;
+        }
+        let slug = language_slug(&stat.language);
+        if slug.is_empty() || !taken.insert(slug.clone()) {
+            continue;
+        }
+        languages.push(LanguageSummary {
+            language: stat.language,
+            slug,
+            repositories: stat.repositories,
+            code: stat.code,
+            lines: stat.lines,
+        });
+    }
+    Ok(LanguageIndex {
+        min_repositories: LANGUAGE_MIN_REPOSITORIES,
+        leaderboard_size: crate::store::LANGUAGE_LEADERBOARD_LIMIT,
+        languages,
+    })
+}
+
+pub async fn languages(
+    State(state): State<AppState>,
+) -> Result<(HeaderMap, Json<LanguageIndex>), ApiError> {
+    let cache_key = "index".to_string();
+    if let Some(index) = state.caches.seo_languages.get(&cache_key).await {
+        return Ok((language_cache_headers(), Json(index)));
+    }
+    let index = load_language_index(&state)
+        .await
+        .map_err(ApiError::internal)?;
+    state
+        .caches
+        .seo_languages
+        .insert(cache_key, index.clone())
+        .await;
+    Ok((language_cache_headers(), Json(index)))
+}
+
+pub async fn language(
+    State(state): State<AppState>,
+    Path(slug): Path<String>,
+) -> Result<(HeaderMap, Json<LanguagePage>), ApiError> {
+    if !is_language_slug(&slug) {
+        return Err(ApiError::not_found(
+            "language_not_found",
+            "no language leaderboard has this name",
+        ));
+    }
+    let cache_key = slug.clone();
+    if let Some(page) = state.caches.seo_language.get(&cache_key).await {
+        return Ok((language_cache_headers(), Json(page)));
+    }
+    let index = load_language_index(&state)
+        .await
+        .map_err(ApiError::internal)?;
+    let Some(summary) = index.languages.iter().find(|entry| entry.slug == slug) else {
+        return Err(ApiError::not_found(
+            "language_not_found",
+            "no language leaderboard has this name",
+        ));
+    };
+    let rows = state
+        .coordinator
+        .store()
+        .language_reports(
+            &summary.language,
+            MIN_INDEXABLE_REPORT_FILES as i64,
+            crate::store::LANGUAGE_LEADERBOARD_LIMIT,
+        )
+        .await
+        .map_err(ApiError::internal)?;
+    let reports = rows
+        .into_iter()
+        .map(|row| {
+            let canonical_url = format!(
+                "https://octocounts.com{}",
+                repository_public_path(RepositoryProvider::GitHub, &row.owner, &row.repo)
+            );
+            anyhow::Ok(LanguageLeaderboardEntry {
+                repo_full_name: format!("{}/{}", row.owner, row.repo),
+                public_path: repository_public_path(
+                    RepositoryProvider::GitHub,
+                    &row.owner,
+                    &row.repo,
+                ),
+                canonical_url,
+                total: SitemapTotals {
+                    files: row.total_files,
+                    lines: row.total_lines,
+                    code: row.total_code,
+                },
+                language_code: row.language_code,
+                language_share: if row.total_code > 0 {
+                    row.language_code as f64 / row.total_code as f64 * 100.0
+                } else {
+                    0.0
+                },
+                stars: row.stars,
+                top_language: row.top_language,
+                generated_at: DateTime::parse_from_rfc3339(&row.generated_at)?.to_rfc3339(),
+            })
+        })
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(ApiError::internal)?;
+    let page = LanguagePage {
+        language: summary.language.clone(),
+        slug: slug.clone(),
+        repositories: summary.repositories,
+        code: summary.code,
+        reports,
+    };
+    state
+        .caches
+        .seo_language
+        .insert(cache_key, page.clone())
+        .await;
+    Ok((language_cache_headers(), Json(page)))
+}
+
+fn language_cache_headers() -> HeaderMap {
+    cache_headers("public, max-age=300, s-maxage=900, stale-while-revalidate=3600")
 }
 
 #[derive(Debug, Deserialize)]
@@ -1035,7 +1425,7 @@ fn snapshot_url(
 /// when naming a report's top programming language. Mirrored by
 /// DATA_AND_PROSE_LANGUAGES in frontend/functions/report-copy.js (seo.test.mjs
 /// asserts the two lists match).
-const DATA_AND_PROSE_LANGUAGES: &[&str] = &[
+pub(crate) const DATA_AND_PROSE_LANGUAGES: &[&str] = &[
     "AsciiDoc",
     "INI",
     "JSON",

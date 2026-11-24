@@ -1,11 +1,12 @@
 use std::sync::{Arc, OnceLock};
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };
 use bytes::Bytes;
+use serde::Deserialize;
 
 use crate::{
     api::AppState,
@@ -57,15 +58,134 @@ pub async fn github(
     og_response(
         &state.caches,
         og_cache_key(RepositoryProvider::GitHub, &owner, &repo, report.as_ref()),
-        report,
+        move || render_png(&render_svg(report.as_ref())),
     )
     .await
+}
+
+/// `GET /og/compare?left=owner/repo&right=owner/repo`: the share card of a
+/// curated comparison. Both sides come from the same lookup the single-report
+/// card uses, and the card falls back to the repo-less default when either
+/// side has no cached report, so a share URL never fails to produce an image.
+pub async fn compare(State(state): State<AppState>, Query(query): Query<CompareQuery>) -> Response {
+    // Missing parameters are read as an empty slug, so a malformed share URL
+    // still produces an image instead of a 400.
+    let left = query.left.as_deref().and_then(parse_slug);
+    let right = query.right.as_deref().and_then(parse_slug);
+    let (Some(left), Some(right)) = (left, right) else {
+        return og_response(&state.caches, DEFAULT_OG_CACHE_KEY.to_string(), move || {
+            render_png(&render_svg(None))
+        })
+        .await;
+    };
+    let store = state.coordinator.store();
+    let (left_report, right_report) = tokio::join!(
+        store.latest_report(RepositoryProvider::GitHub, &left.0, &left.1),
+        store.latest_report(RepositoryProvider::GitHub, &right.0, &right.1),
+    );
+    // A failed lookup is treated like a missing report: the card degrades to
+    // the repo-less default rather than failing the share URL.
+    let (left_report, right_report) = (left_report.ok().flatten(), right_report.ok().flatten());
+    let card = CompareCard::build(left_report.as_ref(), right_report.as_ref());
+    og_response(
+        &state.caches,
+        compare_cache_key(left_report.as_ref(), right_report.as_ref()),
+        move || render_png(&render_compare_svg(card.as_deref())),
+    )
+    .await
+}
+
+#[derive(Deserialize)]
+pub struct CompareQuery {
+    #[serde(default)]
+    left: Option<String>,
+    #[serde(default)]
+    right: Option<String>,
+}
+
+/// `owner/repo` with GitHub's path characters only, so a query string can
+/// never place markup or a foreign host in the card.
+fn parse_slug(value: &str) -> Option<(String, String)> {
+    let (owner, repo) = value.split_once('/')?;
+    let valid = |part: &str| {
+        !part.is_empty()
+            && part.len() <= 100
+            && part
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || "_.-".contains(ch))
+    };
+    (valid(owner) && valid(repo)).then(|| (owner.to_string(), repo.to_string()))
+}
+
+/// Both sides of a comparison card, reduced to what the image shows.
+pub struct CompareCard {
+    left: CompareSide,
+    right: CompareSide,
+}
+
+struct CompareSide {
+    full_name: String,
+    code: usize,
+    lines: usize,
+    files: usize,
+    top_language: Option<(String, f64)>,
+}
+
+impl CompareCard {
+    /// `None` unless both sides have a report: a comparison of one
+    /// repository is not a comparison.
+    fn build(left: Option<&Report>, right: Option<&Report>) -> Option<Box<Self>> {
+        let side = |report: &Report| {
+            let top = report
+                .languages
+                .iter()
+                .max_by_key(|language| language.stats.code)
+                .filter(|language| language.stats.code > 0)
+                .map(|language| {
+                    (
+                        language.name.clone(),
+                        language.stats.code as f64 / report.total.code.max(1) as f64 * 100.0,
+                    )
+                });
+            CompareSide {
+                full_name: format!("{}/{}", report.repository.owner, report.repository.name),
+                code: report.total.code,
+                lines: report.total.lines,
+                files: report.total.files,
+                top_language: top,
+            }
+        };
+        Some(Box::new(Self {
+            left: side(left?),
+            right: side(right?),
+        }))
+    }
+}
+
+/// `compare:owner/repo:commit:owner/repo:commit`. Like the single-report key,
+/// the commits are part of it, so a cached PNG can never disagree with the
+/// reports it was rendered from.
+fn compare_cache_key(left: Option<&Report>, right: Option<&Report>) -> String {
+    let side = |report: Option<&Report>| {
+        report
+            .map(|report| {
+                format!(
+                    "{}/{}:{}",
+                    report.repository.owner, report.repository.name, report.commit_sha
+                )
+            })
+            .unwrap_or_default()
+    };
+    format!("compare:{}:{}", side(left), side(right))
 }
 
 pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
     let Some((repo, owner_parts)) = segments.split_last() else {
-        return og_response(&state.caches, DEFAULT_OG_CACHE_KEY.to_string(), None).await;
+        return og_response(&state.caches, DEFAULT_OG_CACHE_KEY.to_string(), move || {
+            render_png(&render_svg(None))
+        })
+        .await;
     };
     let owner = owner_parts.join("/");
     let report = state
@@ -78,7 +198,7 @@ pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> 
     og_response(
         &state.caches,
         og_cache_key(RepositoryProvider::GitLab, &owner, repo, report.as_ref()),
-        report,
+        move || render_png(&render_svg(report.as_ref())),
     )
     .await
 }
@@ -108,14 +228,17 @@ fn og_cache_key(
 /// Rasterizing 1200x630 and PNG-encoding it takes single-digit milliseconds of
 /// pure CPU. Running that inline would park a tokio worker for the whole time,
 /// so it is handed to the blocking pool instead — and, once rendered, the bytes
-/// are memoized so repeat traffic for the same commit never rasterizes again.
-async fn og_response(caches: &AppCaches, cache_key: String, report: Option<Report>) -> Response {
+/// are memoized so repeat traffic for the same key never rasterizes again.
+async fn og_response<F>(caches: &AppCaches, cache_key: String, render: F) -> Response
+where
+    F: FnOnce() -> anyhow::Result<Vec<u8>> + Send + 'static,
+{
     let generation = caches.generation();
     if let Some(png) = caches.og_png.get(&cache_key).await {
         return png_response(png);
     }
 
-    let png = tokio::task::spawn_blocking(move || render_png(report.as_ref()))
+    let png = tokio::task::spawn_blocking(render)
         .await
         .map_err(anyhow::Error::from)
         .and_then(|result| result)
@@ -148,14 +271,13 @@ fn png_response(png: Bytes) -> Response {
         .into_response()
 }
 
-fn render_png(report: Option<&Report>) -> anyhow::Result<Vec<u8>> {
-    let svg = render_svg(report);
+fn render_png(svg: &str) -> anyhow::Result<Vec<u8>> {
     let mut options = resvg::usvg::Options {
         font_family: OG_FONT_FAMILY.to_string(),
         ..Default::default()
     };
     options.fontdb = fontdb();
-    let tree = resvg::usvg::Tree::from_str(&svg, &options)?;
+    let tree = resvg::usvg::Tree::from_str(svg, &options)?;
     let mut pixmap = resvg::tiny_skia::Pixmap::new(1200, 630)
         .ok_or_else(|| anyhow::anyhow!("failed to allocate pixmap"))?;
     resvg::render(
@@ -275,6 +397,73 @@ fn render_svg(report: Option<&Report>) -> String {
     )
 }
 
+/// The comparison card: both repositories side by side, code lines as the
+/// headline figure, a bar sized against the larger side. Without two reports
+/// it is the repo-less default card, like a single-report miss.
+fn render_compare_svg(card: Option<&CompareCard>) -> String {
+    let Some(card) = card else {
+        return render_svg(None);
+    };
+    // DejaVu Sans Mono advances 0.602 em, so a name at 24px fits 31
+    // characters in a panel and a 34px title fits 50 across the card.
+    let title = truncate(
+        &format!("{} vs {}", card.left.full_name, card.right.full_name),
+        50,
+    );
+    let larger = card.left.code.max(card.right.code).max(1);
+    let panel = |side: &CompareSide, x: i32| {
+        let bar = ((side.code as f64 / larger as f64) * 440.0).max(6.0);
+        let language = side
+            .top_language
+            .as_ref()
+            .map(|(name, share)| format!("{} {:.1}%", name, share))
+            .unwrap_or_else(|| "no language counted".to_string());
+        format!(
+            r##"<rect x="{x}" y="240" width="496" height="290" fill="#060b07" stroke="#2b3b2c" />
+<text x="{x36}" y="284" class="side">{name}</text>
+<text x="{x36}" y="376" class="big">{code}</text>
+<text x="{x36}" y="406" class="muted">code lines</text>
+<rect x="{x36}" y="430" width="440" height="15" fill="#152116" />
+<rect x="{x36}" y="430" width="{bar:.1}" height="15" fill="#78ff5b" />
+<text x="{x36}" y="484" class="row">{lines} total lines · {files} files</text>
+<text x="{x36}" y="514" class="row">{language}</text>"##,
+            x36 = x + 36,
+            name = escape_xml(&truncate(&side.full_name, 31)),
+            code = escape_xml(&format_number(side.code)),
+            lines = escape_xml(&format_number(side.lines)),
+            files = escape_xml(&format_number(side.files)),
+            language = escape_xml(&truncate(&language, 42)),
+        )
+    };
+
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<style>
+  text {{ font-family: "DejaVu Sans Mono", "Menlo", monospace; fill: #e8f5e1; }}
+  .muted {{ fill: #8ca18c; font-size: 18px; }}
+  .title {{ font-size: 34px; font-weight: 700; }}
+  .side {{ font-size: 24px; font-weight: 700; }}
+  .big {{ font-size: 64px; font-weight: 700; fill: #78ff5b; }}
+  .row {{ font-size: 18px; }}
+  .end {{ text-anchor: end; }}
+</style>
+<rect width="1200" height="630" fill="#050a06" />
+<rect x="46" y="46" width="1108" height="538" fill="#081108" stroke="#2b3b2c" />
+<rect x="46" y="46" width="1108" height="54" fill="#0d170f" stroke="#2b3b2c" />
+<circle cx="78" cy="73" r="8" fill="#ff5f56" />
+<circle cx="104" cy="73" r="8" fill="#d29922" />
+<circle cx="130" cy="73" r="8" fill="#78ff5b" />
+<text x="1086" y="80" class="muted end">octocounts.com</text>
+<text x="88" y="166" class="title">{title}</text>
+<text x="88" y="204" class="muted">source lines of code, counted with tokei under the same rules</text>
+{left}{right}
+</svg>"##,
+        title = escape_xml(&title),
+        left = panel(&card.left, 88),
+        right = panel(&card.right, 616),
+    )
+}
+
 fn language_color(name: &str) -> &'static str {
     match name.to_ascii_lowercase().as_str() {
         "rust" => "#dea584",
@@ -329,6 +518,10 @@ mod tests {
 
     use super::*;
 
+    fn default_render() -> anyhow::Result<Vec<u8>> {
+        render_png(&render_svg(None))
+    }
+
     async fn body_bytes(response: Response) -> Bytes {
         response.into_body().collect().await.unwrap().to_bytes()
     }
@@ -354,7 +547,7 @@ mod tests {
         let sentinel = Bytes::from_static(b"not-really-a-png");
         caches.og_png.insert(key.clone(), sentinel.clone()).await;
 
-        let response = og_response(&caches, key, None).await;
+        let response = og_response(&caches, key, default_render).await;
         assert_eq!(
             response
                 .headers()
@@ -371,20 +564,20 @@ mod tests {
         let key = "github:acme:widget:cafebabe".to_string();
         assert!(caches.og_png.get(&key).await.is_none());
 
-        let first = body_bytes(og_response(&caches, key.clone(), None).await).await;
+        let first = body_bytes(og_response(&caches, key.clone(), default_render).await).await;
         assert_eq!(&first[..8], b"\x89PNG\r\n\x1a\n");
 
         let cached = caches.og_png.get(&key).await.expect("png was memoized");
         assert_eq!(cached, first);
 
-        let second = body_bytes(og_response(&caches, key, None).await).await;
+        let second = body_bytes(og_response(&caches, key, default_render).await).await;
         assert_eq!(second, first);
     }
 
     #[test]
     fn render_png_is_deterministic_across_calls() {
-        let first = render_png(None).expect("first render");
-        let second = render_png(None).expect("second render");
+        let first = default_render().expect("first render");
+        let second = default_render().expect("second render");
         assert!(!first.is_empty(), "rendered png must not be empty");
         assert_eq!(&first[..8], b"\x89PNG\r\n\x1a\n", "output must be a png");
         assert_eq!(first, second, "repeated renders must be byte-identical");

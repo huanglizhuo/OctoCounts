@@ -247,6 +247,8 @@ fn build_router(state: AppState) -> Router {
         .route("/api/seo/popular", get(seo::popular))
         .route("/api/seo/monoliths", get(seo::monoliths))
         .route("/api/seo/sitemap", get(seo::sitemap))
+        .route("/api/seo/languages", get(seo::languages))
+        .route("/api/seo/language/{slug}", get(seo::language))
         .route("/api/seo/repos-indexable", post(seo::repos_indexable))
         .route("/api/seo/related", get(seo::related))
         .route("/api/seo/repo-history", get(repo_history::repo_history))
@@ -256,6 +258,7 @@ fn build_router(state: AppState) -> Router {
         )
         .route("/api/auth/github/token", post(oauth::github_auth_token))
         .route("/og/github/{owner}/{repo}", get(og::github))
+        .route("/og/compare", get(og::compare))
         .route("/og/gitlab/{*path}", get(og::gitlab))
         .route("/badge/{owner}/{repo}", get(badge::badge_default))
         .route(
@@ -833,6 +836,195 @@ mod tests {
             .to_bytes();
         assert_eq!(&body[..8], b"\x89PNG\r\n\x1a\n");
 
+        drop_schema(&pool, &schema).await;
+    }
+
+    /// A canonical public report with a star count and per-language code
+    /// lines, saved through the normal path.
+    async fn save_public_report(
+        store: &Store,
+        id: &str,
+        owner: &str,
+        stars: u64,
+        languages: &[(&str, usize)],
+    ) {
+        use crate::models::{AnalysisOptions, AnalysisSource};
+        let code: usize = languages.iter().map(|(_, code)| code).sum();
+        let report: crate::models::Report = serde_json::from_value(serde_json::json!({
+            "id": id,
+            "repository": {
+                "provider": "github", "owner": owner, "name": "count",
+                "htmlUrl": format!("https://github.com/{owner}/count"), "stars": stars
+            },
+            "refName": "main",
+            "commitSha": "abc123",
+            "generatedAt": "2026-11-24T00:00:00Z",
+            "durationMs": 42,
+            "cached": false,
+            "tokeiVersion": "tokei-test",
+            "analysisKey": "tokei-test:default",
+            "analysisOptions": AnalysisOptions::canonical(),
+            "languages": languages.iter().map(|(name, code)| serde_json::json!({
+                "name": name,
+                "stats": { "files": 5, "lines": code + 2, "code": code, "comments": 1, "blanks": 1 },
+                "children": []
+            })).collect::<Vec<_>>(),
+            "total": { "files": 5, "lines": code + 2, "code": code, "comments": 1, "blanks": 1 }
+        }))
+        .unwrap();
+        store
+            .save_report(&report, AnalysisSource::Web)
+            .await
+            .unwrap();
+    }
+
+    async fn body_bytes_of(response: axum::response::Response) -> Vec<u8> {
+        http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec()
+    }
+
+    /// The per-language leaderboards, the sitemap tiers and the comparison
+    /// share card, through the production router.
+    #[tokio::test]
+    async fn language_leaderboards_sitemap_tiers_and_compare_card_are_served() {
+        let Some((app, pool, schema)) = test_app().await else {
+            eprintln!("skipping: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let store = Store::new(pool.clone());
+        for index in 0..10usize {
+            save_public_report(
+                &store,
+                &format!("a{index:0>32}"),
+                &format!("rusty-{index}"),
+                1_000 + index as u64,
+                &[("Rust", 1_000 * (index + 1))],
+            )
+            .await;
+            // TypeScript is the primary programming language although JSON
+            // holds more code.
+            save_public_report(
+                &store,
+                &format!("b{index:0>32}"),
+                &format!("typed-{index}"),
+                10,
+                &[("JSON", 900), ("TypeScript", 100 * (index + 1))],
+            )
+            .await;
+        }
+        // One repository is not enough for a leaderboard, and five stars put
+        // its report in the long tail.
+        save_public_report(&store, &"c".repeat(32), "solo", 5, &[("Go", 50)]).await;
+
+        let get = |uri: &str| {
+            let app = app.clone();
+            let uri = uri.to_string();
+            async move {
+                app.oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                    .await
+                    .unwrap()
+            }
+        };
+
+        let response = get("/api/seo/languages").await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[&index_policy::X_ROBOTS_TAG], "noindex");
+        let index: serde_json::Value =
+            serde_json::from_slice(&body_bytes_of(response).await).unwrap();
+        assert_eq!(index["minRepositories"], 10);
+        let listed: Vec<&str> = index["languages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry["slug"].as_str().unwrap())
+            .collect();
+        assert_eq!(listed, ["rust", "typescript"]);
+        assert_eq!(index["languages"][0]["repositories"], 10);
+
+        let response = get("/api/seo/language/rust").await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[&index_policy::X_ROBOTS_TAG], "noindex");
+        let page: serde_json::Value =
+            serde_json::from_slice(&body_bytes_of(response).await).unwrap();
+        assert_eq!(page["language"], "Rust");
+        assert_eq!(page["repositories"], 10);
+        let reports = page["reports"].as_array().unwrap();
+        assert_eq!(reports.len(), 10);
+        assert_eq!(reports[0]["repoFullName"], "rusty-9/count");
+        assert_eq!(reports[0]["total"]["code"], 10_000);
+        assert_eq!(reports[0]["stars"], 1_009);
+        assert_eq!(reports[0]["languageShare"], 100.0);
+        assert_eq!(
+            reports[0]["canonicalUrl"],
+            "https://octocounts.com/github/rusty-9/count"
+        );
+
+        // The TypeScript page files a repository under its largest
+        // programming language and reports that language's own code lines.
+        let response = get("/api/seo/language/typescript").await;
+        let page: serde_json::Value =
+            serde_json::from_slice(&body_bytes_of(response).await).unwrap();
+        assert_eq!(page["reports"][0]["repoFullName"], "typed-9/count");
+        assert_eq!(page["reports"][0]["languageCode"], 1_000);
+        assert_eq!(page["reports"][0]["languageShare"], 52.63157894736842);
+
+        for uri in [
+            "/api/seo/language/go",
+            "/api/seo/language/missing-language",
+            "/api/seo/language/Rust",
+            "/api/seo/language/-rust",
+        ] {
+            assert_eq!(get(uri).await.status(), StatusCode::NOT_FOUND, "{uri}");
+        }
+
+        let response = get("/api/seo/sitemap?view=index").await;
+        let view: serde_json::Value =
+            serde_json::from_slice(&body_bytes_of(response).await).unwrap();
+        assert_eq!(
+            view["shards"],
+            serde_json::json!([
+                { "tier": "core", "page": 1, "lastmod": "2026-11-24", "urls": 10 },
+                { "tier": "tail", "page": 1, "lastmod": "2026-11-24", "urls": 11 },
+            ])
+        );
+        let response = get("/api/seo/sitemap?view=page&tier=core&page=1").await;
+        let view: serde_json::Value =
+            serde_json::from_slice(&body_bytes_of(response).await).unwrap();
+        let locs: Vec<&str> = view["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry["loc"].as_str().unwrap())
+            .collect();
+        assert_eq!(locs.len(), 10);
+        assert!(locs.iter().all(|loc| loc.contains("/rusty-")));
+
+        // The comparison card: a PNG for two known repositories, the shared
+        // default card when a side is unknown or malformed.
+        let card = get("/og/compare?left=rusty-9/count&right=rusty-0/count").await;
+        assert_eq!(card.status(), StatusCode::OK);
+        assert_eq!(card.headers()[header::CONTENT_TYPE], "image/png");
+        let card = body_bytes_of(card).await;
+        assert_eq!(&card[..8], b"\x89PNG\r\n\x1a\n");
+        let default = body_bytes_of(get("/og/github/missing/repo").await).await;
+        assert_ne!(card, default);
+        for query in [
+            "left=rusty-9/count&right=missing/repo",
+            "left=rusty-9/count&right=https%3A%2F%2Fevil.example%2Fx",
+            "left=rusty-9/count",
+        ] {
+            let other = body_bytes_of(get(&format!("/og/compare?{query}")).await).await;
+            assert_eq!(other, default, "{query}");
+        }
+
+        pool.close().await;
+        let pool = PgPoolOptions::new()
+            .connect(&std::env::var("TEST_DATABASE_URL").unwrap())
+            .await
+            .unwrap();
         drop_schema(&pool, &schema).await;
     }
 }

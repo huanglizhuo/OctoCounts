@@ -117,6 +117,52 @@ fn canonical_options_json() -> &'static str {
     .as_str()
 }
 
+/// The data and prose formats by tokei name, as a quoted SQL text-array
+/// literal (`'{"AsciiDoc","PO File",...}'`). Elements are double-quoted so a
+/// name with a space parses as one element.
+/// The trigger and backfill skip them when naming a report's primary
+/// programming language, the same rule `primaryLanguagePhrase` applies on the
+/// site: a lockfile-heavy TypeScript library is a TypeScript repository.
+fn data_language_array_sql() -> &'static str {
+    static LITERAL: OnceLock<String> = OnceLock::new();
+    LITERAL
+        .get_or_init(|| {
+            format!(
+                "'{{{}}}'",
+                crate::seo::DATA_AND_PROSE_LANGUAGES
+                    .iter()
+                    .map(|name| format!("\"{}\"", name.replace('"', "\"\"")))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        })
+        .as_str()
+}
+
+/// SQL for the `stars` column: the star count stored in the report body when
+/// it is a non-negative integer, NULL for anything else. The regular
+/// expression guards the cast, so a malformed value cannot fail a write.
+fn stars_sql(body: &str) -> String {
+    format!(
+        "CASE WHEN {body}->'repository'->>'stars' ~ '^[0-9]+$' THEN ({body}->'repository'->>'stars')::bigint ELSE NULL END"
+    )
+}
+
+/// SQL for the `primary_language` column: the report's largest programming
+/// language by code lines, skipping data and prose formats, with the name as
+/// the tie-break so equal counts resolve the same way on every write. NULL
+/// when the report counted no programming language at all.
+fn primary_language_sql(body: &str) -> String {
+    format!(
+        "(SELECT entry->>'name' FROM jsonb_array_elements(COALESCE({body}->'languages', '[]'::jsonb)) AS t(entry) \
+         WHERE entry->>'name' IS NOT NULL AND entry->'stats'->>'code' ~ '^[0-9]+$' \
+         AND (entry->'stats'->>'code')::bigint > 0 AND entry->>'name' <> ALL({formats}::text[]) \
+         ORDER BY (entry->'stats'->>'code')::bigint DESC, entry->>'name' LIMIT 1)",
+        body = body,
+        formats = data_language_array_sql()
+    )
+}
+
 #[derive(Clone)]
 pub struct Store {
     pool: PgPool,
@@ -631,6 +677,13 @@ impl Store {
     /// though the read projection echoes them with the canonical spelling.
     async fn migrate_report_stat_columns(&self) -> anyhow::Result<()> {
         // Nullable, no default: a metadata-only change, no table rewrite.
+        // `stars` and `primary_language` are the 2026-11-24 popularity columns:
+        // the GitHub star count observed at analysis time, and the report's
+        // largest programming language. Both rank public collections (stars
+        // for /popular, the language for the per-language leaderboards), so
+        // they are materialized rather than detoasted per request. NULL means
+        // unknown: a report stored without a star count, or one with no
+        // programming language at all.
         sqlx::query(
             r#"
             ALTER TABLE reports
@@ -639,7 +692,9 @@ impl Store {
                 ADD COLUMN IF NOT EXISTS total_files BIGINT,
                 ADD COLUMN IF NOT EXISTS language_count INT,
                 ADD COLUMN IF NOT EXISTS top_language TEXT,
-                ADD COLUMN IF NOT EXISTS options_canonical BOOLEAN
+                ADD COLUMN IF NOT EXISTS options_canonical BOOLEAN,
+                ADD COLUMN IF NOT EXISTS stars BIGINT,
+                ADD COLUMN IF NOT EXISTS primary_language TEXT
             "#,
         )
         .execute(&self.pool)
@@ -661,14 +716,18 @@ impl Store {
                 NEW.language_count := COALESCE(jsonb_array_length(NEW.body->'languages'), 0);
                 NEW.top_language := NEW.body->'languages'->0->>'name';
                 NEW.options_canonical := COALESCE(
-                    (NEW.body->'analysisOptions') = '{}'::jsonb,
+                    (NEW.body->'analysisOptions') = '{canonical}'::jsonb,
                     false
                 );
+                NEW.stars := {stars};
+                NEW.primary_language := {primary};
                 RETURN NEW;
             END;
             $$ LANGUAGE plpgsql
             "#,
-            canonical_options_json()
+            canonical = canonical_options_json(),
+            stars = stars_sql("NEW.body"),
+            primary = primary_language_sql("NEW.body")
         );
         sqlx::query(&trigger_body).execute(&self.pool).await?;
 
@@ -687,6 +746,7 @@ impl Store {
 
         self.backfill_report_stats().await?;
         self.backfill_options_canonical().await?;
+        self.backfill_popularity_columns().await?;
 
         // The SEO-latest lookup matches the key case-insensitively (GitHub
         // treats slug casing as the same repository) and only over canonical
@@ -752,6 +812,55 @@ impl Store {
             "options_canonical backfill hit its batch cap; the next migrate() will resume it"
         );
         Ok(total)
+    }
+
+    /// Fills `stars` and `primary_language` for rows that predate the columns.
+    ///
+    /// Only canonical rows are visited: every other row can never stand as its
+    /// repository's public report, so its copy of these columns is never
+    /// read. The walk is keyset-paginated on `id` rather than selected with
+    /// `IS NULL`, because both columns legitimately stay NULL (a report stored
+    /// without a star count, or one with no programming language), so a NULL
+    /// cannot mark a row as not yet visited. Neither trigger fires: this
+    /// statement does not touch `body`, and the cache-purge trigger watches
+    /// identity columns only.
+    async fn backfill_popularity_columns(&self) -> anyhow::Result<u64> {
+        const BATCH: i64 = 1_000;
+
+        let mut cursor = String::new();
+        let mut total = 0_u64;
+        loop {
+            let sql = format!(
+                r#"
+                UPDATE reports
+                SET stars = {stars},
+                    primary_language = {primary}
+                WHERE id IN (
+                    SELECT id FROM reports
+                    WHERE options_canonical AND id > $1
+                    ORDER BY id
+                    LIMIT $2
+                )
+                RETURNING id
+                "#,
+                stars = stars_sql("body"),
+                primary = primary_language_sql("body")
+            );
+            let rows = sqlx::query(&sql)
+                .bind(&cursor)
+                .bind(BATCH)
+                .fetch_all(&self.pool)
+                .await?;
+            if rows.is_empty() {
+                return Ok(total);
+            }
+            total += rows.len() as u64;
+            cursor = rows
+                .last()
+                .map(|row| row.try_get::<String, _>("id"))
+                .transpose()?
+                .unwrap_or_default();
+        }
     }
 
     /// Fills the materialized columns for rows that predate them, one bounded
@@ -2479,6 +2588,125 @@ impl Store {
             .await
     }
 
+    /// The per-language leaderboard index. A repository belongs to the
+    /// language that is its primary programming language (the report's largest
+    /// programming language by code lines), and only its newest canonical
+    /// report counts, the same row every public list draws from. For each
+    /// language: how many repositories and how many code lines they hold.
+    /// Languages with fewer than `min_repositories` are left out, so a
+    /// language page is never a list of two projects.
+    pub async fn language_index(
+        &self,
+        min_files: i64,
+        min_repositories: i64,
+    ) -> anyhow::Result<Vec<LanguageStat>> {
+        let rows = sqlx::query(concat!(
+            r#"
+            WITH per_repository AS (
+                SELECT DISTINCT ON (provider, owner, repo)
+                    total_files, total_code, total_lines, primary_language
+                FROM reports
+                WHERE provider = 'github' AND "#,
+            canonical_options_sql!("reports"),
+            r#"
+                  AND "#,
+            latest_eligible!("reports"),
+            r#"
+                ORDER BY provider, owner, repo, created_at DESC, id
+            )
+            SELECT primary_language AS language,
+                   COUNT(*) AS repositories,
+                   COALESCE(SUM(total_code), 0)::bigint AS code,
+                   COALESCE(SUM(total_lines), 0)::bigint AS lines
+            FROM per_repository
+            WHERE total_files >= $1 AND primary_language IS NOT NULL
+            GROUP BY primary_language
+            HAVING COUNT(*) >= $2
+            ORDER BY code DESC, language
+            "#
+        ))
+        .bind(min_files)
+        .bind(min_repositories)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(LanguageStat {
+                    language: row.try_get("language")?,
+                    repositories: row.try_get("repositories")?,
+                    code: row.try_get("code")?,
+                    lines: row.try_get("lines")?,
+                })
+            })
+            .collect()
+    }
+
+    /// The largest repositories whose primary language is `language`, by code
+    /// lines. The leaderboard reads materialized columns; only the surviving
+    /// rows are joined back for their generation date.
+    pub async fn language_reports(
+        &self,
+        language: &str,
+        min_files: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<LanguageReportRow>> {
+        let rows = sqlx::query(concat!(
+            r#"
+            WITH per_repository AS (
+                SELECT DISTINCT ON (provider, owner, repo)
+                    id, owner, repo, total_files, total_code, total_lines, stars, top_language
+                FROM reports
+                WHERE provider = 'github' AND "#,
+            canonical_options_sql!("reports"),
+            r#"
+                  AND "#,
+            latest_eligible!("reports"),
+            r#"
+                  AND primary_language = $3
+                ORDER BY provider, owner, repo, created_at DESC, id
+            )
+            SELECT
+                p.owner AS owner,
+                p.repo AS repo,
+                p.total_files AS total_files,
+                p.total_lines AS total_lines,
+                p.total_code AS total_code,
+                p.stars AS stars,
+                p.top_language AS top_language,
+                COALESCE(rl.code, 0) AS language_code,
+                r.body->>'generatedAt' AS generated_at
+            FROM per_repository p
+            JOIN reports r ON r.id = p.id
+            LEFT JOIN report_languages rl ON rl.report_id = p.id AND rl.language = $3
+            WHERE p.total_files >= $1
+            ORDER BY p.total_code DESC, p.owner, p.repo
+            LIMIT $2
+            "#
+        ))
+        .bind(min_files)
+        .bind(limit.clamp(1, LANGUAGE_LEADERBOARD_LIMIT))
+        .bind(language)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(LanguageReportRow {
+                    owner: row.try_get("owner")?,
+                    repo: row.try_get("repo")?,
+                    total_files: row.try_get("total_files")?,
+                    total_lines: row.try_get("total_lines")?,
+                    total_code: row.try_get("total_code")?,
+                    language_code: row.try_get("language_code")?,
+                    stars: row.try_get("stars")?,
+                    top_language: row.try_get("top_language")?,
+                    generated_at: row.try_get("generated_at")?,
+                })
+            })
+            .collect()
+    }
+
     /// Repositories similar to a given one, for the "similar repositories"
     /// interlinking module on report pages.
     ///
@@ -2694,7 +2922,8 @@ impl Store {
                 -- about a repository it could not read.
                 COALESCE(r.total_files, 0) AS total_files,
                 COALESCE(r.total_lines, 0) AS total_lines,
-                COALESCE(r.total_code, 0) AS total_code
+                COALESCE(r.total_code, 0) AS total_code,
+                r.stars AS stars
             FROM (
                 SELECT id, created_at
                 FROM (
@@ -2734,6 +2963,7 @@ impl Store {
                     total_files: row.try_get("total_files")?,
                     total_lines: row.try_get("total_lines")?,
                     total_code: row.try_get("total_code")?,
+                    stars: row.try_get("stars")?,
                 })
             })
             .collect()
@@ -3791,10 +4021,10 @@ impl ReportOrder {
                     card_projection!(),
                     r#"
                     FROM (
-                        SELECT id, access_count, last_accessed_at, created_at
+                        SELECT id, stars, access_count, last_accessed_at, created_at
                         FROM (
                             SELECT DISTINCT ON (provider, owner, repo)
-                                id, access_count, last_accessed_at, created_at, total_files
+                                id, stars, access_count, last_accessed_at, created_at, total_files
                             FROM reports
                             WHERE "#,
                     canonical_options_sql!("reports"),
@@ -3802,45 +4032,87 @@ impl ReportOrder {
                               AND "#,
                     latest_eligible!("reports"),
                     r#"
-                            ORDER BY provider, owner, repo, access_count DESC, last_accessed_at DESC, created_at DESC
+                            ORDER BY provider, owner, repo, stars DESC NULLS LAST, access_count DESC, last_accessed_at DESC, created_at DESC
                         ) popular
                         WHERE total_files >= $4
-                        ORDER BY access_count DESC, last_accessed_at DESC, created_at DESC, id
+                        ORDER BY stars DESC NULLS LAST, access_count DESC, last_accessed_at DESC, created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
                     JOIN reports r ON r.id = page.id
-                    ORDER BY page.access_count DESC, page.last_accessed_at DESC, page.created_at DESC, page.id
+                    ORDER BY page.stars DESC NULLS LAST, page.access_count DESC, page.last_accessed_at DESC, page.created_at DESC, page.id
                     "#
                 )
             }
-            Self::Monolith => {
-                concat!(
-                    card_projection!(),
-                    r#"
+            Self::Monolith => monolith_card_sql(),
+        }
+    }
+}
+
+/// Code lines from which two same-language repositories within
+/// [`MONOLITH_COPY_TOLERANCE`] of each other count as a copy and its source.
+/// Only the top of the leaderboard is visible to readers, so the comparison
+/// is limited to it.
+const MONOLITH_COPY_FLOOR_CODE_LINES: i64 = 1_000_000;
+const MONOLITH_COPY_TOLERANCE: f64 = 0.02;
+
+/// The monolith ordering as a `&'static str`, built once: its filters inline
+/// the data-format list, which is derived from the Rust constant rather than
+/// copied into SQL by hand.
+fn monolith_card_sql() -> &'static str {
+    static SQL: OnceLock<String> = OnceLock::new();
+    SQL.get_or_init(|| {
+        format!(
+            "{projection}{head}{canonical}{middle}{eligible}{tail}",
+            projection = card_projection!(),
+            head = r#"
                     FROM (
-                        SELECT id, total_code, created_at
-                        FROM (
-                            SELECT DISTINCT ON (provider, owner, repo) id, total_code, total_files, created_at
+                        WITH per_repository AS (
+                            SELECT DISTINCT ON (provider, owner, repo)
+                                id, total_code, total_files, top_language, stars, access_count, created_at
                             FROM reports
-                            WHERE "#,
-                    canonical_options_sql!("reports"),
-                    r#"
+                            WHERE provider = 'github' AND "#,
+            canonical = canonical_options_sql!("reports"),
+            middle = r#"
                               AND "#,
-                    latest_eligible!("reports"),
-                    r#"
-                            ORDER BY provider, owner, repo, created_at DESC
-                        ) monoliths
-                        WHERE total_files >= $4
+            eligible = latest_eligible!("reports"),
+            tail = r#"
+                            ORDER BY provider, owner, repo, created_at DESC, id
+                        ),
+                        codebases AS (
+                            SELECT * FROM per_repository
+                            WHERE total_files >= $4
+                              AND COALESCE(top_language, '') <> ALL({formats}::text[])
+                        ),
+                        ranked AS (
+                            SELECT c.*,
+                                   EXISTS (
+                                       SELECT 1 FROM codebases o
+                                       WHERE o.id <> c.id
+                                         AND o.total_code >= {copy_floor}
+                                         AND c.total_code >= {copy_floor}
+                                         AND o.top_language IS NOT DISTINCT FROM c.top_language
+                                         AND o.total_code BETWEEN c.total_code * (1 - {tolerance})
+                                                             AND c.total_code * (1 + {tolerance})
+                                         AND (COALESCE(o.stars, -1), o.access_count, o.total_code, o.id)
+                                             > (COALESCE(c.stars, -1), c.access_count, c.total_code, c.id)
+                                   ) AS is_copy
+                            FROM codebases c
+                        )
+                        SELECT id, total_code, created_at
+                        FROM ranked
+                        WHERE NOT is_copy
                         ORDER BY total_code DESC, created_at DESC, id
                         LIMIT $1 OFFSET $2
                     ) page
                     JOIN reports r ON r.id = page.id
                     ORDER BY page.total_code DESC, page.created_at DESC, page.id
                     "#
-                )
-            }
-        }
-    }
+        )
+        .replace("{formats}", data_language_array_sql())
+        .replace("{copy_floor}", &MONOLITH_COPY_FLOOR_CODE_LINES.to_string())
+        .replace("{tolerance}", &format!("{:.4}", MONOLITH_COPY_TOLERANCE))
+    })
+    .as_str()
 }
 
 /// Builds the "read a report and maybe bump its access counter" statement.
@@ -3984,6 +4256,39 @@ pub struct SitemapRow {
     pub total_files: i64,
     pub total_lines: i64,
     pub total_code: i64,
+    /// The repository's GitHub star count when it was analyzed. NULL when the
+    /// report was stored without one; the sitemap then files it under the
+    /// long tail rather than guessing.
+    pub stars: Option<i64>,
+}
+
+/// One language of the per-language leaderboard index.
+#[derive(Clone, Debug)]
+pub struct LanguageStat {
+    pub language: String,
+    pub repositories: i64,
+    pub code: i64,
+    pub lines: i64,
+}
+
+/// The most repositories one language leaderboard lists.
+pub const LANGUAGE_LEADERBOARD_LIMIT: i64 = 50;
+
+/// One row of a language leaderboard: a repository whose primary programming
+/// language is the page's language.
+#[derive(Clone, Debug)]
+pub struct LanguageReportRow {
+    pub owner: String,
+    pub repo: String,
+    pub total_files: i64,
+    pub total_lines: i64,
+    pub total_code: i64,
+    /// Code lines in the page's language alone (the rest of the repository may
+    /// be written in others).
+    pub language_code: i64,
+    pub stars: Option<i64>,
+    pub top_language: Option<String>,
+    pub generated_at: String,
 }
 
 /// One "similar repositories" row: repository identity plus the materialized
@@ -4733,6 +5038,348 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(store.monolith_reports(10, 0).await.unwrap().len(), 1);
+        store.drop_schema().await;
+    }
+
+    /// A canonical report with the given star count and per-language code
+    /// lines, with totals that agree with the language list.
+    fn report_with_languages(
+        id: &str,
+        owner: &str,
+        stars: Option<u64>,
+        languages: &[(&str, usize)],
+    ) -> Report {
+        let code: usize = languages.iter().map(|(_, code)| code).sum();
+        let mut report = test_report(id, owner, code);
+        report.repository.stars = stars;
+        report.languages = languages
+            .iter()
+            .map(|(name, code)| LanguageReport {
+                name: (*name).to_string(),
+                stats: LanguageStats {
+                    files: 1,
+                    lines: code + 1,
+                    code: *code,
+                    comments: 0,
+                    blanks: 1,
+                },
+                children: Vec::new(),
+            })
+            .collect();
+        report
+    }
+
+    async fn popularity_columns(store: &TestStore, id: &str) -> (Option<i64>, Option<String>) {
+        sqlx::query_as("SELECT stars::bigint, primary_language FROM reports WHERE id = $1")
+            .bind(id)
+            .fetch_one(&store.store.pool)
+            .await
+            .unwrap()
+    }
+
+    /// The star count and the primary programming language are materialized
+    /// when a report is written, and the backfill restores them for rows that
+    /// predate the columns.
+    #[tokio::test]
+    async fn popularity_columns_follow_the_report_body() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let reports = [
+            report_with_languages(
+                "stars-known",
+                "known",
+                Some(1_200),
+                &[("Rust", 90), ("JSON", 40)],
+            ),
+            // A data format outweighs the programming language: the
+            // repository is still filed under the programming language.
+            report_with_languages(
+                "stars-data-heavy",
+                "dataheavy",
+                Some(0),
+                &[("JSON", 60), ("TypeScript", 30)],
+            ),
+            // No star count and no programming language: both stay unknown.
+            report_with_languages(
+                "stars-unknown",
+                "unknown",
+                None,
+                &[("YAML", 50), ("Markdown", 5)],
+            ),
+        ];
+        for report in &reports {
+            store
+                .save_report(report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+        assert_eq!(
+            popularity_columns(&store, "stars-known").await,
+            (Some(1_200), Some("Rust".to_string()))
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-data-heavy").await,
+            (Some(0), Some("TypeScript".to_string()))
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-unknown").await,
+            (None, None)
+        );
+
+        // A malformed star value must not fail the write; it reads as unknown.
+        sqlx::query(
+            r#"
+            INSERT INTO reports (id, provider, owner, repo, commit_sha, tokei_version, body)
+            VALUES ('stars-malformed', 'github', 'malformed', 'count', 'abc123', 'tokei-test',
+                    '{"repository": {"owner": "malformed", "name": "count", "htmlUrl": "https://github.com/malformed/count", "stars": "12x", "provider": "github"},
+                      "refName": "main", "commitSha": "abc123", "generatedAt": "2026-11-24T00:00:00Z", "durationMs": 1, "cached": false,
+                      "tokeiVersion": "tokei-test", "analysisOptions": {"ignoredDirs": [], "ignoredLanguages": [], "profile": "default", "includeDocs": false, "includeTests": false, "includeGenerated": false},
+                      "languages": [{"name": "Go", "stats": {"files": 5, "lines": 10, "code": 5, "comments": 0, "blanks": 5}, "children": []}],
+                      "total": {"files": 5, "lines": 10, "code": 5, "comments": 0, "blanks": 5}}')
+            "#,
+        )
+        .execute(&store.store.pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            popularity_columns(&store, "stars-malformed").await,
+            (None, Some("Go".to_string()))
+        );
+
+        // Rows that predate the columns: both NULL until the backfill runs.
+        sqlx::query("UPDATE reports SET stars = NULL, primary_language = NULL")
+            .execute(&store.store.pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            popularity_columns(&store, "stars-known").await,
+            (None, None)
+        );
+        let visited = store.store.backfill_popularity_columns().await.unwrap();
+        assert_eq!(visited, 4, "every canonical row is visited once");
+        assert_eq!(
+            popularity_columns(&store, "stars-known").await,
+            (Some(1_200), Some("Rust".to_string()))
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-data-heavy").await,
+            (Some(0), Some("TypeScript".to_string()))
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-unknown").await,
+            (None, None)
+        );
+        assert_eq!(
+            popularity_columns(&store, "stars-malformed").await,
+            (None, Some("Go".to_string()))
+        );
+        // Idempotent: a second pass changes nothing.
+        assert_eq!(store.store.backfill_popularity_columns().await.unwrap(), 4);
+        store.drop_schema().await;
+    }
+
+    /// /popular follows GitHub stars. Access activity is only the tie-break,
+    /// so a repository its own author keeps opening cannot reach the top.
+    #[tokio::test]
+    async fn popular_ranks_by_stars_and_leaves_unknown_stars_last() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        for (id, owner, stars) in [
+            ("popular-self", "self", Some(0)),
+            ("popular-known", "known", Some(50)),
+            ("popular-starred", "starred", Some(5_000)),
+            ("popular-unknown", "unknown", None),
+        ] {
+            let report = report_with_languages(id, owner, stars, &[("Rust", 100)]);
+            store
+                .save_report(&report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+        // The author's own repository is the most opened by far.
+        for (id, access_count) in [
+            ("popular-self", 900),
+            ("popular-known", 5),
+            ("popular-starred", 1),
+            ("popular-unknown", 99),
+        ] {
+            sqlx::query("UPDATE reports SET access_count = $1 WHERE id = $2")
+                .bind(access_count)
+                .bind(id)
+                .execute(&store.store.pool)
+                .await
+                .unwrap();
+        }
+        let names: Vec<String> = store
+            .popular_reports(10, 0)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|card| card.owner)
+            .collect();
+        assert_eq!(names, ["starred", "known", "self", "unknown"]);
+        store.drop_schema().await;
+    }
+
+    /// The Hall of Monoliths lists code: a repository whose largest language
+    /// is a data format is out, and of two very large same-language
+    /// repositories within two percent of each other only the more starred
+    /// one stays. Small look-alikes are left alone.
+    #[tokio::test]
+    async fn monolith_leaderboard_skips_data_dumps_and_copies() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let reports = [
+            report_with_languages(
+                "monolith-kernel",
+                "upstream",
+                Some(150_000),
+                &[("C", 32_000_000), ("C Header", 12_000_000)],
+            ),
+            // A copy of the kernel at a nearby commit: same top language, within two percent.
+            report_with_languages(
+                "monolith-copy",
+                "mirror",
+                Some(5),
+                &[("C", 32_100_000), ("C Header", 12_000_000)],
+            ),
+            // A data dump larger than any of them.
+            report_with_languages(
+                "monolith-dump",
+                "dump",
+                Some(9_000),
+                &[("JSON", 50_000_000), ("Python", 10)],
+            ),
+            report_with_languages(
+                "monolith-rust",
+                "rusty",
+                Some(1_000),
+                &[("Rust", 30_000_000)],
+            ),
+            // Two small C repositories one percent apart: both stay.
+            report_with_languages("monolith-small-a", "smalla", Some(1), &[("C", 500_000)]),
+            report_with_languages("monolith-small-b", "smallb", Some(2), &[("C", 505_000)]),
+        ];
+        for report in &reports {
+            store
+                .save_report(report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+        let names: Vec<String> = store
+            .monolith_reports(10, 0)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|card| card.owner)
+            .collect();
+        assert_eq!(names, ["upstream", "rusty", "smallb", "smalla"]);
+
+        // When the copy is the better known of the two, it is the one that stays.
+        sqlx::query("UPDATE reports SET stars = 900000 WHERE id = 'monolith-copy'")
+            .execute(&store.store.pool)
+            .await
+            .unwrap();
+        let names: Vec<String> = store
+            .monolith_reports(10, 0)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|card| card.owner)
+            .collect();
+        assert_eq!(names, ["mirror", "rusty", "smallb", "smalla"]);
+        store.drop_schema().await;
+    }
+
+    /// A repository belongs to the language that is its largest programming
+    /// language, counted once from its newest canonical report.
+    #[tokio::test]
+    async fn language_leaderboards_group_by_primary_programming_language() {
+        let Some(store) = test_store().await else {
+            return;
+        };
+        let reports = [
+            report_with_languages(
+                "lang-mixed",
+                "mixed",
+                Some(10),
+                &[("JSON", 60), ("TypeScript", 30)],
+            ),
+            report_with_languages("lang-pure", "pure", Some(20), &[("TypeScript", 80)]),
+            report_with_languages("lang-rust", "rusty", Some(30), &[("Rust", 90)]),
+            // Data formats only: no programming language, so no leaderboard.
+            report_with_languages("lang-data", "dataonly", Some(40), &[("JSON", 100)]),
+            report_with_languages("lang-thin", "thin", Some(50), &[("Go", 7)]),
+        ];
+        for report in &reports {
+            store
+                .save_report(report, AnalysisSource::Web)
+                .await
+                .unwrap();
+        }
+        sqlx::query("UPDATE reports SET total_files = 4 WHERE id = 'lang-thin'")
+            .execute(&store.store.pool)
+            .await
+            .unwrap();
+        // A newer snapshot of the Rust repository under another language
+        // must not count it twice: only the newest canonical report counts.
+        let mut newer =
+            report_with_languages("lang-rust-newer", "rusty", Some(31), &[("Rust", 95)]);
+        newer.commit_sha = "newer".to_string();
+        newer.generated_at += Duration::seconds(1);
+        store
+            .save_report(&newer, AnalysisSource::Web)
+            .await
+            .unwrap();
+
+        let index = store.language_index(5, 1).await.unwrap();
+        let summary: Vec<(&str, i64, i64)> = index
+            .iter()
+            .map(|stat| (stat.language.as_str(), stat.repositories, stat.code))
+            .collect();
+        // Ordered by code lines, so the language with two repositories leads.
+        assert_eq!(summary, [("TypeScript", 2, 170), ("Rust", 1, 95)]);
+
+        let index = store.language_index(5, 2).await.unwrap();
+        assert_eq!(index.len(), 1);
+        assert_eq!(index[0].language, "TypeScript");
+        assert!(store.language_index(5, 3).await.unwrap().is_empty());
+
+        let typescript = store.language_reports("TypeScript", 5, 10).await.unwrap();
+        let rows: Vec<(String, i64, i64)> = typescript
+            .iter()
+            .map(|row| (row.owner.clone(), row.total_code, row.language_code))
+            .collect();
+        assert_eq!(
+            rows,
+            [("mixed".to_string(), 90, 30), ("pure".to_string(), 80, 80)]
+        );
+        assert_eq!(typescript[0].stars, Some(10));
+        assert_eq!(typescript[0].top_language.as_deref(), Some("JSON"));
+        assert!(store
+            .language_reports("JSON", 5, 10)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(
+            store
+                .language_reports("Go", 5, 10)
+                .await
+                .unwrap()
+                .is_empty(),
+            "below the indexable file floor"
+        );
+        assert_eq!(
+            store
+                .language_reports("TypeScript", 5, 1)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
         store.drop_schema().await;
     }
 
