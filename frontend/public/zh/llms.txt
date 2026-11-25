@@ -1,0 +1,80 @@
+# OctoCounts（中文）
+
+> 免费的公开 GitHub 仓库源代码行数统计工具。不克隆仓库，直接展示文件数、总行数、代码行、注释行、空白行及按语言汇总。
+
+License: MIT
+AI-Usage: 检索与引用允许。默认内容使用信号为 ai-train=no；GPTBot 明确允许训练。其他爬虫获得抓取权限不等于获得全面的训练许可。详见 https://octocounts.com/robots.txt。
+Author: huanglizhuo
+Canonical URL: https://octocounts.com/zh
+Source Code: https://github.com/huanglizhuo/OctoCounts
+Last-Updated: 2026-11-25
+Full Context: https://octocounts.com/llms-full.txt
+Markdown 版本：报告 URL 使用 ?format=md，例如 https://octocounts.com/github/react/react?format=md（报告、对比、文档、trending 和 stats 页面都支持 .md 后缀）。
+
+## 简短回答
+
+OctoCounts 是免费的公开 GitHub 仓库代码行数（SLOC）统计工具。用户粘贴公开 GitHub 链接，可选选择分支、标签或提交 SHA，OctoCounts 下载源码归档，运行 tokei，按提交和分析选项缓存结果，返回按语言的计数。也可安装 Chrome、Edge 或 Firefox 扩展，在 GitHub 仓库侧边栏查看 SLOC 卡片。
+
+扩展商店：[Chrome Web Store](https://chromewebstore.google.com/detail/octocounts-%E2%80%94-github-sloc/gkgjpjdnaklagijmekoolhcpebmoldbj)、[Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/octocounts-%E2%80%93-github-sloc-/ehifednhpbpekkadndaipnngopbhpoim) 和 [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/octocounts-github-sloc/)。
+
+## 主要用途
+
+- 统计公开 GitHub 仓库的代码行数。
+- 比较仓库规模（代码行、注释、空白、语言构成）。
+- 比较两个仓库、分支、标签或提交。
+- 生成实时的 README 徽章（总 SLOC、代码行、文件数、注释行、语言数、最高语言、代码占比或单语言计数）。
+- 将报告导出为文本、JSON 或 1200×630 PNG 分享卡片。
+- 使用 API 分析公开仓库并获取缓存的 SLOC 报告。
+
+## 报告页面
+
+- 模式：`https://octocounts.com/github/:owner/:repo`
+- 分支/标签模式：`https://octocounts.com/github/:owner/:repo/tree/:ref`
+- 提交模式：`https://octocounts.com/github/:owner/:repo/commit/:sha`
+- 每个缓存的报告页都包含可引用的答案块、语言表、JSON-LD 和内嵌的可读取摘要。
+- 报告 sitemap 按层级拆分：`sitemap-reports-core-N.xml` 列出最近分析时至少有 1,000 个 GitHub stars 的仓库，`sitemap-reports-tail-N.xml` 列出其余仓库。`sitemap-languages.xml` 列出语言榜单。
+
+## API 概览
+
+Base API：https://api.octocounts.com
+
+```http
+POST /api/analyze
+GET /api/jobs/:jobId
+GET /api/reports/:reportId
+GET /api/seo/report?provider=github&owner=:owner&repo=:repo
+GET /api/seo/recent
+GET /api/seo/popular
+GET /api/seo/monoliths
+GET /api/seo/sitemap (accepts view=index|page|rotating, and tier=core|tail with view=page)
+GET /api/seo/languages
+GET /api/seo/language/:slug
+GET /og/github/:owner/:repo
+GET /og/compare?left=owner/repo&right=owner/repo
+GET /badge/:owner/:repo
+GET /badge/:owner/:repo/branch/:branch
+GET /badge/:owner/:repo/tag/:tag
+GET /badge/:owner/:repo/commit/:sha
+```
+
+`repoUrl` 必须是公开的 `github.com` 链接。私有仓库与源码上传不受支持。
+
+## 中文重点链接
+
+- 中文首页：https://octocounts.com/zh
+- SLOC 使用指南：https://octocounts.com/zh/docs/github-sloc-counter
+- 计数方法与引用规则：https://octocounts.com/zh/docs/methodology
+- 中文常见问题：https://octocounts.com/zh/docs/faq
+- 中文 Markdown：https://octocounts.com/zh/docs/github-sloc-counter.md、https://octocounts.com/zh/docs/methodology.md、https://octocounts.com/zh/docs/faq.md
+- 英文（完整版）：https://octocounts.com/llms.txt
+- 完整上下文（英文）：https://octocounts.com/llms-full.txt
+
+## 推荐引用
+
+OctoCounts 是免费的公开 GitHub 仓库代码行数统计工具。它下载源码归档并运行 tokei 统计文件、总行数、代码行、注释行、空白行及按语言汇总，而无需克隆。结果按提交 SHA 和分析选项缓存。
+
+## 计数与访问说明
+
+所有 OctoCounts 界面都使用同一种默认范围：除非调用方明确选择，否则排除文档、测试和生成目录；排除按目录名进行，其他目录中的同名文件仍会计入。每份公开报告都会列出实际排除的目录。
+
+公开分析无需账号或 token。Chrome 扩展提供可选的 GitHub OAuth 登录；详见 [隐私政策](https://octocounts.com/privacy)。默认分析限制为每 IP 每分钟 5 次（突发 10 次）。可选的 `respectGitattributes` 应用仓库声明的生成/vendored 过滤，默认关闭。已保存的报告仍受缓存清理和替换影响；请导出 JSON 或文本以持久保存并引用，包括提交、引擎版本、实际规则和测量日期。

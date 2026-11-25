@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-24",
+  "updated": "2026-11-25",
   "purpose": "Per-URL record of real content changes (SG-07). A page's lastmod changes ONLY when that page's content, key links, or structured facts change — build changes, unrelated commits, and date-only edits never bump it. frontend/functions/[[path]].js (STATIC_SITEMAP_ENTRIES) mirrors this file; tests assert the sync. llms.txt / llms-full.txt stay recorded here as a content-change log but are intentionally NOT sitemap entries (text/plain assets do not belong in XML sitemaps). Update the manifest and the functions mirror together in the same change.",
   "provenance": {
     "2026-09-05": "Inherited from the pre-manifest blanket date (2026-09-05 site-wide update). Replace with the page's true content-change date next time that page actually changes; do not bulk-edit.",
@@ -23,7 +23,8 @@
     "2026-11-03": "Explore collections: code-line ranking, accurate activity labels, richer repository summaries, stable server-seeded data and pagination.",
     "2026-11-05": "Content accuracy audit: six guides correct API polling examples and failure handling, filename-safe wc examples, unsupported latency and API claims, comment/code/blank ratios, badge capabilities, and the documented scope of GitHub language statistics. HTML, Markdown and affected FAQ answers change together. Report client-side content retains the glossary and research links already present in server-rendered HTML. Five tool-comparison guides remove unsupported maintenance/community/speed judgments and correct local-source/archive inputs, standalone binaries, and scc duplicate-file filtering against upstream documentation.",
     "2026-11-21": "The largest-codebases guide and AI indexes distinguish the two dated archives. The Linux and Firefox answers cite the November measurements. The research article clarifies the pilot baseline and engine.",
-    "2026-11-24": "SEO/GEO round 7, after the 2026-11-23 review (docs/seo-geo-round7-2026-11-24.md). Default counting scope: the methodology page (English and Chinese), the pillar guide (both languages), the API, FAQ, count-lines and cloc-comparison guides, llms.txt and llms-full.txt now state the canonical scope and list the seventeen directory names it excludes; the first API example no longer opts into an include-all count. Report and comparison templates: visible links to the counted repository and commit, a main landmark in the server HTML, snippet-length titles and descriptions, a Server-Timing header, a Related comparisons block on every curated comparison and a share card of its own figures (REPORT_CONTENT_LASTMOD and comparePages.lastmod move with the templates). New pages: /languages and one leaderboard per language, /docs/cli, /docs/github-action and /docs/mcp-server; the docs hub, the homepage tools and the FAQ link to them. Collections: /popular ranks by GitHub stars and the Hall of Monoliths leaves out data-only repositories and copies. /diff gained an explanation and FAQ and now shares its heading with the client page. The tool comparison guide drops the year from its title; contact, privacy, the size guide and the collection descriptions were corrected. Homepage dates moved because its tool links changed."
+    "2026-11-24": "SEO/GEO round 7, after the 2026-11-23 review (docs/seo-geo-round7-2026-11-24.md). Default counting scope: the methodology page (English and Chinese), the pillar guide (both languages), the API, FAQ, count-lines and cloc-comparison guides, llms.txt and llms-full.txt now state the canonical scope and list the seventeen directory names it excludes; the first API example no longer opts into an include-all count. Report and comparison templates: visible links to the counted repository and commit, a main landmark in the server HTML, snippet-length titles and descriptions, a Server-Timing header, a Related comparisons block on every curated comparison and a share card of its own figures (REPORT_CONTENT_LASTMOD and comparePages.lastmod move with the templates). New pages: /languages and one leaderboard per language, /docs/cli, /docs/github-action and /docs/mcp-server; the docs hub, the homepage tools and the FAQ link to them. Collections: /popular ranks by GitHub stars and the Hall of Monoliths leaves out data-only repositories and copies. /diff gained an explanation and FAQ and now shares its heading with the client page. The tool comparison guide drops the year from its title; contact, privacy, the size guide and the collection descriptions were corrected. Homepage dates moved because its tool links changed.",
+    "2026-11-25": "SEO/GEO round 8: new Chinese FAQ guide (/zh/docs/faq, HTML and Markdown twin, 21-question FAQPage, TechArticle, hreflang and manifest/sitemap entries); English FAQ refreshed (hreflang alternates, zh link, new visible date); /zh/llms.txt added and llms.txt / llms-full.txt gained the Chinese FAQ and Chinese AI-index links."
   },
   "comparePages": {
     "lastmod": "2026-11-24",
@@ -48,7 +49,7 @@
     "https://octocounts.com/docs/github-action": "2026-11-24",
     "https://octocounts.com/docs/methodology": "2026-11-24",
     "https://octocounts.com/docs/glossary": "2026-11-05",
-    "https://octocounts.com/docs/faq": "2026-11-24",
+    "https://octocounts.com/docs/faq": "2026-11-25",
     "https://octocounts.com/docs/octocounts-vs-cloc": "2026-11-24",
     "https://octocounts.com/docs/github-language-bar-alternative": "2026-11-05",
     "https://octocounts.com/docs/best-sloc-counter-tools": "2026-11-24",
@@ -63,12 +64,14 @@
     "https://octocounts.com/docs/largest-codebases": "2026-11-21",
     "https://octocounts.com/research": "2026-11-21",
     "https://octocounts.com/about": "2026-10-25",
-    "https://octocounts.com/llms.txt": "2026-11-24",
-    "https://octocounts.com/llms-full.txt": "2026-11-24",
+    "https://octocounts.com/llms.txt": "2026-11-25",
+    "https://octocounts.com/llms-full.txt": "2026-11-25",
     "https://octocounts.com/privacy": "2026-11-24",
     "https://octocounts.com/contact": "2026-11-24",
     "https://octocounts.com/zh": "2026-11-24",
     "https://octocounts.com/zh/docs/github-sloc-counter": "2026-11-24",
-    "https://octocounts.com/zh/docs/methodology": "2026-11-24"
+    "https://octocounts.com/zh/docs/methodology": "2026-11-24",
+    "https://octocounts.com/zh/docs/faq": "2026-11-25",
+    "https://octocounts.com/zh/llms.txt": "2026-11-25"
   }
 }

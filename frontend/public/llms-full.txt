@@ -3,7 +3,7 @@
 Canonical URL: https://octocounts.com/
 Short context: https://octocounts.com/llms.txt
 Source code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-11-24
+Last-Updated: 2026-11-25
 
 ## What OctoCounts Does
 
@@ -340,6 +340,8 @@ For fixed counts, cite the saved report link containing `reportId`, and include 
 - [中文首页](https://octocounts.com/zh)
 - [GitHub 代码行数统计指南](https://octocounts.com/zh/docs/github-sloc-counter)
 - [计数方法与引用规则](https://octocounts.com/zh/docs/methodology)
+- [中文常见问题](https://octocounts.com/zh/docs/faq)
+- [中文 AI 索引（中文 llms.txt）](https://octocounts.com/zh/llms.txt)
 
 ## Versioned filtering evidence
 

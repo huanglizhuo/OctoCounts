@@ -25,6 +25,7 @@ const BOOT_SCRIPT_HASH = "'sha256-bxjDuI3BgSvpGnuokvaivsaybH6c0rfAlo87mfb9ZcU='"
 const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/zh/docs/methodology", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/zh/docs/github-sloc-counter", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/zh/docs/faq", lastmod: "2026-11-25" },
   { loc: "https://octocounts.com/zh", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/compare", lastmod: "2026-11-01" },
@@ -44,7 +45,7 @@ const STATIC_SITEMAP_ENTRIES = [
   { loc: "https://octocounts.com/docs/github-action", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/methodology", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/glossary", lastmod: "2026-11-05" },
-  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-24" },
+  { loc: "https://octocounts.com/docs/faq", lastmod: "2026-11-25" },
   { loc: "https://octocounts.com/docs/octocounts-vs-cloc", lastmod: "2026-11-24" },
   { loc: "https://octocounts.com/docs/github-language-bar-alternative", lastmod: "2026-11-05" },
   { loc: "https://octocounts.com/docs/best-sloc-counter-tools", lastmod: "2026-11-24" },
@@ -330,7 +331,8 @@ async function routeRequest(context) {
   }
 
   if (parts[0] === "zh") {
-    if (parts.length !== 3 || parts[1] !== "docs" || !["github-sloc-counter", "methodology"].includes(parts[2])) {
+    if (parts.length === 2 && parts[1] === "llms.txt") return withHtmlSecurity(await context.env.ASSETS.fetch(context.request));
+    if (parts.length !== 3 || parts[1] !== "docs" || !["github-sloc-counter", "methodology", "faq"].includes(parts[2])) {
       return new Response("Not found", { status: 404 });
     }
     if (markdownRequested) return docsMarkdownResponse(context, parts[2], { locale: "zh" });

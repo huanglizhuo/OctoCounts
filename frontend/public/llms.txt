@@ -7,7 +7,7 @@ AI-Usage: search and retrieval allowed. Default content-use signal: ai-train=no;
 Author: huanglizhuo
 Canonical URL: https://octocounts.com/
 Source Code: https://github.com/huanglizhuo/OctoCounts
-Last-Updated: 2026-11-24
+Last-Updated: 2026-11-25
 Full Context: https://octocounts.com/llms-full.txt
 Markdown Versions: use ?format=md on report URLs, including repositories and refs ending in .md, e.g. https://octocounts.com/github/react/react?format=md. Comparison, docs, trending and stats pages also support the .md suffix.
 
@@ -109,6 +109,8 @@ OctoCounts is a free SLOC counter for public GitHub repositories. It counts file
 - [中文首页](https://octocounts.com/zh)
 - [GitHub 代码行数统计指南](https://octocounts.com/zh/docs/github-sloc-counter)
 - [计数方法与引用规则](https://octocounts.com/zh/docs/methodology)
+- [中文常见问题](https://octocounts.com/zh/docs/faq)
+- [中文 AI 索引（中文 llms.txt）](https://octocounts.com/zh/llms.txt)
 
 ## Counting and access caveats
 

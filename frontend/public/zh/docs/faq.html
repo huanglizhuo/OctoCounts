@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OctoCounts 常见问题 | 代码行数统计</title>
+    <meta name="description" content="OctoCounts 常见问题：SLOC 计数、GitHub 支持、浏览器扩展、徽章、API、隐私与与本地工具的区别。" />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />
+    <link rel="canonical" href="https://octocounts.com/zh/docs/faq" />
+    <link rel="alternate" type="text/markdown" href="https://octocounts.com/zh/docs/faq.md" />
+    <link rel="alternate" hreflang="en" href="https://octocounts.com/docs/faq" />
+    <link rel="alternate" hreflang="zh-Hans" href="https://octocounts.com/zh/docs/faq" />
+    <link rel="alternate" hreflang="x-default" href="https://octocounts.com/docs/faq" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="OctoCounts" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="OctoCounts 常见问题 | 代码行数统计" />
+    <meta property="og:description" content="关于 OctoCounts 的常见问题：SLOC 计数、GitHub 支持、浏览器扩展、徽章、API 与隐私。" />
+    <meta property="og:url" content="https://octocounts.com/zh/docs/faq" />
+    <meta property="og:image" content="https://octocounts.com/og-image.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OctoCounts 常见问题 | 代码行数统计" />
+    <meta name="twitter:description" content="关于 OctoCounts 的常见问题：SLOC 计数、GitHub 支持、浏览器扩展、徽章、API 与隐私。" />
+    <meta name="twitter:image" content="https://octocounts.com/og-image.jpg" />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body { max-width: 920px; margin: 40px auto; padding: 0 20px 56px; font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2328; background: #ffffff; overflow-wrap: anywhere; }
+      nav, .meta, .note { color: #57606a; }
+      h1, h2, h3 { line-height: 1.2; color: #111827; }
+      h1 { font-size: clamp(2rem, 5vw, 3.1rem); letter-spacing: 0; margin: 0 0 16px; }
+      h2 { font-size: 1.45rem; margin: 36px 0 12px; }
+      h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+      a { color: #0969da; }
+      code, pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; }
+      code { padding: 1px 5px; overflow-wrap: anywhere; }
+      pre { max-width: 100%; padding: 14px; overflow: auto; }
+      pre code { overflow-wrap: normal; }
+      table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 18px 0; display: block; overflow-x: auto; }
+      th, td { border: 1px solid #d0d7de; padding: 10px; text-align: left; vertical-align: top; }
+      th { background: #f6f8fa; }
+      .note { border-left: 4px solid #1a7f37; padding: 12px 14px; background: #f6f8fa; }
+      .faq-section { margin-bottom: 48px; }
+      @media (prefers-color-scheme: dark) {
+        body { color: #e6edf3; background: #0d1117; }
+        h1, h2, h3 { color: #f0f6fc; }
+        nav, .meta, .note { color: #8b949e; }
+        code, pre, th, .note { background: #161b22; border-color: #30363d; }
+        td, th { border-color: #30363d; }
+        a { color: #58a6ff; }
+      }
+    </style>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://octocounts.com/zh/docs/faq#article",
+  "headline": "OctoCounts 常见问题",
+  "description": "关于 OctoCounts 的常见问题：SLOC 计数、GitHub 支持、浏览器扩展、徽章、API 与隐私。",
+  "inLanguage": "zh-Hans",
+  "datePublished": "2026-11-25",
+  "dateModified": "2026-11-25",
+  "author": {
+    "@type": "Person",
+    "@id": "https://github.com/huanglizhuo",
+    "name": "huanglizhuo",
+    "url": "https://github.com/huanglizhuo"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://octocounts.com/#organization",
+    "name": "OctoCounts",
+    "url": "https://octocounts.com/"
+  },
+  "mainEntityOfPage": "https://octocounts.com/zh/docs/faq"
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "中文首页",
+      "item": "https://octocounts.com/zh"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "OctoCounts 常见问题",
+      "item": "https://octocounts.com/zh/docs/faq"
+    }
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "@id": "https://octocounts.com/zh/docs/faq#faq",
+  "inLanguage": "zh-Hans",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "OctoCounts 是什么？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 是免费的公开 GitHub 仓库源代码行数（SLOC）统计工具。它不克隆仓库，而是将所选分支、标签或提交 SHA 解析为确定的提交，下载对应源码归档，使用 tokei 统计文件数量、总行数、代码行、注释行、空白行及按语言汇总，并可导出纯文本、JSON 或 PNG 卡片。无需注册，浏览器直接使用。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "SLOC 是什么？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "SLOC 是 Source Lines of Code（源代码行数）。它用于衡量程序规模，区分代码行、注释行与空白行：一个 10,000 行且 40% 为注释的文件，说明和 95% 为代码的 10,000 行文件完全不同。SLOC 可帮助描述源码规模、在匹配规则下比较依赖占用并跟踪版本变化，但不能衡量复杂度、代码质量、生产力或开发投入。OctoCounts 按语言和全仓库汇总两级报告 SLOC，底层统计引擎是以 Rust 编写的 tokei。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "如何统计 GitHub 仓库的代码行数？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "打开 octocounts.com（或中文首页 octocounts.com/zh），粘贴公开 GitHub 仓库地址，例如 github.com/torvalds/linux，可选选择分支、标签或提交 SHA，然后点击分析。OctoCounts 将 ref 解析为确定的提交，下载源码归档，运行 tokei，返回可排序的按语言细分和汇总统计，无需 git clone。分析耗时取决于仓库大小、上游访问和队列负载。每次分析都会得到可分享的报告链接，可被引用或再次访问。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "OctoCounts 是否免费？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "是的。OctoCounts 对公开 GitHub 仓库完全免费：无需注册、无 API key、无登录，默认每 IP 5 次/分钟的分析限制（突发 10 次）。网页应用和浏览器扩展都免费，没有高级版。后端以 Rust 和 Axum 编写，前端为 React 与 TypeScript；源码在 GitHub 上开源（MIT），也可自托管整个栈。OctoCounts 只分析公开仓库，不接受源码上传，没有广告。网站使用聚合统计，Chrome 扩展提供可选的 GitHub 登录；数据处理详见隐私政策。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "OctoCounts 有浏览器扩展吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "有。OctoCounts 为 Chrome、Edge、Firefox 提供扩展，全部命名为 OctoCounts – GitHub SLOC & Code Statistics。在 GitHub 仓库侧边栏直接显示紧凑的 SLOC 卡片，自动出现在任意公开仓库页面上，显示总行数和分析状态。点击卡片展开完整面板，显示按语言细分的文件数、总行数、代码行、注释行和空白行。本地缓存让重复访问同一仓库和 ref 可复用已保存结果。无需 GitHub 账号或 API token；扩展源码公开在 GitHub 上。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "支持哪些编程语言？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 使用 tokei 进行语言识别，支持 200 多种编程语言和文件类型，包括 Rust、Python、JavaScript、TypeScript、Go、Java、C、C++、C#、Ruby、Swift、Kotlin、PHP、Scala、Haskell、Elixir、Erlang、Clojure、F#、Lua、R、Julia、Dart、Perl、Shell、Bash、PowerShell、HTML、CSS、SCSS、SQL、GraphQL、Dockerfile、YAML、JSON、TOML、XML、Markdown 等。语言识别主要基于文件扩展名，对模糊文件回退到 shebang 行和内容检测；默认跳过生成目录，因此统计反映的是人工编写的源码。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "可以导出 SLOC 结果吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "可以。OctoCounts 支持三种导出格式，位于分析结果下方的操作按钮中。纯文本将格式化表格复制到剪贴板，按列对齐显示语言、文件数、总行数、代码行、注释行和空白行，适合粘贴到 README、GitHub Issue 或文档中。JSON 下载完整的结构化报告，包含按语言统计和汇总数据，便于脚本和 CI 管道消费。PNG 下载 1200 × 630 的图片卡片，展示语言细分，适用于社交媒体、GitHub README 或作品集页面。三种格式均在浏览器端从已加载的数据生成，不需要额外请求。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "如何在 README 中添加 SLOC 徽章？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "使用徽章构建器（/badges）选择徽章类型，复制生成的 Markdown 片段，粘贴到 README.md 中。徽章支持总 SLOC、代码行、文件数、注释行、语言数、最高语言、代码占比和单语言计数。每个徽章渲染该仓库最新的已缓存报告，并链接回实时报告页面，读者可点击查看原始数字。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "可以比较两个仓库吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "可以。/compare 页面并排比较任意两个公开 GitHub 仓库、分支、标签或提交，显示双方的文件数、总行数、代码行、注释、空白和按语言统计。/diff 页面比较同一仓库的两个 ref，便于查看重构或依赖升级对代码规模的影响。OctoCounts 还发布了 React vs Vue 和 Rust vs Go 等精选比较页面，附有编辑上下文。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "OctoCounts 如何统计代码行数？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 将所选分支、标签或提交 SHA 解析为确定的提交，下载该 ref 的 GitHub 源码归档（压缩 tarball，不是完整的 git clone），解压后用 tokei 统计源码。依赖、构建、文档、测试和生成目录（如 .git、node_modules、target、docs、tests、generated）默认排除，避免这些目录里的代码、测试和文档灌高统计；排除按目录名进行，其他目录的同类文件仍会计入。完整规则见计数方法说明（中文）。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "与 GitHub 语言条有何不同？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 报告绝对计数而非百分比。GitHub 语言条显示每种语言的字节占比，不显示文件数或行数，且 Linguist 默认排除它识别为生成、vendored 或文档的文件（可被仓库覆盖）。OctoCounts 报告实际数字——文件、总行数、代码行、注释行、空白行和按语言汇总——固定在特定提交上，默认排除依赖、构建、文档、测试和生成目录。结果可被审查者复现：同一提交、同一引擎版本、同一实际规则。OctoCounts 还为每个分析生成可分享的链接和引用块，而 GitHub 语言条没有固定链接。详见 GitHub 语言条替代页（英文）。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "与本地运行 tokei 或 cloc 有何不同？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 下载压缩归档而非完整克隆，无需本地安装，按提交 SHA 缓存报告，提供可分享的报告链接、README 徽章、API、CLI 和 GitHub Action。如需分析私有仓库或自定义分析，本地运行 tokei 或 cloc 仍是最佳选择。详见 OctoCounts vs cloc 和 tokei（英文）。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "什么是缓存报告？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "缓存报告是按仓库提供方、所有者、仓库名、提交 SHA、tokei 版本和分析选项键控的已保存 SLOC 结果。在报告仍缓存期间，相同的提交、引擎版本和生效规则可以复用已保存结果，无需重新下载或重新计数。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "OctoCounts 的报告准确吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "报告对下载的源码归档和所选分析选项是精确的。它反映单个提交的公开归档，而非完整的 git 历史或已排除的文件。依赖、构建、文档、测试和生成目录默认排除，调用方可以选择重新包含。不同提交、引擎版本或过滤规则的结果可能不同，比较和引用时必须说明这些条件。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "支持私有仓库吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "不支持。OctoCounts 只分析公开 GitHub 仓库。分析不需要 GitHub 账号访问，不支持私有仓库，也不接受源码上传。如需统计私有仓库的代码行数，请在本地运行 tokei：下载 tokei，clone 你的仓库，在仓库根目录运行 tokei。tokei 免费开源，报告代码、注释和空白行；OctoCounts 在此基础上提供自己的报告字段和导出功能。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "OctoCounts 会保存我的源码吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "不会。OctoCounts 只分析公开仓库，存储的仅是按提交 SHA 和分析选项键控的聚合统计——文件数、代码/注释/空白拆分的行数和按语言汇总。下载的归档中的源码文件不会被持久保存，无需注册，也没有要上传的内容。详见隐私政策（英文）。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "有 API 或 CLI 吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "有。OctoCounts API 是公开的 HTTP 接口，用于不克隆公开 GitHub 仓库就能统计代码行数；端点覆盖发起 SLOC 分析、获取缓存报告、检查单个分析任务和生成 README 徽章。网页的 compare 和 diff URL 格式也记录在 API 文档（英文）中。除了 API，OctoCounts 还提供 CLI（通过 npm 的 npx octocounts 运行）、MCP server（让 AI 助手在对话中获取 SLOC 数据）和 GitHub Action（在 pull request 上评论规模变化）。全部无需注册或登录。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "可以在 CI 或 GitHub Actions 中使用吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "可以。OctoCounts GitHub Action 在 pull request 上运行，评论变化对代码行数的影响，让审查者看到相对 diff 的规模变化。CLI（npx octocounts）可在任何终端或 CI 脚本中运行，输出可供管道消费的 JSON，用于报告或自定义检查。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "仓库过大时会怎样？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "非常大的仓库可能超过分析器的归档大小或时间限制，此时分析会以清晰的错误失败，而不是返回部分数字。可行方案：稍后重试；分析同一仓库的较小分支或标签；或在本地运行 tokei（没有下载限制）。先前成功的报告在缓存期内仍可能可用，但受保留和大小限制约束。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "如何引用一份 OctoCounts 报告？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "固定的计数应引用包含 reportId 的已保存报告链接，并附上完整提交 SHA、测量日期、tokei 版本和生效的统计规则（countingPolicy）。为长期保留导出报告 JSON 或文本：已保存的报告仍受缓存清理和替换影响。规范的仓库和 ref 链接跟随实时缓存报告，可能变化。每个报告页都会包含推荐的引用块；在已保存的报告路径后附加 .md 同时保留 reportId 查询参数，可获取同一已保存结果的 Markdown 版本。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "谁维护 OctoCounts？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "OctoCounts 由 huanglizhuo 构建和维护，他还编写了浏览器扩展和 Rust 后端。项目在 GitHub 上以 MIT 许可证开源，接受 issue 和 pull request，并公开记录计数方法。更多背景和联系信息见关于页面（英文）。"
+      }
+    }
+  ]
+}
+    </script>
+  </head>
+  <body>
+    <nav aria-label="主导航"><a href="/zh">OctoCounts 中文首页</a> · <a href="/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="/zh/docs/methodology">计数方法</a> · <a href="/docs/faq" hreflang="en" lang="en">English</a></nav>
+    <main>
+      <h1>OctoCounts 常见问题</h1>
+      <p>更新于 2026-11-25 · 维护者：<a href="https://github.com/huanglizhuo">huanglizhuo</a></p>
+      <p>OctoCounts 是免费的公开 GitHub 仓库代码行数统计工具。它不克隆仓库，而是将所选分支、标签或提交 SHA 解析为确定的提交，下载对应源码归档，使用 <a href="https://github.com/XAMPPRocky/tokei">tokei</a> 统计文件数量、总行数、代码行、注释行、空白行及按语言汇总，并可导出纯文本、JSON 或 PNG 卡片。</p>
+      <p class="note">规范页面：https://octocounts.com/zh/docs/faq · <a href="/zh">中文首页</a> · <a href="/zh/docs/github-sloc-counter">SLOC 使用指南</a> · <a href="/zh/docs/methodology">计数方法</a> · <a href="/docs/faq" hreflang="en" lang="en">English version</a> · <a href="/zh/docs/faq.md">Markdown 版本</a></p>
+
+      <div class="faq-section">
+        <h2>开始使用</h2>
+        <h3>OctoCounts 是什么？</h3>
+        <p>OctoCounts 是免费的公开 GitHub 仓库源代码行数（SLOC）统计工具。它不克隆仓库，而是将所选分支、标签或提交 SHA 解析为确定的提交，下载对应源码归档，使用 tokei 统计文件数量、总行数、代码行、注释行、空白行及按语言汇总，并可导出纯文本、JSON 或 PNG 卡片。无需注册，浏览器直接使用。</p>
+        <h3>SLOC 是什么？</h3>
+        <p>SLOC 是 Source Lines of Code（源代码行数）。它用于衡量程序规模，区分代码行、注释行与空白行：一个 10,000 行且 40% 为注释的文件，说明和 95% 为代码的 10,000 行文件完全不同。SLOC 可帮助描述源码规模、在匹配规则下比较依赖占用并跟踪版本变化，但不能衡量复杂度、代码质量、生产力或开发投入。OctoCounts 按语言和全仓库汇总两级报告 SLOC，底层统计引擎是以 Rust 编写的 tokei。</p>
+        <h3>如何统计 GitHub 仓库的代码行数？</h3>
+        <p>打开 octocounts.com（或中文首页 octocounts.com/zh），粘贴公开 GitHub 仓库地址，例如 github.com/torvalds/linux，可选选择分支、标签或提交 SHA，然后点击分析。OctoCounts 将 ref 解析为确定的提交，下载源码归档，运行 tokei，返回可排序的按语言细分和汇总统计，无需 git clone。分析耗时取决于仓库大小、上游访问和队列负载。每次分析都会得到可分享的报告链接，可被引用或再次访问。</p>
+        <h3>OctoCounts 是否免费？</h3>
+        <p>是的。OctoCounts 对公开 GitHub 仓库完全免费：无需注册、无 API key、无登录，默认每 IP 5 次/分钟的分析限制（突发 10 次）。网页应用和浏览器扩展都免费，没有高级版。后端以 Rust 和 Axum 编写，前端为 React 与 TypeScript；源码在 GitHub 上开源（MIT），也可自托管整个栈。OctoCounts 只分析公开仓库，不接受源码上传，没有广告。网站使用聚合统计，Chrome 扩展提供可选的 GitHub 登录；数据处理详见隐私政策。</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>功能与集成</h2>
+        <h3>OctoCounts 有浏览器扩展吗？</h3>
+        <p>有。OctoCounts 为 Chrome、Edge、Firefox 提供扩展，全部命名为 OctoCounts – GitHub SLOC & Code Statistics。在 GitHub 仓库侧边栏直接显示紧凑的 SLOC 卡片，自动出现在任意公开仓库页面上，显示总行数和分析状态。点击卡片展开完整面板，显示按语言细分的文件数、总行数、代码行、注释行和空白行。本地缓存让重复访问同一仓库和 ref 可复用已保存结果。无需 GitHub 账号或 API token；扩展源码公开在 GitHub 上。</p>
+        <h3>支持哪些编程语言？</h3>
+        <p>OctoCounts 使用 tokei 进行语言识别，支持 200 多种编程语言和文件类型，包括 Rust、Python、JavaScript、TypeScript、Go、Java、C、C++、C#、Ruby、Swift、Kotlin、PHP、Scala、Haskell、Elixir、Erlang、Clojure、F#、Lua、R、Julia、Dart、Perl、Shell、Bash、PowerShell、HTML、CSS、SCSS、SQL、GraphQL、Dockerfile、YAML、JSON、TOML、XML、Markdown 等。语言识别主要基于文件扩展名，对模糊文件回退到 shebang 行和内容检测；默认跳过生成目录，因此统计反映的是人工编写的源码。</p>
+        <h3>可以导出 SLOC 结果吗？</h3>
+        <p>可以。OctoCounts 支持三种导出格式，位于分析结果下方的操作按钮中。纯文本将格式化表格复制到剪贴板，按列对齐显示语言、文件数、总行数、代码行、注释行和空白行，适合粘贴到 README、GitHub Issue 或文档中。JSON 下载完整的结构化报告，包含按语言统计和汇总数据，便于脚本和 CI 管道消费。PNG 下载 1200 × 630 的图片卡片，展示语言细分，适用于社交媒体、GitHub README 或作品集页面。三种格式均在浏览器端从已加载的数据生成，不需要额外请求。</p>
+        <h3>如何在 README 中添加 SLOC 徽章？</h3>
+        <p>使用徽章构建器（/badges）选择徽章类型，复制生成的 Markdown 片段，粘贴到 README.md 中。徽章支持总 SLOC、代码行、文件数、注释行、语言数、最高语言、代码占比和单语言计数。每个徽章渲染该仓库最新的已缓存报告，并链接回实时报告页面，读者可点击查看原始数字。</p>
+        <h3>可以比较两个仓库吗？</h3>
+        <p>可以。/compare 页面并排比较任意两个公开 GitHub 仓库、分支、标签或提交，显示双方的文件数、总行数、代码行、注释、空白和按语言统计。/diff 页面比较同一仓库的两个 ref，便于查看重构或依赖升级对代码规模的影响。OctoCounts 还发布了 React vs Vue 和 Rust vs Go 等精选比较页面，附有编辑上下文。</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>方法与准确性</h2>
+        <h3>OctoCounts 如何统计代码行数？</h3>
+        <p>OctoCounts 将所选分支、标签或提交 SHA 解析为确定的提交，下载该 ref 的 GitHub 源码归档（压缩 tarball，不是完整的 git clone），解压后用 tokei 统计源码。依赖、构建、文档、测试和生成目录（如 .git、node_modules、target、docs、tests、generated）默认排除，避免这些目录里的代码、测试和文档灌高统计；排除按目录名进行，其他目录的同类文件仍会计入。完整规则见计数方法说明（中文）。</p>
+        <h3>与 GitHub 语言条有何不同？</h3>
+        <p>OctoCounts 报告绝对计数而非百分比。GitHub 语言条显示每种语言的字节占比，不显示文件数或行数，且 Linguist 默认排除它识别为生成、vendored 或文档的文件（可被仓库覆盖）。OctoCounts 报告实际数字——文件、总行数、代码行、注释行、空白行和按语言汇总——固定在特定提交上，默认排除依赖、构建、文档、测试和生成目录。结果可被审查者复现：同一提交、同一引擎版本、同一实际规则。OctoCounts 还为每个分析生成可分享的链接和引用块，而 GitHub 语言条没有固定链接。详见 GitHub 语言条替代页（英文）。</p>
+        <h3>与本地运行 tokei 或 cloc 有何不同？</h3>
+        <p>OctoCounts 下载压缩归档而非完整克隆，无需本地安装，按提交 SHA 缓存报告，提供可分享的报告链接、README 徽章、API、CLI 和 GitHub Action。如需分析私有仓库或自定义分析，本地运行 tokei 或 cloc 仍是最佳选择。详见 OctoCounts vs cloc 和 tokei（英文）。</p>
+        <h3>什么是缓存报告？</h3>
+        <p>缓存报告是按仓库提供方、所有者、仓库名、提交 SHA、tokei 版本和分析选项键控的已保存 SLOC 结果。在报告仍缓存期间，相同的提交、引擎版本和生效规则可以复用已保存结果，无需重新下载或重新计数。</p>
+        <h3>OctoCounts 的报告准确吗？</h3>
+        <p>报告对下载的源码归档和所选分析选项是精确的。它反映单个提交的公开归档，而非完整的 git 历史或已排除的文件。依赖、构建、文档、测试和生成目录默认排除，调用方可以选择重新包含。不同提交、引擎版本或过滤规则的结果可能不同，比较和引用时必须说明这些条件。</p>
+      </div>
+
+      <div class="faq-section">
+        <h2>隐私、API 与项目</h2>
+        <h3>支持私有仓库吗？</h3>
+        <p>不支持。OctoCounts 只分析公开 GitHub 仓库。分析不需要 GitHub 账号访问，不支持私有仓库，也不接受源码上传。如需统计私有仓库的代码行数，请在本地运行 tokei：下载 tokei，clone 你的仓库，在仓库根目录运行 tokei。tokei 免费开源，报告代码、注释和空白行；OctoCounts 在此基础上提供自己的报告字段和导出功能。</p>
+        <h3>OctoCounts 会保存我的源码吗？</h3>
+        <p>不会。OctoCounts 只分析公开仓库，存储的仅是按提交 SHA 和分析选项键控的聚合统计——文件数、代码/注释/空白拆分的行数和按语言汇总。下载的归档中的源码文件不会被持久保存，无需注册，也没有要上传的内容。详见隐私政策（英文）。</p>
+        <h3>有 API 或 CLI 吗？</h3>
+        <p>有。OctoCounts API 是公开的 HTTP 接口，用于不克隆公开 GitHub 仓库就能统计代码行数；端点覆盖发起 SLOC 分析、获取缓存报告、检查单个分析任务和生成 README 徽章。网页的 compare 和 diff URL 格式也记录在 API 文档（英文）中。除了 API，OctoCounts 还提供 CLI（通过 npm 的 npx octocounts 运行）、MCP server（让 AI 助手在对话中获取 SLOC 数据）和 GitHub Action（在 pull request 上评论规模变化）。全部无需注册或登录。</p>
+        <h3>可以在 CI 或 GitHub Actions 中使用吗？</h3>
+        <p>可以。OctoCounts GitHub Action 在 pull request 上运行，评论变化对代码行数的影响，让审查者看到相对 diff 的规模变化。CLI（npx octocounts）可在任何终端或 CI 脚本中运行，输出可供管道消费的 JSON，用于报告或自定义检查。</p>
+        <h3>仓库过大时会怎样？</h3>
+        <p>非常大的仓库可能超过分析器的归档大小或时间限制，此时分析会以清晰的错误失败，而不是返回部分数字。可行方案：稍后重试；分析同一仓库的较小分支或标签；或在本地运行 tokei（没有下载限制）。先前成功的报告在缓存期内仍可能可用，但受保留和大小限制约束。</p>
+        <h3>如何引用一份 OctoCounts 报告？</h3>
+        <p>固定的计数应引用包含 reportId 的已保存报告链接，并附上完整提交 SHA、测量日期、tokei 版本和生效的统计规则（countingPolicy）。为长期保留导出报告 JSON 或文本：已保存的报告仍受缓存清理和替换影响。规范的仓库和 ref 链接跟随实时缓存报告，可能变化。每个报告页都会包含推荐的引用块；在已保存的报告路径后附加 .md 同时保留 reportId 查询参数，可获取同一已保存结果的 Markdown 版本。</p>
+        <h3>谁维护 OctoCounts？</h3>
+        <p>OctoCounts 由 huanglizhuo 构建和维护，他还编写了浏览器扩展和 Rust 后端。项目在 GitHub 上以 MIT 许可证开源，接受 issue 和 pull request，并公开记录计数方法。更多背景和联系信息见关于页面（英文）。</p>
+      </div>
+
+      <h2>相关资源</h2>
+      <ul><li><a href="/zh/docs/github-sloc-counter">中文 SLOC 使用指南</a></li><li><a href="/zh/docs/methodology">中文计数方法与引用规则</a></li><li><a href="/zh">中文首页</a></li><li><a href="/docs/faq" hreflang="en" lang="en">English FAQ</a></li><li><a href="https://github.com/huanglizhuo/OctoCounts">项目源码</a></li></ul>
+    </main>
+  </body>
+</html>

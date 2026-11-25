@@ -2934,7 +2934,7 @@ test("nginx routes Chinese pages and explicit Markdown without falling back to t
   assert.ok(nginx.includes('location = /zh { rewrite ^ /home-zh.html break; }'));
   assert.ok(nginx.includes('add_header X-Robots-Tag "noindex, nofollow" always;'));
   assert.ok(nginx.includes('text/markdown md;'));
-  for (const slug of ["github-sloc-counter", "methodology"]) {
+  for (const slug of ["github-sloc-counter", "methodology", "faq"]) {
     assert.ok(nginx.includes(`location = /zh/docs/${slug} {`));
     assert.ok(nginx.includes(`try_files /zh/docs/${slug}.html =404;`));
     assert.ok(nginx.includes(`if ($arg_format = md) { rewrite ^ /zh/docs/${slug}.md last; }`));
@@ -2944,7 +2944,7 @@ test("nginx routes Chinese pages and explicit Markdown without falling back to t
 
 test("localized pages have self canonicals and reciprocal, complete language alternates", async () => {
   const manifest = JSON.parse(await readFile(new URL("content/content-manifest.json", ROOT), "utf8"));
-  for (const slug of ["", "docs/github-sloc-counter", "docs/methodology"]) {
+  for (const slug of ["", "docs/github-sloc-counter", "docs/methodology", "docs/faq"]) {
     const enUrl = `https://octocounts.com/${slug}`;
     const zhUrl = `https://octocounts.com/zh${slug ? `/${slug}` : ""}`;
     for (const locale of ["en", "zh"]) {
@@ -2987,6 +2987,8 @@ test("Chinese redirects preserve unrelated queries and missing pages do not serv
     ["/zh/", "/zh"],
     ["/zh/docs/methodology.html?utm_source=docs", "/zh/docs/methodology?utm_source=docs"],
     ["/zh/docs/methodology/", "/zh/docs/methodology"],
+    ["/zh/docs/faq.html?utm_source=docs", "/zh/docs/faq?utm_source=docs"],
+    ["/zh/docs/faq/", "/zh/docs/faq"],
   ]) {
     const response = await onRequest(requestContext(path));
     assert.equal(response.status, 308, path);
@@ -3001,7 +3003,7 @@ test("Chinese redirects preserve unrelated queries and missing pages do not serv
 });
 
 test("Chinese guides serve HTML to all bots and explicit Markdown twins with noindex", async () => {
-  for (const slug of ["github-sloc-counter", "methodology"]) {
+  for (const slug of ["github-sloc-counter", "methodology", "faq"]) {
     const path = `/zh/docs/${slug}`;
     for (const ua of [undefined, "Googlebot", "OAI-SearchBot", "ClaudeBot"]) {
       const response = await onRequest(docsAssetContext(path, ua));
