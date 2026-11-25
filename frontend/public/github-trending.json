@@ -1,8 +1,8 @@
 {
   "source": "https://github.com/trending",
   "period": "daily",
-  "generatedAt": "2026-11-24T12:24:54.870Z",
-  "date": "2026-11-24",
+  "generatedAt": "2026-11-25T11:13:19.356Z",
+  "date": "2026-11-25",
   "repositories": [
     {
       "rank": 1,
@@ -11,14 +11,14 @@
       "fullName": "elementalsouls/Claude-BugHunter",
       "description": "A Claude Code skill bundle for bug hunting and external red-team work - 84 skills, 15 slash commands, 681 disclosed-report patterns curated across 24 core vulnerability classes, plus enterprise identity + infrastructure attack matrices.",
       "language": "Python",
-      "starsToday": 1833,
-      "totalStars": 20634,
+      "starsToday": 1826,
+      "totalStars": 22178,
       "htmlUrl": "https://github.com/elementalsouls/Claude-BugHunter",
       "publicPath": "/github/elementalsouls/Claude-BugHunter",
       "sloc": {
         "code": 13503,
-        "generatedAt": "2026-11-24T11:07:32.775Z",
-        "reportId": "d00f121a81f49f33c38b2d288a59564e108ca67f16fd092761138d5d78554820"
+        "generatedAt": "2026-11-25T11:13:08.244Z",
+        "reportId": "ae169dbb46df519302df0abae83ba377e610f3d2114c69c04f33db0960cf581b"
       }
     },
     {
@@ -28,8 +28,8 @@
       "fullName": "obra/superpowers",
       "description": "An agentic skills framework & software development methodology that works.",
       "language": "Shell",
-      "starsToday": 1006,
-      "totalStars": 325552,
+      "starsToday": 1003,
+      "totalStars": 326201,
       "htmlUrl": "https://github.com/obra/superpowers",
       "publicPath": "/github/obra/superpowers",
       "sloc": {
@@ -45,8 +45,8 @@
       "fullName": "HKUDS/CLI-Anything",
       "description": "\"CLI-Anything: Making ALL Software Agent-Native\" -- CLI-Hub: https://clianything.cc/",
       "language": "Python",
-      "starsToday": 1075,
-      "totalStars": 64248,
+      "starsToday": 1074,
+      "totalStars": 65284,
       "htmlUrl": "https://github.com/HKUDS/CLI-Anything",
       "publicPath": "/github/HKUDS/CLI-Anything",
       "sloc": {
@@ -63,7 +63,7 @@
       "description": "🧠 两小时从 0 训出你的 64M 大模型。Train your own 64M LLM from scratch in 2 hours.",
       "language": "Python",
       "starsToday": 727,
-      "totalStars": 69906,
+      "totalStars": 70684,
       "htmlUrl": "https://github.com/jingyaogong/minimind",
       "publicPath": "/github/jingyaogong/minimind",
       "sloc": {
@@ -79,14 +79,14 @@
       "fullName": "cursor/plugins",
       "description": "Cursor plugin specification and official plugins",
       "language": "TypeScript",
-      "starsToday": 359,
-      "totalStars": 19014,
+      "starsToday": 360,
+      "totalStars": 19396,
       "htmlUrl": "https://github.com/cursor/plugins",
       "publicPath": "/github/cursor/plugins",
       "sloc": {
-        "code": 26486,
-        "generatedAt": "2026-11-24T10:54:48.412Z",
-        "reportId": "6f7788e6f0f0133ad56bdbc13981724c54127b1380650d7b65c2ae3ee9fedab5"
+        "code": 26498,
+        "generatedAt": "2026-11-25T11:13:12.210Z",
+        "reportId": "cee5dd617357bc211d0987289db194c6f28a9545cb033618e81c65c4e7900824"
       }
     },
     {
@@ -96,14 +96,14 @@
       "fullName": "firecrawl/firecrawl",
       "description": "Knowledge infrastructure to make your agents smarter. Search, scrape and access 550+ data providers through one API.",
       "language": "TypeScript",
-      "starsToday": 990,
-      "totalStars": 208409,
+      "starsToday": 991,
+      "totalStars": 209474,
       "htmlUrl": "https://github.com/firecrawl/firecrawl",
       "publicPath": "/github/firecrawl/firecrawl",
       "sloc": {
-        "code": 307923,
-        "generatedAt": "2026-11-24T03:18:59.190Z",
-        "reportId": "ecacda114bb255cf030c554b35687fb51d0fb112c6516f24ab86d2e3dd30e77d"
+        "code": 322294,
+        "generatedAt": "2026-11-25T11:13:15.826Z",
+        "reportId": "8a8370fe830e430190dd10124ddc02d6e214cd3202b5791a282ced28f7e44cb5"
       }
     },
     {
@@ -114,7 +114,7 @@
       "description": "The official NGINX Open Source repository.",
       "language": "C",
       "starsToday": 158,
-      "totalStars": 33126,
+      "totalStars": 33294,
       "htmlUrl": "https://github.com/nginx/nginx",
       "publicPath": "/github/nginx/nginx",
       "sloc": {
@@ -130,14 +130,14 @@
       "fullName": "openvinotoolkit/openvino",
       "description": "OpenVINO™ is an open source toolkit for optimizing and deploying AI inference",
       "language": "C++",
-      "starsToday": 187,
-      "totalStars": 12376,
+      "starsToday": 185,
+      "totalStars": 12558,
       "htmlUrl": "https://github.com/openvinotoolkit/openvino",
       "publicPath": "/github/openvinotoolkit/openvino",
       "sloc": {
-        "code": 1200236,
-        "generatedAt": "2026-11-24T12:25:24.252Z",
-        "reportId": "a2b54a7fb8ee89e791117b9a7f64b3471b580a7ee08dbc0a32cfd43db30592d2"
+        "code": 1201013,
+        "generatedAt": "2026-11-25T11:13:31.683Z",
+        "reportId": "6dcf8d4b5a4846403c09848f1f988ddc1f546200d919cabbba50679ad65303b5"
       }
     },
     {
@@ -147,14 +147,14 @@
       "fullName": "cathrynlavery/diagram-design",
       "description": "Editorial diagram design for Claude Code, Codex, GitHub Copilot, Cursor, Factory Droid, Qoder, and Pi. 52 diagram types. Self-contained HTML + SVG. No shadows. No Mermaid slop.",
       "language": "HTML",
-      "starsToday": 794,
-      "totalStars": 71461,
+      "starsToday": 802,
+      "totalStars": 72527,
       "htmlUrl": "https://github.com/cathrynlavery/diagram-design",
       "publicPath": "/github/cathrynlavery/diagram-design",
       "sloc": {
-        "code": 94402,
-        "generatedAt": "2026-11-23T12:26:50.411Z",
-        "reportId": "a09fbbc3f9a508ab765947130bed3395d304e4ffd017d477f31f55eb4e4fe121"
+        "code": 95792,
+        "generatedAt": "2026-11-25T11:13:27.875Z",
+        "reportId": "1d266502f8491ee364468d61722e19d2af680cabb552d51608f662b1d1d52eb4"
       }
     },
     {
@@ -164,14 +164,14 @@
       "fullName": "mvanhorn/last30days-skill",
       "description": "AI agent skill that researches any topic across Reddit, X, YouTube, HN, Polymarket, and the web - then synthesizes a grounded summary",
       "language": "Python",
-      "starsToday": 695,
-      "totalStars": 73805,
+      "starsToday": 703,
+      "totalStars": 74690,
       "htmlUrl": "https://github.com/mvanhorn/last30days-skill",
       "publicPath": "/github/mvanhorn/last30days-skill",
       "sloc": {
-        "code": 104226,
-        "generatedAt": "2026-11-24T12:25:29.187Z",
-        "reportId": "e3930bb491e7fc07d375b884ece9c0a51c0357a53d1e039cfc3fdf9f6c96b5ea"
+        "code": 109025,
+        "generatedAt": "2026-11-25T11:13:34.198Z",
+        "reportId": "894afc001adcb763e6538fec64100bb806f40251e839e2d21cf0d7886ad5ac2c"
       }
     },
     {
@@ -181,14 +181,14 @@
       "fullName": "google-labs-code/stitch-skills",
       "description": "A library of Agent Skills designed to work with the Stitch MCP server. Each skill follows the Agent Skills open standard, for compatibility with coding agents such as Antigravity, Gemini CLI, Claude Code, Cursor.",
       "language": "TypeScript",
-      "starsToday": 401,
-      "totalStars": 12503,
+      "starsToday": 403,
+      "totalStars": 12831,
       "htmlUrl": "https://github.com/google-labs-code/stitch-skills",
       "publicPath": "/github/google-labs-code/stitch-skills",
       "sloc": {
-        "code": 4817,
-        "generatedAt": "2026-11-23T19:06:16.523Z",
-        "reportId": "3c8e376fe9fdff825dc0ce36b34aea68d96413b9a26e69f8140ba02b1e6b9ffe"
+        "code": 5144,
+        "generatedAt": "2026-11-25T11:13:51.043Z",
+        "reportId": "b9c3aeb34097fe3b9250d93fb51c92dbdf6250013ce64f5c573872dfc71bab92"
       }
     },
     {
@@ -198,14 +198,14 @@
       "fullName": "mjmirza/app-store-compliance",
       "description": "Avoid common App Store and Google Play rejections. Open playbook and pre-submission guard with 124 documented rejection patterns and fixes, privacy manifest and Data safety checks, 112 tracked deadlines (EU AI Act, DSA, COPPA, age laws), and a skill for AI coding agents.",
       "language": "Shell",
-      "starsToday": 936,
-      "totalStars": 5394,
+      "starsToday": 928,
+      "totalStars": 6198,
       "htmlUrl": "https://github.com/mjmirza/app-store-compliance",
       "publicPath": "/github/mjmirza/app-store-compliance",
       "sloc": {
-        "code": 25765,
-        "generatedAt": "2026-11-22T18:20:17.206Z",
-        "reportId": "286228fde889d02f66bf4d23d99fcf5f41c87f50b7deb47a8bf18fc31ddd19f8"
+        "code": 26992,
+        "generatedAt": "2026-11-25T11:13:38.153Z",
+        "reportId": "0723015f1d303cfed697a1a0bb75e5e6f157a8ff415582868d1d2166896f018d"
       }
     },
     {
@@ -215,14 +215,14 @@
       "fullName": "Tracer-Cloud/opensre",
       "description": "The open-source agent for CI/CD reliability.",
       "language": "Python",
-      "starsToday": 408,
-      "totalStars": 15015,
+      "starsToday": 398,
+      "totalStars": 15339,
       "htmlUrl": "https://github.com/Tracer-Cloud/opensre",
       "publicPath": "/github/Tracer-Cloud/opensre",
       "sloc": {
-        "code": 268463,
-        "generatedAt": "2026-11-23T21:07:22.655Z",
-        "reportId": "0073006cfb55e9ac493a0c4beecb15ea2b4a8cb02f28861b7c4e1bc60e9135ec"
+        "code": 268937,
+        "generatedAt": "2026-11-25T11:14:13.512Z",
+        "reportId": "2e0a6c56b28d7ea30775dbb6ad6a4ace3c03457bf49b603ac1d167658ebc0519"
       }
     },
     {
@@ -232,14 +232,14 @@
       "fullName": "toeverything/AFFiNE",
       "description": "There can be more than Notion and Miro. AFFiNE(pronounced [ə‘fain]) is a next-gen knowledge base that brings planning, sorting and creating all together. Privacy first, open-source, customizable and ready to use.",
       "language": "TypeScript",
-      "starsToday": 589,
-      "totalStars": 77684,
+      "starsToday": 584,
+      "totalStars": 78215,
       "htmlUrl": "https://github.com/toeverything/AFFiNE",
       "publicPath": "/github/toeverything/AFFiNE",
       "sloc": {
-        "code": 937209,
-        "generatedAt": "2026-11-24T11:41:48.331Z",
-        "reportId": "fecfa5eab7106de93d41125ac40ee6c8f8db7482cfa563feba57d9504a35b814"
+        "code": 937235,
+        "generatedAt": "2026-11-25T11:13:51.856Z",
+        "reportId": "5945a58794d5a2ea034b61eb9e77151f0129ee796703522ea11c7ee1e2c21db1"
       }
     },
     {
@@ -249,14 +249,14 @@
       "fullName": "XiaoYouChR/Ghost-Downloader-3",
       "description": "The only downloader you need. 下载器的集大成者。",
       "language": "Python",
-      "starsToday": 1102,
-      "totalStars": 16946,
+      "starsToday": 1092,
+      "totalStars": 17840,
       "htmlUrl": "https://github.com/XiaoYouChR/Ghost-Downloader-3",
       "publicPath": "/github/XiaoYouChR/Ghost-Downloader-3",
       "sloc": {
-        "code": 168039,
-        "generatedAt": "2026-11-24T12:25:26.718Z",
-        "reportId": "965090760631879482e827acee972c6128885c6a4378c97eb5d93accec5770f7"
+        "code": 169094,
+        "generatedAt": "2026-11-25T11:13:50.740Z",
+        "reportId": "8347c308344b9294ae484123dd24e0c3c911b1b94f384a3b2442b8af26c9b65b"
       }
     },
     {
@@ -266,14 +266,14 @@
       "fullName": "zhouxiaoka/autoclip",
       "description": "AutoClip｜一个链接，一键出片。开源 AI 视频剪辑桌面工具，将播客、访谈、课程等长视频自动剪成短视频，生成字幕、封面和发布文案，适配抖音、小红书、TikTok、Reels 与 YouTube Shorts。Open-source AI video clipping & content repurposing.",
       "language": "Python",
-      "starsToday": 981,
-      "totalStars": 15033,
+      "starsToday": 980,
+      "totalStars": 15852,
       "htmlUrl": "https://github.com/zhouxiaoka/autoclip",
       "publicPath": "/github/zhouxiaoka/autoclip",
       "sloc": {
-        "code": 183451,
-        "generatedAt": "2026-11-24T08:27:50.601Z",
-        "reportId": "9fedcaf4c7648dc4576bb22eb38e604ebbbc0b53c12314c08d2370aa37a3541d"
+        "code": 191078,
+        "generatedAt": "2026-11-25T11:14:24.808Z",
+        "reportId": "7d12b4885a7cb198530eb0e2a7b2dcbdd00fed6d85a5cc3240a358a8a8048b96"
       }
     }
   ]
