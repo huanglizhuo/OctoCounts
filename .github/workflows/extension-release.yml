@@ -133,6 +133,8 @@ jobs:
             artifacts/${{ needs.build.outputs.firefox_zip }}/${{ needs.build.outputs.firefox_zip }}
 
       - name: Publish Chrome zip to the Web Store
+        # The maintainer will upload the 0.5.3 release ZIP manually.
+        if: github.ref_name != 'extension-v0.5.3'
         uses: wdzeng/chrome-extension@37f4f9cdc664959bafef36b1f4da03dec5141620 # v2.0.0
         with:
           extension-id: ${{ secrets.CHROME_EXTENSION_ID }}

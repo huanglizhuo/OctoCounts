@@ -203,3 +203,49 @@ test('a running job keeps polling to completion', async () => {
   await h.tick();
   assert.equal(h.card().getAttribute('data-state'), 'completed');
 });
+
+test('both display modes turn a lookup miss into an explicit count that finishes', async () => {
+  for (const silentUntilSuccess of [true, false]) {
+    const h = await harness({ silentUntilSuccess });
+    h.requests[0].resolve({ error: { code: 'analysis_required', status: 404 } });
+    await h.tick();
+    h.turbo();
+    await h.tick();
+    assert.equal(h.pageStatus().mountState, 'mounted');
+    assert.equal(h.requests.length, 1);
+    h.card().shadowRoot.querySelector('.oc-count-btn').click();
+    assert.equal(h.requests.at(-1).forceRefresh, true);
+    h.requests.at(-1).resolve({ type: 'JOB', jobId: 'count' });
+    await h.tick(1500);
+    h.requests.at(-1).resolve({ type: 'PENDING', status: 'queued' });
+    await h.tick();
+    assert.equal(h.card().shadowRoot.querySelector('.oc-status').textContent, 'Queued…');
+    await h.tick(3000);
+    assert.equal(h.requests.at(-1).jobId, 'count');
+    h.requests.at(-1).resolve({ type: 'COMPLETED', report });
+    await h.tick();
+    assert.equal(h.card().getAttribute('data-state'), 'completed');
+  }
+});
+
+test('sidebar replacement restores a retryable error without submitting a second request', async () => {
+  const h = await harness();
+  h.requests[0].resolve({ error: { code: 'queue_full', retryAfterMs: 30000 } });
+  await h.tick();
+  h.replaceBody();
+  h.turbo();
+  await h.tick();
+  const card = h.card();
+  assert.ok(card);
+  assert.equal(card.getAttribute('data-state'), 'error');
+  assert.match(card.shadowRoot.querySelector('.oc-err-msg').textContent, /queue.*30/i);
+  assert.equal(h.requests.length, 1);
+  card.shadowRoot.querySelector('.oc-err-retry').click();
+  assert.equal(h.requests.at(-1).forceRefresh, true);
+  h.requests.at(-1).resolve({ type: 'CACHED', report });
+  await h.tick();
+  h.turbo();
+  await h.tick();
+  assert.equal(h.card().getAttribute('data-state'), 'completed');
+  assert.equal(h.pageStatus().mountState, 'mounted');
+});

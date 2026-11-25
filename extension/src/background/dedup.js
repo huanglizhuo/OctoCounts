@@ -22,22 +22,35 @@ async function sessionRemove(key) {
   } catch (_) {}
 }
 
-export async function getInflight(owner, repo, ref = 'HEAD') {
-  const entry = await sessionGet(inflightKey(owner, repo, ref));
-  if (!entry) return null;
-  if (Date.now() - entry.startedAt > INFLIGHT_TTL_MS) {
-    await clearInflight(owner, repo, ref);
+// Serialize session read/modify/write so a late poll cannot retire a newer job.
+let writes = Promise.resolve();
+function serialize(operation) {
+  const result = writes.then(operation);
+  writes = result.catch(() => {});
+  return result;
+}
+
+export function getInflight(owner, repo, ref = 'HEAD') {
+  const key = inflightKey(owner, repo, ref);
+  return serialize(async () => {
+    const entry = await sessionGet(key);
+    if (!entry || Date.now() - entry.startedAt <= INFLIGHT_TTL_MS) return entry;
+    await sessionRemove(key);
     return null;
-  }
-  return entry;
+  });
 }
 
-export async function setInflight(owner, repo, ref = 'HEAD', jobId) {
-  await sessionSet(inflightKey(owner, repo, ref), { jobId, startedAt: Date.now() });
+export function setInflight(owner, repo, ref = 'HEAD', jobId) {
+  return serialize(() => sessionSet(inflightKey(owner, repo, ref), { jobId, startedAt: Date.now() }));
 }
 
-export async function clearInflight(owner, repo, ref = 'HEAD') {
-  await sessionRemove(inflightKey(owner, repo, ref));
+export function clearInflight(owner, repo, ref, expectedJobId) {
+  const key = inflightKey(owner, repo, ref);
+  return serialize(async () => {
+    if (expectedJobId !== undefined && (await sessionGet(key))?.jobId !== expectedJobId) return false;
+    await sessionRemove(key);
+    return true;
+  });
 }
 
 function inflightKey(owner, repo, ref) {

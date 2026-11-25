@@ -111,6 +111,9 @@
   },
   "error": {
     "privateRepo": "非公開リポジトリはサポートされていません。",
+    "queueFull": "解析キューがいっぱいです。",
+    "serviceUnavailable": "サービスは一時的に利用できません。",
+    "retryAfter": "{{seconds}} 秒後にもう一度お試しください。",
     "rateLimited": "APIのレート制限に達しました。後でもう一度お試しください。",
     "githubUnavailable": "GitHub が現在利用できません。問題は GitHub 側にあり、この拡張機能の不具合ではありません。数分後にもう一度お試しください。",
     "forbidden": "OctoCounts APIリクエストがブロックまたは拒否されました。",

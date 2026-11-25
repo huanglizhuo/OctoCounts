@@ -111,6 +111,9 @@
   },
   "error": {
     "privateRepo": "Los repositorios privados no están admitidos.",
+    "queueFull": "La cola de análisis está llena.",
+    "serviceUnavailable": "El servicio no está disponible temporalmente.",
+    "retryAfter": "Vuelve a intentarlo en {{seconds}} segundos.",
     "rateLimited": "Límite de velocidad de la API alcanzado. Inténtalo de nuevo más tarde.",
     "githubUnavailable": "GitHub no está disponible actualmente: el problema está del lado de GitHub, no de esta extensión. Inténtalo de nuevo en unos minutos.",
     "forbidden": "La solicitud a la API de OctoCounts fue bloqueada o rechazada.",

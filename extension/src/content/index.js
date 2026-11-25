@@ -138,11 +138,9 @@ function ensureMounted() {
   if (!plan?.shouldMount) return;
   if (mountState === STATE.MOUNT_FAILED && mountAttempts >= MOUNT_ATTEMPT_HARD_CAP) return;
 
-  let activity = getCardActivity();
-  // Errored beats mounted: a card showing its error surface still has a
-  // connected host, so it would read as "mounted", but the popup must see the
-  // failure. (card.js never sets errored and analyzing at the same time.)
-  if (activity.errored) {
+  const activity = getCardActivity();
+  // Restore a removed retry button without restarting the failed request.
+  if (activity.error && (activity.mounted || !activity.hadCard)) {
     mountState = STATE.API_ERROR;
     return;
   }
@@ -154,7 +152,6 @@ function ensureMounted() {
   // Restored page markup can contain a card whose callbacks were cancelled.
   if (document.querySelector('[data-octocount-card]')) {
     unmountCard();
-    activity = getCardActivity();
   }
 
   // Silent mode deliberately shows nothing until the API answers, and a failed
@@ -180,6 +177,7 @@ function ensureMounted() {
     owner,
     repo,
     ref,
+    previousError: activity.error,
     autoAnalyze: true,
     placement: settings.cardPlacement === 'bottom' ? 'bottom' : 'top',
     replaceGhLanguages: settings.replaceGhLanguages !== false,
@@ -193,7 +191,8 @@ function ensureMounted() {
     return;
   }
 
-  mountState = settings.silentUntilSuccess === true ? STATE.ANALYZING : STATE.MOUNTED;
+  if (activity.error) mountState = STATE.API_ERROR;
+  else mountState = getCardActivity().analyzing ? STATE.ANALYZING : STATE.MOUNTED;
 }
 
 function mountExhausted() {
@@ -315,13 +314,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_PAGE_STATUS') {
     const onRepoPage = isRepoPage();
     const info = onRepoPage ? parseRepoInfo() : {};
+    const activity = getCardActivity();
+    let state = onRepoPage ? mountState : STATE.NOT_REPO;
+    if (onRepoPage && plan?.shouldMount) {
+      if (activity.error) state = STATE.API_ERROR;
+      else if (activity.mounted) state = STATE.MOUNTED;
+    }
     sendResponse({
       isRepoPage: onRepoPage,
       isPrivateRepo: onRepoPage && isPrivateRepo(),
       visibility: onRepoPage ? getRepoVisibility() : 'unknown',
       owner: info.owner ?? null,
       repo: info.repo ?? null,
-      mountState: onRepoPage ? mountState : STATE.NOT_REPO,
+      mountState: state,
       strategy: document.querySelector('[data-octocount-card]')?.dataset.strategy ?? null,
     });
     return false;

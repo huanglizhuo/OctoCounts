@@ -111,6 +111,9 @@
   },
   "error": {
     "privateRepo": "Les dépôts privés ne sont pas pris en charge.",
+    "queueFull": "La file d’attente des analyses est pleine.",
+    "serviceUnavailable": "Le service est temporairement indisponible.",
+    "retryAfter": "Réessayez dans {{seconds}} secondes.",
     "rateLimited": "Limite de débit API atteinte. Réessayez plus tard.",
     "githubUnavailable": "GitHub est actuellement indisponible — le problème vient de GitHub, pas de cette extension. Réessayez dans quelques minutes.",
     "forbidden": "La requête API OctoCounts a été bloquée ou refusée.",

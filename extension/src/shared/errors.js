@@ -1,15 +1,8 @@
 import { t } from '../i18n/index.js';
 
-// Maps background error codes to localized, user-readable one-liners.
-// (classifyError returns {code, status, detail} without a message.)
-//
-// Every terminal code needs an entry here, because there is no second line of
-// defence: `classifyError` in `background/index.js` returns
-// `{ code, status, detail }` and drops the API's `message`, so the
-// `error?.message` term below is always `undefined`. An unmapped code
-// therefore renders as just "Analysis failed". `ref_not_found` also covers a
-// repository with no commits, which the API reports under this same code.
 const CODE_MAP = {
+  queue_full: t('error.queueFull'),
+  service_unavailable: t('error.serviceUnavailable'),
   rate_limited: t('error.rateLimited'),
   github_unavailable: t('error.githubUnavailable'),
   private_repo: t('error.privateRepo'),
@@ -24,5 +17,7 @@ const CODE_MAP = {
 };
 
 export function errorMessage(error) {
-  return CODE_MAP[error?.code] || error?.message || t('error.unknown');
+  const message = CODE_MAP[error?.code] || error?.message || t('error.unknown');
+  if (!(error?.retryAfterMs > 0)) return message;
+  return message + ' ' + t('error.retryAfter', { seconds: Math.ceil(error.retryAfterMs / 1000) });
 }

@@ -455,12 +455,13 @@ async function initGithubAccount() {
   loginBtn.addEventListener('click', async () => {
     loginBtn.disabled = true;
     try {
-      await chrome.runtime.sendMessage({ type: 'GITHUB_LOGIN' });
+      const reply = await chrome.runtime.sendMessage({ type: 'GITHUB_LOGIN' });
+      if (!reply?.login) throw new Error('Login failed');
+      await renderGithubAccountState();
     } catch (_) {
       $('githubAccountStatus').textContent = t('popup.githubLoginFailed');
     } finally {
       loginBtn.disabled = false;
-      await renderGithubAccountState();
     }
   });
 
@@ -505,7 +506,8 @@ function initClearCache() {
     btn.disabled = true;
     try {
       const res = await chrome.runtime.sendMessage({ type: 'CLEAR_CACHE' });
-      status.textContent = t('popup.clearCacheSuccess', { count: res.cleared ?? 0 });
+      if (!Number.isInteger(res?.cleared)) throw new Error('Cache clear failed');
+      status.textContent = t('popup.clearCacheSuccess', { count: res.cleared });
       status.className   = 'cache-status cache-status--ok';
       refreshCount();
     } catch (_) {

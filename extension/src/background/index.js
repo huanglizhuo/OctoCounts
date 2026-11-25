@@ -21,7 +21,7 @@ async function handleMessage(msg) {
       const { owner, repo, ref, forceRefresh = false } = msg;
 
       if (!forceRefresh) {
-        const cached = await getCached(owner, repo, ref);
+        const cached = await getCached(owner, repo, ref).catch(() => null);
         if (cached) return { type: 'CACHED', report: cached.report, cachedAt: cached.cachedAt };
 
         const inflight = await getInflight(owner, repo, ref);
@@ -38,7 +38,7 @@ async function handleMessage(msg) {
       const result = await analyze(owner, repo, ref, forceRefresh);
 
       if (result.kind === 'cached') {
-        await setCached(owner, repo, ref, result.report);
+        await cacheReport(owner, repo, ref, result.report);
         return { type: 'CACHED', report: result.report, cachedAt: Date.now() };
       }
 
@@ -54,20 +54,19 @@ async function handleMessage(msg) {
         job = await pollJob(jobId);
       } catch (err) {
         if (err.status === 404) {
-          await clearInflight(owner, repo, ref);
+          await clearInflight(owner, repo, ref, jobId);
         }
         throw err;
       }
 
       if (job.status === 'completed' && job.reportId) {
         const report = await fetchReport(job.reportId);
-        await setCached(owner, repo, ref, report);
-        await clearInflight(owner, repo, ref);
+        if (await clearInflight(owner, repo, ref, jobId)) await cacheReport(owner, repo, ref, report);
         return { type: 'COMPLETED', report };
       }
 
       if (job.status === 'failed') {
-        await clearInflight(owner, repo, ref);
+        await clearInflight(owner, repo, ref, jobId);
         return { type: 'FAILED', error: job.error };
       }
 
@@ -109,6 +108,14 @@ async function handleMessage(msg) {
   }
 }
 
+async function cacheReport(owner, repo, ref, report) {
+  try {
+    await setCached(owner, repo, ref, report);
+  } catch {
+    console.warn('OctoCounts could not cache the report locally');
+  }
+}
+
 function classifyError(err) {
   // fetchJson() aborts requests after 15s; surface that as a timeout rather
   // than an opaque unknown error.
@@ -120,6 +127,7 @@ function classifyError(err) {
   if (apiError?.code && apiError?.message) {
     return {
       code: apiError.code,
+      message: apiError.message,
       status: err.status,
       detail: apiError.detail || apiError.details || err.message || err.responseText || '',
       retryAfterMs: err.retryAfterMs,
@@ -127,9 +135,7 @@ function classifyError(err) {
   }
 
   if (err.status === 429) return { code: 'rate_limited', status: err.status, detail: err.message || err.responseText || '', retryAfterMs: err.retryAfterMs };
-  // Bare 503 (empty/unparseable body) is still the backend saying GitHub
-  // itself is down, not an OctoCounts failure.
-  if (err.status === 503) return { code: 'github_unavailable', status: err.status, detail: err.message || err.responseText || '', retryAfterMs: err.retryAfterMs };
+  if (err.status === 503) return { code: 'service_unavailable', status: err.status, detail: err.responseText || '', retryAfterMs: err.retryAfterMs };
   if (err.status === 403) return { code: 'forbidden', status: err.status, detail: err.responseText || '' };
   if (err.status === 413) return { code: 'too_large', status: err.status, detail: err.responseText || '' };
   if (err.status === 404) return { code: 'not_found', status: err.status, detail: err.responseText || '' };

@@ -22,7 +22,7 @@ const SKEL_MAX     = 5;
 
 let _pollTimer = null;
 let _pollStart = null;
-let _disabled = false;
+let _lastError = null;
 let _analyzing = false;
 let _pollOperation = 0;
 let _deadlineTimer = null;
@@ -40,10 +40,7 @@ export function unmountCard() {
   _generation++;
   stopPolling();
   _analyzing = false;
-  // Clearing _disabled matters: the entry point consults getCardActivity()
-  // *before* mounting, so an error left over from the previous repo would
-  // otherwise block the next one from ever getting a card.
-  _disabled = false;
+  _lastError = null;
   restoreGhLanguagesSection();
   teardownCardHost(_cardHost);
   _cardHost = null;
@@ -59,13 +56,68 @@ export function unmountCard() {
  * looks for the sidebar itself, and no longer retries on its own. Retrying is
  * the content entry point's job so there is exactly one retry mechanism.
  */
-export function mountCard({ mount, owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '' }) {
+export function mountCard({ mount, owner, repo, ref, autoAnalyze, placement = 'top', replaceGhLanguages = true, forceRefresh = false, silentUntilSuccess = false, cardTitle = '', previousError = null }) {
   if (!mount?.grid) return false;
 
   unmountCard();
   const gen = _generation;
 
-  return _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle, gen });
+  const ctx = { owner, repo, ref, replaceGhLanguages, cardTitle, languagesSection: mount.languagesSection };
+  let root;
+  function showCard() {
+    if (!root) {
+      const view = _createCardDom(mount, placement);
+      root = view.root;
+      ctx.shadow = view.shadow;
+    }
+    return root;
+  }
+
+  function retry() {
+    if (_generation !== gen) return;
+    _lastError = null;
+    renderLoading(showCard(), ctx);
+    run(true);
+  }
+
+  function run(force) {
+    _analyzing = !root;
+    startAnalysis({
+      owner, repo, ref, forceRefresh: force,
+      onStatus: status => {
+        const el = root?.querySelector('.oc-status');
+        if (el) el.textContent = t('card.' + status);
+      },
+      onCompleted: (report, cachedAt) => {
+        if (_generation !== gen) return;
+        _analyzing = false;
+        chrome.storage.local.remove('lastError').catch(() => {});
+        renderCompleted(showCard(), report, cachedAt, ctx, retry);
+      },
+      onError: error => {
+        if (_generation !== gen) return;
+        _analyzing = false;
+        if (error.code === 'analysis_required') {
+          renderIdle(showCard(), retry, cardTitle);
+          return;
+        }
+        _lastError = error;
+        saveError(error, owner, repo);
+        if (root || force) renderError(showCard(), error, ctx, retry);
+      },
+    });
+  }
+
+  if (previousError) {
+    _lastError = previousError;
+    renderError(showCard(), previousError, ctx, retry);
+  } else if (autoAnalyze || forceRefresh) {
+    if (!silentUntilSuccess) renderLoading(showCard(), ctx);
+    run(forceRefresh);
+  } else {
+    renderIdle(showCard(), retry, cardTitle);
+  }
+  return true;
 }
 
 function _createCardDom(mount, placement) {
@@ -107,128 +159,10 @@ function _createCardDom(mount, placement) {
   return { host, root, shadow };
 }
 
-function _doMount(mount, { owner, repo, ref, autoAnalyze, placement, replaceGhLanguages, forceRefresh, silentUntilSuccess, cardTitle = '', gen }) {
-  const languagesSection = mount.languagesSection || null;
-
-  // Silent mode: don't insert a card until the API returns success
-  if (silentUntilSuccess) {
-    if (autoAnalyze || forceRefresh) {
-      _analyzing = true;
-      _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen });
-    } else {
-      // Idle card with button; on click remove it and run silently
-      const { host, root } = _createCardDom(mount, placement);
-      renderIdle(root, () => {
-        teardownCardHost(host);
-        _analyzing = true;
-        _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh: true, cardTitle, gen });
-      }, cardTitle);
-    }
-    return true;
-  }
-
-  // Default mode: insert card immediately with loading/idle UI
-  const { root, shadow } = _createCardDom(mount, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle, languagesSection };
-
-  function runAnalysis(force) {
-    startAnalysis({
-      owner, repo, ref, forceRefresh: force,
-      onStatus: (status) => {
-        if (_generation !== gen) return;
-        const el = root.querySelector('.oc-status');
-        if (el) el.textContent = t('card.' + status);
-      },
-      onCompleted: (report, cachedAt) => {
-        if (_generation !== gen) return;
-        chrome.storage.local.remove('lastError').catch(() => {});
-        renderCompleted(root, report, cachedAt, ctx, () => {
-          renderLoading(root, ctx, 'analyzing');
-          runAnalysis(true);
-        });
-      },
-      onError: (error) => {
-        if (_generation !== gen) return;
-        if (error.code === 'analysis_required') {
-          renderIdle(root, () => { renderLoading(root, ctx); runAnalysis(true); }, cardTitle);
-          return;
-        }
-        _disabled = true;
-        saveError(error, owner, repo);
-        renderError(root, error, ctx, () => {
-          if (_generation !== gen) return;
-          _disabled = false;
-          renderLoading(root, ctx, 'analyzing');
-          runAnalysis(true);
-        });
-      },
-    });
-  }
-
-  if (autoAnalyze || forceRefresh) {
-    renderLoading(root, ctx);
-    runAnalysis(forceRefresh);
-  } else {
-    renderIdle(root, () => {
-      renderLoading(root, ctx);
-      runAnalysis(true);
-    }, cardTitle);
-  }
-
-  return true;
-}
-
-// Silent path: no card inserted until API succeeds
-function _launchSilentAnalysis(mount, { owner, repo, ref, placement, replaceGhLanguages, forceRefresh, cardTitle, gen }) {
-  startAnalysis({
-    owner, repo, ref, forceRefresh,
-    onCompleted: (report, cachedAt) => {
-      if (_generation !== gen) return;
-      _analyzing = false;
-      chrome.storage.local.remove('lastError').catch(() => {});
-      _insertCompletedCard(mount, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt });
-    },
-    onError: (error) => {
-      if (_generation !== gen) return;
-      _analyzing = false;
-      _disabled = true;
-      if (error.code !== 'analysis_required') saveError(error, owner, repo);
-    },
-  });
-}
-
-function _insertCompletedCard(mount, { owner, repo, ref, placement, replaceGhLanguages, cardTitle, report, cachedAt }) {
-  const { root, shadow } = _createCardDom(mount, placement);
-  const ctx = { owner, repo, ref, shadow, replaceGhLanguages, cardTitle, languagesSection: mount.languagesSection || null };
-
-  function onRefresh() {
-    const refreshBtn = root.querySelector('.oc-refresh-btn');
-    if (refreshBtn) refreshBtn.disabled = true;
-
-    startAnalysis({
-      owner, repo, ref, forceRefresh: true,
-      onCompleted: (newReport, newCachedAt) => {
-        chrome.storage.local.remove('lastError').catch(() => {});
-        renderCompleted(root, newReport, newCachedAt, ctx, onRefresh);
-      },
-      onError: (error) => {
-        _disabled = true;
-        saveError(error, owner, repo);
-        renderError(root, error, ctx, () => {
-          _disabled = false;
-          onRefresh();
-        });
-      },
-    });
-  }
-
-  renderCompleted(root, report, cachedAt, ctx, onRefresh);
-}
-
 // Why there is legitimately no card on screen right now, so the entry point can
 // tell "still working" apart from "we failed to find a mount point".
 export function getCardActivity() {
-  return { mounted: _cardHost?.isConnected === true, analyzing: _analyzing, errored: _disabled };
+  return { mounted: _cardHost?.isConnected === true, hadCard: !!_cardHost, analyzing: _analyzing, error: _lastError };
 }
 
 function getTheme() {
@@ -587,6 +521,7 @@ async function saveError(error, owner, repo) {
     code: error?.code || 'unknown',
     message: error?.message || t('card.error.title'),
     status: error?.status || null,
+    retryAfterMs: error?.retryAfterMs ?? null,
     detail: error?.detail || '',
     timestamp: Date.now(),
   };
@@ -650,7 +585,7 @@ async function startAnalysis({ owner, repo, ref, forceRefresh, onCompleted, onEr
           handleError({ code: 'unknown', message: t('card.error.title') });
           return;
         }
-        onStatus?.('running');
+        onStatus?.(poll.status === 'queued' ? 'queued' : 'running');
         _pollTimer = setTimeout(pollUntilDone, pollingInterval(Date.now() - _pollStart));
       } else if (poll.type === 'FAILED') {
         handleError(poll.error || { code: 'unknown', message: t('card.error.title') });

@@ -56,7 +56,7 @@ function jsonResponse(payload) {
   };
 }
 
-async function harness() {
+async function harness(fetchResponse) {
   const local = storageArea();
   const sync = storageArea();
   const session = storageArea();
@@ -70,14 +70,15 @@ async function harness() {
   };
   runInNewContext(source, {
     chrome,
-    fetch: async (url, init) => {
+    fetch: fetchResponse ?? (async (url, init) => {
       analyzeCalls.push({ url, body: JSON.parse(init.body) });
       await new Promise(resolve => { analyzeGates.push(resolve); });
       return jsonResponse({ kind: 'job', jobId: `job-${analyzeCalls.length}` });
-    },
+    }),
     setTimeout, clearTimeout, AbortController, DOMException, console,
   });
   return {
+    local,
     analyzeCalls,
     inflight: (owner, repo, ref = 'HEAD') =>
       session.store[`inflight::${owner}/${repo}@${encodeURIComponent(ref || 'HEAD')}`] ?? null,
@@ -118,4 +119,63 @@ test('forceRefresh clears the stale in-flight entry before the new job is set', 
   h.releaseAnalyze();
   assert.equal((await forced).jobId, 'job-2');
   assert.equal(h.inflight('octo', 'demo', 'main').jobId, 'job-2');
+});
+
+const repo = { owner: 'octo', repo: 'demo', ref: 'main' };
+
+test('cache write failure still delivers cached and newly completed reports', async () => {
+  const report = { id: 'report', total: { code: 42 } };
+  let startJob = false;
+  const h = await harness(async url => {
+    if (url.includes('/jobs/')) return jsonResponse({ status: 'completed', reportId: report.id });
+    if (url.includes('/reports/')) return jsonResponse(report);
+    return jsonResponse(startJob ? { kind: 'job', jobId: 'done' } : { kind: 'cached', report });
+  });
+  h.local.set = async () => { throw new Error('write failed'); };
+  const cached = await h.send({ type: 'ANALYZE', ...repo });
+  assert.equal(cached.type, 'CACHED');
+  assert.equal(cached.report.id, report.id);
+  startJob = true;
+  assert.equal((await h.send({ type: 'ANALYZE', ...repo })).jobId, 'done');
+  const completed = await h.send({ type: 'POLL', jobId: 'done', ...repo });
+  assert.equal(completed.type, 'COMPLETED');
+  assert.equal(completed.report.id, report.id);
+});
+
+for (const status of ['failed', 'completed', 'missing']) {
+  test(`a late ${status} poll cannot remove its successor or serve a stale cached report`, async () => {
+    let id = 'old';
+    const h = await harness(async url => {
+      if (url.includes('/reports/')) return jsonResponse({ id: 'old-report' });
+      if (url.includes('/jobs/')) {
+        if (status === 'missing') return Response.json({ code: 'job_not_found', message: 'Job expired' }, { status: 404 });
+        return jsonResponse({ status, reportId: 'old-report', error: { code: 'failed' } });
+      }
+      return jsonResponse({ kind: 'job', jobId: id });
+    });
+    await h.send({ type: 'ANALYZE', ...repo });
+    id = 'new';
+    await h.send({ type: 'ANALYZE', forceRefresh: true, ...repo });
+    await h.send({ type: 'POLL', jobId: 'old', ...repo });
+    assert.equal(h.inflight('octo', 'demo', 'main')?.jobId, 'new');
+    assert.equal((await h.send({ type: 'ANALYZE', ...repo })).jobId, 'new');
+  });
+}
+
+test('a structured upstream outage and an unclassified 503 remain distinguishable', async () => {
+  const plain = await harness(async () => new Response('Unavailable', { status: 503 }));
+  const upstream = await harness(async () => Response.json({
+    code: 'github_unavailable', message: 'GitHub unavailable',
+  }, { status: 503 }));
+  assert.equal((await plain.send({ type: 'ANALYZE', ...repo })).error.code, 'service_unavailable');
+  assert.equal((await upstream.send({ type: 'ANALYZE', ...repo })).error.code, 'github_unavailable');
+});
+
+test('queue rejection preserves the API message and retry delay', async () => {
+  const h = await harness(async () => Response.json({
+    code: 'queue_full', message: 'Queue full', requestAccepted: false,
+  }, { status: 503, headers: { 'Retry-After': '30' } }));
+  const { error } = await h.send({ type: 'ANALYZE', ...repo });
+  assert.equal(error.message, 'Queue full');
+  assert.equal(error.retryAfterMs, 30000);
 });
