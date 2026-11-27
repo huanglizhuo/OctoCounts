@@ -41,8 +41,8 @@ export async function analyzeRepository(request: {
   }, { onRetry: request.onRetry });
 }
 
-export function fetchGrowthStats() {
-  return fetchJson<GrowthStats>("/api/stats");
+export function fetchGrowthStats(signal?: AbortSignal) {
+  return fetchJson<GrowthStats>("/api/stats", { signal });
 }
 
 export async function analyzeAndWait(request: { repoUrl: string; refName: string; options?: AnalysisOptions; signal?: AbortSignal }): Promise<Report> {
@@ -82,9 +82,9 @@ export async function analyzeAndWait(request: { repoUrl: string; refName: string
   }
 }
 
-export function fetchRepoHistory(provider: string, owner: string, repo: string) {
+export function fetchRepoHistory(provider: string, owner: string, repo: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ provider, owner, repo });
-  return fetchJson<RepoHistory>(`/api/seo/repo-history?${params.toString()}`);
+  return fetchJson<RepoHistory>(`/api/seo/repo-history?${params.toString()}`, { signal });
 }
 
 // The canonical (default-analysis-profile) report the indexed report page
@@ -95,9 +95,9 @@ export function fetchRepoHistory(provider: string, owner: string, repo: string) 
 // same footing. The SEO projection differs from Report only in flattening
 // repository identity to top-level owner/repo fields; the adapter below is
 // the whole mapping.
-export async function fetchCanonicalReport(provider: string, owner: string, repo: string): Promise<Report> {
+export async function fetchCanonicalReport(provider: string, owner: string, repo: string, signal?: AbortSignal): Promise<Report> {
   const params = new URLSearchParams({ provider, owner, repo });
-  const seo = await fetchJson<SeoReportSnapshot>(`/api/seo/report?${params.toString()}`);
+  const seo = await fetchJson<SeoReportSnapshot>(`/api/seo/report?${params.toString()}`, { signal });
   return {
     id: seo.reportId ?? "",
     repository: { owner: seo.owner, name: seo.repo, htmlUrl: seo.htmlUrl, provider: "github" },

@@ -415,7 +415,16 @@ fn spawn_stats_refresh_task(state: AppState) {
                 tracing::warn!(%error, "growth stats refresh failed");
             }
             match store.stored_growth_stats().await {
-                Ok(Some(stats)) => state.caches.stats.insert("stats".to_string(), stats).await,
+                Ok(Some(stats)) => match serde_json::to_vec(&stats) {
+                    Ok(bytes) => {
+                        state
+                            .caches
+                            .stats
+                            .insert("stats".to_string(), bytes::Bytes::from(bytes))
+                            .await;
+                    }
+                    Err(error) => tracing::warn!(%error, "could not serialize shared growth stats"),
+                },
                 Ok(None) => {}
                 Err(error) => tracing::warn!(%error, "could not load the shared growth stats"),
             }

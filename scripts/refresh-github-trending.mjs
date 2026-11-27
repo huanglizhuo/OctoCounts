@@ -60,28 +60,38 @@ export async function fetchTrending(fetchImpl = fetch, limit = 20) {
 }
 
 export async function enrichTrending(repositories, fetchImpl = fetch, apiBase = DEFAULT_API_BASE) {
-  const enriched = [];
-  for (const repo of repositories) {
-    let sloc = null;
-    try {
-      const params = new URLSearchParams({ provider: "github", owner: repo.owner, repo: repo.name });
-      const response = await fetchImpl(`${apiBase.replace(/\/$/, "")}/api/seo/report?${params}`, {
-        headers: { accept: "application/json" },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) throw new Error(`Report returned ${response.status}`);
-      const report = await response.json();
-      // The SEO endpoint selects the canonical counting profile, shared by public reports.
-      if (report.provider !== "github" || report.repoFullName?.toLowerCase() !== repo.fullName.toLowerCase()) {
-        throw new Error("Report repository does not match");
+  const base = apiBase.replace(/\/$/, "");
+  const enriched = new Array(repositories.length);
+  const concurrency = Math.min(5, Math.max(1, repositories.length));
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < repositories.length) {
+      const index = cursor++;
+      const repo = repositories[index];
+      let sloc = null;
+      try {
+        const params = new URLSearchParams({ provider: "github", owner: repo.owner, repo: repo.name });
+        const response = await fetchImpl(`${base}/api/seo/report?${params}`, {
+          headers: { accept: "application/json" },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`Report returned ${response.status}`);
+        const report = await response.json();
+        // The SEO endpoint selects the canonical counting profile, shared by public reports.
+        if (report.provider !== "github" || report.repoFullName?.toLowerCase() !== repo.fullName.toLowerCase()) {
+          throw new Error("Report repository does not match");
+        }
+        sloc = trendingSloc({ code: report.total?.code, generatedAt: report.generatedAt, reportId: report.reportId });
+        if (!sloc) throw new Error("Report has invalid SLOC, timestamp or ID");
+      } catch (error) {
+        console.warn(`No SLOC for ${repo.fullName}: ${error.message}`);
       }
-      sloc = trendingSloc({ code: report.total?.code, generatedAt: report.generatedAt, reportId: report.reportId });
-      if (!sloc) throw new Error("Report has invalid SLOC, timestamp or ID");
-    } catch (error) {
-      console.warn(`No SLOC for ${repo.fullName}: ${error.message}`);
+      enriched[index] = { ...repo, sloc };
     }
-    enriched.push({ ...repo, sloc });
   }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return enriched;
 }
 

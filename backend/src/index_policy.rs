@@ -14,7 +14,7 @@
 
 use axum::{
     extract::Request,
-    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode},
+    http::{header, HeaderMap, HeaderName, HeaderValue},
     middleware::Next,
     response::Response,
 };
@@ -41,17 +41,22 @@ const NOINDEX: &str = "noindex";
 /// Axum middleware: adds the index directive to machine-readable responses.
 /// A handler that already set `X-Robots-Tag` or a canonical `Link` keeps it.
 pub async fn tag_indexing(request: Request, next: Next) -> Response {
-    let path = request.uri().path().to_owned();
+    let should_noindex = robots_tag_for(request.uri().path()).is_some();
     let mut response = next.run(request).await;
-    if response.headers().contains_key(&X_ROBOTS_TAG) || has_canonical_link(response.headers()) {
+    if !should_noindex
+        || !response.status().is_success()
+        || response.headers().contains_key(&X_ROBOTS_TAG)
+        || has_canonical_link(response.headers())
+    {
         return response;
     }
-    apply(&path, response.status(), response.headers_mut());
+    set_noindex(response.headers_mut());
     response
 }
 
 /// Pure form of the policy, so it can be asserted without a router.
-pub fn apply(path: &str, status: StatusCode, headers: &mut HeaderMap) {
+#[cfg(test)]
+pub fn apply(path: &str, status: axum::http::StatusCode, headers: &mut HeaderMap) {
     // Only a successful response is a resource worth keeping out of an index;
     // an outage's 503 must never read as "this URL should not be indexed".
     if status.is_success() && robots_tag_for(path).is_some() {
@@ -117,7 +122,7 @@ fn has_canonical_link(headers: &HeaderMap) -> bool {
 mod tests {
     use axum::{
         body::Body,
-        http::{header, Request},
+        http::{header, Request, StatusCode},
         routing::get,
         Router,
     };

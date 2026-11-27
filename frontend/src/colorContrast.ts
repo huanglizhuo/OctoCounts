@@ -12,7 +12,7 @@ export const MIN_GRAPHIC_CONTRAST = 3.2;
 // color darker than the theme's dim ink — paper --fg-dim, oklch(38% 0.013 90)
 // ≈ #45423b, HSL lightness .25 — up to that floor, keeping hue and
 // saturation so colored languages stay recognizable.
-export const PAPER_MIN_LIGHTNESS = 0.25;
+const PAPER_MIN_LIGHTNESS = 0.25;
 
 export function visibleLanguageColor(color: string, scheme: Scheme): string {
   if (scheme === "paper") {

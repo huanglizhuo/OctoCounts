@@ -2536,6 +2536,7 @@ impl Store {
         self.fetch_throttled_report_body(sql, id).await
     }
 
+    #[cfg(test)]
     pub async fn latest_report(
         &self,
         provider: RepositoryProvider,
@@ -2564,6 +2565,62 @@ impl Store {
             .transpose()?
             .map(|body| Ok(serde_json::from_str(&body)?))
             .transpose()
+    }
+
+    /// Lightweight projection for `/og/*` share cards: exact same row selection
+    /// as [`Store::latest_report`], reading only the header fields, totals, and
+    /// top 5 languages instead of shipping and parsing the full JSONB body.
+    pub async fn latest_og_summary(
+        &self,
+        provider: RepositoryProvider,
+        owner: &str,
+        repo: &str,
+    ) -> anyhow::Result<Option<OgReportSummary>> {
+        let row = sqlx::query(concat!(
+            r#"
+            SELECT
+                r.owner AS owner,
+                r.repo AS repo,
+                r.body->>'refName' AS ref_name,
+                r.body->>'commitSha' AS commit_sha,
+                r.body->>'durationMs' AS duration_ms,
+                (r.body->'total')::text AS total,
+                COALESCE((
+                    SELECT jsonb_agg(entry ORDER BY idx)
+                    FROM jsonb_array_elements(r.body->'languages')
+                         WITH ORDINALITY AS elements(entry, idx)
+                    WHERE idx <= 5
+                ), '[]'::jsonb)::text AS languages
+            FROM reports r
+            WHERE r.provider = $1 AND r.owner = $2 AND r.repo = $3
+              AND "#,
+            latest_eligible!("r"),
+            r#"
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            "#
+        ))
+        .bind(provider_to_str(&provider))
+        .bind(owner)
+        .bind(repo)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|row| {
+            let duration_ms: String = row.try_get("duration_ms")?;
+            let total: String = row.try_get("total")?;
+            let languages: String = row.try_get("languages")?;
+            Ok(OgReportSummary {
+                owner: row.try_get("owner")?,
+                repo: row.try_get("repo")?,
+                ref_name: row.try_get("ref_name")?,
+                commit_sha: row.try_get("commit_sha")?,
+                duration_ms: duration_ms.parse()?,
+                total: serde_json::from_str(&total)?,
+                languages: serde_json::from_str(&languages)?,
+            })
+        })
+        .transpose()
     }
 
     /// The newest canonical report for one repository, projected as a
@@ -2968,33 +3025,33 @@ impl Store {
             return Ok(Vec::new());
         }
 
-        let mut sql = String::from("WITH wanted(provider, owner, repo) AS (VALUES ");
-        for index in 0..wanted.len() {
-            if index > 0 {
-                sql.push_str(", ");
-            }
-            let base = index * 3 + 1;
-            sql.push_str(&format!(
-                "(${base}::text, ${}::text, ${}::text)",
-                base + 1,
-                base + 2
-            ));
-        }
-        sql.push_str(
-            ") SELECT DISTINCT w.provider, w.owner, w.repo \
-             FROM wanted w \
-             JOIN reports r ON r.provider = w.provider AND r.owner = w.owner AND r.repo = w.repo \
-             WHERE ",
-        );
-        sql.push_str(canonical_options_sql!("r"));
-        sql.push_str(" AND ");
-        sql.push_str(latest_eligible!("r"));
+        let providers: Vec<&str> = wanted
+            .iter()
+            .map(|(provider, _, _)| provider_to_str(provider))
+            .collect();
+        let owners: Vec<&str> = wanted.iter().map(|(_, owner, _)| owner.as_str()).collect();
+        let repos: Vec<&str> = wanted.iter().map(|(_, _, repo)| repo.as_str()).collect();
 
-        let mut query = sqlx::query(&sql);
-        for (provider, owner, repo) in wanted {
-            query = query.bind(provider_to_str(provider)).bind(owner).bind(repo);
-        }
-        let rows = query.fetch_all(&self.pool).await?;
+        let rows = sqlx::query(concat!(
+            "WITH ",
+            live_snapshots_cte!(),
+            r#",
+            wanted(provider, owner, repo) AS (
+                SELECT * FROM unnest($1::text[], $2::text[], $3::text[])
+            )
+            SELECT DISTINCT w.provider, w.owner, w.repo
+            FROM wanted w
+            JOIN reports r ON r.provider = w.provider AND r.owner = w.owner AND r.repo = w.repo
+            WHERE "#,
+            canonical_options_sql!("r"),
+            " AND ",
+            latest_eligible_hashed!("r"),
+        ))
+        .bind(&providers)
+        .bind(&owners)
+        .bind(&repos)
+        .fetch_all(&self.pool)
+        .await?;
 
         rows.into_iter()
             .map(|row| {
@@ -3098,14 +3155,15 @@ impl Store {
     }
 
     pub async fn growth_stats(&self) -> anyhow::Result<GrowthStats> {
-        let totals = self.growth_totals().await?;
-        let windows = self.growth_windows().await?;
-        let sources = self.growth_sources().await?;
-        let languages = self.growth_languages().await?;
-        let top_repositories = self
-            .growth_repository_list(ReportOrder::Monolith, 12)
-            .await?;
-        let recent_repositories = self.growth_repository_list(ReportOrder::Recent, 12).await?;
+        let (totals, windows, sources, languages, top_repositories, recent_repositories) =
+            tokio::try_join!(
+                self.growth_totals(),
+                self.growth_windows(),
+                self.growth_sources(),
+                self.growth_languages(),
+                self.growth_repository_list(ReportOrder::Monolith, 12),
+                self.growth_repository_list(ReportOrder::Recent, 12),
+            )?;
 
         Ok(GrowthStats {
             totals,
@@ -4044,6 +4102,18 @@ async fn report_row_count(
 /// How many languages an SEO card carries. The card also reports the *full*
 /// language count in its prose, which is why `ReportCard` keeps both.
 pub const SEO_CARD_LANGUAGES: usize = 12;
+
+/// Narrow projection of a repository's latest report for OG share cards.
+#[derive(Clone, Debug)]
+pub struct OgReportSummary {
+    pub owner: String,
+    pub repo: String,
+    pub ref_name: String,
+    pub commit_sha: String,
+    pub duration_ms: u128,
+    pub total: LanguageStats,
+    pub languages: Vec<LanguageReport>,
+}
 
 /// Everything the SEO cards and the growth-stats repository lists need from a
 /// report, and nothing else. Deliberately not a `Report`: the point is to never

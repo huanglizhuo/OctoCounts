@@ -245,7 +245,6 @@ export function GrowthSection({
   onScene,
 }: {
   report: Report;
-  stars?: number | null;
   /** Reports the built scene up (Runner's sticky-bar PNG export reuses it). */
   onScene?: (scene: GrowthScene) => void;
 }) {
@@ -259,7 +258,7 @@ export function GrowthSection({
   // the interval polls the endpoint to completion.
   const historyQuery = useQuery({
     queryKey: ["repo-history", provider, owner, repo],
-    queryFn: () => fetchRepoHistory(provider, owner, repo),
+    queryFn: ({ signal }) => fetchRepoHistory(provider, owner, repo, signal),
     staleTime: 60 * 1000,
     retry: false,
     refetchInterval: (query) => (query.state.data?.slocBackfillInProgress ? BACKFILL_POLL_INTERVAL_MS : false),
@@ -273,7 +272,7 @@ export function GrowthSection({
   // report remains the fallback rather than blocking the section.
   const canonical = useQuery({
     queryKey: ["canonical-report", provider, owner, repo],
-    queryFn: () => fetchCanonicalReport(provider, owner, repo),
+    queryFn: ({ signal }) => fetchCanonicalReport(provider, owner, repo, signal),
     staleTime: 60 * 1000,
     retry: false,
   });

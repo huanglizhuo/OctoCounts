@@ -17,9 +17,10 @@ export function SimilarRepos({ report }: { report: Report }) {
   const provider = normalizedProvider(report);
   const query = useQuery({
     queryKey: ["related-reports", provider, report.repository.owner, report.repository.name],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       fetchJson<{ reports: RelatedReport[] }>(
         `/api/seo/related?provider=${encodeURIComponent(provider)}&owner=${encodeURIComponent(report.repository.owner)}&repo=${encodeURIComponent(report.repository.name)}`,
+        { signal },
       ),
     staleTime: 60 * 60 * 1000,
     retry: 0,

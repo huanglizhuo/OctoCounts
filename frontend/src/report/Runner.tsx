@@ -291,7 +291,7 @@ export function Runner({ command, status, report, error, errorCode, waitingMessa
                 entry bundle; null fallback — a shared boundary would flash
                 siblings back to a fallback when this chunk resolves. */}
             <Suspense fallback={null}>
-              <GrowthSection report={report} stars={stars} />
+              <GrowthSection report={report} />
             </Suspense>
             {/* Summary, Charts and the action bar stay eager: they are the
                 content the visitor is waiting for. Everything below is a

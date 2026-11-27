@@ -92,9 +92,19 @@ export async function onRequest(context) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+const TEXT_ENCODER = new TextEncoder();
+const REPO_TAG_CACHE_MAX = 10_000;
+const repoTagCache = new Map();
+
 async function repositoryCacheTag(provider, owner, repo) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${provider}:${owner}/${repo}`.toLowerCase()));
-  return "octo-repo-" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  const key = `${provider}:${owner}/${repo}`.toLowerCase();
+  const cached = repoTagCache.get(key);
+  if (cached) return cached;
+  const digest = await crypto.subtle.digest("SHA-256", TEXT_ENCODER.encode(key));
+  const tag = "octo-repo-" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  if (repoTagCache.size >= REPO_TAG_CACHE_MAX) repoTagCache.clear();
+  repoTagCache.set(key, tag);
+  return tag;
 }
 
 async function routeRequest(context) {
@@ -470,6 +480,7 @@ async function reportResponse(context, route, options = {}) {
   // "missing"/"unavailable" exits below simply leave its promise unresolved
   // without rejection risk.
   const relatedPromise = fetchRelatedReports(context, route);
+  const indexPromise = options.markdown ? null : indexHtml(context);
   // Server-Timing for this route: the two upstream waits and the render.
   const spans = {};
   const reportStarted = Date.now();
@@ -480,16 +491,16 @@ async function reportResponse(context, route, options = {}) {
       const message = "This saved result is no longer available. Open the repository report to request a new analysis.";
       if (options.markdown) return markdownResponse(message, "private, no-store", { ...options, status: 404 });
       const meta = reportUnavailableMeta(route);
-      return htmlResponse(injectHeadAndNoscript(await indexHtml(context), { ...meta, robots: "noindex,follow", title: `${route.owner}/${route.repo}: saved result unavailable | OctoCounts`, description: message, bodyContent: `<p>${escapeHtml(message)}</p>` }), "private, no-store", { status: 404 });
+      return htmlResponse(injectHeadAndNoscript(await indexPromise, { ...meta, robots: "noindex,follow", title: `${route.owner}/${route.repo}: saved result unavailable | OctoCounts`, description: message, bodyContent: `<p>${escapeHtml(message)}</p>` }), "private, no-store", { status: 404 });
     }
     if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
-    return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
+    return htmlResponse(injectFallback(await indexPromise, route), "public, max-age=60", { status: 404 });
   }
   if (result.state === "unavailable") {
-    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route), options);
+    return serviceUnavailableResponse(options.markdown ? "" : await indexPromise, reportUnavailableMeta(route), options);
   }
 
-  const report = await result.response.json();
+  const report = result.report;
   // A renamed repository still answers here: the API resolves the requested
   // slug through its recorded redirect chain and returns the row's payload
   // with `canonicalSlug` ("react/react" for a /github/facebook/react request)
@@ -523,7 +534,7 @@ async function reportResponse(context, route, options = {}) {
   // flagged across /github/* pages. Fail closed: 503 + no-store (never
   // cached) asks crawlers to retry instead of indexing wrong content.
   if (!reportMatchesRoute(report, route)) {
-    return serviceUnavailableResponse(await indexHtml(context), reportUnavailableMeta(route), options);
+    return serviceUnavailableResponse(options.markdown ? "" : await indexPromise, reportUnavailableMeta(route), options);
   }
   if (route.refName && !report.isSnapshot) {
     const refPath = route.refName.split("/").map(encodeURIComponent).join("/");
@@ -546,7 +557,7 @@ async function reportResponse(context, route, options = {}) {
   const reportFiles = report.total?.files;
   if (!report.isSnapshot && typeof reportFiles === "number" && reportFiles < MIN_INDEXABLE_REPORT_FILES) {
     if (options.markdown) return markdownResponse(reportMissingMarkdown(route), "public, max-age=60", { ...options, status: 404 });
-    return htmlResponse(injectFallback(await indexHtml(context), route), "public, max-age=60", { status: 404 });
+    return htmlResponse(injectFallback(await indexPromise, route), "public, max-age=60", { status: 404 });
   }
   // The similar-repositories panel is an enhancement: the page must render
   // identically whether or not the related endpoint answers.
@@ -568,7 +579,7 @@ async function reportResponse(context, route, options = {}) {
     const rootRoute = { owner: report.owner, repo: report.repo };
     const root = await fetchSeoReport(context, rootRoute, 1000);
     if (root.state === "ok") {
-      const current = await root.response.json();
+      const current = root.report;
       if (reportMatchesRoute(current, rootRoute) && current.reportId === report.reportId && current.refName === route.refName) {
         report.canonicalUrl = `https://octocounts.com/github/${encodeURIComponent(report.owner)}/${encodeURIComponent(report.repo)}`;
       }
@@ -584,13 +595,13 @@ async function reportResponse(context, route, options = {}) {
     return response;
   }
   const renderStarted = Date.now();
-  const html = injectReport(await indexHtml(context), report, apiBase(context), relatedReports);
+  const html = injectReport(await indexPromise, report, apiBase(context), relatedReports);
   spans.render = Date.now() - renderStarted;
   if (report.isSnapshot) {
     return htmlResponse(html, "private, no-store", {});
   }
   // Validate the whole representation: templates and related links can change without a new analysis.
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
+  const digest = await crypto.subtle.digest("SHA-256", TEXT_ENCODER.encode(html));
   const etag = `W/"${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}"`;
   const validators = context.request.headers.get("if-none-match")?.split(",") ?? [];
   if (validators.some((value) => value.trim() === "*" || value.trim().replace(/^W\//, "") === etag.slice(2))) {
@@ -795,36 +806,6 @@ async function listPageResponse(context, kind, url) {
   );
 }
 
-/// Substantive content for when the list is empty.
-///
-/// Sized as a self-contained block that answers the page's own question without
-/// needing the surrounding page, which is the shape answer engines quote. The
-/// navigation is repeated here because this is the state in which a crawler has
-/// nothing else on the page to follow.
-function listPageFallback(kind) {
-  const intro = {
-    recent:
-      "This page lists the public GitHub repositories most recently measured by OctoCounts. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
-    popular:
-      "This page ranks the OctoCounts reports of the most-starred public GitHub repositories, by GitHub stars at each repository's last analysis. Each entry links to a full source line count for a public GitHub repository, giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
-    monoliths:
-      "The Hall of Monoliths ranks the largest public GitHub repositories OctoCounts has measured, ordered by code lines, which exclude comments and blank lines. Repositories whose largest language is a data format, and near-identical copies of a larger repository, are left out. Each entry links to a full report giving files, total lines, code lines, comments, blanks, and a per-language breakdown, pinned to the exact commit that was counted.",
-  }[kind];
-
-  return `<p>${intro}</p>
-    <p>OctoCounts counts lines of code without cloning: it downloads a repository's source archive, runs <a href="https://github.com/XAMPPRocky/tokei">tokei</a>, and caches the result by commit SHA and analysis options. Counting any public GitHub repository is free and needs no account &mdash; paste a repository URL on the <a href="/">OctoCounts home page</a>.</p>
-    <p>No eligible reports are available yet. Explore another collection or analyze a repository:</p>
-    <nav aria-label="Related OctoCounts pages"><ul>
-      <li><a href="/recent">Recently analyzed repositories</a></li>
-      <li><a href="/popular">Popular SLOC reports</a></li>
-      <li><a href="/hall-of-monoliths">Hall of Monoliths: largest repositories by lines of code</a></li>
-      <li><a href="/languages">Largest codebases by programming language</a></li>
-      ${kind === "monoliths" ? '<li><a href="/docs/largest-codebases">How many lines of code? The largest codebases, counted</a></li>' : ""}
-      <li><a href="/trending">Trending GitHub repositories</a></li>
-      <li><a href="/docs/methodology">How OctoCounts counts lines of code</a></li>
-    </ul></nav>`;
-}
-
 /// Hub pages expose a crawlable slice of the report inventory, advancing a
 /// full batch each UTC day so reports outside the ranked lists also get links.
 /// The same inventory and day produce the same links for a coherent cache.
@@ -858,12 +839,6 @@ async function fetchRotatingReportLocs(context) {
 
 function reportLocName(loc) {
   return decodeURIComponent(loc.replace("https://octocounts.com/github/", ""));
-}
-
-function moreReportsHtml(locs) {
-  if (!locs.length) return "";
-  const items = locs.map((loc) => `<li><a href="${escapeAttr(loc)}">${escapeHtml(reportLocName(loc))}</a></li>`).join("");
-  return `<section><h2>More repository reports</h2><ul>${items}</ul></section>`;
 }
 
 /// Visible heading for a page whose <title> ends in the " | OctoCounts" brand.
@@ -904,16 +879,17 @@ function trendingMarkdown(snapshot) {
 }
 
 async function trendingPageResponse(context, options = {}) {
-  const snapshot = await trendingSnapshot(context);
-  if (!snapshot) return collectionUnavailableResponse(context, "/trending", TRENDING_TITLE, options);
+  const snapshotPromise = trendingSnapshot(context);
   const rotatingPromise = fetchRotatingReportLocs(context);
+  const indexPromise = options.markdown ? null : indexHtml(context);
+  const snapshot = await snapshotPromise;
+  if (!snapshot) return collectionUnavailableResponse(context, "/trending", TRENDING_TITLE, options);
   if (options.markdown) {
     return markdownResponse(trendingMarkdown(snapshot) + moreReportsMarkdown(await rotatingPromise), "public, s-maxage=300, stale-while-revalidate=600", options);
   }
-  const index = await indexHtml(context);
+  const [index, rotating] = await Promise.all([indexPromise, rotatingPromise]);
   const title = TRENDING_TITLE;
   const description = trendingDescription(snapshot);
-  const rotating = await rotatingPromise;
   const explore = await exploreMarkup(context, {
     "octocounts-trending-data": snapshot, "octocounts-more-reports": rotating,
   });
@@ -1055,6 +1031,7 @@ OctoCounts counts lines of code without cloning: it downloads a repository's sou
 }
 
 async function statsPageResponse(context, options = {}) {
+  const indexPromise = options.markdown ? null : indexHtml(context);
   const response = await fetch(`${apiBase(context)}/api/stats`, {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
@@ -1064,14 +1041,15 @@ async function statsPageResponse(context, options = {}) {
   // answers with this isolate's last validated totals under a short TTL, so
   // the next good pass replaces them; only a never-rendered isolate 503s.
   const scratch = envScratchMap(context.env);
-  if (validStats(fresh)) scratch.set("stats:last-good", fresh);
-  const stats = validStats(fresh) ? fresh : scratch.get("stats:last-good");
+  const freshValid = validStats(fresh);
+  if (freshValid) scratch.set("stats:last-good", fresh);
+  const stats = freshValid ? fresh : scratch.get("stats:last-good");
   if (!stats) return collectionUnavailableResponse(context, "/stats", STATS_TITLE, options);
-  const cacheControl = stats === fresh ? "public, s-maxage=300, stale-while-revalidate=600" : "public, max-age=60, stale-while-revalidate=600";
+  const cacheControl = freshValid ? "public, s-maxage=300, stale-while-revalidate=600" : "public, max-age=60, stale-while-revalidate=600";
   if (options.markdown) {
     return markdownResponse(statsMarkdown(stats), cacheControl, options);
   }
-  const index = await indexHtml(context);
+  const index = await indexPromise;
   const title = STATS_TITLE;
   const description = STATS_DESCRIPTION;
   const explore = await exploreMarkup(context, { "octocounts-stats-data": stats });
@@ -1556,15 +1534,30 @@ Extension source code: [${content.sourceUrl}](${content.sourceUrl}).
 /// src/main.tsx to hydrate instead of re-mounting.
 ///
 /// The locale is pinned by the canonical path, independent of browser preferences.
+const homeHtmlCache = new WeakMap();
+
 async function homePageResponse(context) {
   const url = new URL(context.request.url);
   const assetPath = url.pathname === "/zh" ? "/home-zh.html" : "/home.html";
-  const assetUrl = new URL(url);
-  assetUrl.pathname = assetPath;
-  assetUrl.search = "";
-  const asset = await context.env.ASSETS.fetch(new Request(assetUrl.toString(), { method: "GET" }));
-  if (asset.ok) {
-    return htmlResponse(await asset.text(), "public, s-maxage=300, stale-while-revalidate=600");
+  const assets = context.env.ASSETS;
+  let perAsset = homeHtmlCache.get(assets);
+  if (!perAsset) {
+    perAsset = new Map();
+    homeHtmlCache.set(assets, perAsset);
+  }
+  let cachedHtml = perAsset.get(assetPath);
+  if (cachedHtml === undefined) {
+    const assetUrl = new URL(url);
+    assetUrl.pathname = assetPath;
+    assetUrl.search = "";
+    const asset = await assets.fetch(new Request(assetUrl.toString(), { method: "GET" }));
+    if (asset.ok) {
+      cachedHtml = await asset.text();
+      perAsset.set(assetPath, cachedHtml);
+    }
+  }
+  if (cachedHtml !== undefined) {
+    return htmlResponse(cachedHtml, "public, s-maxage=300, stale-while-revalidate=600");
   }
   if (url.pathname === "/zh") {
     return new Response("中文页面暂时不可用，请稍后重试。", {
@@ -1610,6 +1603,8 @@ async function compareUnavailableResponse(context, entry, options = {}) {
 }
 
 async function curatedCompareResponse(context, entry, options = {}) {
+  const indexPromise = options.markdown ? null : indexHtml(context);
+  const editorialPromise = loadCompareEditorial();
   const [leftResult, rightResult] = await Promise.all([
     fetchSeoReport(context, entry.left),
     fetchSeoReport(context, entry.right),
@@ -1624,10 +1619,11 @@ async function curatedCompareResponse(context, entry, options = {}) {
     // (the JS app re-runs the analysis), but crawlers get the true status
     // instead of counting another soft-200 against the site.
     if (options.markdown) return markdownResponse(compareMissingMarkdown(entry), "public, max-age=60", { ...options, status: 404 });
-    return htmlResponse(injectCompareFallback(await indexHtml(context), entry), "public, max-age=60", { status: 404 });
+    return htmlResponse(injectCompareFallback(await indexPromise, entry), "public, max-age=60", { status: 404 });
   }
 
-  const [left, right] = await Promise.all([leftResult.response.json(), rightResult.response.json()]);
+  const left = leftResult.report;
+  const right = rightResult.report;
   // Same integrity guard as report pages: a compare page's title, description,
   // and table all derive from these two payloads, so a mis-keyed cache tier
   // would publish one repository's numbers under another's name. Fail closed —
@@ -1644,7 +1640,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
     if (!healedEntry) return compareUnavailableResponse(context, entry, options);
     entry = healedEntry;
   }
-  const model = await buildCompareViewModel(entry, left, right);
+  const model = await buildCompareViewModel(entry, left, right, await editorialPromise);
   // Record the good render for stale-while-error before answering. Each
   // representation is cached as it is produced; the other (if any) survives.
   const stale = envScratchMap(context.env);
@@ -1653,7 +1649,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
     stale.set(entry.slug, { ...stale.get(entry.slug), markdown });
     return markdownResponse(markdown, "public, s-maxage=300, stale-while-revalidate=600", options);
   }
-  const html = injectCuratedCompare(await indexHtml(context), { ...model, ogImage: `${apiBase(context)}${model.shareImage}` });
+  const html = injectCuratedCompare(await indexPromise, { ...model, ogImage: `${apiBase(context)}${model.shareImage}` });
   stale.set(entry.slug, { ...stale.get(entry.slug), html });
   return htmlResponse(html, "public, s-maxage=300, stale-while-revalidate=600");
 }
@@ -1662,7 +1658,7 @@ async function curatedCompareResponse(context, entry, options = {}) {
 /// the SSR HTML body, the client React page (#octocounts-compare-data), and
 /// the markdown twin. Every reader-visible value — display strings included —
 /// is derived here exactly once, so the representations cannot drift.
-async function buildCompareViewModel(entry, left, right) {
+async function buildCompareViewModel(entry, left, right, editorialMap) {
   const leftDate = left.generatedAt.slice(0, 10);
   const rightDate = right.generatedAt.slice(0, 10);
   const canonical = `https://octocounts.com/compare/${entry.slug}`;
@@ -1682,7 +1678,7 @@ async function buildCompareViewModel(entry, left, right) {
     ["Languages counted", languageCount(left), languageCount(right)],
   ];
   const compatibility = comparePolicies(left, right).status;
-  const editorial = (await loadCompareEditorial())[entry.slug];
+  const editorial = (editorialMap ?? await loadCompareEditorial())[entry.slug];
   const side = (report, date) => ({
     repoFullName: report.repoFullName,
     publicPath: report.publicPath,
@@ -1897,9 +1893,16 @@ async function redirectConfirmedSlug(context, target) {
 /// name never stands in for the registry spelling.
 async function resolveRenamedCompareEntry(context, entry, left, right) {
   const healed = { ...entry };
-  for (const [key, target, report] of [["left", entry.left, left], ["right", entry.right, right]]) {
-    if (reportMatchesRoute(report, target)) continue;
-    const slug = await redirectConfirmedSlug(context, target);
+  const sides = [["left", entry.left, left], ["right", entry.right, right]];
+  const lookups = await Promise.all(
+    sides.map(([, target, report]) =>
+      reportMatchesRoute(report, target) ? Promise.resolve(undefined) : redirectConfirmedSlug(context, target)
+    )
+  );
+  for (let i = 0; i < sides.length; i++) {
+    const [key, target, report] = sides[i];
+    const slug = lookups[i];
+    if (slug === undefined) continue;
     if (!slug) return null;
     const slash = slug.indexOf("/");
     const owner = slug.slice(0, slash);
@@ -1954,7 +1957,7 @@ async function fetchSeoReport(context, target, timeoutMs = SEO_REPORT_TIMEOUT_MS
       if (policy && (typeof policy.version !== "string" || typeof policy.repositoryAttributes?.status !== "string"
         || !["includeDocs", "includeTests", "includeGenerated"].every((key) => typeof policy[key] === "boolean")
         || !["ignoredDirs", "ignoredLanguages"].every((key) => Array.isArray(policy[key]) && policy[key].every((value) => typeof value === "string")))) return { state: "unavailable" };
-      return { state: "ok", response: Response.json(report) };
+      return { state: "ok", report };
     }
     if (response.status === 404) return { state: "missing" };
     return { state: "unavailable" };
@@ -2350,6 +2353,7 @@ function injectCompareFallback(index, entry) {
 async function languagePageResponse(context, slug, options = {}) {
   const path = slug === null ? LANGUAGES_PATH : `${LANGUAGES_PATH}/${slug}`;
   const fallbackTitle = slug === null ? LANGUAGE_HUB_TITLE : "Language leaderboard | OctoCounts";
+  const indexPromise = options.markdown ? null : indexHtml(context);
   const index = await fetchLanguageIndex(context);
   // An empty index is no hub: a page with no rows answers 404 below.
   if (!index || (slug === null && !index.languages.length)) {
@@ -2367,7 +2371,7 @@ async function languagePageResponse(context, slug, options = {}) {
     model = languageLeaderboardModel(page, index);
   }
   if (options.markdown) return markdownResponse(languagePageMarkdown(model), "public, s-maxage=300, stale-while-revalidate=600", options);
-  const html = injectHeadAndNoscript(await indexHtml(context), {
+  const html = injectHeadAndNoscript(await indexPromise, {
     title: model.title,
     description: model.description,
     canonical: `https://octocounts.com${path}`,
@@ -2583,7 +2587,7 @@ function validLanguageIndex(index) {
 async function fetchLanguageIndex(context) {
   const scratch = envScratchMap(context.env);
   const cached = scratch.get("languages:index");
-  if (cached && Date.now() - cached.at < LANGUAGE_INDEX_TTL_MS && validLanguageIndex(cached.index)) return cached.index;
+  if (cached && Date.now() - cached.at < LANGUAGE_INDEX_TTL_MS) return cached.index;
   try {
     const response = await fetch(`${apiBase(context)}/api/seo/languages`, {
       headers: { accept: "application/json" }, signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS),
@@ -2704,15 +2708,15 @@ async function sitemapIndexResponse(context) {
   // Only the report-page count is unknown up front (compare is a single file
   // and the static list is compiled in), so skip the compare-existence scan
   // here: the index is the hottest sitemap request crawlers make.
-  const [view, languages] = await Promise.all([
+  const [view, languages, snapshot] = await Promise.all([
     fetchSitemapView(context, { view: "index", repos: compareInventoryRepos }),
     // A backend that predates the language leaderboards answers 404 here;
     // the index then simply has no language child.
     fetchLanguageIndex(context).catch(() => null),
+    trendingSnapshot(context),
   ]);
   if (!view) return sitemapUnavailableResponse();
   // Include a child's freshest lastmod only when its underlying dates are known.
-  const snapshot = await trendingSnapshot(context);
   const staticLastmod = maxLastmod(
     STATIC_SITEMAP_ENTRIES.map((entry) =>
       entry.loc.endsWith("/trending") ? { lastmod: snapshot?.date } : entry
@@ -2796,14 +2800,20 @@ async function languagesSitemapResponse(context) {
   ]);
 }
 
+const trendingSnapshotCache = new WeakMap();
+
 async function trendingSnapshot(context) {
+  const assets = context.env.ASSETS;
+  if (trendingSnapshotCache.has(assets)) return trendingSnapshotCache.get(assets);
   const url = new URL(context.request.url);
   url.pathname = "/github-trending.json";
   url.search = "";
-  const response = await context.env.ASSETS.fetch(new Request(url.toString(), { method: "GET", signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS) })).catch(() => null);
+  const response = await assets.fetch(new Request(url.toString(), { method: "GET", signal: AbortSignal.timeout(SEO_REPORT_TIMEOUT_MS) })).catch(() => null);
   if (!response?.ok) return null;
   const snapshot = await response.json().catch(() => null);
-  return validateTrendingSnapshot(snapshot);
+  const validated = validateTrendingSnapshot(snapshot);
+  if (validated) trendingSnapshotCache.set(assets, validated);
+  return validated;
 }
 
 // The SPA shell is immutable for a deployment, so memoize its text per

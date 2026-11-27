@@ -274,17 +274,15 @@ async fn authorize_and_backfill(
     // Guarantees a star_watch row exists to claim below, even for a repo
     // nobody has viewed a report for yet. Only after verification: before it,
     // any caller could add rows the daily snapshot task then polls forever.
-    store
-        .watch_repo_for_stars(provider, owner, repo)
-        .await
-        .map_err(|error| {
-            tracing::warn!(%error, "failed to watch repository for star backfill");
-            GitHubError::UpstreamUnavailable
-        })?;
-    let current_stars = github
-        .repo_stars(&provider, owner, repo)
-        .await
-        .ok_or(GitHubError::UpstreamUnavailable)?;
+    let (watch_result, current_stars) = tokio::join!(
+        store.watch_repo_for_stars(provider, owner, repo),
+        github.repo_stars(&provider, owner, repo),
+    );
+    watch_result.map_err(|error| {
+        tracing::warn!(%error, "failed to watch repository for star backfill");
+        GitHubError::UpstreamUnavailable
+    })?;
+    let current_stars = current_stars.ok_or(GitHubError::UpstreamUnavailable)?;
 
     if store
         .start_star_backfill_if_needed(provider, owner, repo)

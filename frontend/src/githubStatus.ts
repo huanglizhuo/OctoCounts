@@ -18,7 +18,7 @@ let inflight: Promise<HostStatus | null> | null = null;
  * Failures are silent on purpose: the status is supplementary context for
  * error attribution, never a dependency of the analysis flow itself.
  */
-export function fetchGithubStatus(): Promise<HostStatus | null> {
+function fetchGithubStatus(): Promise<HostStatus | null> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return Promise.resolve(cache.value);
   if (inflight) return inflight;
   inflight = fetch(STATUS_URL)

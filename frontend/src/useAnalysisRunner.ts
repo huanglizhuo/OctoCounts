@@ -233,10 +233,11 @@ function clearDeadline(timer: MutableRefObject<number | null>) {
   timer.current = null;
 }
 
-function pollingInterval(elapsedMs: number) {
-  if (elapsedMs < 5_000) return 1_200;
-  if (elapsedMs < 30_000) return 2_500;
-  return 5_000;
+function pollingInterval(_elapsedMs: number) {
+  // Each poll uses `?wait=20` server-side long-polling (returning immediately
+  // on any status transition or after 20s), so a short 250ms turnaround avoids
+  // adding multi-second dead air between long-poll windows.
+  return 250;
 }
 
 function normalizedProvider(provider: Report["repository"]["provider"], fallbackUrl: string) {

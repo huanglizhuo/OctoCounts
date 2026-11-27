@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use axum::{
     extract::{Query, State},
-    http::HeaderMap,
-    Json,
+    http::{header, HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
 };
+use bytes::Bytes;
 use chrono::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -143,6 +144,8 @@ pub(crate) async fn ensure_repo_history(
     owner: &str,
     repo: &str,
 ) -> anyhow::Result<(
+    String,
+    String,
     Vec<(NaiveDate, i64)>,
     Option<u64>,
     Vec<(NaiveDate, i64, String, Option<SlocLanguages>)>,
@@ -163,45 +166,62 @@ pub(crate) async fn ensure_repo_history(
         Some((new_owner, new_repo)) => (new_owner, new_repo),
         None => (owner.to_string(), repo.to_string()),
     };
-    // Back to borrows so the rest of the body is unchanged whether or not a
-    // redirect hop happened.
-    let (owner, repo) = (owner.as_str(), repo.as_str());
 
-    let current_stars = github.repo_stars(&provider, owner, repo).await;
+    let history_enabled = state.coordinator.history_enabled("backfill", &owner, &repo);
+    // Run the independent GitHub star fetch and DB reads concurrently instead
+    // of paying seven serial round trips across the network link.
+    let (
+        current_stars,
+        just_started_watching,
+        star_history,
+        sloc_history,
+        sloc_backfill_in_progress,
+        star_backfilled,
+        star_backfill_in_progress,
+    ) = tokio::join!(
+        github.repo_stars(&provider, &owner, &repo),
+        store.watch_repo_for_stars(provider, &owner, &repo),
+        store.star_history(provider, &owner, &repo),
+        store.sloc_history(provider, &owner, &repo),
+        async {
+            if history_enabled {
+                store.sloc_backfill_in_progress(provider, &owner, &repo).await
+            } else {
+                Ok(false)
+            }
+        },
+        store.star_history_is_backfilled(provider, &owner, &repo),
+        store.star_backfill_in_progress(provider, &owner, &repo),
+    );
+    let just_started_watching = just_started_watching?;
+    let mut star_history = star_history?;
+    let sloc_history = sloc_history?;
+    let sloc_backfill_in_progress = sloc_backfill_in_progress?;
+    let star_backfilled = star_backfilled?;
+    let star_backfill_in_progress = star_backfill_in_progress?;
 
-    let just_started_watching = store.watch_repo_for_stars(provider, owner, repo).await?;
     if just_started_watching {
         if let Some(current) = current_stars {
+            let today = Utc::now().date_naive();
             store
-                .record_star_snapshot(
-                    provider,
-                    owner,
-                    repo,
-                    Utc::now().date_naive(),
-                    current as i64,
-                )
+                .record_star_snapshot(provider, &owner, &repo, today, current as i64)
                 .await?;
+            if let Some(existing) = star_history.iter_mut().find(|(date, _)| *date == today) {
+                existing.1 = current as i64;
+            } else {
+                star_history.push((today, current as i64));
+                star_history.sort_by_key(|(date, _)| *date);
+            }
         }
     }
-    let star_history = store.star_history(provider, owner, repo).await?;
 
-    let sloc_history = store.sloc_history(provider, owner, repo).await?;
-    let sloc_backfill_in_progress = state.coordinator.history_enabled("backfill", owner, repo)
-        && store
-            .sloc_backfill_in_progress(provider, owner, repo)
-            .await?;
-
-    let star_backfilled = store
-        .star_history_is_backfilled(provider, owner, repo)
-        .await?;
-    let star_backfill_in_progress = store
-        .star_backfill_in_progress(provider, owner, repo)
-        .await?;
     let star_backfill_available = matches!(provider, RepositoryProvider::GitHub)
         && !star_backfilled
         && !star_backfill_in_progress;
 
     Ok((
+        owner,
+        repo,
         star_history,
         current_stars,
         sloc_history,
@@ -214,13 +234,16 @@ pub(crate) async fn ensure_repo_history(
 pub async fn repo_history(
     State(state): State<AppState>,
     Query(query): Query<RepoHistoryQuery>,
-) -> Result<(HeaderMap, Json<RepoHistoryResponse>), ApiError> {
+) -> Result<Response, ApiError> {
+    let generation = state.caches.generation();
     let cache_key = format!(
-        "repo-history:{}:{}:{}",
-        query.provider, query.owner, query.repo
+        "repo-history:{generation}:{}:{}:{}",
+        query.provider.to_ascii_lowercase(),
+        query.owner.to_ascii_lowercase(),
+        query.repo.to_ascii_lowercase(),
     );
-    if let Some(response) = state.caches.seo_repo_history.get(&cache_key).await {
-        return Ok((repo_history_cache_headers(), Json(response)));
+    if let Some(body) = state.caches.seo_repo_history.get(&cache_key).await {
+        return Ok((repo_history_cache_headers(), body).into_response());
     }
 
     let provider = parse_provider(&query.provider)?;
@@ -232,22 +255,9 @@ pub async fn repo_history(
         ));
     }
 
-    // The response echoes the slug the series actually lives under — the same
-    // redirect-follow `ensure_repo_history` applies to its reads and writes —
-    // so a pre-rename request renders the merged curve under the name the
-    // repository answers to today, not the dead slug that was asked for.
-    let (canonical_owner, canonical_repo) = match state
-        .coordinator
-        .store()
-        .redirect_target(provider, &query.owner, &query.repo)
-        .await
-        .map_err(ApiError::internal)?
-    {
-        Some((owner, repo)) => (owner, repo),
-        None => (query.owner.clone(), query.repo.clone()),
-    };
-
     let (
+        canonical_owner,
+        canonical_repo,
         star_history,
         current_stars,
         sloc_history,
@@ -297,22 +307,35 @@ pub async fn repo_history(
         star_backfill_in_progress,
     };
 
+    let body = Bytes::from(
+        serde_json::to_vec(&response)
+            .map_err(|error| ApiError::internal(error.into()))?,
+    );
+
     // Skip the cache while either backfill is still running so repeat polls
     // (the frontend refetches on an interval until both flip false) see fresh
     // progress instead of the same stale snapshot for up to an hour.
-    if !response.sloc_backfill_in_progress && !response.star_backfill_in_progress {
+    if !response.sloc_backfill_in_progress
+        && !response.star_backfill_in_progress
+        && generation == state.caches.generation()
+    {
         state
             .caches
             .seo_repo_history
-            .insert(cache_key, response.clone())
+            .insert(cache_key, body.clone())
             .await;
     }
 
-    Ok((repo_history_cache_headers(), Json(response)))
+    Ok((repo_history_cache_headers(), body).into_response())
 }
 
 fn repo_history_cache_headers() -> HeaderMap {
-    cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400")
+    let mut headers = cache_headers("public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400");
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    headers
 }
 
 /// An interior SLOC point is suspect when its value is less than half of BOTH

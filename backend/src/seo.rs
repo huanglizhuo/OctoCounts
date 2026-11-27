@@ -1,13 +1,18 @@
+use std::sync::{Arc, OnceLock};
+
 use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
     Json,
 };
+use bytes::Bytes;
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     api::AppState,
+    cache::{CachedLanguageIndex, CachedRelated, CachedSeoReport},
     error::ApiError,
     models::{
         AnalysisOptions, AnalysisProfile, LanguageReport, LanguageStats, Report, ReportRefKind,
@@ -15,6 +20,19 @@ use crate::{
     },
     store::{provider_from_str, provider_to_str, RelatedReportRow, ReportCard},
 };
+
+enum SeoLookupError {
+    NotFound,
+    Internal(anyhow::Error),
+}
+
+fn json_bytes_response(mut headers: HeaderMap, body: Bytes) -> Response {
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    (headers, body).into_response()
+}
 
 pub(crate) const MIN_INDEXABLE_REPORT_FILES: usize = 5;
 
@@ -178,14 +196,17 @@ const RELATED_LIMIT: i64 = 6;
 pub async fn related(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
-) -> Result<(HeaderMap, Json<RelatedList>), ApiError> {
+) -> Result<Response, ApiError> {
     // `related:v2:` — the v2 ranking (case-insensitive self-exclusion, mirror
     // and size-signature dedupe, relative size distance) must not be served
     // from entries cached under the v1 ordering.
     let generation = state.caches.generation();
     let cache_key = format!("related:v2:{generation}:{}", seo_report_cache_key(&query));
-    if let Some(list) = state.caches.seo_related.get(&cache_key).await {
-        return Ok((related_cache_headers(&list), Json(list)));
+    if let Some(cached) = state.caches.seo_related.get(&cache_key).await {
+        return Ok(json_bytes_response(
+            related_cache_headers(&cached.cache_tag),
+            cached.body,
+        ));
     }
 
     let provider = parse_provider(&query.provider)?;
@@ -193,55 +214,61 @@ pub async fn related(
     // (the links are optional). Run it detached so a dropped request still
     // fills the cache for the next render instead of being cancelled with it.
     let (owner, repo) = (query.owner.clone(), query.repo.clone());
-    let list = tokio::spawn(async move {
-        // Same resolver as `report`: a pre-rename slug still gets its
-        // (re-keyed) repository's interlinks, filed under the current spelling.
-        let Some((card, _canonical_slug)) =
-            resolve_report_card(&state, provider, &owner, &repo, None, None).await?
-        else {
-            return Ok(None);
-        };
-        let reports = state
-            .coordinator
-            .store()
-            .related_reports(
-                provider,
-                &card.owner,
-                &card.repo,
-                card.languages
-                    .first()
-                    .map(|language| language.name.as_str()),
-                card.total.code as i64,
-                // The source's own line total feeds the mirror exclusion: a
-                // copy of this repo matches BOTH its code and line counts exactly.
-                card.total.lines as i64,
-                RELATED_LIMIT,
-            )
-            .await?
-            .into_iter()
-            .map(related_report)
-            .collect();
-        let list = RelatedList { reports };
-        if generation == state.caches.generation() {
-            state
-                .caches
-                .seo_related
-                .insert(cache_key, list.clone())
-                .await;
-        }
-        anyhow::Ok(Some(list))
+    let cached = tokio::spawn(async move {
+        let cache = state.caches.seo_related.clone();
+        cache
+            .try_get_with(cache_key, async move {
+                // Same resolver as `report`: a pre-rename slug still gets its
+                // (re-keyed) repository's interlinks, filed under the current spelling.
+                let Some((card, _canonical_slug)) =
+                    resolve_report_card(&state, provider, &owner, &repo, None, None)
+                        .await
+                        .map_err(SeoLookupError::Internal)?
+                else {
+                    return Err(SeoLookupError::NotFound);
+                };
+                let reports: Vec<RelatedReport> = state
+                    .coordinator
+                    .store()
+                    .related_reports(
+                        provider,
+                        &card.owner,
+                        &card.repo,
+                        card.languages
+                            .first()
+                            .map(|language| language.name.as_str()),
+                        card.total.code as i64,
+                        // The source's own line total feeds the mirror exclusion: a
+                        // copy of this repo matches BOTH its code and line counts exactly.
+                        card.total.lines as i64,
+                        RELATED_LIMIT,
+                    )
+                    .await
+                    .map_err(SeoLookupError::Internal)?
+                    .into_iter()
+                    .map(related_report)
+                    .collect();
+                let list = RelatedList { reports };
+                let cache_tag = related_cache_tag(&list);
+                let body = Bytes::from(
+                    serde_json::to_vec(&list)
+                        .map_err(|error| SeoLookupError::Internal(error.into()))?,
+                );
+                Ok(CachedRelated { body, cache_tag })
+            })
+            .await
     })
     .await
     .map_err(|error| ApiError::internal(error.into()))?
-    .map_err(ApiError::internal)?;
-    let Some(list) = list else {
-        return Err(ApiError::not_found(
-            "report_not_found",
-            "report was not found",
-        ));
-    };
+    .map_err(|error| match error.as_ref() {
+        SeoLookupError::NotFound => ApiError::not_found("report_not_found", "report was not found"),
+        SeoLookupError::Internal(err) => ApiError::internal(anyhow::anyhow!("{err:#}")),
+    })?;
 
-    Ok((related_cache_headers(&list), Json(list)))
+    Ok(json_bytes_response(
+        related_cache_headers(&cached.cache_tag),
+        cached.body,
+    ))
 }
 
 fn related_report(row: RelatedReportRow) -> RelatedReport {
@@ -260,47 +287,59 @@ fn related_report(row: RelatedReportRow) -> RelatedReport {
 pub async fn report(
     State(state): State<AppState>,
     Query(query): Query<SeoReportQuery>,
-) -> Result<(HeaderMap, Json<SeoReport>), ApiError> {
+) -> Result<Response, ApiError> {
     let reference = query.ref_name.as_deref().filter(|value| !value.is_empty());
     let generation = state.caches.generation();
     let cache_key = format!("{generation}:{}", seo_report_cache_key(&query));
-    if let Some(report) = state.caches.seo_report.get(&cache_key).await {
-        return Ok((
-            seo_report_response_headers(&report, reference.is_some()),
-            Json(report),
+    if let Some(cached) = state.caches.seo_report.get(&cache_key).await {
+        return Ok(json_bytes_response(
+            seo_report_response_headers(&cached.public_path, cached.total_files, reference.is_some()),
+            cached.body,
         ));
     }
 
     let provider = parse_provider(&query.provider)?;
-    let Some((card, canonical_slug)) = resolve_report_card(
-        &state,
-        provider,
-        &query.owner,
-        &query.repo,
-        reference,
-        query.ref_kind,
-    )
-    .await
-    .map_err(ApiError::internal)?
-    else {
-        return Err(ApiError::not_found(
-            "report_not_found",
-            "report was not found",
-        ));
-    };
+    let cached = state
+        .caches
+        .seo_report
+        .try_get_with(cache_key, async {
+            let Some((card, canonical_slug)) = resolve_report_card(
+                &state,
+                provider,
+                &query.owner,
+                &query.repo,
+                reference,
+                query.ref_kind,
+            )
+            .await
+            .map_err(SeoLookupError::Internal)?
+            else {
+                return Err(SeoLookupError::NotFound);
+            };
+            let report = seo_report(&card, canonical_slug);
+            let public_path: Arc<str> = Arc::from(report.public_path.as_str());
+            let total_files = report.total.files;
+            let body = Bytes::from(
+                serde_json::to_vec(&report)
+                    .map_err(|error| SeoLookupError::Internal(error.into()))?,
+            );
+            Ok(CachedSeoReport {
+                body,
+                public_path,
+                total_files,
+            })
+        })
+        .await
+        .map_err(|error| match error.as_ref() {
+            SeoLookupError::NotFound => {
+                ApiError::not_found("report_not_found", "report was not found")
+            }
+            SeoLookupError::Internal(err) => ApiError::internal(anyhow::anyhow!("{err:#}")),
+        })?;
 
-    let report = seo_report(&card, canonical_slug);
-    if generation == state.caches.generation() {
-        state
-            .caches
-            .seo_report
-            .insert(cache_key, report.clone())
-            .await;
-    }
-
-    Ok((
-        seo_report_response_headers(&report, reference.is_some()),
-        Json(report),
+    Ok(json_bytes_response(
+        seo_report_response_headers(&cached.public_path, cached.total_files, reference.is_some()),
+        cached.body,
     ))
 }
 
@@ -425,79 +464,76 @@ fn redirect_cache_headers() -> HeaderMap {
 pub async fn recent(
     State(state): State<AppState>,
     Query(query): Query<PageQuery>,
-) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
+) -> Result<Response, ApiError> {
     let (page, limit, offset) = pagination(query);
-    let cache_key = list_cache_key(page, limit);
-    if let Some(list) = state.caches.seo_recent.get(&cache_key).await {
-        return Ok((recent_cache_headers(), Json(list)));
-    }
-
-    let reports = state
-        .coordinator
-        .store()
-        .recent_reports(limit + 1, offset)
-        .await
-        .map_err(ApiError::internal)?;
-    let list = SeoList::from_cards(page, limit, reports);
-    state
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{}", list_cache_key(page, limit));
+    let body = state
         .caches
         .seo_recent
-        .insert(cache_key, list.clone())
-        .await;
+        .try_get_with(cache_key, async {
+            let reports = state
+                .coordinator
+                .store()
+                .recent_reports(limit + 1, offset)
+                .await?;
+            let list = SeoList::from_cards(page, limit, reports);
+            anyhow::Ok(Bytes::from(serde_json::to_vec(&list)?))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
 
-    Ok((recent_cache_headers(), Json(list)))
+    Ok(json_bytes_response(recent_cache_headers(), body))
 }
 
 pub async fn popular(
     State(state): State<AppState>,
     Query(query): Query<PageQuery>,
-) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
+) -> Result<Response, ApiError> {
     let (page, limit, offset) = pagination(query);
-    let cache_key = list_cache_key(page, limit);
-    if let Some(list) = state.caches.seo_popular.get(&cache_key).await {
-        return Ok((popular_cache_headers(), Json(list)));
-    }
-
-    let reports = state
-        .coordinator
-        .store()
-        .popular_reports(limit + 1, offset)
-        .await
-        .map_err(ApiError::internal)?;
-    let list = SeoList::from_cards(page, limit, reports);
-    state
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{}", list_cache_key(page, limit));
+    let body = state
         .caches
         .seo_popular
-        .insert(cache_key, list.clone())
-        .await;
+        .try_get_with(cache_key, async {
+            let reports = state
+                .coordinator
+                .store()
+                .popular_reports(limit + 1, offset)
+                .await?;
+            let list = SeoList::from_cards(page, limit, reports);
+            anyhow::Ok(Bytes::from(serde_json::to_vec(&list)?))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
 
-    Ok((popular_cache_headers(), Json(list)))
+    Ok(json_bytes_response(popular_cache_headers(), body))
 }
 
 pub async fn monoliths(
     State(state): State<AppState>,
     Query(query): Query<PageQuery>,
-) -> Result<(HeaderMap, Json<SeoList>), ApiError> {
+) -> Result<Response, ApiError> {
     let (page, limit, offset) = pagination(query);
-    let cache_key = list_cache_key(page, limit);
-    if let Some(list) = state.caches.seo_monoliths.get(&cache_key).await {
-        return Ok((monoliths_cache_headers(), Json(list)));
-    }
-
-    let reports = state
-        .coordinator
-        .store()
-        .monolith_reports(limit + 1, offset)
-        .await
-        .map_err(ApiError::internal)?;
-    let list = SeoList::from_cards(page, limit, reports);
-    state
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{}", list_cache_key(page, limit));
+    let body = state
         .caches
         .seo_monoliths
-        .insert(cache_key, list.clone())
-        .await;
+        .try_get_with(cache_key, async {
+            let reports = state
+                .coordinator
+                .store()
+                .monolith_reports(limit + 1, offset)
+                .await?;
+            let list = SeoList::from_cards(page, limit, reports);
+            anyhow::Ok(Bytes::from(serde_json::to_vec(&list)?))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
 
-    Ok((monoliths_cache_headers(), Json(list)))
+    Ok(json_bytes_response(monoliths_cache_headers(), body))
 }
 
 const SITEMAP_PAGE_SIZE: usize = 10_000;
@@ -534,6 +570,7 @@ pub struct SitemapShard {
 pub struct SitemapInventory {
     // Keep the original API response, including its recency ordering.
     raw: Vec<SitemapEntry>,
+    raw_json: OnceLock<Bytes>,
     eligible: std::collections::BTreeMap<String, usize>,
     /// Every eligible report, in the raw ordering.
     ordered: Vec<usize>,
@@ -577,12 +614,19 @@ impl SitemapInventory {
         }
         Self {
             raw,
+            raw_json: OnceLock::new(),
             eligible,
             ordered,
             core,
             tail,
             shards,
         }
+    }
+
+    fn raw_json_bytes(&self) -> Bytes {
+        self.raw_json
+            .get_or_init(|| Bytes::from(serde_json::to_vec(&self.raw).unwrap_or_default()))
+            .clone()
     }
 
     /// One sitemap file. `None` selects the legacy single list, which
@@ -625,44 +669,40 @@ pub async fn sitemap(
     State(state): State<AppState>,
     Query(query): Query<SitemapQuery>,
 ) -> Result<axum::response::Response, ApiError> {
-    use axum::response::IntoResponse;
-    let cache_key = "sitemap".to_string();
-    let inventory = if let Some(cached) = state.caches.seo_sitemap.get(&cache_key).await {
-        cached
-    } else {
-        let entries: Vec<SitemapEntry> = state
-            .coordinator
-            .store()
-            .sitemap_entries()
-            .await
-            .map_err(ApiError::internal)?
-            .into_iter()
-            // The site only serves /github/* report pages: the edge function and
-            // the SPA have no /gitlab route, so publishing a GitLab URL here would
-            // put a 404 in the sitemap. Filter until a GitLab route exists.
-            .filter(|row| row.provider == RepositoryProvider::GitHub)
-            .map(|row| SitemapEntry {
-                loc: format!(
-                    "https://octocounts.com{}",
-                    repository_public_path(row.provider, &row.owner, &row.repo)
-                ),
-                lastmod: row.lastmod.to_string(),
-                total: SitemapTotals {
-                    files: row.total_files,
-                    lines: row.total_lines,
-                    code: row.total_code,
-                },
-                stars: row.stars,
-            })
-            .collect();
-        let value = std::sync::Arc::new(SitemapInventory::new(entries));
-        state
-            .caches
-            .seo_sitemap
-            .insert(cache_key, value.clone())
-            .await;
-        value
-    };
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:sitemap");
+    let inventory = state
+        .caches
+        .seo_sitemap
+        .try_get_with(cache_key, async {
+            let entries: Vec<SitemapEntry> = state
+                .coordinator
+                .store()
+                .sitemap_entries()
+                .await?
+                .into_iter()
+                // The site only serves /github/* report pages: the edge function and
+                // the SPA have no /gitlab route, so publishing a GitLab URL here would
+                // put a 404 in the sitemap. Filter until a GitLab route exists.
+                .filter(|row| row.provider == RepositoryProvider::GitHub)
+                .map(|row| SitemapEntry {
+                    loc: format!(
+                        "https://octocounts.com{}",
+                        repository_public_path(row.provider, &row.owner, &row.repo)
+                    ),
+                    lastmod: row.lastmod.to_string(),
+                    total: SitemapTotals {
+                        files: row.total_files,
+                        lines: row.total_lines,
+                        code: row.total_code,
+                    },
+                    stars: row.stars,
+                })
+                .collect();
+            anyhow::Ok(Arc::new(SitemapInventory::new(entries)))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
     let headers = sitemap_cache_headers();
     #[derive(Serialize)]
     struct View<'a> {
@@ -671,7 +711,7 @@ pub async fn sitemap(
         shards: Option<&'a [SitemapShard]>,
     }
     let payload = match query.view.as_deref() {
-        None => return Ok((headers, Json(&inventory.raw)).into_response()),
+        None => return Ok(json_bytes_response(headers, inventory.raw_json_bytes())),
         Some("page") if query.page.is_some_and(|page| page > 0) => {
             let entries: Vec<_> = inventory
                 .page(query.tier, query.page.unwrap())
@@ -994,103 +1034,113 @@ async fn load_language_index(state: &AppState) -> anyhow::Result<LanguageIndex> 
     })
 }
 
-pub async fn languages(
-    State(state): State<AppState>,
-) -> Result<(HeaderMap, Json<LanguageIndex>), ApiError> {
-    let cache_key = "index".to_string();
-    if let Some(index) = state.caches.seo_languages.get(&cache_key).await {
-        return Ok((language_cache_headers(), Json(index)));
-    }
-    let index = load_language_index(&state)
-        .await
-        .map_err(ApiError::internal)?;
+async fn cached_language_index(state: &AppState) -> Result<Arc<CachedLanguageIndex>, ApiError> {
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:index");
     state
         .caches
         .seo_languages
-        .insert(cache_key, index.clone())
-        .await;
-    Ok((language_cache_headers(), Json(index)))
+        .try_get_with(cache_key, async {
+            let index = load_language_index(state).await?;
+            let body = Bytes::from(serde_json::to_vec(&index)?);
+            anyhow::Ok(Arc::new(CachedLanguageIndex { index, body }))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))
+}
+
+pub async fn languages(State(state): State<AppState>) -> Result<Response, ApiError> {
+    let cached = cached_language_index(&state).await?;
+    Ok(json_bytes_response(
+        language_cache_headers(),
+        cached.body.clone(),
+    ))
 }
 
 pub async fn language(
     State(state): State<AppState>,
     Path(slug): Path<String>,
-) -> Result<(HeaderMap, Json<LanguagePage>), ApiError> {
+) -> Result<Response, ApiError> {
     if !is_language_slug(&slug) {
         return Err(ApiError::not_found(
             "language_not_found",
             "no language leaderboard has this name",
         ));
     }
-    let cache_key = slug.clone();
-    if let Some(page) = state.caches.seo_language.get(&cache_key).await {
-        return Ok((language_cache_headers(), Json(page)));
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{slug}");
+    if let Some(body) = state.caches.seo_language.get(&cache_key).await {
+        return Ok(json_bytes_response(language_cache_headers(), body));
     }
-    let index = load_language_index(&state)
-        .await
-        .map_err(ApiError::internal)?;
-    let Some(summary) = index.languages.iter().find(|entry| entry.slug == slug) else {
+    let cached_index = cached_language_index(&state).await?;
+    let Some(summary) = cached_index
+        .index
+        .languages
+        .iter()
+        .find(|entry| entry.slug == slug)
+        .cloned()
+    else {
         return Err(ApiError::not_found(
             "language_not_found",
             "no language leaderboard has this name",
         ));
     };
-    let rows = state
-        .coordinator
-        .store()
-        .language_reports(
-            &summary.language,
-            MIN_INDEXABLE_REPORT_FILES as i64,
-            crate::store::LANGUAGE_LEADERBOARD_LIMIT,
-        )
-        .await
-        .map_err(ApiError::internal)?;
-    let reports = rows
-        .into_iter()
-        .map(|row| {
-            let canonical_url = format!(
-                "https://octocounts.com{}",
-                repository_public_path(RepositoryProvider::GitHub, &row.owner, &row.repo)
-            );
-            anyhow::Ok(LanguageLeaderboardEntry {
-                repo_full_name: format!("{}/{}", row.owner, row.repo),
-                public_path: repository_public_path(
-                    RepositoryProvider::GitHub,
-                    &row.owner,
-                    &row.repo,
-                ),
-                canonical_url,
-                total: SitemapTotals {
-                    files: row.total_files,
-                    lines: row.total_lines,
-                    code: row.total_code,
-                },
-                language_code: row.language_code,
-                language_share: if row.total_code > 0 {
-                    row.language_code as f64 / row.total_code as f64 * 100.0
-                } else {
-                    0.0
-                },
-                stars: row.stars,
-                top_language: row.top_language,
-                generated_at: DateTime::parse_from_rfc3339(&row.generated_at)?.to_rfc3339(),
-            })
-        })
-        .collect::<anyhow::Result<Vec<_>>>()
-        .map_err(ApiError::internal)?;
-    let page = LanguagePage {
-        language: summary.language.clone(),
-        slug: slug.clone(),
-        repositories: summary.repositories,
-        code: summary.code,
-        reports,
-    };
-    state
+    let body = state
         .caches
         .seo_language
-        .insert(cache_key, page.clone())
-        .await;
-    Ok((language_cache_headers(), Json(page)))
+        .try_get_with(cache_key, async {
+            let rows = state
+                .coordinator
+                .store()
+                .language_reports(
+                    &summary.language,
+                    MIN_INDEXABLE_REPORT_FILES as i64,
+                    crate::store::LANGUAGE_LEADERBOARD_LIMIT,
+                )
+                .await?;
+            let reports = rows
+                .into_iter()
+                .map(|row| {
+                    let public_path = repository_public_path(
+                        RepositoryProvider::GitHub,
+                        &row.owner,
+                        &row.repo,
+                    );
+                    let canonical_url = format!("https://octocounts.com{public_path}");
+                    anyhow::Ok(LanguageLeaderboardEntry {
+                        repo_full_name: format!("{}/{}", row.owner, row.repo),
+                        public_path,
+                        canonical_url,
+                        total: SitemapTotals {
+                            files: row.total_files,
+                            lines: row.total_lines,
+                            code: row.total_code,
+                        },
+                        language_code: row.language_code,
+                        language_share: if row.total_code > 0 {
+                            row.language_code as f64 / row.total_code as f64 * 100.0
+                        } else {
+                            0.0
+                        },
+                        stars: row.stars,
+                        top_language: row.top_language,
+                        generated_at: DateTime::parse_from_rfc3339(&row.generated_at)?
+                            .to_rfc3339(),
+                    })
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            let page = LanguagePage {
+                language: summary.language,
+                slug,
+                repositories: summary.repositories,
+                code: summary.code,
+                reports,
+            };
+            anyhow::Ok(Bytes::from(serde_json::to_vec(&page)?))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
+    Ok(json_bytes_response(language_cache_headers(), body))
 }
 
 fn language_cache_headers() -> HeaderMap {
@@ -1212,19 +1262,20 @@ fn sitemap_cache_headers() -> HeaderMap {
     cache_headers("public, max-age=900, s-maxage=900, stale-while-revalidate=3600")
 }
 
-fn related_cache_headers(list: &RelatedList) -> HeaderMap {
-    let mut headers =
-        cache_headers("public, max-age=60, s-maxage=21600, stale-while-revalidate=3600");
+fn related_cache_tag(list: &RelatedList) -> HeaderValue {
     let tags = list
         .reports
         .iter()
         .map(|r| crate::edge_cache::repo_tag(&r.provider, &r.owner, &r.repo))
         .collect::<Vec<_>>()
         .join(",");
-    headers.insert(
-        "cache-tag",
-        HeaderValue::from_str(&tags).expect("hex cache tags"),
-    );
+    HeaderValue::from_str(&tags).expect("hex cache tags")
+}
+
+fn related_cache_headers(cache_tag: &HeaderValue) -> HeaderMap {
+    let mut headers =
+        cache_headers("public, max-age=60, s-maxage=21600, stale-while-revalidate=3600");
+    headers.insert("cache-tag", cache_tag.clone());
     headers
 }
 
@@ -1239,10 +1290,14 @@ fn seo_report_cache_headers() -> HeaderMap {
 /// below the indexable floor (its HTML route answers 404) and a ref-scoped
 /// lookup (the tree and root URLs may or may not share a canonical). Both
 /// carry `noindex`.
-fn seo_report_response_headers(report: &SeoReport, ref_scoped: bool) -> HeaderMap {
+fn seo_report_response_headers(
+    public_path: &str,
+    total_files: usize,
+    ref_scoped: bool,
+) -> HeaderMap {
     let mut headers = seo_report_cache_headers();
-    let indexable = !ref_scoped && report.total.files >= MIN_INDEXABLE_REPORT_FILES;
-    match crate::index_policy::report_canonical_link(&report.public_path, indexable) {
+    let indexable = !ref_scoped && total_files >= MIN_INDEXABLE_REPORT_FILES;
+    match crate::index_policy::report_canonical_link(public_path, indexable) {
         Some(link) => {
             headers.insert(header::LINK, link);
         }

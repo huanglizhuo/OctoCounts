@@ -637,7 +637,11 @@ impl GitHubClient {
         owner: &str,
         repo: &str,
     ) -> Option<u64> {
-        let cache_key = (*provider, owner.to_string(), repo.to_string());
+        let cache_key = (
+            *provider,
+            owner.to_ascii_lowercase(),
+            repo.to_ascii_lowercase(),
+        );
         if let Some(cached) = self.stars_cache.get(&cache_key).await {
             return cached;
         }
@@ -693,7 +697,11 @@ impl GitHubClient {
         if !matches!(provider, RepositoryProvider::GitHub) {
             return None;
         }
-        let cache_key = (*provider, owner.to_string(), repo.to_string());
+        let cache_key = (
+            *provider,
+            owner.to_ascii_lowercase(),
+            repo.to_ascii_lowercase(),
+        );
         if let Some(cached) = self.created_at_cache.get(&cache_key).await {
             return cached;
         }
@@ -1108,21 +1116,34 @@ impl GitHubClient {
         requested_ref: Option<String>,
         bypass_cache: bool,
     ) -> Result<RepoRef, GitHubError> {
-        let cache_key = (repo_url.to_owned(), requested_ref.clone());
+        let target = Self::parse_repo_url(repo_url)?;
+        let normalized_ref = requested_ref
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+        let cache_key = (
+            format!(
+                "{:?}:{}/{}",
+                target.provider,
+                target.owner.to_ascii_lowercase(),
+                target.repo.to_ascii_lowercase()
+            ),
+            normalized_ref.clone(),
+        );
         if !bypass_cache {
             if let Some(cached) = self.ref_cache.get(&cache_key).await {
                 return Ok(cached);
             }
         }
 
-        let target = Self::parse_repo_url(repo_url)?;
         match target.provider {
             RepositoryProvider::GitHub => {
-                self.resolve_github_ref(target, requested_ref, cache_key)
+                self.resolve_github_ref(target, normalized_ref, cache_key)
                     .await
             }
             RepositoryProvider::GitLab => {
-                self.resolve_gitlab_ref(target, requested_ref, cache_key)
+                self.resolve_gitlab_ref(target, normalized_ref, cache_key)
                     .await
             }
         }
@@ -1169,6 +1190,18 @@ impl GitHubClient {
                         renamed_from: filing.renamed_from,
                     };
                     self.ref_cache.insert(cache_key, repo_ref.clone()).await;
+                    if repo_ref.stars.is_some() {
+                        self.stars_cache
+                            .insert(
+                                (
+                                    RepositoryProvider::GitHub,
+                                    repo_ref.owner.to_ascii_lowercase(),
+                                    repo_ref.repo.to_ascii_lowercase(),
+                                ),
+                                repo_ref.stars,
+                            )
+                            .await;
+                    }
                     return Ok(repo_ref);
                 }
                 GraphQlOutcome::Failed(failure) => return Err(failure.into()),
@@ -1224,6 +1257,18 @@ impl GitHubClient {
             renamed_from,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
+        if repo_ref.stars.is_some() {
+            self.stars_cache
+                .insert(
+                    (
+                        repo_ref.provider,
+                        repo_ref.owner.to_ascii_lowercase(),
+                        repo_ref.repo.to_ascii_lowercase(),
+                    ),
+                    repo_ref.stars,
+                )
+                .await;
+        }
         Ok(repo_ref)
     }
 
@@ -1326,6 +1371,18 @@ impl GitHubClient {
             renamed_from: None,
         };
         self.ref_cache.insert(cache_key, repo_ref.clone()).await;
+        if repo_ref.stars.is_some() {
+            self.stars_cache
+                .insert(
+                    (
+                        repo_ref.provider,
+                        repo_ref.owner.to_ascii_lowercase(),
+                        repo_ref.repo.to_ascii_lowercase(),
+                    ),
+                    repo_ref.stars,
+                )
+                .await;
+        }
         Ok(repo_ref)
     }
 

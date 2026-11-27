@@ -35,7 +35,7 @@ function readUrlScheme(): Scheme | null {
   }
 }
 
-export function preferredScheme(): Scheme {
+function preferredScheme(): Scheme {
   return readUrlScheme() ?? readStoredScheme() ?? systemScheme();
 }
 

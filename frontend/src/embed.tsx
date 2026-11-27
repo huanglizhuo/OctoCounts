@@ -26,7 +26,7 @@ type EmbedReportSummary = {
   languages: Array<{ name: string; stats: { lines: number; code: number } }>;
 };
 
-export function parseEmbedPath(pathname: string): EmbedRoute | null {
+function parseEmbedPath(pathname: string): EmbedRoute | null {
   const segments = pathname.split("/").filter(Boolean).map(decodeURIComponent);
   if (segments[0] !== "embed") return null;
   const provider = segments[1];

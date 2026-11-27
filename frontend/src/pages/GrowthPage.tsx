@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "lucide-react";
-import { fetchCanonicalReport } from "../api";
+import { fetchCanonicalReport, fetchRepoHistory } from "../api";
 import { GrowthSkeleton } from "../growth/GrowthSkeleton";
 import { GrowthSection } from "../report/GrowthSection";
 
@@ -19,7 +19,17 @@ export function GrowthPage({ path }: { path: string }) {
 
   const canonical = useQuery({
     queryKey: ["canonical-report", "github", owner, repo],
-    queryFn: () => fetchCanonicalReport("github", owner, repo),
+    queryFn: ({ signal }) => fetchCanonicalReport("github", owner, repo, signal),
+    staleTime: 60 * 1000,
+    retry: false,
+    enabled: valid,
+  });
+
+  // Start repo-history in parallel with canonical-report instead of waiting
+  // for GrowthSection to mount; React Query shares this key with GrowthSection.
+  useQuery({
+    queryKey: ["repo-history", "github", owner, repo],
+    queryFn: ({ signal }) => fetchRepoHistory("github", owner, repo, signal),
     staleTime: 60 * 1000,
     retry: false,
     enabled: valid,

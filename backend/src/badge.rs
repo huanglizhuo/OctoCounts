@@ -7,9 +7,10 @@ use chrono::NaiveDate;
 
 use crate::{
     api::AppState,
-    models::{Report, ReportRefKind, RepositoryProvider},
+    models::{LanguageReport, LanguageStats, Report, ReportRefKind, RepositoryProvider},
     ratelimit::client_ip,
     repo_history::ensure_repo_history,
+    store::ReportCard,
 };
 
 #[derive(serde::Deserialize)]
@@ -75,9 +76,31 @@ pub async fn badge_report(
     Path(report_id): Path<String>,
     Query(params): Query<BadgeParams>,
 ) -> Response {
+    let generation = state.caches.generation();
+    let badge_type = params
+        .badge_type
+        .as_deref()
+        .map(normalize_badge_type)
+        .unwrap_or_default();
+    let cache_key = format!(
+        "{generation}:report:{report_id}:{badge_type}:{}",
+        params.lang.as_deref().unwrap_or_default()
+    );
+    if let Some(svg) = state.caches.badge_svg_immutable.get(&cache_key).await {
+        return svg_response(svg, "public, max-age=3600");
+    }
+
     match state.coordinator.store().report(&report_id).await {
         Ok(Some(report)) => {
-            svg_response(render_for_params(&report, &params), "public, max-age=3600")
+            let svg = render_for_params(&report, &params);
+            if generation == state.caches.generation() {
+                state
+                    .caches
+                    .badge_svg_immutable
+                    .insert(cache_key, svg.clone())
+                    .await;
+            }
+            svg_response(svg, "public, max-age=3600")
         }
         Ok(None) => (
             StatusCode::NOT_FOUND,
@@ -225,40 +248,63 @@ async fn serve_badge(
 
     let store = state.coordinator.store();
     let result = async {
-        let (owner, repo) = store
-            .redirect_target(RepositoryProvider::GitHub, &owner, &repo)
-            .await?
-            .unwrap_or((owner, repo));
-        let card = match ref_name {
-            Some(reference) => {
-                store
-                    .report_card_at_ref(
-                        RepositoryProvider::GitHub,
-                        &owner,
-                        &repo,
-                        &reference,
-                        ref_kind,
-                    )
-                    .await?
-            }
-            None => {
-                store
-                    .latest_report_card(RepositoryProvider::GitHub, &owner, &repo)
-                    .await?
+        // Lookup the report card directly first; only pay a redirect-table
+        // round trip when the requested slug itself has no matching report.
+        let lookup = |owner: String, repo: String, ref_name: Option<String>| async move {
+            match ref_name {
+                Some(reference) => {
+                    store
+                        .report_card_at_ref(
+                            RepositoryProvider::GitHub,
+                            &owner,
+                            &repo,
+                            &reference,
+                            ref_kind,
+                        )
+                        .await
+                }
+                None => {
+                    store
+                        .latest_report_card(RepositoryProvider::GitHub, &owner, &repo)
+                        .await
+                }
             }
         };
-        match card.and_then(|card| card.report_id) {
-            Some(id) => store.report(&id).await,
-            None => Ok(None),
+        let mut card = lookup(owner.clone(), repo.clone(), ref_name.clone()).await?;
+        if card.is_none() {
+            if let Some((new_owner, new_repo)) = store
+                .redirect_target(RepositoryProvider::GitHub, &owner, &repo)
+                .await?
+            {
+                card = lookup(new_owner, new_repo, ref_name).await?;
+            }
+        }
+        let Some(card) = card else {
+            return anyhow::Ok(None);
+        };
+        if let Some(svg) = try_render_from_card(&card, &params) {
+            return Ok(Some(svg));
+        }
+        // Only rare `?lang=<non-top-12>` badges need the full report JSONB.
+        match card.report_id {
+            Some(id) => Ok(store
+                .report(&id)
+                .await?
+                .map(|report| render_for_params(&report, &params))),
+            None => Ok(Some(render_from_stats(
+                &card.total,
+                &card.languages,
+                card.language_count,
+                &params,
+            ))),
         }
     }
     .await;
-    let report = match result {
-        Ok(Some(report)) => report,
+    let svg = match result {
+        Ok(Some(svg)) => svg,
         Ok(None) => return svg_response(render_pending_for_params(&params), "no-cache, no-store"),
         Err(_) => return svg_response(render_error_for_params(&params), "no-cache, no-store"),
     };
-    let svg = render_for_params(&report, &params);
     if generation == state.caches.generation() {
         svg_cache.insert(cache_key, svg.clone()).await;
     }
@@ -310,12 +356,12 @@ fn compact_suffix(val: f64, suffix: char) -> String {
     }
 }
 
-fn render_badge_svg(report: &Report) -> String {
+fn render_badge_stats(total: &LanguageStats) -> String {
     badge_svg(
-        &format_stat(report.total.code),
-        &format_stat(report.total.files),
-        &format_stat(report.total.lines),
-        &format_stat(report.total.comments),
+        &format_stat(total.code),
+        &format_stat(total.files),
+        &format_stat(total.lines),
+        &format_stat(total.comments),
         false,
     )
 }
@@ -334,38 +380,41 @@ fn render_error_svg() -> String {
     badge_svg("\u{2014}", "\u{2014}", "\u{2014}", "\u{2014}", true)
 }
 
-fn render_for_lang(report: &Report, lang: Option<&str>) -> String {
+fn render_for_lang(
+    total: &LanguageStats,
+    languages: &[LanguageReport],
+    lang: Option<&str>,
+) -> String {
     let Some(name) = lang else {
-        return render_badge_svg(report);
+        return render_badge_stats(total);
     };
     let lower = name.to_lowercase();
     let color = language_color(&lower);
-    match report
-        .languages
-        .iter()
-        .find(|l| l.name.to_lowercase() == lower)
-    {
+    match languages.iter().find(|l| l.name.to_lowercase() == lower) {
         Some(lr) => lang_badge_svg(name, &format_stat(lr.stats.code), color),
         None => lang_badge_svg(name, "\u{2014}", "#6e7681"),
     }
 }
 
-fn render_for_params(report: &Report, params: &BadgeParams) -> String {
+fn render_from_stats(
+    total: &LanguageStats,
+    languages: &[LanguageReport],
+    language_count: usize,
+    params: &BadgeParams,
+) -> String {
     if params.lang.is_some() {
-        return render_for_lang(report, params.lang.as_deref());
+        return render_for_lang(total, languages, params.lang.as_deref());
     }
 
     match params.badge_type.as_deref().map(normalize_badge_type) {
-        Some("code") => single_badge_svg("code", &format_stat(report.total.code), "#78ff5b"),
-        Some("lines") => single_badge_svg("lines", &format_stat(report.total.lines), "#58a6ff"),
-        Some("files") => single_badge_svg("files", &format_stat(report.total.files), "#d29922"),
-        Some("comments") => {
-            single_badge_svg("comments", &format_stat(report.total.comments), "#d2a8ff")
-        }
+        Some("code") => single_badge_svg("code", &format_stat(total.code), "#78ff5b"),
+        Some("lines") => single_badge_svg("lines", &format_stat(total.lines), "#58a6ff"),
+        Some("files") => single_badge_svg("files", &format_stat(total.files), "#d29922"),
+        Some("comments") => single_badge_svg("comments", &format_stat(total.comments), "#d2a8ff"),
         Some("languages") => {
-            single_badge_svg("languages", &format_stat(report.languages.len()), "#79c0ff")
+            single_badge_svg("languages", &format_stat(language_count), "#79c0ff")
         }
-        Some("top-language") => match report.languages.first() {
+        Some("top-language") => match languages.first() {
             Some(language) => {
                 let color = language_color(&language.name.to_lowercase());
                 single_badge_svg("top language", &language.name, color)
@@ -374,11 +423,37 @@ fn render_for_params(report: &Report, params: &BadgeParams) -> String {
         },
         Some("ratio") => single_badge_svg(
             "code share",
-            &format_percent(report.total.code, report.total.lines),
+            &format_percent(total.code, total.lines),
             "#78ff5b",
         ),
-        _ => render_badge_svg(report),
+        _ => render_badge_stats(total),
     }
+}
+
+/// Renders from a projected [`ReportCard`] whenever it has all data required
+/// (every non-`?lang=` badge, every top-12 language badge, and any repo with
+/// <= 12 languages), avoiding a second DB round trip and full JSONB parse.
+fn try_render_from_card(card: &ReportCard, params: &BadgeParams) -> Option<String> {
+    if let Some(lang) = params.lang.as_deref() {
+        let lower = lang.to_lowercase();
+        let found = card
+            .languages
+            .iter()
+            .any(|language| language.name.to_lowercase() == lower);
+        if !found && card.language_count > card.languages.len() {
+            return None;
+        }
+    }
+    Some(render_from_stats(
+        &card.total,
+        &card.languages,
+        card.language_count,
+        params,
+    ))
+}
+
+fn render_for_params(report: &Report, params: &BadgeParams) -> String {
+    render_from_stats(&report.total, &report.languages, report.languages.len(), params)
 }
 
 fn normalize_badge_type(value: &str) -> &str {
@@ -671,7 +746,7 @@ pub async fn star_history_badge(
         return limited;
     }
 
-    let (history, current_stars, _, _, _, _) =
+    let (_, _, history, current_stars, _, _, _, _) =
         match ensure_repo_history(&state, RepositoryProvider::GitHub, &owner, &repo).await {
             Ok(result) => result,
             Err(_) => {

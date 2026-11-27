@@ -24,6 +24,21 @@ fn hashed_tag(kind: &str, value: &str) -> String {
 }
 
 fn request_tag(uri: &axum::http::Uri) -> Option<String> {
+    let path = uri.path();
+    // Fast-path: skip URL allocation/parsing on every route that never carries
+    // a per-repo or per-report cache tag (/healthz, /readyz, /api/stats,
+    // /api/jobs/*, /api/analyze, /api/seo/recent|popular|monoliths|sitemap|...).
+    let tagged_path = path.starts_with("/api/reports/")
+        || path.starts_with("/badge/")
+        || path.starts_with("/og/")
+        || matches!(
+            path,
+            "/api/seo/report" | "/api/seo/related" | "/api/seo/redirect" | "/api/seo/repo-history"
+        );
+    if !tagged_path {
+        return None;
+    }
+
     let url = url::Url::parse(&format!("http://localhost{uri}")).ok()?;
     let parts: Vec<String> = url
         .path()

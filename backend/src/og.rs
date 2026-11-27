@@ -11,7 +11,8 @@ use serde::Deserialize;
 use crate::{
     api::AppState,
     cache::AppCaches,
-    models::{Report, RepositoryProvider},
+    models::RepositoryProvider,
+    store::OgReportSummary,
 };
 
 /// DejaVu Sans Mono, embedded so that rendering never touches the filesystem and
@@ -48,19 +49,29 @@ pub async fn github(
     State(state): State<AppState>,
     Path((owner, repo)): Path<(String, String)>,
 ) -> Response {
+    let generation = state.caches.generation();
+    let latest_key = format!("{generation}:github:{owner}:{repo}");
+    if let Some(png) = state.caches.og_latest.get(&latest_key).await {
+        return png_response(png);
+    }
+
     let report = state
         .coordinator
         .store()
-        .latest_report(RepositoryProvider::GitHub, &owner, &repo)
+        .latest_og_summary(RepositoryProvider::GitHub, &owner, &repo)
         .await
         .ok()
         .flatten();
-    og_response(
+    let png = render_or_cached_png(
         &state.caches,
         og_cache_key(RepositoryProvider::GitHub, &owner, &repo, report.as_ref()),
         move || render_png(&render_svg(report.as_ref())),
     )
-    .await
+    .await;
+    if !png.is_empty() && generation == state.caches.generation() {
+        state.caches.og_latest.insert(latest_key, png.clone()).await;
+    }
+    png_response(png)
 }
 
 /// `GET /og/compare?left=owner/repo&right=owner/repo`: the share card of a
@@ -78,21 +89,34 @@ pub async fn compare(State(state): State<AppState>, Query(query): Query<CompareQ
         })
         .await;
     };
+    let generation = state.caches.generation();
+    let latest_key = format!(
+        "{generation}:compare:{}/{}:{}/{}",
+        left.0, left.1, right.0, right.1
+    );
+    if let Some(png) = state.caches.og_latest.get(&latest_key).await {
+        return png_response(png);
+    }
+
     let store = state.coordinator.store();
     let (left_report, right_report) = tokio::join!(
-        store.latest_report(RepositoryProvider::GitHub, &left.0, &left.1),
-        store.latest_report(RepositoryProvider::GitHub, &right.0, &right.1),
+        store.latest_og_summary(RepositoryProvider::GitHub, &left.0, &left.1),
+        store.latest_og_summary(RepositoryProvider::GitHub, &right.0, &right.1),
     );
     // A failed lookup is treated like a missing report: the card degrades to
     // the repo-less default rather than failing the share URL.
     let (left_report, right_report) = (left_report.ok().flatten(), right_report.ok().flatten());
     let card = CompareCard::build(left_report.as_ref(), right_report.as_ref());
-    og_response(
+    let png = render_or_cached_png(
         &state.caches,
         compare_cache_key(left_report.as_ref(), right_report.as_ref()),
         move || render_png(&render_compare_svg(card.as_deref())),
     )
-    .await
+    .await;
+    if !png.is_empty() && generation == state.caches.generation() {
+        state.caches.og_latest.insert(latest_key, png.clone()).await;
+    }
+    png_response(png)
 }
 
 #[derive(Deserialize)]
@@ -134,8 +158,8 @@ struct CompareSide {
 impl CompareCard {
     /// `None` unless both sides have a report: a comparison of one
     /// repository is not a comparison.
-    fn build(left: Option<&Report>, right: Option<&Report>) -> Option<Box<Self>> {
-        let side = |report: &Report| {
+    fn build(left: Option<&OgReportSummary>, right: Option<&OgReportSummary>) -> Option<Box<Self>> {
+        let side = |report: &OgReportSummary| {
             let top = report
                 .languages
                 .iter()
@@ -148,7 +172,7 @@ impl CompareCard {
                     )
                 });
             CompareSide {
-                full_name: format!("{}/{}", report.repository.owner, report.repository.name),
+                full_name: format!("{}/{}", report.owner, report.repo),
                 code: report.total.code,
                 lines: report.total.lines,
                 files: report.total.files,
@@ -165,15 +189,10 @@ impl CompareCard {
 /// `compare:owner/repo:commit:owner/repo:commit`. Like the single-report key,
 /// the commits are part of it, so a cached PNG can never disagree with the
 /// reports it was rendered from.
-fn compare_cache_key(left: Option<&Report>, right: Option<&Report>) -> String {
-    let side = |report: Option<&Report>| {
+fn compare_cache_key(left: Option<&OgReportSummary>, right: Option<&OgReportSummary>) -> String {
+    let side = |report: Option<&OgReportSummary>| {
         report
-            .map(|report| {
-                format!(
-                    "{}/{}:{}",
-                    report.repository.owner, report.repository.name, report.commit_sha
-                )
-            })
+            .map(|report| format!("{}/{}:{}", report.owner, report.repo, report.commit_sha))
             .unwrap_or_default()
     };
     format!("compare:{}:{}", side(left), side(right))
@@ -188,19 +207,29 @@ pub async fn gitlab(State(state): State<AppState>, Path(path): Path<String>) -> 
         .await;
     };
     let owner = owner_parts.join("/");
+    let generation = state.caches.generation();
+    let latest_key = format!("{generation}:gitlab:{owner}:{repo}");
+    if let Some(png) = state.caches.og_latest.get(&latest_key).await {
+        return png_response(png);
+    }
+
     let report = state
         .coordinator
         .store()
-        .latest_report(RepositoryProvider::GitLab, &owner, repo)
+        .latest_og_summary(RepositoryProvider::GitLab, &owner, repo)
         .await
         .ok()
         .flatten();
-    og_response(
+    let png = render_or_cached_png(
         &state.caches,
         og_cache_key(RepositoryProvider::GitLab, &owner, repo, report.as_ref()),
         move || render_png(&render_svg(report.as_ref())),
     )
-    .await
+    .await;
+    if !png.is_empty() && generation == state.caches.generation() {
+        state.caches.og_latest.insert(latest_key, png.clone()).await;
+    }
+    png_response(png)
 }
 
 /// Key used for the repo-less fallback card, which is identical for every miss.
@@ -213,7 +242,7 @@ fn og_cache_key(
     provider: RepositoryProvider,
     owner: &str,
     repo: &str,
-    report: Option<&Report>,
+    report: Option<&OgReportSummary>,
 ) -> String {
     let Some(report) = report else {
         return DEFAULT_OG_CACHE_KEY.to_string();
@@ -228,32 +257,37 @@ fn og_cache_key(
 /// Rasterizing 1200x630 and PNG-encoding it takes single-digit milliseconds of
 /// pure CPU. Running that inline would park a tokio worker for the whole time,
 /// so it is handed to the blocking pool instead — and, once rendered, the bytes
-/// are memoized so repeat traffic for the same key never rasterizes again.
+/// are memoized (and coalesced via `try_get_with`) so concurrent and repeat
+/// traffic for the same commit key never rasterizes more than once.
+async fn render_or_cached_png<F>(caches: &AppCaches, cache_key: String, render: F) -> Bytes
+where
+    F: FnOnce() -> anyhow::Result<Vec<u8>> + Send + 'static,
+{
+    match caches
+        .og_png
+        .try_get_with(cache_key, async {
+            let png = tokio::task::spawn_blocking(render)
+                .await
+                .map_err(anyhow::Error::from)
+                .and_then(|result| result)?;
+            anyhow::ensure!(!png.is_empty(), "rendered og png was empty");
+            anyhow::Ok(Bytes::from(png))
+        })
+        .await
+    {
+        Ok(png) => png,
+        Err(error) => {
+            tracing::warn!(%error, "failed to render og image");
+            Bytes::new()
+        }
+    }
+}
+
 async fn og_response<F>(caches: &AppCaches, cache_key: String, render: F) -> Response
 where
     F: FnOnce() -> anyhow::Result<Vec<u8>> + Send + 'static,
 {
-    let generation = caches.generation();
-    if let Some(png) = caches.og_png.get(&cache_key).await {
-        return png_response(png);
-    }
-
-    let png = tokio::task::spawn_blocking(render)
-        .await
-        .map_err(anyhow::Error::from)
-        .and_then(|result| result)
-        .unwrap_or_else(|error| {
-            tracing::warn!(%error, "failed to render og image");
-            Vec::new()
-        });
-    let png = Bytes::from(png);
-
-    // An empty body means the render failed; never memoize a failure.
-    if !png.is_empty() && generation == caches.generation() {
-        caches.og_png.insert(cache_key, png.clone()).await;
-    }
-
-    png_response(png)
+    png_response(render_or_cached_png(caches, cache_key, render).await)
 }
 
 fn png_response(png: Bytes) -> Response {
@@ -290,10 +324,10 @@ fn render_png(svg: &str) -> anyhow::Result<Vec<u8>> {
         .map_err(|error| anyhow::anyhow!("failed to encode png: {error}"))
 }
 
-fn render_svg(report: Option<&Report>) -> String {
+fn render_svg(report: Option<&OgReportSummary>) -> String {
     let (repo, ref_line, total, code, comments, blanks, languages) = match report {
         Some(report) => (
-            format!("{}/{}", report.repository.owner, report.repository.name),
+            format!("{}/{}", report.owner, report.repo),
             format!(
                 "{} / {} / {}ms",
                 report.ref_name,

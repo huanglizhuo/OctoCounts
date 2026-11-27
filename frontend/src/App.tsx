@@ -825,7 +825,7 @@ function HomeFaqSection() {
 function PublicReportIndex() {
   const { t } = useTranslation();
   const { ref, isNear } = useNearViewport<HTMLElement>();
-  const query = useQuery({ queryKey: ["growth-stats"], queryFn: fetchGrowthStats, staleTime: 5 * 60 * 1000, enabled: isNear });
+  const query = useQuery({ queryKey: ["growth-stats"], queryFn: ({ signal }) => fetchGrowthStats(signal), staleTime: 5 * 60 * 1000, enabled: isNear });
   const totals = query.data?.totals;
   const statsCopy = totals
     ? t("growth.index.stats", {

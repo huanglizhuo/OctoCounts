@@ -101,7 +101,7 @@ export function faqForLanguage(language: string | undefined): HomeFaqEntry[] {
 /// FAQPage JSON-LD body for the homepage, in the page's language. Rendered by
 /// the React FAQ section itself (a <script> tag inside the tree) so the
 /// structured data and the visible answers share one source by construction.
-export function faqPageJsonLd(language: string | undefined) {
+function faqPageJsonLd(language: string | undefined) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",

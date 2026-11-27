@@ -16,6 +16,7 @@
 /frontend/dist/
 /frontend/.generated/
 /frontend/.wrangler/
+/.wrangler/
 /extension/node_modules/
 /extension/dist/
 /extension/packages/

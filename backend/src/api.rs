@@ -6,6 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use bytes::Bytes;
 use uuid::Uuid;
 
 use crate::{
@@ -13,9 +14,7 @@ use crate::{
     coordinator::{job_is_finished, AnalysisCoordinator},
     error::ApiError,
     metrics::Metrics,
-    models::{
-        AnalyzeRequest, AnalyzeResponse, GrowthStats, JobRecord, JobStatus, RepositoryProvider,
-    },
+    models::{AnalyzeRequest, AnalyzeResponse, JobRecord, JobStatus, RepositoryProvider},
     ratelimit::{client_ip, RateLimits},
 };
 
@@ -168,22 +167,36 @@ fn requested_wait(query: Option<&str>) -> Option<Duration> {
 ///
 /// `cached` is whatever the stored body says, exactly as before: unlike the
 /// analyze cache-hit path, this handler never forces it to `true`.
+enum ReportLookupError {
+    NotFound,
+    Internal(anyhow::Error),
+}
+
 pub async fn report(
     State(state): State<AppState>,
     Path(report_id): Path<String>,
 ) -> Result<Response, ApiError> {
-    let Some(body) = state
-        .coordinator
-        .store()
-        .report_json(&report_id)
+    let generation = state.caches.generation();
+    let cache_key = format!("{generation}:{report_id}");
+    let body = state
+        .caches
+        .report_json
+        .try_get_with(cache_key, async {
+            match state.coordinator.store().report_json(&report_id).await {
+                Ok(Some(json)) => Ok(Bytes::from(json)),
+                Ok(None) => Err(ReportLookupError::NotFound),
+                Err(error) => Err(ReportLookupError::Internal(error)),
+            }
+        })
         .await
-        .map_err(ApiError::internal)?
-    else {
-        return Err(ApiError::not_found(
-            "report_not_found",
-            "report was not found",
-        ));
-    };
+        .map_err(|error| match error.as_ref() {
+            ReportLookupError::NotFound => {
+                ApiError::not_found("report_not_found", "report was not found")
+            }
+            ReportLookupError::Internal(err) => {
+                ApiError::internal(anyhow::anyhow!("{err:#}"))
+            }
+        })?;
 
     Ok((
         [
@@ -263,29 +276,33 @@ pub(crate) fn is_repo_part(value: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
 }
 
-pub async fn stats(
-    State(state): State<AppState>,
-) -> Result<(HeaderMap, Json<GrowthStats>), ApiError> {
-    let cache_key = "stats".to_string();
-    if let Some(stats) = state.caches.stats.get(&cache_key).await {
-        return Ok((stats_cache_headers(), Json(stats)));
-    }
+pub async fn stats(State(state): State<AppState>) -> Result<Response, ApiError> {
+    let body = state
+        .caches
+        .stats
+        .try_get_with("stats".to_string(), async {
+            // A cold cache (just booted, before the refresh task's first load): the
+            // shared copy, however old, beats a full-table scan inside the edge's
+            // budget. Only an empty database computes inline.
+            let store = state.coordinator.store();
+            let stats = match store.stored_growth_stats().await {
+                Ok(Some(stats)) => stats,
+                _ => store.growth_stats().await?,
+            };
+            anyhow::Ok(Bytes::from(serde_json::to_vec(&stats)?))
+        })
+        .await
+        .map_err(|error| ApiError::internal(anyhow::anyhow!("{error:#}")))?;
 
-    // A cold cache (just booted, before the refresh task's first load): the
-    // shared copy, however old, beats a full-table scan inside the edge's
-    // budget. Only an empty database computes inline.
-    let store = state.coordinator.store();
-    let stats = match store.stored_growth_stats().await {
-        Ok(Some(stats)) => stats,
-        _ => store.growth_stats().await.map_err(ApiError::internal)?,
-    };
-    state.caches.stats.insert(cache_key, stats.clone()).await;
-
-    Ok((stats_cache_headers(), Json(stats)))
+    Ok((stats_cache_headers(), body).into_response())
 }
 
 fn stats_cache_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
     // The refresh task keeps the origin copy warm, so the edge can hold the
     // aggregate longer (SEO audit M13: 60s had every /stats render racing the
     // origin on busy isolates); SWR covers the refresh gap.
@@ -324,23 +341,13 @@ pub async fn internal_stats(
         ));
     }
 
-    let job_counts = state
-        .coordinator
-        .store()
-        .job_status_counts()
-        .await
+    let store = state.coordinator.store();
+    let (job_counts, reports) = tokio::try_join!(store.job_status_counts(), store.reports_count())
         .map_err(ApiError::internal)?;
     let mut jobs = serde_json::Map::new();
     for (status, count) in job_counts {
         jobs.insert(status, count.into());
     }
-
-    let reports = state
-        .coordinator
-        .store()
-        .reports_count()
-        .await
-        .map_err(ApiError::internal)?;
 
     Ok(Json(serde_json::json!({
         "uptime_seconds": state.metrics.uptime().as_secs(),

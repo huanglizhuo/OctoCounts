@@ -111,8 +111,23 @@ export const COMPARE_REGISTRY = [
   { slug: "nomad-vs-kubernetes", name: "Nomad vs Kubernetes", left: { owner: "hashicorp", repo: "nomad" }, right: { owner: "kubernetes", repo: "kubernetes" } },
 ];
 
+const COMPARISON_BY_SLUG = new Map(COMPARE_REGISTRY.map((entry) => [entry.slug, entry]));
+const COMPARISON_INDEX = new Map(COMPARE_REGISTRY.map((entry, index) => [entry, index]));
+const COMPARISONS_BY_REPO = new Map();
+for (const entry of COMPARE_REGISTRY) {
+  for (const side of [entry.left, entry.right]) {
+    const key = `${side.owner}/${side.repo}`.toLowerCase();
+    let list = COMPARISONS_BY_REPO.get(key);
+    if (!list) {
+      list = [];
+      COMPARISONS_BY_REPO.set(key, list);
+    }
+    if (!list.includes(entry)) list.push(entry);
+  }
+}
+
 export function findCuratedComparison(slug) {
-  return COMPARE_REGISTRY.find((entry) => entry.slug === slug) || null;
+  return COMPARISON_BY_SLUG.get(slug) || null;
 }
 
 const COMPARISONS_BY_LANGUAGE = {
@@ -135,6 +150,13 @@ const COMPARISONS_BY_LANGUAGE = {
   CSS: ["bootstrap-vs-tailwind"],
 };
 
+const LANGUAGE_COMPARISON_ENTRIES = new Map(
+  Object.entries(COMPARISONS_BY_LANGUAGE).map(([language, slugs]) => [
+    language,
+    slugs.map((slug) => COMPARISON_BY_SLUG.get(slug)).filter(Boolean),
+  ])
+);
+
 /// Curated comparisons for a report page: first every comparison this
 /// repository is part of (react/react -> React vs Vue, ...), then up to three
 /// matching its top programming language, so every long-tail /github/* page
@@ -142,11 +164,8 @@ const COMPARISONS_BY_LANGUAGE = {
 /// report page and the client report page.
 export function relatedComparisons(repoFullName, topLanguageName) {
   const fullName = String(repoFullName ?? "").toLowerCase();
-  const own = COMPARE_REGISTRY.filter((entry) => [entry.left, entry.right].some((side) => `${side.owner}/${side.repo}`.toLowerCase() === fullName));
-  const byLanguage = (COMPARISONS_BY_LANGUAGE[topLanguageName] || [])
-    .map((slug) => findCuratedComparison(slug))
-    .filter(Boolean)
-    .slice(0, 3);
+  const own = COMPARISONS_BY_REPO.get(fullName) || [];
+  const byLanguage = (LANGUAGE_COMPARISON_ENTRIES.get(topLanguageName) || []).slice(0, 3);
   return [...new Set([...own, ...byLanguage])].slice(0, 4);
 }
 
@@ -155,19 +174,22 @@ export function relatedComparisons(repoFullName, topLanguageName) {
 /// order, never the comparison itself, at most six. Shared by the edge
 /// compare page and the client compare page.
 export function adjacentComparisons(slug) {
-  const entry = findCuratedComparison(slug);
+  const entry = COMPARISON_BY_SLUG.get(slug);
   if (!entry) return [];
-  const sides = [entry.left, entry.right].map(side => `${side.owner}/${side.repo}`.toLowerCase());
-  return COMPARE_REGISTRY
-    .filter(candidate => candidate.slug !== entry.slug
-      && [candidate.left, candidate.right].some(side => sides.includes(`${side.owner}/${side.repo}`.toLowerCase())))
+  const leftKey = `${entry.left.owner}/${entry.left.repo}`.toLowerCase();
+  const rightKey = `${entry.right.owner}/${entry.right.repo}`.toLowerCase();
+  const candidates = new Set([
+    ...(COMPARISONS_BY_REPO.get(leftKey) || []),
+    ...(COMPARISONS_BY_REPO.get(rightKey) || []),
+  ]);
+  candidates.delete(entry);
+  return [...candidates]
+    .sort((a, b) => COMPARISON_INDEX.get(a) - COMPARISON_INDEX.get(b))
     .slice(0, 6);
 }
 
 /// The curated comparisons of one programming language, for the language
 /// leaderboards: what readers of the Rust leaderboard can compare next.
 export function comparisonsForLanguage(languageName) {
-  return (COMPARISONS_BY_LANGUAGE[languageName] || [])
-    .map(slug => findCuratedComparison(slug))
-    .filter(Boolean);
+  return [...(LANGUAGE_COMPARISON_ENTRIES.get(languageName) || [])];
 }

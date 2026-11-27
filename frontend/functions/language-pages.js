@@ -15,7 +15,7 @@ const BRAND = " | OctoCounts";
 const TITLE_LIMIT = 60;
 const DESCRIPTION_LIMIT = 160;
 
-export const DATA_FORMAT_EXAMPLES = "JSON, YAML, TOML and Markdown";
+const DATA_FORMAT_EXAMPLES = "JSON, YAML, TOML and Markdown";
 
 function formatNumber(value) {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
